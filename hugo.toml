@@ -1,0 +1,102 @@
+# Site Configuration
+theme = "blowfish"
+baseURL = "https://ethanchang.io"
+defaultContentLanguage = "en"
+disableLanguages = []
+title = "Ethan's Blog"
+description = "A personal blog about iOS development, AI, and productivity tools"
+
+# Blowfish theme configuration
+[blowfish]
+  colorScheme = "custom-dark"
+
+# Theme settings
+[params.footer]
+  showThemeAttribution = false
+
+# Author configuration
+[author]
+  name = "Ethan Chang"
+  email = "hey@ethanchang.io"
+
+# Build settings
+enableRobotsTXT = true
+summaryLength = 30
+hasCJKLanguage = true
+
+buildDrafts = false
+buildFuture = false
+enableEmoji = true
+
+# Pagination
+[pagination]
+  pagerSize = 10
+
+# Imaging
+[imaging]
+  anchor = 'Center'
+
+# Taxonomies
+[taxonomies]
+  tag = "tags"
+  category = "categories"
+  author = "authors"
+  series = "series"
+
+# Sitemap
+[sitemap]
+  changefreq = 'always'
+  filename = 'sitemap.xml'
+  priority = 0.5
+
+# Outputs
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+# Related content
+[related]
+  threshold = 0
+  toLower = false
+
+  [[related.indices]]
+    name = "tags"
+    weight = 100
+
+  [[related.indices]]
+    name = "categories"
+    weight = 100
+
+# Main Menu
+[[menu.main]]
+  name = "Home"
+  pageRef = ""
+  weight = 10
+
+[[menu.main]]
+  name = "Projects"
+  pageRef = "projects"
+  weight = 20
+
+[[menu.main]]
+  name = "About"
+  pageRef = "about"
+  weight = 30
+
+[[menu.main]]
+  identifier = "twitter"
+  pre = "twitter"
+  url = "https://twitter.com/ethanchang_"
+  weight = 100
+
+# 指定主要内容区域
+mainSections = ["posts"]
+
+# 首页配置
+[params.homepage]
+  layout = "profile"
+  showRecent = true
+  showRecentItems = 10
+  showMoreLink = true
+  showMoreLinkDest = "/posts/"
+  cardView = true
+  cardViewScreenWidth = false
