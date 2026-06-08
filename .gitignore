@@ -1,0 +1,22 @@
+# Hugo build output
+/public/
+/resources/_gen/
+.hugo_build.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Cloudflare / wrangler
+.wrangler/
+
+# Local tooling
+.mcp_data/
+
+# Node (if ever used locally)
+node_modules/

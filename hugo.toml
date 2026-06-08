@@ -3,16 +3,27 @@ theme = "blowfish"
 baseURL = "https://ethanchang.io"
 defaultContentLanguage = "en"
 disableLanguages = []
-title = "Ethan's Blog"
+title = "Ethan Chang（张峻源）"
 description = "A personal blog about iOS development, AI, and productivity tools"
 
 # Blowfish theme configuration
-[blowfish]
+[params]
   colorScheme = "custom-dark"
 
 # Theme settings
 [params.footer]
   showThemeAttribution = false
+
+# List layout configuration
+[params.list]
+  showBreadcrumbs = false
+  showSummary = false
+  showViews = false
+  showLikes = false
+  showTableOfContents = false
+  showCards = false
+  groupByYear = false
+  cardView = false
 
 # Author configuration
 [author]
@@ -93,10 +104,8 @@ mainSections = ["posts"]
 
 # 首页配置
 [params.homepage]
-  layout = "profile"
+  layout = "page"
   showRecent = true
-  showRecentItems = 10
-  showMoreLink = true
-  showMoreLinkDest = "/posts/"
-  cardView = true
-  cardViewScreenWidth = false
+  showRecentItems = 50
+  showMoreLink = false
+  cardView = false
