@@ -1,5 +1,6 @@
 ---
 import { site } from '@/data/profile';
+import AuthMenu from '@/components/shell/AuthMenu.svelte';
 
 const links = [
   { href: '/stories', label: '故事' },
@@ -41,6 +42,9 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
           </li>
         ))
       }
+      <li>
+        <AuthMenu client:load />
+      </li>
     </ul>
   </nav>
 </header>

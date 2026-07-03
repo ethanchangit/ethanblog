@@ -2,3 +2,11 @@ name = "ethanblog"
 pages_build_output_dir = "dist"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare D1 — create with: wrangler d1 create ethanblog
+# Then replace database_id and run: wrangler d1 migrations apply ethanblog
+[[d1_databases]]
+binding = "DB"
+database_name = "ethanblog"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
