@@ -4,7 +4,18 @@
  * 每个组件在这里都有一个最小可用示例；新组件先在这里点亮再进故事。
  */
 import Base from '@/layouts/Base.astro';
-import { ParamSlider, BeforeAfterSlider, ScrollScene } from '@/components/media';
+import {
+  ParamSlider,
+  BeforeAfterSlider,
+  ScrollScene,
+  Timeline,
+  StatCounter,
+  AudioClip,
+  InteractiveDemo,
+  VideoEmbed,
+  CodePlayground,
+} from '@/components/media';
+import demoPeaks from '@/data/demo-chime-peaks.json';
 ---
 
 <Base title="Lab" description="媒介组件试验场">
@@ -56,7 +67,7 @@ import { ParamSlider, BeforeAfterSlider, ScrollScene } from '@/components/media'
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">ScrollScene</h2>
     <div data-testid="scroll-scene">
       <ScrollScene
-        client:visible
+        client:visible={{ rootMargin: '150% 0px' }}
         scenes={[
           {
             title: '一切从一张卡片开始',
@@ -78,6 +89,74 @@ import { ParamSlider, BeforeAfterSlider, ScrollScene } from '@/components/media'
           },
         ]}
         caption="滚动推进故事：可视化随场景平滑演变。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Timeline</h2>
+    <div data-testid="timeline">
+      <Timeline
+        client:visible
+        items={[
+          { date: '2024', title: '第一行 Swift', body: '从 UIKit 起步，爱上原生开发的手感。', icon: '🌱' },
+          { date: '2025', title: 'Robert 立项', body: '语音优先的笔记应用开始动工。', icon: '🎙️' },
+          { date: '2026', title: '这个网站诞生', body: '从博客到超媒体容器。', icon: '🚀' },
+        ]}
+        caption="时间线组件：节点随滚动渐入。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">StatCounter</h2>
+    <div data-testid="stat-counter">
+      <StatCounter
+        client:visible
+        stats={[
+          { value: 7, label: '进行中的项目' },
+          { value: 1200, label: '知识卡片', suffix: '+' },
+          { value: 3, label: '媒介档位' },
+          { value: 100, label: '折腾指数', suffix: '%' },
+        ]}
+        caption="数字滚动计数：进入视野时从 0 数到终值。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">AudioClip</h2>
+    <div data-testid="audio-clip">
+      <AudioClip
+        client:visible
+        src="/media/demo-chime.wav"
+        title="演示音频 · 合成琶音"
+        peaks={demoPeaks}
+        caption="自绘波形播放器：点击波形跳转进度。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">InteractiveDemo</h2>
+    <div data-testid="interactive-demo">
+      <InteractiveDemo
+        client:visible
+        src="/demos/knowledge-garden/"
+        title="知识花园 · knowledge-garden"
+        caption="沙箱中运行的真实小软件：点击画布种下想法。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">VideoEmbed</h2>
+    <div data-testid="video-embed">
+      <VideoEmbed
+        provider="youtube"
+        id="jNQXAC9IVRw"
+        title="Me at the zoo（示例视频）"
+        caption="视频 facade：点击封面才加载播放器，零注水成本。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">CodePlayground（stub）</h2>
+    <div data-testid="code-playground">
+      <CodePlayground
+        title="hello.js"
+        lang="javascript"
+        code={`// 未来这里可以直接点 Run\nconst medium = ['文字', '图片', '视频', '软件'];\nconsole.log(medium.at(-1) + ' 是最高档位的媒介');`}
+        caption="代码展示组件：在线运行能力在路线图上。"
       />
     </div>
   </div>
