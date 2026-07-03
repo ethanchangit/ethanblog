@@ -394,3 +394,7 @@ hugo server -D --baseURL http://localhost:1313/
 3. **把记忆边缘化**（Workers + D1）
 
 这样网站会像一个可以持续加功能的软件——每一篇新文章、每一个新项目、每一个新 Widget，都是在给这个产品写一个新版本。
+
+---
+
+*更大胆的北极星愿景（EthanOS 概念）见 [VISION_NORTH_STAR.md](./VISION_NORTH_STAR.md)*
