@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robert · 语音笔记</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: rgb(24 26 28);
+    color: rgb(203 213 225);
+    font-family: ui-sans-serif, 'PingFang SC', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid rgb(48 51 55);
+    background: rgb(36 38 41);
+    flex-shrink: 0;
+  }
+  .header h1 { font-size: 14px; font-weight: 600; color: rgb(241 245 249); }
+  .header span { font-family: ui-monospace, monospace; font-size: 11px; color: rgb(100 116 139); }
+  .recorder {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid rgb(48 51 55);
+    flex-shrink: 0;
+  }
+  .wave-wrap {
+    position: relative; height: 72px; margin-bottom: 14px;
+    background: rgb(36 38 41); border-radius: 10px;
+    border: 1px solid rgb(48 51 55); overflow: hidden;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .wave-idle {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: ui-monospace, monospace; font-size: 11px; color: rgb(100 116 139);
+    pointer-events: none; transition: opacity 0.3s;
+  }
+  .wave-idle.hidden { opacity: 0; }
+  .controls { display: flex; align-items: center; gap: 12px; }
+  .mic-btn {
+    width: 52px; height: 52px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgb(37 99 235); color: rgb(248 250 252);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .mic-btn:hover { background: rgb(59 130 246); }
+  .mic-btn.recording {
+    background: rgb(8 145 178);
+    box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.25);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mic-btn.recording { animation: none; }
+    .block { animation: none; }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.25); }
+    50% { box-shadow: 0 0 0 8px rgba(34, 211, 238, 0.08); }
+  }
+  .status { flex: 1; min-width: 0; }
+  .status .label { font-size: 13px; font-weight: 500; color: rgb(241 245 249); }
+  .status .hint { font-family: ui-monospace, monospace; font-size: 11px; color: rgb(100 116 139); margin-top: 2px; }
+  .status .hint b { color: rgb(34 211 238); font-weight: 500; }
+  .blocks {
+    flex: 1; overflow-y: auto; padding: 12px 16px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .blocks-empty {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 32px 16px; text-align: center;
+    font-family: ui-monospace, monospace; font-size: 12px; color: rgb(100 116 139);
+  }
+  .block {
+    background: rgb(36 38 41); border: 1px solid rgb(48 51 55);
+    border-radius: 10px; padding: 12px 14px;
+    animation: slideIn 0.35s ease-out both;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .block-type {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: rgb(34 211 238); margin-bottom: 6px;
+  }
+  .block-type.todo { color: rgb(96 165 250); }
+  .block p { font-size: 14px; line-height: 1.55; color: rgb(203 213 225); }
+  .block .todo-item {
+    display: flex; align-items: flex-start; gap: 8px; font-size: 14px;
+  }
+  .block .todo-item input { margin-top: 3px; accent-color: rgb(34 211 238); }
+  .block time {
+    display: block; margin-top: 8px;
+    font-family: ui-monospace, monospace; font-size: 10px; color: rgb(100 116 139);
+  }
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>Robert</h1>
+  <span>语音优先 · 演示</span>
+</header>
+
+<section class="recorder" aria-label="语音录制">
+  <div class="wave-wrap">
+    <canvas id="wave"></canvas>
+    <div class="wave-idle" id="waveIdle">点击麦克风开始录制</div>
+  </div>
+  <div class="controls">
+    <button class="mic-btn" id="micBtn" aria-label="开始录制">🎙</button>
+    <div class="status">
+      <div class="label" id="statusLabel">准备就绪</div>
+      <div class="hint" id="statusHint">点击麦克风模拟语音输入</div>
+    </div>
+  </div>
+</section>
+
+<div class="blocks-empty" id="empty">转写后的块级卡片将出现在这里</div>
+<div class="blocks" id="blocks" hidden></div>
+
+<script>
+  const wave = document.getElementById('wave');
+  const waveCtx = wave.getContext('2d');
+  const waveIdle = document.getElementById('waveIdle');
+  const micBtn = document.getElementById('micBtn');
+  const statusLabel = document.getElementById('statusLabel');
+  const statusHint = document.getElementById('statusHint');
+  const blocksEl = document.getElementById('blocks');
+  const emptyEl = document.getElementById('empty');
+
+  let recording = false;
+  let animId = null;
+  let timerId = null;
+  let recordStart = 0;
+  let audioCtx = null;
+  let analyser = null;
+  let micStream = null;
+  let dataArray = null;
+  let useSimulated = true;
+  let phase = 0;
+
+  const TRANSCRIPT = [
+    { type: 'text', html: '<p>今天和产品组对齐了 Robert 的语音转写流程 —— Whisper 走 Cloudflare Workers，延迟控制在 2 秒内。</p>' },
+    { type: 'todo', html: '<label class="todo-item"><input type="checkbox"> 把块级编辑器的 undo 栈接入 GRDB</label>' },
+    { type: 'text', html: '<p>另外想到：重复提醒的待办应该和日历视图联动，下次迭代再拆。</p>' },
+  ];
+
+  function resizeWave() {
+    const wrap = wave.parentElement;
+    const dpr = devicePixelRatio || 1;
+    wave.width = wrap.clientWidth * dpr;
+    wave.height = wrap.clientHeight * dpr;
+    wave.style.width = wrap.clientWidth + 'px';
+    wave.style.height = wrap.clientHeight + 'px';
+    waveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resizeWave);
+  resizeWave();
+
+  function drawWave(levels) {
+    const w = wave.parentElement.clientWidth;
+    const h = wave.parentElement.clientHeight;
+    waveCtx.clearRect(0, 0, w, h);
+    const n = levels.length;
+    const gap = 2;
+    const bw = Math.max(2, (w - gap * (n - 1)) / n);
+    for (let i = 0; i < n; i++) {
+      const bh = Math.max(3, levels[i] * (h - 12));
+      const x = i * (bw + gap);
+      waveCtx.fillStyle = levels[i] > 0.15 ? 'rgb(34 211 238)' : 'rgb(62 66 71)';
+      waveCtx.beginPath();
+      waveCtx.roundRect(x, (h - bh) / 2, bw, bh, 1.5);
+      waveCtx.fill();
+    }
+  }
+
+  function simulateLevels() {
+    phase += 0.18;
+    const n = 48;
+    const levels = [];
+    for (let i = 0; i < n; i++) {
+      const base = Math.sin(phase + i * 0.35) * 0.3 + 0.35;
+      const noise = Math.random() * 0.45;
+      levels.push(Math.min(1, base + noise));
+    }
+    return levels;
+  }
+
+  function tickWave() {
+    if (!recording) return;
+    if (useSimulated) {
+      drawWave(simulateLevels());
+    } else if (analyser && dataArray) {
+      analyser.getByteFrequencyData(dataArray);
+      const n = 48;
+      const levels = [];
+      const step = Math.floor(dataArray.length / n);
+      for (let i = 0; i < n; i++) {
+        levels.push(dataArray[i * step] / 255);
+      }
+      drawWave(levels);
+    }
+    animId = requestAnimationFrame(tickWave);
+  }
+
+  function tickTimer() {
+    if (!recording) return;
+    const elapsed = Math.floor((performance.now() - recordStart) / 1000);
+    const timer = document.getElementById('timer');
+    if (timer) {
+      timer.textContent = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+    }
+    timerId = setTimeout(tickTimer, 200);
+  }
+
+  async function tryRealMic() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new AudioContext();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const src = audioCtx.createMediaStreamSource(micStream);
+      src.connect(analyser);
+      dataArray = new Uint8Array(analyser.frequencyBinCount);
+      useSimulated = false;
+    } catch {
+      useSimulated = true;
+    }
+  }
+
+  function stopMic() {
+    if (micStream) micStream.getTracks().forEach((t) => t.stop());
+    if (audioCtx) audioCtx.close();
+    micStream = null;
+    audioCtx = null;
+    analyser = null;
+    useSimulated = true;
+  }
+
+  function startRecording() {
+    recording = true;
+    recordStart = performance.now();
+    micBtn.classList.add('recording');
+    micBtn.setAttribute('aria-label', '停止录制');
+    waveIdle.classList.add('hidden');
+    statusLabel.textContent = '正在录制…';
+    statusHint.innerHTML = '再次点击结束 · <b id="timer">0:00</b>';
+    tryRealMic();
+    tickWave();
+    tickTimer();
+  }
+
+  function stopRecording() {
+    recording = false;
+    cancelAnimationFrame(animId);
+    clearTimeout(timerId);
+    micBtn.classList.remove('recording');
+    micBtn.setAttribute('aria-label', '开始录制');
+    stopMic();
+    statusLabel.textContent = '转写中…';
+    statusHint.textContent = 'Whisper · Cloudflare Workers';
+    drawWave(new Array(48).fill(0.08));
+
+    setTimeout(() => {
+      statusLabel.textContent = '转写完成';
+      statusHint.textContent = '块级卡片已生成';
+      waveIdle.classList.remove('hidden');
+      waveIdle.textContent = '录制完成 · 可再次录制';
+      revealBlocks();
+    }, 1200);
+  }
+
+  function revealBlocks() {
+    emptyEl.hidden = true;
+    blocksEl.hidden = false;
+    blocksEl.innerHTML = '';
+    TRANSCRIPT.forEach((block, i) => {
+      setTimeout(() => {
+        const el = document.createElement('article');
+        el.className = 'block';
+        el.innerHTML =
+          `<div class="block-type${block.type === 'todo' ? ' todo' : ''}">${block.type === 'todo' ? '待办' : '文本'}</div>` +
+          block.html +
+          `<time>${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time>`;
+        blocksEl.appendChild(el);
+        blocksEl.scrollTop = blocksEl.scrollHeight;
+      }, i * 350);
+    });
+  }
+
+  micBtn.addEventListener('click', () => {
+    recording ? stopRecording() : startRecording();
+  });
+</script>
+</body>
+</html>

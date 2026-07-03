@@ -7,9 +7,22 @@ stack: ["Electron", "React", "TypeScript", "Tiptap"]
 platforms: ["macOS", "Windows"]
 repo: "https://github.com/ethanchangit/network"
 featured: true
+demo:
+  src: "/demos/network/"
+  height: "480px"
 ---
 
+import { InteractiveDemo } from '@/components/media';
+
 Network 是一款为重度键盘用户设计的桌面笔记应用——双手不离开键盘，完成从记录到组织的全部操作。
+
+<InteractiveDemo
+  client:visible
+  src="/demos/network/"
+  title="Network · 键盘笔记"
+  height="480px"
+  caption="方向键导航卡片，Enter 进入 Markdown 编辑，Esc 保存退出。"
+/>
 
 ## 功能
 

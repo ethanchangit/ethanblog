@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network · 键盘笔记</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: rgb(24 26 28);
+    color: rgb(203 213 225);
+    font-family: ui-sans-serif, 'PingFang SC', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    overflow: hidden;
+  }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid rgb(48 51 55);
+    background: rgb(36 38 41); flex-shrink: 0;
+  }
+  .header h1 { font-size: 14px; font-weight: 600; color: rgb(241 245 249); }
+  .kbd-hint {
+    font-family: ui-monospace, monospace; font-size: 10px; color: rgb(100 116 139);
+  }
+  .kbd-hint kbd {
+    display: inline-block; padding: 1px 5px; margin: 0 1px;
+    background: rgb(48 51 55); border: 1px solid rgb(62 66 71);
+    border-radius: 4px; color: rgb(148 163 184); font-size: 10px;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-bottom: 1px solid rgb(48 51 55);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .search {
+    flex: 1; min-width: 120px;
+    background: rgb(36 38 41); border: 1px solid rgb(48 51 55);
+    border-radius: 6px; padding: 6px 10px;
+    font: inherit; font-size: 13px; color: rgb(203 213 225);
+    outline: none;
+  }
+  .search:focus { border-color: rgb(34 211 238); }
+  .tag-filter {
+    display: flex; gap: 4px; flex-wrap: wrap;
+  }
+  .tag-btn {
+    font-family: ui-monospace, monospace; font-size: 10px;
+    padding: 3px 8px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgb(48 51 55); background: rgb(36 38 41);
+    color: rgb(148 163 184); transition: border-color 0.15s, color 0.15s;
+  }
+  .tag-btn:hover { border-color: rgb(100 116 139); color: rgb(203 213 225); }
+  .tag-btn.active {
+    border-color: rgb(34 211 238); color: rgb(34 211 238);
+    background: rgba(34, 211, 238, 0.08);
+  }
+  .grid-wrap {
+    flex: 1; overflow-y: auto; padding: 12px 14px 16px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .card {
+    background: rgb(36 38 41); border: 1px solid rgb(48 51 55);
+    border-radius: 10px; padding: 12px; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+  .card:hover { border-color: rgb(62 66 71); }
+  .card.selected {
+    border-color: rgb(34 211 238);
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.3);
+  }
+  .card.editing { border-color: rgb(59 130 246); }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: rgb(241 245 249);
+    margin-bottom: 6px; line-height: 1.4;
+  }
+  .card-body {
+    font-size: 12px; line-height: 1.55; color: rgb(148 163 184);
+    min-height: 3.1em;
+  }
+  .card-body h1, .card-body h2 { font-size: 13px; color: rgb(203 213 225); margin-bottom: 4px; }
+  .card-body strong { color: rgb(203 213 225); font-weight: 600; }
+  .card-body em { color: rgb(34 211 238); font-style: normal; }
+  .card-body ul { padding-left: 16px; margin-top: 4px; }
+  .card-body li { margin-bottom: 2px; }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .card-tag {
+    font-family: ui-monospace, monospace; font-size: 9px;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgb(48 51 55); color: rgb(100 116 139);
+  }
+  .card-tag.highlight { color: rgb(34 211 238); background: rgba(34, 211, 238, 0.1); }
+  .editor {
+    width: 100%; min-height: 80px; resize: none;
+    background: rgb(24 26 28); border: 1px solid rgb(48 51 55);
+    border-radius: 6px; padding: 8px; font: inherit;
+    font-family: ui-monospace, monospace; font-size: 12px;
+    color: rgb(203 213 225); line-height: 1.55; outline: none;
+  }
+  .editor:focus { border-color: rgb(34 211 238); }
+  .status-bar {
+    padding: 6px 14px; border-top: 1px solid rgb(48 51 55);
+    font-family: ui-monospace, monospace; font-size: 10px;
+    color: rgb(100 116 139); flex-shrink: 0;
+  }
+  .status-bar b { color: rgb(34 211 238); font-weight: 500; }
+  .empty { grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: rgb(100 116 139); font-size: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .card { transition: none; }
+  }
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>Network</h1>
+  <p class="kbd-hint"><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 导航 · <kbd>Enter</kbd> 编辑 · <kbd>Esc</kbd> 退出</p>
+</header>
+
+<div class="toolbar">
+  <input class="search" id="search" type="search" placeholder="搜索卡片…" aria-label="搜索卡片">
+  <div class="tag-filter" id="tagFilter"></div>
+</div>
+
+<div class="grid-wrap">
+  <div class="grid" id="grid" role="list"></div>
+</div>
+
+<div class="status-bar" id="status">选中 <b>0</b> / 0 · 键盘驱动</div>
+
+<script>
+  const NOTES = [
+    {
+      id: 1,
+      title: '快捷键体系',
+      md: '# 快捷键\n\n- **Cmd+K** 命令面板\n- **Cmd+/** 搜索\n- *Enter* 进入编辑',
+      tags: ['product', 'keyboard'],
+    },
+    {
+      id: 2,
+      title: 'Tiptap 集成',
+      md: '## Markdown 编辑\n\n基于 **Tiptap** 的块级编辑器，支持 `代码` 与列表。',
+      tags: ['dev', 'editor'],
+    },
+    {
+      id: 3,
+      title: '标签组织',
+      md: '用 #标签 快速归类卡片，支持多标签交叉筛选。',
+      tags: ['product', 'tags'],
+    },
+    {
+      id: 4,
+      title: 'PDF 批注',
+      md: '## 文档支持\n\n- PDF 高亮\n- 链接回卡片\n- 全文检索',
+      tags: ['feature', 'docs'],
+    },
+    {
+      id: 5,
+      title: '同步架构',
+      md: '本地 **SQLite** + 云同步，冲突以最新编辑为准。',
+      tags: ['dev', 'sync'],
+    },
+    {
+      id: 6,
+      title: '发布清单',
+      md: '- [ ] electron-builder 签名\n- [x] 自动更新通道\n- [ ] Windows 安装包',
+      tags: ['dev', 'release'],
+    },
+  ];
+
+  const grid = document.getElementById('grid');
+  const search = document.getElementById('search');
+  const tagFilter = document.getElementById('tagFilter');
+  const status = document.getElementById('status');
+
+  let selectedIdx = 0;
+  let editing = false;
+  let activeTag = null;
+  let query = '';
+  let filtered = [...NOTES];
+
+  const allTags = [...new Set(NOTES.flatMap((n) => n.tags))].sort();
+
+  function mdToHtml(md) {
+    return md
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/^- \[ \] (.+)$/gm, '<ul><li>☐ $1</li></ul>')
+      .replace(/^- \[x\] (.+)$/gm, '<ul><li>☑ $1</li></ul>')
+      .replace(/^- (.+)$/gm, '<ul><li>$1</li></ul>')
+      .replace(/(<\/ul>\n?<ul>)/g, '')
+      .replace(/\n\n/g, '<br>');
+  }
+
+  function applyFilter() {
+    filtered = NOTES.filter((n) => {
+      const matchTag = !activeTag || n.tags.includes(activeTag);
+      const q = query.toLowerCase();
+      const matchQuery =
+        !q ||
+        n.title.toLowerCase().includes(q) ||
+        n.md.toLowerCase().includes(q) ||
+        n.tags.some((t) => t.includes(q));
+      return matchTag && matchQuery;
+    });
+    if (selectedIdx >= filtered.length) selectedIdx = Math.max(0, filtered.length - 1);
+    render();
+  }
+
+  function renderTags() {
+    tagFilter.innerHTML = `<button class="tag-btn${activeTag === null ? ' active' : ''}" data-tag="">全部</button>` +
+      allTags.map((t) =>
+        `<button class="tag-btn${activeTag === t ? ' active' : ''}" data-tag="${t}">#${t}</button>`
+      ).join('');
+    tagFilter.querySelectorAll('.tag-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activeTag = btn.dataset.tag || null;
+        renderTags();
+        applyFilter();
+      });
+    });
+  }
+
+  function render() {
+    if (filtered.length === 0) {
+      grid.innerHTML = '<p class="empty">没有匹配的卡片</p>';
+      status.innerHTML = '选中 <b>0</b> / 0';
+      return;
+    }
+
+    grid.innerHTML = filtered.map((note, i) => {
+      const sel = i === selectedIdx;
+      const edit = sel && editing;
+      return `<article class="card${sel ? ' selected' : ''}${edit ? ' editing' : ''}"
+        role="listitem" tabindex="${sel ? 0 : -1}" data-idx="${i}" aria-selected="${sel}">
+        <div class="card-title">${note.title}</div>
+        ${edit
+          ? `<textarea class="editor" aria-label="编辑 ${note.title}">${note.md}</textarea>`
+          : `<div class="card-body">${mdToHtml(note.md)}</div>`}
+        <div class="card-tags">${note.tags.map((t) =>
+          `<span class="card-tag${activeTag === t ? ' highlight' : ''}">#${t}</span>`
+        ).join('')}</div>
+      </article>`;
+    }).join('');
+
+    const selCard = grid.querySelector('.card.selected');
+    if (selCard) {
+      selCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (editing) {
+        const ta = selCard.querySelector('.editor');
+        if (ta) { ta.focus(); ta.selectionStart = ta.value.length; }
+      } else {
+        selCard.focus();
+      }
+    }
+
+    status.innerHTML = `选中 <b>${selectedIdx + 1}</b> / ${filtered.length}${editing ? ' · 编辑中' : ''}`;
+  }
+
+  function move(dx, dy) {
+    if (editing || filtered.length === 0) return;
+    const cols = Math.max(1, Math.floor(grid.clientWidth / 210));
+    const row = Math.floor(selectedIdx / cols);
+    const col = selectedIdx % cols;
+    const rows = Math.ceil(filtered.length / cols);
+    let nr = row + dy;
+    let nc = col + dx;
+    if (dy !== 0) {
+      nr = Math.max(0, Math.min(rows - 1, nr));
+      selectedIdx = Math.min(filtered.length - 1, nr * cols + col);
+    } else {
+      nc = Math.max(0, Math.min(cols - 1, nc));
+      const idx = row * cols + nc;
+      if (idx < filtered.length) selectedIdx = idx;
+    }
+    render();
+  }
+
+  function startEdit() {
+    if (filtered.length === 0) return;
+    editing = true;
+    render();
+  }
+
+  function stopEdit(save) {
+    if (!editing) return;
+    if (save) {
+      const ta = grid.querySelector('.editor');
+      if (ta) filtered[selectedIdx].md = ta.value;
+    }
+    editing = false;
+    render();
+  }
+
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    selectedIdx = Number(card.dataset.idx);
+    if (e.target.closest('.editor')) return;
+    editing = false;
+    render();
+  });
+
+  grid.addEventListener('dblclick', () => startEdit());
+
+  search.addEventListener('input', () => {
+    query = search.value.trim();
+    applyFilter();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (editing) {
+      if (e.key === 'Escape') { e.preventDefault(); stopEdit(true); }
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); stopEdit(true); }
+      return;
+    }
+    if (e.target === search) return;
+    switch (e.key) {
+      case 'ArrowUp': e.preventDefault(); move(0, -1); break;
+      case 'ArrowDown': e.preventDefault(); move(0, 1); break;
+      case 'ArrowLeft': e.preventDefault(); move(-1, 0); break;
+      case 'ArrowRight': e.preventDefault(); move(1, 0); break;
+      case 'Enter': e.preventDefault(); startEdit(); break;
+    }
+  });
+
+  renderTags();
+  applyFilter();
+</script>
+</body>
+</html>

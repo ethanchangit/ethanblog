@@ -12,8 +12,10 @@ import {
   StatCounter,
   AudioClip,
   InteractiveDemo,
+  ImageGallery,
   VideoEmbed,
   CodePlayground,
+  Scene3D,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
 ---
@@ -140,6 +142,40 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
       />
     </div>
 
+    <div data-testid="interactive-demo-robert" class="mt-6">
+      <InteractiveDemo
+        client:visible
+        src="/demos/robert/"
+        title="Robert · 语音笔记"
+        height="520px"
+        caption="语音录制 UI + 转写后的块级卡片。"
+      />
+    </div>
+
+    <div data-testid="interactive-demo-network" class="mt-6">
+      <InteractiveDemo
+        client:visible
+        src="/demos/network/"
+        title="Network · 键盘笔记"
+        height="480px"
+        caption="键盘导航卡片网格，Enter 进入 Markdown 编辑。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">ImageGallery</h2>
+    <div data-testid="image-gallery">
+      <ImageGallery
+        client:visible
+        columns={3}
+        images={[
+          { src: '/media/compare-before.svg', alt: '线稿山景', caption: '文字档' },
+          { src: '/media/compare-after.svg', alt: '彩色山景', caption: '图像档' },
+          { src: '/og-default.svg', alt: '站点默认 OG 图', caption: '封面' },
+        ]}
+        caption="点击图片打开灯箱：Escape 关闭，方向键切换。"
+      />
+    </div>
+
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">VideoEmbed</h2>
     <div data-testid="video-embed">
       <VideoEmbed
@@ -150,13 +186,33 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
       />
     </div>
 
-    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">CodePlayground（stub）</h2>
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">CodePlayground</h2>
     <div data-testid="code-playground">
       <CodePlayground
         title="hello.js"
         lang="javascript"
-        code={`// 未来这里可以直接点 Run\nconst medium = ['文字', '图片', '视频', '软件'];\nconsole.log(medium.at(-1) + ' 是最高档位的媒介');`}
-        caption="代码展示组件：在线运行能力在路线图上。"
+        template="vanilla"
+        code={`const medium = ['文字', '图片', '视频', '软件'];\nconsole.log(medium.at(-1) + ' 是最高档位的媒介');\n\ndocument.body.innerHTML = '<p style="font-family:system-ui;padding:1rem;color:#22d3ee">' + medium.at(-1) + ' 是最高档位的媒介</p>';`}
+        caption="Sandpack 沙箱：点击 Run 在 iframe 中执行代码。无 JS 时降级为只读代码块。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Scene3D</h2>
+    <div data-testid="scene-3d">
+      <Scene3D
+        client:visible
+        scene="globe"
+        height={300}
+        caption="three.js 岛屿：线框地球，颜色来自设计 token。关闭动效时静态渲染。"
+      />
+    </div>
+
+    <div data-testid="scene-3d-particles" class="mt-8">
+      <Scene3D
+        client:visible
+        scene="particles"
+        height={240}
+        caption="粒子场场景：900 个粒子缓慢旋转。"
       />
     </div>
   </div>

@@ -7,9 +7,22 @@ stack: ["SwiftUI", "GRDB", "Cloudflare Workers"]
 platforms: ["iOS 17+"]
 repo: "https://github.com/ethanchangit/robert"
 featured: true
+demo:
+  src: "/demos/robert/"
+  height: "520px"
 ---
 
+import { InteractiveDemo } from '@/components/media';
+
 Robert 是一款受 flomo 启发的灵活笔记应用，核心理念是**语音优先**——让记录的摩擦力降到最低。
+
+<InteractiveDemo
+  client:visible
+  src="/demos/robert/"
+  title="Robert · 语音笔记"
+  height="520px"
+  caption="点击麦克风模拟录制，转写后生成块级卡片。"
+/>
 
 ## 功能
 
