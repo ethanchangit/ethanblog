@@ -1,0 +1,29 @@
+{
+  "name": "ethanblog",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "npx serve dist",
+    "check": "astro check",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=ethanblog"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/cloudflare": "^12.5.0",
+    "@astrojs/mdx": "^4.2.0",
+    "@astrojs/rss": "^4.0.11",
+    "@astrojs/svelte": "^7.0.0",
+    "@fontsource-variable/inter": "^5.2.0",
+    "@fontsource/jetbrains-mono": "^5.2.0",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.1.0",
+    "astro": "^5.7.0",
+    "gsap": "^3.13.0",
+    "svelte": "^5.28.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知识花园 · Knowledge Garden</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: rgb(24 26 28);
+    color: rgb(203 213 225);
+    font-family: ui-monospace, 'JetBrains Mono', 'PingFang SC', monospace;
+    overflow: hidden;
+    user-select: none;
+  }
+  canvas { display: block; cursor: crosshair; }
+  .hud {
+    position: fixed; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    pointer-events: none; font-size: 12px; color: rgb(100 116 139);
+  }
+  .hud b { color: rgb(34 211 238); font-weight: 500; }
+  .hud button {
+    pointer-events: auto; cursor: pointer;
+    background: rgb(36 38 41); color: rgb(203 213 225);
+    border: 1px solid rgb(62 66 71); border-radius: 6px;
+    padding: 4px 10px; font: inherit;
+  }
+  .hud button:hover { border-color: rgb(100 116 139); }
+  .hint {
+    position: fixed; bottom: 14px; left: 0; right: 0;
+    text-align: center; font-size: 12px; color: rgb(100 116 139);
+    pointer-events: none; transition: opacity 1s;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <span>已种下 <b id="count">0</b> 个想法 · 长出 <b id="links">0</b> 条连接</span>
+  <button id="reset">清空花园</button>
+</div>
+<p class="hint" id="hint">在任意位置点击，种下一个想法 —— 靠得近的想法会自己连接起来</p>
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const LINK = 130;
+  let notes = [];
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = innerWidth * dpr;
+    canvas.height = innerHeight * dpr;
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  function tick(t) {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    let links = 0;
+    for (let i = 0; i < notes.length; i++) {
+      const a = notes[i];
+      // 轻微漂浮
+      a.x += Math.sin(t / 1800 + a.phase) * 0.15;
+      a.y += Math.cos(t / 2200 + a.phase) * 0.12;
+      for (let j = i + 1; j < notes.length; j++) {
+        const b = notes[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < LINK) {
+          links++;
+          ctx.globalAlpha = (1 - d / LINK) * 0.5;
+          ctx.strokeStyle = 'rgb(71 85 105)';
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    for (const n of notes) {
+      const age = Math.min(1, (t - n.born) / 400);
+      const r = n.hub ? 4.5 : 3;
+      ctx.fillStyle = n.hub ? 'rgb(34 211 238)' : 'rgb(96 165 250)';
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r * age, 0, Math.PI * 2);
+      ctx.fill();
+      if (age < 1) {
+        ctx.globalAlpha = 1 - age;
+        ctx.strokeStyle = 'rgb(34 211 238)';
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 6 + age * 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+    document.getElementById('links').textContent = links;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  canvas.addEventListener('pointerdown', (e) => {
+    notes.push({
+      x: e.clientX, y: e.clientY,
+      born: performance.now(),
+      phase: Math.random() * Math.PI * 2,
+      hub: notes.length % 7 === 0,
+    });
+    document.getElementById('count').textContent = notes.length;
+    if (notes.length > 2) document.getElementById('hint').style.opacity = '0';
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    notes = [];
+    document.getElementById('count').textContent = 0;
+    document.getElementById('hint').style.opacity = '1';
+  });
+</script>
+</body>
+</html>

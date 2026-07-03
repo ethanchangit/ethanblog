@@ -1,0 +1,124 @@
+---
+import Base from '@/layouts/Base.astro';
+import { statusLabel } from '@/lib/format';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  project: CollectionEntry<'projects'>;
+}
+
+const { project } = Astro.props;
+const { name, tagline, status, stack, platforms, repo, homepage, downloads, screenshots } =
+  project.data;
+const badge = statusLabel[status];
+---
+
+<Base title={name} description={tagline}>
+  <article class="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <div class="mb-3 flex items-center gap-3">
+        <span class:list={['rounded-full px-2.5 py-0.5 text-xs font-medium', badge.class]}>
+          {badge.text}
+        </span>
+        {
+          platforms.map((p) => (
+            <span class="font-mono text-xs text-ink-500">{p}</span>
+          ))
+        }
+      </div>
+      <h1 class="text-3xl font-semibold text-ink-100 sm:text-4xl">{name}</h1>
+      <p class="mt-3 text-lg text-ink-400">{tagline}</p>
+    </header>
+
+    <div class="grid gap-10 lg:grid-cols-[1fr_260px]">
+      <div>
+        {
+          screenshots.length > 0 && (
+            <div class="mb-10 grid gap-4 sm:grid-cols-2">
+              {screenshots.map((s) => (
+                <img
+                  src={s.src}
+                  alt={s.alt}
+                  loading="lazy"
+                  class="rounded-lg border border-surface-800"
+                />
+              ))}
+            </div>
+          )
+        }
+        <div class="prose-site">
+          <slot />
+        </div>
+      </div>
+
+      <aside class="lg:sticky lg:top-20 lg:self-start">
+        <div class="rounded-xl border border-surface-800 bg-surface-900 p-5">
+          {
+            (repo || homepage) && (
+              <div class="flex flex-col gap-2">
+                {homepage && (
+                  <a
+                    href={homepage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-md bg-primary-600 px-4 py-2 text-center text-sm font-medium text-ink-50 transition-colors hover:bg-primary-500"
+                  >
+                    访问网站 ↗
+                  </a>
+                )}
+                {repo && (
+                  <a
+                    href={repo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-md border border-surface-700 px-4 py-2 text-center text-sm font-medium text-ink-200 transition-colors hover:border-surface-600 hover:bg-surface-800"
+                  >
+                    GitHub 仓库 ↗
+                  </a>
+                )}
+              </div>
+            )
+          }
+          {
+            downloads.length > 0 && (
+              <div class="mt-5">
+                <h2 class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">下载</h2>
+                <ul class="flex flex-col gap-1.5">
+                  {downloads.map((d) => (
+                    <li>
+                      <a
+                        href={d.url}
+                        class="flex items-center justify-between rounded-md border border-surface-800 px-3 py-2 text-sm text-ink-200 transition-colors hover:border-surface-600 hover:bg-surface-800"
+                      >
+                        <span>{d.label}</span>
+                        {d.platform && <span class="font-mono text-xs text-ink-500">{d.platform}</span>}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          }
+          {
+            stack.length > 0 && (
+              <div class="mt-5">
+                <h2 class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">技术栈</h2>
+                <ul class="flex flex-wrap gap-1.5">
+                  {stack.map((t) => (
+                    <li class="rounded bg-surface-800 px-2 py-0.5 font-mono text-xs text-ink-400">{t}</li>
+                  ))}
+                </ul>
+              </div>
+            )
+          }
+        </div>
+      </aside>
+    </div>
+
+    <footer class="mt-16 border-t border-surface-800 pt-8">
+      <a href="/projects" class="text-sm text-ink-500 transition-colors hover:text-primary-400">
+        ← 返回全部作品
+      </a>
+    </footer>
+  </article>
+</Base>

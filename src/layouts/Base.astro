@@ -1,0 +1,55 @@
+---
+import '@fontsource-variable/inter';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@/styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+import Nav from '@/components/shell/Nav.astro';
+import Footer from '@/components/shell/Footer.astro';
+import { site } from '@/data/profile';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+}
+
+const { title, description = site.description, ogImage = '/og-default.svg' } = Astro.props;
+const pageTitle = title ? `${title} · ${site.title}` : `${site.title} — 超媒体个人主页`;
+const canonical = new URL(Astro.url.pathname, site.url);
+---
+
+<!doctype html>
+<html lang={site.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+    <meta name="generator" content={Astro.generator} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL(ogImage, site.url)} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#181a1c" />
+    <ClientRouter />
+  </head>
+  <body class="flex min-h-screen flex-col">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-surface-800 focus:px-3 focus:py-2 focus:text-ink-100"
+    >
+      跳到正文
+    </a>
+    <Nav />
+    <main id="main" class="flex-1">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

@@ -1,0 +1,37 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import { getCollection } from 'astro:content';
+import { statusLabel } from '@/lib/format';
+
+const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<Base title="作品" description="我写的软件与开源项目 —— 可下载、可导航、可在线体验。">
+  <section class="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">Projects</p>
+      <h1 class="text-3xl font-semibold text-ink-100">作品</h1>
+      <p class="mt-3 max-w-xl text-ink-400">
+        我做的软件与开源项目。有些可以直接下载使用，有些可以在页面里在线体验。
+      </p>
+    </header>
+    <div class="grid gap-4 sm:grid-cols-2">
+      {
+        projects.map((p) => (
+          <Card
+            href={`/projects/${p.id}`}
+            title={p.data.name}
+            description={p.data.tagline}
+            meta={p.data.platforms.join(' · ') || undefined}
+            badge={{
+              text: statusLabel[p.data.status].text,
+              accent: p.data.status === 'active',
+            }}
+            tags={p.data.stack}
+          />
+        ))
+      }
+    </div>
+  </section>
+</Base>

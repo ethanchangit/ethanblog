@@ -1,7 +1,10 @@
-# Hugo build output
-/public/
-/resources/_gen/
-.hugo_build.lock
+# Astro build output
+dist/
+.astro/
+
+# Node
+node_modules/
+npm-debug.log*
 
 # OS files
 .DS_Store
@@ -18,5 +21,6 @@ Thumbs.db
 # Local tooling
 .mcp_data/
 
-# Node (if ever used locally)
-node_modules/
+# Environment
+.env
+.env.production

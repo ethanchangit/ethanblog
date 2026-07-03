@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675">
+  <rect width="1200" height="675" fill="#181a1c"/>
+  <g fill="none" stroke="#475569" stroke-width="2">
+    <path d="M0 520 L260 300 L420 430 L640 210 L860 420 L1040 320 L1200 440"/>
+    <path d="M0 560 L200 460 L380 530 L560 440 L760 540 L980 470 L1200 540" stroke="#334155"/>
+    <circle cx="920" cy="150" r="55"/>
+  </g>
+  <g font-family="ui-monospace, monospace" fill="#64748b">
+    <text x="60" y="90" font-size="30">「远处有一座山，</text>
+    <text x="60" y="135" font-size="30">山后是落日。」</text>
+    <text x="60" y="620" font-size="18">—— 文字只能这样描述</text>
+  </g>
+</svg>
