@@ -1,36 +1,21 @@
 ---
 /**
- * CodePlayground（Phase 1 stub）：
- * 目前渲染 Shiki 高亮的只读代码块 + 禁用的 Run 按钮。
- * 真正的可运行沙箱（Sandpack / WebContainer）在组件库路线图上。
+ * CodePlayground — Astro 薄包装，保留 MDX 零指令用法。
+ * SSR 由 Svelte 岛屿提供只读代码降级；client:visible 后 Run 按钮启用 Sandpack 沙箱。
  */
-import { Code } from 'astro:components';
-import type { BundledLanguage } from 'shiki';
+import CodePlaygroundIsland from './CodePlayground.svelte';
+import type { PlaygroundFile, PlaygroundTemplate } from '@/lib/sandpack/setup';
 
 interface Props {
   code: string;
-  lang?: BundledLanguage;
+  lang?: string;
   title?: string;
   caption?: string;
+  files?: Record<string, PlaygroundFile>;
+  template?: PlaygroundTemplate;
 }
 
-const { code, lang = 'javascript', title = 'playground.js', caption } = Astro.props;
+const props = Astro.props as Props;
 ---
 
-<figure class="media-frame not-prose">
-  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950/60 px-4 py-2.5">
-    <p class="font-mono text-xs text-ink-400">{title}</p>
-    <button
-      type="button"
-      disabled
-      title="在线运行即将上线"
-      class="cursor-not-allowed rounded bg-surface-800 px-3 py-1 font-mono text-xs text-ink-600"
-    >
-      ▶ Run（即将上线）
-    </button>
-  </div>
-  <div class="overflow-x-auto p-4 text-sm [&_pre]:!bg-transparent">
-    <Code code={code} lang={lang} theme="vesper" />
-  </div>
-  {caption && <figcaption class="media-caption">{caption}</figcaption>}
-</figure>
+<CodePlaygroundIsland client:visible {...props} />
