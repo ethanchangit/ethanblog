@@ -21,6 +21,12 @@ Thumbs.db
 # Local tooling
 .mcp_data/
 
+# Playwright
+tests/screenshots/
+test-results/
+playwright-report/
+blob-report/
+
 # Environment
 .env
 .env.production

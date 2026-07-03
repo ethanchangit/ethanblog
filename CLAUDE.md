@@ -16,6 +16,7 @@ npm run dev        # 本地开发（端口 4321）
 npm run build      # 生产构建，输出到 dist/
 npm run preview    # 静态伺服 dist/（Cloudflare adapter 不支持 astro preview）
 npm run check      # astro check：类型 + 内容 schema 校验
+npm run test       # Playwright 测试（需先 npm run build）
 npm run deploy     # 构建并手动部署到 Cloudflare Pages
 ```
 
@@ -30,12 +31,12 @@ src/
   layouts/                 Base / Story / Project
   components/shell/        Nav / Footer / Card / SectionHeading
   components/home/         Hero / NowPanel / SkillsGraph / FeaturedGrid
-  components/media/        ★ 媒介组件库（见其 README.md，契约必读）
-  pages/                   index / stories / projects / about / lab / 404 / rss.xml.ts
+  components/media/        ★ 媒介组件库（12 件，见其 README.md，契约必读）
+  pages/                   index / stories / projects / about / lab / 404 / rss.xml.ts / api/*
   content/stories/*.mdx    故事（kind: interactive | essay）
   content/projects/*.mdx   项目（结构化 frontmatter：repo/downloads/screenshots/demo）
 public/
-  demos/<name>/index.html  自包含软件演示包（InteractiveDemo 加载）
+  demos/<name>/index.html  自包含软件演示包（knowledge-garden / robert / network）
   media/                   图片、音频等静态媒体
 scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 ```
@@ -57,9 +58,18 @@ scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 3. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
 4. 手动部署：`npm run deploy`
 
-## Phase 2 路线图（账户体系，尚未实现）
+## Phase 2 账户体系（已实现，部署需配置）
 
-- API 路由放 `src/pages/api/**`（`export const prerender = false`），Cloudflare adapter 已就位
-- D1 表：users / sessions / bookmarks / progress；绑定写进 `wrangler.toml` 的 `[[d1_databases]]`
-- Auth 方案：better-auth + GitHub/Google OAuth
-- 约定：用户态一律通过 `src/lib/user.ts` 走（现在恒 null），组件不自建全局状态
+- API 路由：`src/pages/api/{auth,me,bookmarks,progress}.ts`（`export const prerender = false`）
+- D1：`wrangler.toml` 绑定 `DB` → `migrations/0001_init.sql`；迁移脚本 `./scripts/migrate-d1.sh`
+- Auth：better-auth + GitHub/Google OAuth → `src/lib/auth.ts` + `src/lib/auth-client.ts`
+- 用户态：一律经 `src/lib/user.ts`（服务端 `getUser()` / 客户端 `fetchUser()`），组件不自建全局状态
+- 部署前需设置 Cloudflare Pages 环境变量（见 `src/env.d.ts`）：`BETTER_AUTH_SECRET`、`GITHUB_CLIENT_*`、`GOOGLE_CLIENT_*`
+
+## Phase 3+ 媒介升档（已实现）
+
+- `CodePlayground`：Sandpack 沙箱（`src/lib/sandpack/setup.ts`）
+- `Scene3D`：three.js 场景注册表（`src/lib/scene3d/registry.ts`）
+- `ImageGallery`：图片网格 + Lightbox
+- 演示包：`public/demos/{knowledge-garden,robert,network}/`
+- 测试：`npm run test`（Playwright 46 项，CI 在 deploy 前运行）

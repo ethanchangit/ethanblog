@@ -40,11 +40,11 @@
 
 ```
 内容层    src/content/{stories,projects}/*.mdx   + src/data/profile.ts（个人资料单一数据源）
-媒介层    src/components/media/                   10 个可嵌入 MDX 的媒介组件（网站的心脏）
+媒介层    src/components/media/                   12 个可嵌入 MDX 的媒介组件（网站的心脏）
 可视化    src/lib/viz/registry.ts                 canvas 绘制注册表，新可视化在此注册
 外壳层    layouts/{Base,Story,Project}            + components/{shell,home}
 质保层    /lab 页面                               每个组件的常驻最小示例（先点亮再进故事）
-接缝层    src/lib/user.ts                         用户态入口（Phase 2 前恒 null）
+接缝层    src/lib/user.ts                         用户态入口（/api/me，未登录时 null）
 ```
 
 **媒介组件库契约要点**（完整版见 [media/README.md](../src/components/media/README.md)）：
@@ -55,37 +55,35 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 ## 四、Phase 1 —— 超媒体容器 ✅（2026-07 完成）
 
 - [x] Hugo + Blowfish 整体迁移到 Astro 5（删 submodule，无损迁移全部文章与项目，旧 URL 301）
-- [x] 媒介组件库 10 件：ParamSlider ★ / ScrollScene ★ / InteractiveDemo ★ / BeforeAfterSlider / Timeline / StatCounter / AudioClip / VideoEmbed / CodePlayground(stub) / MediaFrame
+- [x] 媒介组件库 10 件（Phase 1）：ParamSlider ★ / ScrollScene ★ / InteractiveDemo ★ / BeforeAfterSlider / Timeline / StatCounter / AudioClip / VideoEmbed / CodePlayground(stub) / MediaFrame
 - [x] 首个软件演示包 `public/demos/knowledge-garden/`（沙箱 iframe 承载）
 - [x] 旗舰交互故事 how-this-site-works（宣言 + 全组件演示）
 - [x] 个人 OS 主页、/lab 试验场、RSS
 - [x] CI 重写（Node 22 + astro check + wrangler-action@v3）
-- [x] 验证体系：Playwright 真实交互测试（19 项）、全站路由爬取、reduced-motion 降级检查、双端截图
+- [x] 验证体系：Playwright 真实交互测试（46 项）、全站路由爬取、reduced-motion 降级检查、双端截图
 
-## 五、Phase 2 —— 账户体系（把容器变成产品）
+## 五、Phase 2 —— 账户体系 ✅（2026-07 完成）
 
 目标：网站开始"认识回来的你"——登录、收藏、阅读进度、跨设备记忆。
 
-- **API 路由**：`src/pages/api/**`，`export const prerender = false`（adapter 已就位，零重构）
-- **数据库**：Cloudflare D1，绑定写进 `wrangler.toml` 的 `[[d1_databases]]`
-  ```sql
-  users(id, provider, provider_id, name, avatar_url, created_at)
-  sessions(id, user_id, expires_at)
-  bookmarks(user_id, story_slug, created_at, PK(user_id, story_slug))
-  progress(user_id, story_slug, percent REAL, updated_at, PK(user_id, story_slug))
-  ```
-- **认证**：better-auth（自带 D1 + GitHub/Google OAuth），挂载 `src/pages/api/auth/[...all].ts`
-- **接缝已埋好**：所有用户态经 `src/lib/user.ts`（现在恒 null）；Story 布局的阅读进度条、未来的收藏按钮读同一个入口，点亮是纯增量，组件不自建全局状态
-- 交互数据轻量起步：收藏与进度先行，标注（highlight）其后
+- [x] **API 路由**：`src/pages/api/**`（auth / me / bookmarks / progress），`export const prerender = false`
+- [x] **数据库**：Cloudflare D1 绑定 `wrangler.toml` → `migrations/0001_init.sql`（better-auth 表 + bookmarks / progress）
+- [x] **认证**：better-auth + GitHub/Google OAuth → `src/pages/api/auth/[...all].ts`
+- [x] **接缝点亮**：`src/lib/user.ts` 经 `/api/me` 读取会话；Story 布局的阅读进度条与收藏按钮已接入
+- [x] **UI**：Nav 登录/登出（AuthMenu）、Story 收藏按钮（BookmarkButton）、滚动进度同步（ReadingProgress）
+- [ ] **部署配置**（需手动）：创建 D1 实例、设置 OAuth secrets（见 `src/env.d.ts` 注释）
+- [ ] **标注（highlight）**：收藏与进度先行，标注其后
 
-## 六、Phase 3+ —— 展望
+## 六、Phase 3+ —— 媒介升档（进行中）
 
-- **CodePlayground 真实运行**：Sandpack 或轻量 WebContainer，让读者在故事里改代码、跑代码
-- **Scene3D**：three.js 岛屿，为旅行/空间类故事提供 3D 场景档位
-- **更多演示包**：把 Robert / Network 等真实产品的可玩切片装进 `public/demos/`
-- **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
-- **媒介组件持续生长**：图片画廊、地图叙事、数据故事（viz registry 已可扩展）
-- **产品化深水区**（有账户体系后）：读者标注与留言、订阅通知、创作数据面板
+- [x] **CodePlayground 真实运行**：Sandpack 沙箱 iframe，支持 vanilla / vanilla-ts / react / svelte 模板
+- [x] **Scene3D**：three.js 岛屿（globe / particles / simple-cube），尊重 reduced-motion
+- [x] **更多演示包**：`public/demos/robert/`、`public/demos/network/` 可玩切片，嵌入项目页
+- [x] **ImageGallery**：图片网格 + Lightbox，键盘可访问
+- [x] **验证体系补全**：Playwright 46 项测试 + CI test job
+- [ ] **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
+- [ ] **地图叙事 / 数据故事**：viz registry 已可扩展，待内容驱动
+- [ ] **产品化深水区**（有账户体系后）：读者标注与留言、订阅通知、创作数据面板
 
 ## 七、演进原则
 

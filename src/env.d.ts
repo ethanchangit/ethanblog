@@ -1,0 +1,31 @@
+/// <reference types="@astrojs/cloudflare" />
+/// <reference types="@cloudflare/workers-types" />
+
+/**
+ * Cloudflare bindings + auth secrets.
+ *
+ * Set in Cloudflare Pages → Settings → Environment variables:
+ * - BETTER_AUTH_SECRET       — openssl rand -base64 32
+ * - BETTER_AUTH_URL          — https://ethanchang.io (optional; defaults to site URL)
+ * - GITHUB_CLIENT_ID         — GitHub OAuth App client ID
+ * - GITHUB_CLIENT_SECRET     — GitHub OAuth App client secret
+ * - GOOGLE_CLIENT_ID         — Google OAuth client ID
+ * - GOOGLE_CLIENT_SECRET     — Google OAuth client secret
+ *
+ * Local dev: copy to `.dev.vars` or `.env` (see wrangler docs).
+ */
+type Env = {
+  DB: D1Database;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_URL?: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+};
+
+type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
+
+declare namespace App {
+  interface Locals extends Runtime {}
+}

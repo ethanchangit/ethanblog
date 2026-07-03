@@ -20,5 +20,4 @@
 - Node 22+，`npm install` 后即可 `npm run dev`（无 submodule、无额外工具链）。
 - `npm run preview` 用静态服务器伺服 dist/（`@astrojs/cloudflare` adapter 不支持 `astro preview`）。
 - 构建产物 `dist/`（已 gitignore）。
-- 提交前跑 `npm run check`（astro check 会同时校验内容集合 schema）。
-- 组件改动需在 `/lab` 页面自测；仓库无单测框架，验证方式是 `npm run build` + Playwright 驱动真实页面（Chromium 位于 `/opt/pw-browsers/chromium` 时可复用）。
+- 提交前跑 `npm run check && npm run build && npm run test`。
