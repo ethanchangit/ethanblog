@@ -20,6 +20,7 @@ Thumbs.db
 
 # Local tooling
 .mcp_data/
+themes/
 
 # Playwright
 tests/screenshots/
