@@ -4,7 +4,7 @@ baseURL = "https://ethanchang.io"
 defaultContentLanguage = "en"
 disableLanguages = []
 title = "Ethan Chang（张峻源）"
-description = "A personal blog about iOS development, AI, and productivity tools"
+description = "Ethan Chang 的个人超媒体平台 — 软件、开源项目、独特经历与技术思考"
 
 # Blowfish theme configuration
 [params]
@@ -84,9 +84,19 @@ enableEmoji = true
   weight = 10
 
 [[menu.main]]
+  name = "Posts"
+  pageRef = "posts"
+  weight = 15
+
+[[menu.main]]
   name = "Projects"
   pageRef = "projects"
   weight = 20
+
+[[menu.main]]
+  name = "Experiences"
+  pageRef = "experiences"
+  weight = 25
 
 [[menu.main]]
   name = "About"
@@ -99,8 +109,8 @@ enableEmoji = true
   url = "https://twitter.com/ethanchang_"
   weight = 100
 
-# 指定主要内容区域
-mainSections = ["posts"]
+# 指定主要内容区域（文章、项目、经历均出现在首页动态流）
+mainSections = ["posts", "projects", "experiences"]
 
 # 首页配置
 [params.homepage]

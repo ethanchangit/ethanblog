@@ -1,0 +1,12 @@
+# Phase 3 占位 — Cloudflare Workers API
+# 用户认证、收藏、阅读进度等能力将在此实现
+# 详见 docs/PERSONAL_PLATFORM_ARCHITECTURE.md 第 5 节
+
+name = "ethanblog-api"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "ethanblog"
+# database_id = "<to-be-created>"

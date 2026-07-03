@@ -1,0 +1,22 @@
+# 站点级配置 — 首页模块、社交链接、特色内容
+
+platform:
+  name: "Ethan Chang（张峻源）"
+  tagline: "开发者 · 创作者 · 探索者"
+  description: "分享软件、开源项目、独特经历与技术思考"
+
+social:
+  twitter: https://twitter.com/ethanchang_
+  email: hey@ethanchang.io
+  github: https://github.com/ethanchang
+
+# 首页模块顺序（Phase 2 实现自定义首页时使用）
+homepage:
+  modules:
+    - type: hero
+    - type: featured_projects
+      limit: 3
+    - type: recent_posts
+      limit: 5
+    - type: recent_experiences
+      limit: 2

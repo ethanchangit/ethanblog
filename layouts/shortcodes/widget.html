@@ -1,0 +1,9 @@
+{{- $name := .Get "name" | default "media-slider" -}}
+{{- $config := dict "name" $name -}}
+{{- range $k, $v := .Params -}}
+  {{- $config = merge $config (dict $k $v) -}}
+{{- end -}}
+<div
+  class="ethan-widget my-8"
+  data-widget="{{ $name }}"
+  data-config="{{ $config | jsonify }}">{{ .Inner }}</div>

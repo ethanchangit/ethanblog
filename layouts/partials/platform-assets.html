@@ -1,0 +1,12 @@
+{{/* 注入平台级 JS/CSS 到所有页面 */}}
+{{ $platformCSS := resources.Get "css/platform.css" }}
+{{ if $platformCSS }}
+  {{ $platformCSS = $platformCSS | minify | fingerprint }}
+  <link rel="stylesheet" href="{{ $platformCSS.RelPermalink }}" integrity="{{ $platformCSS.Data.Integrity }}">
+{{ end }}
+
+{{ $platformJS := resources.Get "js/platform.js" }}
+{{ if $platformJS }}
+  {{ $platformJS = $platformJS | js.Build (dict "targetPath" "js/platform.js" "format" "esm") | minify | fingerprint }}
+  <script type="module" src="{{ $platformJS.RelPermalink }}" integrity="{{ $platformJS.Data.Integrity }}"></script>
+{{ end }}

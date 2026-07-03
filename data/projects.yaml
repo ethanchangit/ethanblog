@@ -1,0 +1,87 @@
+# 结构化项目目录 — 供列表页、首页卡片、导航使用
+# 详细叙述见 content/projects/<id>.md
+
+projects:
+  - id: robert
+    name: Robert
+    tagline: Voice-first iOS 笔记应用
+    description: flomo 风格的灵活笔记，支持语音输入与 AI 转写
+    status: active
+    featured: true
+    github: https://github.com/ethanchang/robert
+    stack:
+      - SwiftUI
+      - GRDB
+      - Cloudflare Workers
+    tags:
+      - ios
+      - ai
+      - productivity
+
+  - id: network
+    name: Network
+    tagline: 键盘驱动的桌面笔记应用
+    description: Electron 笔记应用，卡片式库与高级快捷键
+    status: active
+    featured: true
+    github: https://github.com/ethanchang/network
+    stack:
+      - Electron
+      - React
+      - TypeScript
+    tags:
+      - desktop
+      - productivity
+
+  - id: ethanblog
+    name: EthanBlog
+    tagline: 个人超媒体平台（本网站）
+    description: Hugo + Blowfish + Cloudflare Pages，正在演进为可交互的个人产品
+    status: active
+    featured: false
+    github: https://github.com/ethanchang/ethanblog
+    stack:
+      - Hugo
+      - Cloudflare Pages
+    tags:
+      - web
+      - open-source
+
+  - id: aletheia
+    name: Aletheia
+    tagline: 知识工作研究分析工具
+    description: 研究与分析工具，辅助深度知识工作
+    status: experiment
+    featured: false
+    tags:
+      - research
+      - productivity
+
+  - id: chunk
+    name: Chunk
+    tagline: 大规模笔记内容组织系统
+    description: 帮助管理海量笔记的内容组织方案
+    status: experiment
+    featured: false
+    tags:
+      - pkm
+      - productivity
+
+  - id: craft-space
+    name: Craft Space
+    tagline: 工作区与生产力工具
+    description: 工作区管理与效率工具集合
+    status: experiment
+    featured: false
+    tags:
+      - productivity
+
+  - id: deeptalk
+    name: Deeptalk
+    tagline: AI 对话与学习助手
+    description: AI 驱动的对话与学习辅助
+    status: experiment
+    featured: false
+    tags:
+      - ai
+      - education

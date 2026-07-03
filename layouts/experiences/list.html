@@ -1,0 +1,30 @@
+{{ define "main" }}
+  <header>
+    <h1 class="mt-5 text-4xl font-extrabold text-neutral-900 dark:text-neutral">{{ .Title }}</h1>
+    {{ with .Description }}
+      <p class="mt-2 text-lg text-neutral-600 dark:text-neutral-400">{{ . }}</p>
+    {{ end }}
+  </header>
+
+  <section class="mt-8 prose dark:prose-invert max-w-none">
+    {{ .Content }}
+  </section>
+
+  {{ if gt (len .Pages) 0 }}
+    <section class="mt-12 space-y-6">
+      {{ range .Pages.ByDate.Reverse }}
+        <article class="rounded-xl border border-neutral-200 p-6 dark:border-neutral-700">
+          <h2 class="text-xl font-bold">
+            <a href="{{ .RelPermalink }}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ .Title }}</a>
+          </h2>
+          {{ with .Params.experience.location }}
+            <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{{ . }}</p>
+          {{ end }}
+          <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">{{ .Description | default .Summary }}</p>
+        </article>
+      {{ end }}
+    </section>
+  {{ else }}
+    <p class="mt-8 text-neutral-500 dark:text-neutral-400">更多经历即将发布。</p>
+  {{ end }}
+{{ end }}
