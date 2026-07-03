@@ -96,4 +96,13 @@
   .prose-site pre {
     @apply bg-surface-900 border border-surface-800 rounded-lg;
   }
+
+  /* 媒介组件的共享外框 —— Astro 与 Svelte 组件都使用这两个类 */
+  .media-frame {
+    @apply my-8 overflow-hidden rounded-xl border border-surface-800 bg-surface-900;
+  }
+
+  .media-caption {
+    @apply border-t border-surface-800 px-4 py-2.5 text-sm text-ink-500;
+  }
 }

@@ -1,0 +1,84 @@
+---
+/**
+ * 组件试验场 —— 媒介组件库的常驻 QA 页。
+ * 每个组件在这里都有一个最小可用示例；新组件先在这里点亮再进故事。
+ */
+import Base from '@/layouts/Base.astro';
+import { ParamSlider, BeforeAfterSlider, ScrollScene } from '@/components/media';
+---
+
+<Base title="Lab" description="媒介组件试验场">
+  <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">Lab</p>
+      <h1 class="text-3xl font-semibold text-ink-100">组件试验场</h1>
+      <p class="mt-3 text-ink-400">媒介组件库的现场演示与 QA 页面。</p>
+    </header>
+
+    <h2 class="mb-2 text-xl font-semibold text-ink-100">ParamSlider</h2>
+    <div data-testid="param-slider">
+      <ParamSlider
+        client:visible
+        label="卡片数量"
+        paramKey="count"
+        min={10}
+        max={200}
+        initial={60}
+        viz="network"
+        caption="左边的滑块控制右边的知识网络：卡片越多，连接越密。"
+      />
+    </div>
+
+    <div data-testid="param-slider-multi">
+      <ParamSlider
+        client:visible
+        controls={[
+          { key: 'freq', label: '频率', min: 1, max: 8, initial: 2 },
+          { key: 'amp', label: '振幅', min: 10, max: 120, initial: 60, unit: 'px' },
+        ]}
+        viz="curve"
+        height={240}
+        caption="多参数模式：频率与振幅共同塑造波形。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">BeforeAfterSlider</h2>
+    <div data-testid="before-after">
+      <BeforeAfterSlider
+        client:visible
+        before={{ src: '/media/compare-before.svg', alt: '文字描述的山与落日（线稿）' }}
+        after={{ src: '/media/compare-after.svg', alt: '亲眼所见的山与落日（彩色）' }}
+        labels={['文字', '所见']}
+        caption="拖动分割线：同一个故事，两种媒介档位。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">ScrollScene</h2>
+    <div data-testid="scroll-scene">
+      <ScrollScene
+        client:visible
+        scenes={[
+          {
+            title: '一切从一张卡片开始',
+            text: '每个想法都是一个节点。它们彼此孤立，安静地漂浮。',
+            viz: 'network',
+            params: { count: 25, link: 40 },
+          },
+          {
+            title: '链接让知识生长',
+            text: '当你开始链接，节点之间出现了结构 —— 网络涌现了。',
+            viz: 'network',
+            params: { count: 90, link: 90 },
+          },
+          {
+            title: '最终形成你的第二大脑',
+            text: '密集链接的知识网络，会在你需要的时候把答案递到手边。',
+            viz: 'network',
+            params: { count: 170, link: 120 },
+          },
+        ]}
+        caption="滚动推进故事：可视化随场景平滑演变。"
+      />
+    </div>
+  </div>
+</Base>

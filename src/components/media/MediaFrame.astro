@@ -1,0 +1,12 @@
+---
+/** 通用媒介外框：把任意内容（图片、表格、嵌入）包进统一的组件视觉语言。 */
+interface Props {
+  caption?: string;
+}
+const { caption } = Astro.props;
+---
+
+<figure class="media-frame not-prose">
+  <slot />
+  {caption && <figcaption class="media-caption">{caption}</figcaption>}
+</figure>
