@@ -256,4 +256,13 @@
   .rg-chip-num {
     width: 4rem;
   }
+
+  /* 论文化页面接口（T2） */
+  .prose-site :is(h2, h3, h4) {
+    scroll-margin-top: 5rem;
+  }
+
+  .toc-mobile summary {
+    @apply cursor-pointer select-none py-2 font-mono text-xs text-ink-500;
+  }
 }

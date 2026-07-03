@@ -1,0 +1,60 @@
+---
+/**
+ * 目录（T2）——零 JS 双形态：
+ * xl+ 悬挂在正文列左页边（绝对定位 + sticky），窄屏折叠为 <details>。
+ * 只收 depth 2-3 的标题；条目不足 3 条时整体不渲染。
+ * 使用前提：外层正文容器需带 xl:relative。
+ */
+interface TocHeading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: TocHeading[];
+}
+
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  items.length >= 3 && (
+    <>
+      <nav class="toc absolute right-full top-0 mr-8 hidden h-full w-52 xl:block" aria-label="目录">
+        <div class="sticky top-20">
+          <p class="mb-3 font-mono text-xs text-ink-600">目录</p>
+          <ul class="space-y-2">
+            {items.map((h) => (
+              <li class:list={[h.depth === 3 && 'pl-3']}>
+                <a
+                  href={'#' + h.slug}
+                  class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
+                >
+                  {h.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+
+      <details class="toc-mobile mb-8 border-b border-surface-800 xl:hidden">
+        <summary>目录</summary>
+        <ul class="space-y-2 pb-3">
+          {items.map((h) => (
+            <li class:list={[h.depth === 3 && 'pl-3']}>
+              <a
+                href={'#' + h.slug}
+                class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
+              >
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </>
+  )
+}

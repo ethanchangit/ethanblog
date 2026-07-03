@@ -6,6 +6,11 @@ export function formatDate(date: Date): string {
   }).format(date);
 }
 
+/** 研究线笔记编号：两位补零（1 → "01"）。 */
+export function formatSeq(seq: number): string {
+  return String(seq).padStart(2, '0');
+}
+
 export const statusLabel: Record<string, { text: string; class: string }> = {
   active: { text: '活跃开发', class: 'bg-accent-900/60 text-accent-300' },
   shipped: { text: '已发布', class: 'bg-primary-900/60 text-primary-300' },
