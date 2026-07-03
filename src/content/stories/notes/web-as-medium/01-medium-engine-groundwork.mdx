@@ -1,6 +1,6 @@
 ---
 title: "媒介引擎动工：这条研究线为什么存在"
-description: "调研了 Ink & Switch 十年的研究与 Realtalk 的思想之后，我们决定把这个网站建成一台媒介引擎。这是研究线的第一条编号笔记。"
+description: "调研了 Ink & Switch 十年的研究与 Realtalk 的思想之后，我们决定把这个网站建成一台媒介引擎。这是研究线的第一条编号笔记——它自己就运行在它所描述的机制之上。"
 date: 2026-07-03
 kind: notebook
 thread: web-as-medium
@@ -8,10 +8,90 @@ seq: 1
 tags: ["研究线", "媒介引擎", "动态媒介"]
 ---
 
-这条研究线只问一个问题：一张网页，能不能像房间一样对人做出反应？不是"更炫的动效"，也不是"更高的转化率"，而是内容本身对你的位置、你的动作、你的停留做出回应 —— 并且支配这些反应的规则，你看得见，也改得动。
+import { RuleGarden, RuleTarget, SideNote, ParamSlider } from '@/components/media';
 
-调研先行。Ink & Switch 用十年时间沿着 local-first、可塑软件、可编程墨水、通用文档这几条线做研究，他们的发布分两档：打磨过的 essay 面向外界，编号的 lab notebook 记录过程 —— 过程本身就是产出。Bret Victor 的 Realtalk/Dynamicland 则把另一件事讲透了：计算应该是可见的、实时的，行为由一条条声明式规则支配，规则摊在桌面上，任何人都能拿起来读、改、组合。
+这条研究线只问一个问题：**一张网页，能不能像房间一样对人做出反应？**
+不是"更炫的动效"，也不是"更高的转化率"，而是内容本身对你的位置、你的动作、
+你的停留做出回应——并且支配这些反应的规则，你看得见，也改得动。
 
-所以我们正在建的东西是：给本站引入同样的两档发布制（编号笔记与定稿文章），给笔记配论文式页眉与旁注，让媒介组件的源码可以在页面里"拆开看"，以及做一个叫 RuleGarden 的规则引擎 —— 把"网页如何对人反应"这件事，交给一组可读、可改、可组合的规则来表达。这条线上的每一次实验，都会长成一件你可以亲手玩的东西。
+## 调研先行
 
-最后说明：这条笔记稍后会被扩写。编号笔记的规矩是 —— 发出去的不回改，勘误写在下一篇。
+Ink & Switch 用十年时间沿着 local-first、可塑软件、可编程墨水、通用文档这几条线做研究。
+他们的发布分两档：打磨过的 essay 面向外界，编号的 lab notebook 记录过程——
+**过程本身就是产出**。你现在读的这条笔记，就是这套两档发布制在本站的第一次运转：
+它有编号、挂在研究线下、发出去不回改，勘误写在下一篇。
+
+<SideNote label="旁注">
+  这条挂在页边的旁注也是新机制之一——抄自 Ink & Switch 的版式语言，
+  零 JS，宽屏悬挂右页边，窄屏回落为你现在看到的插注块。
+</SideNote>
+
+Bret Victor 的 Realtalk/Dynamicland 把另一件事讲透了：计算应该是**可见的、实时的**，
+行为由一条条声明式规则支配（Claim / When / Wish），规则摊在桌面上，
+任何人都能拿起来读、改、组合。完整调研档案存在仓库的
+`docs/research/ink-and-switch.md`，一万两千字，这里只留一句判断：
+**网页继承不了 Realtalk 的身体和场所，但能继承它的软件灵魂——实时、可见、可改、可组合。**
+
+## 页面即房间
+
+Realtalk 的空间性看似无法迁移——我们没有那张桌子。但有一个诚实的对应物：
+**页面即房间，视口即桌面，滚动即走动**。"当这段文字进入视野"和 Dynamicland 的
+"当我上方有对象时"，是同构的空间谓词。
+
+口说无凭。这个页面里现在就住着几个有名字的物件：
+<RuleTarget name="note-intro" label="这句话">比如这句带虚线下划线的话</RuleTarget>，
+还有下面这个色块——
+
+<RuleTarget name="note-box" label="下方色块" block>
+  <div class="h-16 w-full rounded-lg bg-surface-800"></div>
+</RuleTarget>
+
+支配它们的规则就摊在这里，正在运行。试着开关、改写、添加：
+
+<RuleGarden
+  title="这条笔记的规则"
+  rules={[
+    { id: 'n1-r1', when: { kind: 'enters-view', target: 'note-box' }, wish: { kind: 'tint', target: 'note-box', tone: 'accent' } },
+    { id: 'n1-r2', when: { kind: 'hover', target: 'note-intro' }, wish: { kind: 'highlight', target: 'note-box' } },
+    { id: 'n1-r3', when: { kind: 'click', target: 'note-intro' }, wish: { kind: 'count', target: 'note-intro' } },
+  ]}
+  caption="RuleGarden：Claim/When/Wish 的网页玩具版。词槽是下拉，不解析自由文本——这个取舍记在笔记 #02。"
+/>
+
+## 拆开看
+
+Realtalk 的可见性原则说：程序印在物体上。本站的翻译是——每个媒介组件下面
+自动出现一个「⌥ 源码」，展开就是这段组件调用在 MDX 里的原文，构建期自动注入，
+作者零负担。往上翻，RuleGarden 下面就有一个；下面这个滑块组件也有：
+
+<ParamSlider
+  client:visible
+  label="房间里的物件数量"
+  paramKey="count"
+  min={10}
+  max={200}
+  initial={60}
+  viz="network"
+  caption="一个 2026 年 7 月就存在的老组件。新机制不挑组件——所有媒介组件自动获得「拆开看」。"
+/>
+
+源码不是附录，是媒介的一部分：**读者与拆解者之间，不该有一堵墙。**
+
+## 这一批建了什么
+
+盘点这条研究线第一批落地的机制，全部零新增 npm 依赖：
+
+- **两档发布制**：`kind: notebook` + 研究线（`/threads`），五行 frontmatter 就能发一条笔记
+- **论文式页面接口**：署名、摘要、目录、引用块、文末的"来聊"邮箱
+- **SideNote 旁注** 与 **InteractiveDemo 的 poster 档**（视频先行、点击升级）
+- **「拆开看」**：remark 插件构建期注入组件源码 disclosure
+- **RuleGarden + RuleTarget**：第五媒介档位——可改写的规则
+- **创作宪法 `docs/MEDIUM.md`**：任何 agent 读后都能把对话/文章转化为这种媒介
+
+也有被砍掉的：fork 到沙箱、目录滚动高亮、规则链、规则持久化。
+为什么砍，记在下一篇笔记《设计取舍》里——编号 #02，审阅后发布。
+
+## 下一步
+
+旗舰实验已经在路上：一篇用 RuleGarden 写成的"活文章"，读者读着读着就变成了作者。
+如果你也在想"网页还能是什么"这个问题——页面底部有邮箱，来聊。
