@@ -1,0 +1,31 @@
+---
+import { profile, site } from '@/data/profile';
+const year = new Date().getFullYear();
+---
+
+<footer class="border-t border-surface-800/80">
+  <div
+    class="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-10 text-sm text-ink-500 sm:flex-row sm:justify-between sm:px-6"
+  >
+    <p>© {year} {profile.name} · {site.url.replace('https://', '')}</p>
+    <ul class="flex items-center gap-4">
+      {
+        profile.socials.map((s) => (
+          <li>
+            <a
+              href={s.url}
+              class="transition-colors hover:text-ink-100"
+              target={s.url.startsWith('http') ? '_blank' : undefined}
+              rel={s.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+            >
+              {s.label}
+            </a>
+          </li>
+        ))
+      }
+      <li>
+        <a href="/rss.xml" class="transition-colors hover:text-ink-100">RSS</a>
+      </li>
+    </ul>
+  </div>
+</footer>
