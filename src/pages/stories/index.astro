@@ -3,6 +3,7 @@ import Base from '@/layouts/Base.astro';
 import Card from '@/components/shell/Card.astro';
 import { getCollection } from 'astro:content';
 import { formatDate } from '@/lib/format';
+import { getThread } from '@/data/threads';
 
 const stories = (await getCollection('stories', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
@@ -27,7 +28,11 @@ const stories = (await getCollection('stories', ({ data }) => !data.draft)).sort
             href={`/stories/${s.id}`}
             title={s.data.title}
             description={s.data.description}
-            meta={formatDate(s.data.date)}
+            meta={
+              s.data.kind === 'notebook'
+                ? `${getThread(s.data.thread)?.title ?? s.data.thread} · #${String(s.data.seq ?? 0).padStart(2, '0')} · ${formatDate(s.data.date)}`
+                : formatDate(s.data.date)
+            }
             badge={
               s.data.kind === 'interactive'
                 ? { text: '互动故事', accent: true }

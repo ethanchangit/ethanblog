@@ -5,6 +5,9 @@ export const STATIC_ROUTES = [
   '/stories/how-this-site-works',
   '/stories/pkm-method',
   '/stories/heptabase-method',
+  '/stories/notes/web-as-medium/01-medium-engine-groundwork',
+  '/threads',
+  '/threads/web-as-medium',
   '/projects',
   '/projects/robert',
   '/projects/network',
@@ -20,6 +23,7 @@ export const STATIC_ROUTES = [
 export const KEY_PAGES_FOR_LINK_CHECK = [
   '/',
   '/stories',
+  '/threads',
   '/projects',
   '/about',
   '/lab',
