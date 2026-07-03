@@ -47,6 +47,7 @@ const posterSrc =
             src={posterSrc}
             alt=""
             loading="lazy"
+            onerror="this.remove()"
             class="absolute inset-0 h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
           />
         ) : (
