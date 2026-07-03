@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="知识花园演示预览：深色背景上的知识网络示意">
+  <rect width="1280" height="720" fill="rgb(24 26 28)"/>
+  <g stroke="rgb(62 66 71)" stroke-width="2">
+    <line x1="320" y1="240" x2="560" y2="380"/>
+    <line x1="560" y1="380" x2="820" y2="260"/>
+    <line x1="560" y1="380" x2="700" y2="540"/>
+    <line x1="820" y1="260" x2="1000" y2="420"/>
+    <line x1="700" y1="540" x2="1000" y2="420"/>
+    <line x1="320" y1="240" x2="420" y2="520"/>
+    <line x1="420" y1="520" x2="700" y2="540"/>
+  </g>
+  <g fill="rgb(59 130 246)">
+    <circle cx="320" cy="240" r="14"/>
+    <circle cx="820" cy="260" r="12"/>
+    <circle cx="420" cy="520" r="10"/>
+  </g>
+  <g fill="rgb(34 211 238)">
+    <circle cx="560" cy="380" r="18"/>
+    <circle cx="700" cy="540" r="12"/>
+    <circle cx="1000" cy="420" r="14"/>
+  </g>
+  <text x="640" y="120" text-anchor="middle" font-family="ui-monospace, monospace" font-size="44" fill="rgb(203 213 225)">知识花园</text>
+  <text x="640" y="170" text-anchor="middle" font-family="ui-monospace, monospace" font-size="22" fill="rgb(100 116 139)">一个可以种下想法的小软件 · 点击启动</text>
+</svg>

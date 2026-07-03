@@ -16,6 +16,7 @@ import {
   VideoEmbed,
   CodePlayground,
   Scene3D,
+  SideNote,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
 ---
@@ -138,7 +139,9 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
         client:visible
         src="/demos/knowledge-garden/"
         title="知识花园 · knowledge-garden"
-        caption="沙箱中运行的真实小软件：点击画布种下想法。"
+        poster="/media/posters/knowledge-garden.svg"
+        posterAlt="知识花园预览：深色背景上的知识网络"
+        caption="沙箱中运行的真实小软件：点击画布种下想法。未加载时先展示 poster 预览。"
       />
     </div>
 
@@ -214,6 +217,21 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
         height={240}
         caption="粒子场场景：900 个粒子缓慢旋转。"
       />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">SideNote</h2>
+    <div data-testid="side-note">
+      <p class="text-ink-300 leading-loose">
+        旁注是正文的余光：它不打断论证，只在页边补一句。下面这段文字旁边挂着一条旁注——
+        宽屏（≥1536px）时它悬挂在右页边，窄屏时回落为正文内的插注块。
+      </p>
+      <SideNote label="旁注">
+        这就是一条旁注。它来自 Ink &amp; Switch 的版式语言：零 JS，纯 CSS 双形态。
+      </SideNote>
+      <p class="text-ink-300 leading-loose">
+        旁注的纪律写在创作规范里：每屏至多一条，只放"离题但增味"的内容。
+        能进正文的话就不该做成旁注。
+      </p>
     </div>
   </div>
 </Base>

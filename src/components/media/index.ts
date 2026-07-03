@@ -16,3 +16,4 @@ export { default as Scene3D } from './Scene3D.svelte';
 export { default as VideoEmbed } from './VideoEmbed.astro';
 export { default as CodePlayground } from './CodePlayground.astro';
 export { default as MediaFrame } from './MediaFrame.astro';
+export { default as SideNote } from './SideNote.astro';

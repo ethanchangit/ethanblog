@@ -14,6 +14,20 @@
 5. **统一支持 `caption`**，外框统一用 `.media-frame` / `.media-caption`
 6. **动效尊重 `prefers-reduced-motion`**（用 `@/lib/motion` 的 `reducedMotion()`），GSAP / three.js 只在 onMount/$effect 里创建并在销毁时 kill / dispose
 
+## 可见性：拆开看
+
+Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（`plugins/remark-source-view.mjs`）
+会自动为 MDX 故事中的每个媒介组件在其下方注入一个「⌥ 源码」disclosure，
+读者展开即可看到这段组件调用的 MDX 原文。白名单与本目录的 `index.ts` barrel 保持同步
+（MediaFrame / SideNote / RuleTarget 这类纯排版/标记容器除外）。
+
+退出阀有两个：
+
+- 整篇关闭：frontmatter 写 `sourceView: false`
+- 单处关闭：给组件加 `noSource` 属性（构建期会被摘除，不会泄漏到渲染输出）
+
+几乎永远不该使用退出阀——把组件调用写得值得被读。
+
 ## 目录
 
 | 组件 | 类型 | 用途 |
@@ -24,11 +38,12 @@
 | `Timeline` | Svelte | 垂直时间线，滚动渐入 |
 | `StatCounter` | Svelte | 数字滚动计数面板 |
 | `AudioClip` | Svelte | 自绘波形音频播放器（峰值用 `scripts/audio-peaks.mjs` 预计算） |
-| `InteractiveDemo` | Svelte | 沙箱 iframe 承载自包含软件演示（`public/demos/<name>/index.html`） |
+| `InteractiveDemo` | Svelte | 沙箱 iframe 承载自包含软件演示（`public/demos/<name>/index.html`）；可选 `poster`/`posterVideo`/`posterAlt` 提供未加载态预览（视频先行、点击升级；reduced-motion 或无 JS 时退回图片） |
 | `Scene3D` | Svelte | three.js 岛屿：线框地球 / 粒子场 / 旋转立方体 |
 | `VideoEmbed` | Astro | YouTube/Bilibili/本地视频 facade，点击才加载 |
 | `CodePlayground` | Astro → Svelte | Sandpack 沙箱：点击 Run 在 iframe 中执行代码 |
 | `MediaFrame` | Astro | 把任意内容包进统一媒介外框 |
+| `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块（零 JS，不套 media-frame） |
 
 ## MDX 用法示例
 

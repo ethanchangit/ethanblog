@@ -105,4 +105,49 @@
   .media-caption {
     @apply border-t border-surface-800 px-4 py-2.5 text-sm text-ink-500;
   }
+
+  /* 拆开看：媒介组件源码 disclosure（T4） */
+  .source-view {
+    /* 负外边距吃掉 .media-frame 的 my-8 下沿，紧贴组件外框下方 */
+    margin: -1.25rem 0 2rem;
+    border: 1px dashed var(--color-surface-700);
+    border-top: none;
+    border-radius: 0 0 0.75rem 0.75rem;
+  }
+
+  .source-view summary {
+    @apply cursor-pointer px-4 py-2 font-mono text-xs text-ink-500 select-none hover:text-ink-200;
+  }
+
+  .source-view[open] summary {
+    @apply border-b border-surface-800;
+  }
+
+  .source-view pre {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* 旁注 SideNote（T3）：窄屏插注块，≥96rem 悬挂右页边 */
+  .sidenote {
+    @apply my-6 rounded-lg border-l-2 border-accent-700 bg-surface-900 px-4 py-3 text-sm leading-relaxed text-ink-400;
+  }
+
+  .sidenote-label {
+    @apply mb-1 block font-mono text-xs text-accent-400;
+  }
+
+  @media (min-width: 96rem) {
+    .sidenote {
+      float: right;
+      clear: right;
+      width: 17.5rem;
+      margin: 0 -21rem 1rem 1rem;
+      background: transparent;
+      border-left: 1px solid var(--color-surface-700);
+      border-radius: 0;
+      padding: 0 0 0 1rem;
+    }
+  }
 }

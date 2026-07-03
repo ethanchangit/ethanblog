@@ -31,7 +31,9 @@ const stories = (await getCollection('stories', ({ data }) => !data.draft)).sort
             badge={
               s.data.kind === 'interactive'
                 ? { text: '互动故事', accent: true }
-                : { text: '文章' }
+                : s.data.kind === 'notebook'
+                  ? { text: '研究笔记' }
+                  : { text: '文章' }
             }
             tags={s.data.tags}
           />
