@@ -8,6 +8,8 @@
     "build": "astro build",
     "preview": "npx serve dist",
     "check": "astro check",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler pages deploy dist --project-name=ethanblog"
   },
   "dependencies": {
@@ -31,6 +33,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260703.1",
-    "@types/three": "^0.185.0"
+    "@playwright/test": "^1.52.0",
+    "@types/three": "^0.185.0",
+    "serve": "^14.2.6"
   }
 }
