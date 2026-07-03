@@ -1,0 +1,16 @@
+---
+import Story from '@/layouts/Story.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const stories = await getCollection('stories', ({ data }) => !data.draft);
+  return stories.map((story) => ({ params: { slug: story.id }, props: { story } }));
+}
+
+const { story } = Astro.props;
+const { Content } = await render(story);
+---
+
+<Story story={story}>
+  <Content />
+</Story>

@@ -1,0 +1,94 @@
+---
+import Base from '@/layouts/Base.astro';
+import { formatDate } from '@/lib/format';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  story: CollectionEntry<'stories'>;
+}
+
+const { story } = Astro.props;
+const { title, description, date, updated, kind, tags } = story.data;
+---
+
+<Base title={title} description={description}>
+  {/* 阅读进度条 — 纯 CSS 滚动驱动（装饰性，浏览器不支持时静默消失）。
+      Phase 2 接缝：账户上线后此进度将同步到 progress 表 */}
+  <div class="progress-track" aria-hidden="true"><div class="progress-thumb"></div></div>
+
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-12">
+      <div class="mb-4 flex items-center gap-3">
+        <span
+          class:list={[
+            'rounded-full px-2.5 py-0.5 text-xs font-medium',
+            kind === 'interactive'
+              ? 'bg-accent-900/60 text-accent-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+              : 'bg-surface-800 text-ink-400',
+          ]}
+        >
+          {kind === 'interactive' ? '互动故事' : '文章'}
+        </span>
+        <time datetime={date.toISOString()} class="font-mono text-xs text-ink-500">
+          {formatDate(date)}
+        </time>
+        {
+          updated && (
+            <span class="font-mono text-xs text-ink-600">更新于 {formatDate(updated)}</span>
+          )
+        }
+      </div>
+      <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">{title}</h1>
+      <p class="mt-4 text-lg leading-relaxed text-ink-400">{description}</p>
+      {
+        tags.length > 0 && (
+          <ul class="mt-5 flex flex-wrap gap-2">
+            {tags.map((t) => (
+              <li class="rounded bg-surface-900 px-2 py-0.5 font-mono text-xs text-ink-500">#{t}</li>
+            ))}
+          </ul>
+        )
+      }
+    </header>
+
+    <div class="prose-site">
+      <slot />
+    </div>
+
+    <footer class="mt-16 border-t border-surface-800 pt-8">
+      <a href="/stories" class="text-sm text-ink-500 transition-colors hover:text-primary-400">
+        ← 返回全部故事
+      </a>
+    </footer>
+  </article>
+</Base>
+
+<style>
+  .progress-track {
+    position: fixed;
+    inset: 3.5rem 0 auto 0; /* below the 14 (3.5rem) nav */
+    height: 2px;
+    z-index: 40;
+    background: transparent;
+  }
+  .progress-thumb {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary-500), var(--color-accent-400));
+    transform-origin: 0 50%;
+    transform: scaleX(0);
+  }
+  @supports (animation-timeline: scroll()) {
+    .progress-thumb {
+      animation: grow linear both;
+      animation-timeline: scroll(root);
+    }
+    @keyframes grow {
+      from {
+        transform: scaleX(0);
+      }
+      to {
+        transform: scaleX(1);
+      }
+    }
+  }
+</style>

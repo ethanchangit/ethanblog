@@ -1,0 +1,28 @@
+---
+name: "Robert"
+tagline: "语音优先的 iOS 灵活笔记应用"
+status: active
+order: 10
+stack: ["SwiftUI", "GRDB", "Cloudflare Workers"]
+platforms: ["iOS 17+"]
+repo: "https://github.com/ethanchangit/robert"
+featured: true
+---
+
+Robert 是一款受 flomo 启发的灵活笔记应用，核心理念是**语音优先**——让记录的摩擦力降到最低。
+
+## 功能
+
+- 语音录制 + AI 转写（Whisper via Cloudflare Workers）
+- 块级内容管理（Block-based）
+- 待办系统，支持重复与提醒
+- AI 驱动的提问建议
+- 卡片合并 / 拆分推荐
+
+## 技术架构
+
+- **前端**：SwiftUI，面向 iOS 17+
+- **数据库**：GRDB（SQLite）
+- **后端**：Cloudflare Workers（Whisper 转写 + LLM 处理）
+
+语音进来，结构化的知识卡片出去——这是 Robert 想要打通的完整链路。

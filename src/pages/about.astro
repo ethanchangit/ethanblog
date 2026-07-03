@@ -1,0 +1,76 @@
+---
+import Base from '@/layouts/Base.astro';
+import { profile, skills } from '@/data/profile';
+
+const domains = [...new Set(skills.map((s) => s.domain))];
+---
+
+<Base title="关于" description={profile.bio}>
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">About</p>
+      <h1 class="text-3xl font-semibold text-ink-100">
+        {profile.name} <span class="text-ink-500">· {profile.chineseName}</span>
+      </h1>
+      <p class="mt-2 font-mono text-sm text-ink-500">{profile.role.join(' / ')}</p>
+    </header>
+
+    <div class="prose-site">
+      <p>{profile.bio}</p>
+
+      <h2>我在做什么</h2>
+      <ul>
+        <li><strong>iOS 开发</strong> —— 用 Swift 和 SwiftUI 构建原生应用</li>
+        <li><strong>AI 集成</strong> —— 用 LLM 和语音 AI 增强生产力工具</li>
+        <li><strong>个人知识管理</strong> —— 打造帮助捕捉和组织思考的工具与方法</li>
+      </ul>
+
+      <h2>为什么是「超媒体」</h2>
+      <p>
+        文字是最基础的媒介：你读一段话，靠抽象思维自己想象。图片让你看见，视频让你身临其境。
+        而这个网站想往上再走一层——<strong>让你能亲手交互的软件级媒介</strong>。
+        所以这里的故事可能藏着滑块、动画和真正能运行的软件。它们不是装饰，它们是叙事本身。
+      </p>
+    </div>
+
+    <section class="mt-12">
+      <h2 class="mb-6 text-xl font-semibold text-ink-100">技术栈</h2>
+      <div class="grid gap-6 sm:grid-cols-2">
+        {
+          domains.map((domain) => (
+            <div class="rounded-xl border border-surface-800 bg-surface-900 p-5">
+              <h3 class="mb-3 font-mono text-xs uppercase tracking-widest text-ink-500">{domain}</h3>
+              <ul class="flex flex-wrap gap-2">
+                {skills
+                  .filter((s) => s.domain === domain)
+                  .map((s) => (
+                    <li class="rounded bg-surface-800 px-2.5 py-1 text-sm text-ink-300">{s.name}</li>
+                  ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mt-12 rounded-xl border border-surface-800 bg-surface-900 p-6">
+      <h2 class="mb-3 text-xl font-semibold text-ink-100">联系我</h2>
+      <ul class="flex flex-wrap gap-4 text-sm">
+        {
+          profile.socials.map((s) => (
+            <li>
+              <a
+                href={s.url}
+                class="text-primary-400 transition-colors hover:text-primary-300"
+                target={s.url.startsWith('http') ? '_blank' : undefined}
+                rel={s.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+              >
+                {s.label} ↗
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </article>
+</Base>
