@@ -44,6 +44,8 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 | `CodePlayground` | Astro → Svelte | Sandpack 沙箱：点击 Run 在 iframe 中执行代码 |
 | `MediaFrame` | Astro | 把任意内容包进统一媒介外框 |
 | `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块（零 JS，不套 media-frame） |
+| `RuleGarden` | Astro → Svelte | 规则花园：Claim/When/Wish 的网页版，"页面即房间"，规则句可开关/改写/添加；无 JS 时降级为 describeRules 散文 |
+| `RuleTarget` | Astro | 零 JS 目标标记：给页面元素声明 `data-rule-target` 身份（Claim），供 RuleGarden 的规则引用（不套 media-frame） |
 
 ## MDX 用法示例
 
@@ -90,6 +92,17 @@ import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D } from '@/components
 | `caption` | `string` | 图注 |
 | `files` | `Record<string, { code, hidden? }>` | 多文件模式（可选） |
 | `template` | `vanilla` \| `vanilla-ts` \| `react` \| `svelte` | Sandpack 模板 |
+
+### RuleGarden props
+
+| Prop | 类型 | 说明 |
+|---|---|---|
+| `rules` | `Rule[]` | 初始规则。一条 Rule = `{ id, enabled?, when: 触发谓词, wish: 愿望效果 }`（见 `src/lib/rules/types.ts`，JSON 可序列化） |
+| `title` | `string` | 顶部 mono 小条标题 |
+| `caption` | `string` | 图注 |
+
+规则句中的词槽（目标 / 谓词 / 效果 / 数值 / 颜色）都是下拉或数字输入，**不解析自由文本**；
+目标下拉的选项来自页面上 `RuleTarget` 声明的物件清单。
 
 ### Scene3D props
 
