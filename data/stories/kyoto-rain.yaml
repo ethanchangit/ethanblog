@@ -1,0 +1,39 @@
+title: "京都：一场意外的雨"
+tagline: "媒介阶梯演示 — 从文字想象，到亲手走进雨里"
+
+beats:
+  - id: start
+    text: "四月的京都，鸭川边。柳树刚抽芽，水面泛着碎金。我以为这只是一次平常的散步。"
+  - id: cloud
+    text: "云从东山后面涌过来，很低，很快。第一滴雨落在手背上，凉的。行人开始奔跑。"
+  - id: downpour
+    text: "雨大了。石板路变成一面面碎镜子，屋檐连成一条水帘。我站在桥洞下，听见城市忽然安静下来。"
+
+# L1 图像：演示用 CSS 场景（正式版可换真实图片 URL）
+images:
+  start:
+    gradient: "from-sky-200 via-emerald-100 to-amber-50"
+    caption: "鸭川 · 晴"
+  cloud:
+    gradient: "from-slate-400 via-slate-300 to-slate-200"
+    caption: "云压东山"
+  downpour:
+    gradient: "from-slate-600 via-slate-500 to-slate-400"
+    caption: "暴雨中的石桥"
+
+# L2 视频：演示用动画场景（正式版可换真实 mp4）
+video:
+  caption: "沿着鸭川走，雨来了"
+
+# L3 交互控制
+interactive:
+  rain:
+    label: 雨量
+    min: 0
+    max: 100
+    default: 0
+  time:
+    label: 时刻
+    min: 0
+    max: 100
+    default: 0

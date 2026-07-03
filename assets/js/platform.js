@@ -2,9 +2,11 @@
  * Ethan Platform — Widget 注册与初始化
  */
 import mediaSlider from './widgets/media-slider.js';
+import storyScene from './widgets/story-scene.js';
 
 const WIDGET_REGISTRY = {
   'media-slider': mediaSlider,
+  'story-scene': storyScene,
 };
 
 function initWidget(el) {

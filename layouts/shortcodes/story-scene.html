@@ -1,0 +1,9 @@
+{{- $id := .Get "story" | default "kyoto-rain" -}}
+{{- $story := index site.Data.stories $id -}}
+{{- if not $story -}}
+  {{ errorf "story-scene: story %q not found in data/stories/" $id }}
+{{- end -}}
+<div
+  class="ethan-widget ethan-story-scene-host my-8"
+  data-widget="story-scene"
+  data-config="{{ dict "story" $story "id" $id | jsonify }}">{{ .Inner }}</div>
