@@ -1,5 +1,7 @@
 # CLAUDE.md - ethanchang.io 项目指南
 
+> 整体框架计划与分阶段路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+
 ## 项目信息
 
 - **定位**: 超媒体个人主页 —— 不是博客，是一个持续加功能的"软件"
