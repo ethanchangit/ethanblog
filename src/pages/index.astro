@@ -1,11 +1,53 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { profile } from '@/data/profile';
+import Hero from '@/components/home/Hero.svelte';
+import SkillsGraph from '@/components/home/SkillsGraph.svelte';
+import NowPanel from '@/components/home/NowPanel.astro';
+import FeaturedGrid from '@/components/home/FeaturedGrid.astro';
+import SectionHeading from '@/components/shell/SectionHeading.astro';
+import { profile, skills } from '@/data/profile';
 ---
 
 <Base>
-  <section class="mx-auto max-w-5xl px-4 py-24 sm:px-6">
-    <h1 class="text-4xl font-semibold text-ink-100">{profile.name}</h1>
-    <p class="mt-4 max-w-xl text-lg leading-relaxed text-ink-400">{profile.bio}</p>
-  </section>
+  <Hero client:load name={profile.name} roles={[...profile.role]} bio={profile.bio} />
+
+  <div class="mx-auto flex max-w-5xl flex-col gap-20 px-4 pb-24 sm:px-6">
+    <section aria-label="正在进行">
+      <NowPanel />
+    </section>
+
+    <section aria-label="精选内容">
+      <SectionHeading eyebrow="Featured" title="精选" href="/stories" linkLabel="全部故事 →" />
+      <FeaturedGrid />
+    </section>
+
+    <section aria-label="技能">
+      <SectionHeading eyebrow="Skills" title="我用什么造东西" />
+      <SkillsGraph client:visible skills={skills} />
+    </section>
+
+    <section
+      aria-label="联系"
+      class="rounded-xl border border-surface-800 bg-gradient-to-br from-surface-900 to-surface-950 p-8 text-center"
+    >
+      <h2 class="text-xl font-semibold text-ink-100">这个网站会持续长出新功能</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
+        因为它不是博客，是一个软件。想看它的引擎盖下面？去组件试验场把每个媒介组件玩一遍。
+      </p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a
+          href="/lab"
+          class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-ink-50 transition-colors hover:bg-primary-500"
+        >
+          组件试验场 /lab
+        </a>
+        <a
+          href={`mailto:${profile.email}`}
+          class="rounded-md border border-surface-700 px-4 py-2 text-sm font-medium text-ink-200 transition-colors hover:bg-surface-900"
+        >
+          联系我
+        </a>
+      </div>
+    </section>
+  </div>
 </Base>
