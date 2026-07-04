@@ -16,6 +16,7 @@ export const STATIC_ROUTES = [
   '/projects/ethanchang-io',
   '/projects/craft-space',
   '/projects/chunk',
+  '/projects/trace',
   '/about',
   '/lab',
 ] as const;

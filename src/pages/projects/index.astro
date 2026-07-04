@@ -1,37 +1,186 @@
 ---
 import Base from '@/layouts/Base.astro';
-import Card from '@/components/shell/Card.astro';
+import Timeline from '@/components/media/Timeline.svelte';
+import StatCounter from '@/components/media/StatCounter.svelte';
+import InteractiveDemo from '@/components/media/InteractiveDemo.svelte';
+import SideNote from '@/components/media/SideNote.astro';
 import { getCollection } from 'astro:content';
 import { statusLabel } from '@/lib/format';
+import { lineageEdges, lineageTimeline } from '@/data/projects-lineage';
 
 const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
+
+const withDemo = projects.filter((p) => p.data.demo).length;
 ---
 
-<Base title="作品" description="我写的软件与开源项目 —— 可下载、可导航、可在线体验。">
-  <section class="mx-auto max-w-5xl px-4 py-14 sm:px-6">
-    <header class="mb-10">
-      <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">Projects</p>
-      <h1 class="text-3xl font-semibold text-ink-100">作品</h1>
-      <p class="mt-3 max-w-xl text-ink-400">
-        我做的软件与开源项目。有些可以直接下载使用，有些可以在页面里在线体验。
+<Base
+  title="作品"
+  description="我做的软件不是一排卡片，而是一条研究线——每个项目都在继承上一个项目里试通的能力。"
+>
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-12 border-b border-surface-800 pb-10">
+      <p class="mb-2 font-mono text-xs uppercase tracking-widest text-accent-400">Projects</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">作品是一条线</h1>
+      <p class="mt-4 text-lg leading-relaxed text-ink-400">
+        这不是作品集导航页。往下滚，你会看到我做过的软件如何<strong class="text-ink-200">彼此继承</strong>——在
+        Aletheia 里试通的生词高亮，在 Trace 里复用；在 Network 里打磨的卡片结构，在 Chunk 里复用。
       </p>
     </header>
-    <div class="grid gap-4 sm:grid-cols-2">
-      {
-        projects.map((p) => (
-          <Card
-            href={`/projects/${p.id}`}
-            title={p.data.name}
-            description={p.data.tagline}
-            meta={p.data.platforms.join(' · ') || undefined}
-            badge={{
-              text: statusLabel[p.data.status].text,
-              accent: p.data.status === 'active',
-            }}
-            tags={p.data.stack}
-          />
-        ))
-      }
+
+    <div class="prose-site">
+      <StatCounter
+        client:visible
+        stats={[
+          { label: '项目', value: projects.length, suffix: '个' },
+          { label: '可在线体验', value: withDemo, suffix: '个' },
+          { label: '能力继承链', value: lineageEdges.length, suffix: '条' },
+        ]}
+        caption="数字只是索引。真正的论点在下面——每个项目为何存在，又从谁那里接过什么。"
+      />
+
+      <h2 id="lineage">时间线：从卡片到容器</h2>
+
+      <p>
+        如果把每个项目看成一次实验，它们不是并列的 SKU，而是一条递进的研究线。先解决「怎么记」，再解决「怎么读」，最后问「记多了怎么办」。
+      </p>
+
+      <Timeline
+        client:visible
+        items={[...lineageTimeline]}
+        caption="按叙事顺序排列，不等于立项先后。有些项目并行酝酿，但能力继承的方向是清晰的。"
+      />
+
+      <h2 id="network">Network：卡片与键盘</h2>
+
+      <p>
+        <a href="/projects/network">{bySlug.network.data.name}</a> 是我第一个认真<strong>发布</strong>的桌面笔记工具。它的核心赌注很简单：重度写作者愿意为了速度，把双手永远放在键盘上。
+      </p>
+
+      <p>
+        于是整款产品围绕<strong>卡片</strong>组织——每张卡片是一个独立的 Markdown 单元，方向键在卡片间跳转，Enter 进入编辑，Esc 保存退出。这不是装饰性的「卡片 UI」，而是内容的数据模型：笔记天然被切成可搬运、可链接、可重组的块。
+      </p>
+
+      <InteractiveDemo
+        client:visible
+        src="/demos/network/"
+        title="Network · 键盘笔记"
+        height="480px"
+        caption="方向键导航卡片，Enter 进入 Markdown 编辑，Esc 保存退出。亲手试一下，比任何截图都更能说明「键盘中心」是什么意思。"
+      />
+
+      <p>
+        Network 验证了两件事：卡片作为内容单元是成立的；键盘导航可以覆盖从浏览到编辑的完整闭环。后者后来被 Chunk 直接继承。
+      </p>
+
+      <h2 id="robert">Robert：语音与块</h2>
+
+      <p>
+        与此同时，我在移动端做 <a href="/projects/robert">{bySlug.robert.data.name}</a>——受 flomo 启发，但把<strong>语音</strong>放在第一入口。记录的摩擦力越低，捕获的想法越多；语音进来，Whisper 转写，再落成块级卡片。
+      </p>
+
+      <InteractiveDemo
+        client:visible
+        src="/demos/robert/"
+        title="Robert · 语音笔记"
+        height="520px"
+        caption="点击麦克风模拟录制，转写后生成块级卡片。移动端与 Network 走不同的交互路径，但「块」这一抽象是共通的。"
+      />
+
+      <p>
+        Robert 和 Network 一个管口袋、一个管桌面，却在同一条线上：都在问「怎样让知识以<strong>块</strong>的形式流入系统，而不是以文档的形式堆在文件夹里」。
+      </p>
+
+      <h2 id="aletheia-trace">Aletheia → Trace：阅读时学词</h2>
+
+      <p>
+        记下来的东西越来越多之后，问题变成：<strong>读的时候怎么办？</strong>
+        <a href="/projects/aletheia">{bySlug.aletheia.data.name}</a>（希腊语「去蔽」）是我对「研究与分析工具」的早期实验——在长文阅读里划词、高亮、把生词摘出来生成可复习的卡片。
+      </p>
+
+      <p>
+        在 Aletheia 里我学会了整条流水线：<strong>highlight → 结构化 → 卡片</strong>。这条流水线没有留在草稿里，而是在
+        <a href="/projects/trace">{bySlug.trace.data.name}</a> 中被复用：专注阅读场景，把生词标注和学习卡片打磨成独立产品。
+      </p>
+
+      <SideNote label="继承">
+        Aletheia 是实验室，Trace 是产品。这种「在 A 里试通、在 B 里收敛」的节奏，贯穿我所有项目。
+      </SideNote>
+
+      <h2 id="chunk">Chunk：Network 的卡片，面对海量</h2>
+
+      <p>
+        <a href="/projects/chunk">{bySlug.chunk.data.name}</a> 追问另一个极限：当笔记涨到<strong>数千条</strong>，卡片结构还能撑住吗？它在数据模型上继承了 Network 的卡片范式，在入口上吸收了 Robert 的低摩擦捕获——目标是「越积越多，而不是越积越乱」。
+      </p>
+
+      <p>
+        这与我在 <a href="/stories/pkm-method">PKM 实践</a> 里写的三层架构一脉相承。Chunk 不是从零发明组织方式，而是把已经在 Network 里跑通的卡片单元，推到更大的规模。
+      </p>
+
+      <h2 id="inheritance">继承关系一览</h2>
+
+      <p>三条明确的能力传递：</p>
+
+      <ul>
+        {
+          lineageEdges.map((edge) => (
+            <li>
+              <strong>{bySlug[edge.from]?.data.name ?? edge.from}</strong>
+              {' → '}
+              <strong>{bySlug[edge.to]?.data.name ?? edge.to}</strong>
+              {'：'}
+              {edge.carries}
+            </li>
+          ))
+        }
+      </ul>
+
+      <h2 id="container">ethanchang.io：超媒体容器</h2>
+
+      <p>
+        然后是你正在看的这个网站——<a href="/projects/ethanchang-io">{bySlug['ethanchang-io'].data.name}</a>。它不是列表里的又一张卡片，而是<strong>展示所有实验的容器</strong>：把文字、演示、规则玩具组织在同一套媒介引擎里。
+      </p>
+
+      <p>
+        这篇作品页本身就是容器的用法：不是让你点卡片跳转，而是让你在这条线上<strong>读完</strong>继承关系，再决定要不要深入某个项目的档案页。
+      </p>
+
+      <p>
+        想知道引擎怎么运转？读 <a href="/stories/how-this-site-works">这个网站是如何工作的</a>——那篇故事把所有媒介组件都点亮了。
+      </p>
+
+      <h2 id="incubating">还在酝酿</h2>
+
+      <p>
+        并非每个实验都已成型。<a href="/projects/deeptalk">{bySlug.deeptalk.data.name}</a> 探索对话作为深度学习媒介；
+        <a href="/projects/craft-space">{bySlug['craft-space'].data.name}</a> 围绕「工作空间」把资料与工具一键就位。它们还在等一条清晰的继承链浮现。
+      </p>
+
+      <h2 id="archive">项目档案</h2>
+
+      <p>需要仓库链接、技术栈或完整说明？每个项目仍有独立档案页：</p>
     </div>
-  </section>
+
+    <ul class="mt-6 divide-y divide-surface-800 border-y border-surface-800">
+      {
+        projects.map((p) => {
+          const badge = statusLabel[p.data.status];
+          return (
+            <li>
+              <a
+                href={`/projects/${p.id}`}
+                class="group flex flex-col gap-1 py-4 transition-colors sm:flex-row sm:items-baseline sm:justify-between"
+              >
+                <span class="font-medium text-ink-100 group-hover:text-primary-400">{p.data.name}</span>
+                <span class="text-sm text-ink-500">{p.data.tagline}</span>
+                <span class:list={['w-fit rounded-full px-2 py-0.5 text-xs font-medium sm:ml-4', badge.class]}>
+                  {badge.text}
+                </span>
+              </a>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </article>
 </Base>
