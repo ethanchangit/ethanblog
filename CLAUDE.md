@@ -48,6 +48,8 @@ scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 
 ## 内容创作
 
+**触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 媒介创作，走 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定) 与转化流水线，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 story 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
+
 **先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——它规定了从"对话/文章"到本站媒介的完整转换流水线（档位判定、组件决策表、两档发布制、页面接口）。
 
 **写一篇故事**：在 `src/content/stories/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。

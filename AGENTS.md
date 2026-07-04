@@ -2,6 +2,27 @@
 
 > 创作规范（输入 → 媒介的转换方法）：[docs/MEDIUM.md](docs/MEDIUM.md)。本文件只管强制约束。
 
+## 任务路由
+
+用户消息**首行**的触发词决定任务类型。读到触发词后按对应模式执行，不要混用。
+
+| 触发词 | 模式 | 必读 | 允许改动 |
+|---|---|---|---|
+| `/publish`、`发布：` | 媒介创作 | [docs/MEDIUM.md](docs/MEDIUM.md) | `src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时） |
+| `/infra`、`基建：` | 网站基建 | 本文 + [media/README.md](src/components/media/README.md) | `src/components/`、`src/lib/`、`src/pages/`、`plugins/` 等 |
+
+**`/publish`（媒介创作）硬性约束**：
+
+- **禁止**新建或修改媒介组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
+- 新页面默认 `draft: true`；`kind: notebook` 必须指定 `thread` + `seq`
+- 完整操作细则见 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
+
+**`/infra`（网站基建）硬性约束**：
+
+- **禁止**创建或改写 story / project 正文，除非用户明确要求
+
+**无前缀时的默认路由**：措辞像「写成 story / 记笔记 / 把对话发出来」→ 媒介创作；像「修组件 / 加 API / 部署挂了」→ 基建。歧义时先问一句。
+
 ## 样式约束
 
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
