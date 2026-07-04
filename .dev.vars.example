@@ -1,0 +1,24 @@
+# Copy to `.dev.vars` for local dev, or `.env.production` for one-time remote upload.
+# Do not commit files that contain real values.
+#
+# Generate auth secret:
+#   openssl rand -base64 32
+#
+# OAuth apps:
+#   GitHub → Settings → Developer settings → OAuth Apps
+#     Authorization callback URL: https://ethanchang.io/api/auth/callback/github
+#   Google → Google Cloud Console → APIs & Services → Credentials
+#     Authorized redirect URI: https://ethanchang.io/api/auth/callback/google
+#
+# Upload to Cloudflare Pages (production):
+#   cp .dev.vars.example .env.production   # fill in real values
+#   npm run setup:cloudflare
+
+BETTER_AUTH_SECRET=
+# Optional; defaults to request origin / https://ethanchang.io
+# BETTER_AUTH_URL=https://ethanchang.io
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
