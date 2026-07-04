@@ -1,0 +1,121 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import { getCollection } from 'astro:content';
+import { formatDate } from '@/lib/format';
+import { threads, type Thread } from '@/data/threads';
+
+export async function getStaticPaths() {
+  // 构建期完整性校验：frontmatter 里出现的 thread 必须都在 threads.ts 登记过
+  const all = await getCollection('stories');
+  const registered = new Set(threads.map((t) => t.slug));
+  const unregistered = [
+    ...new Set(
+      all
+        .map((s) => s.data.thread)
+        .filter((slug): slug is string => !!slug && !registered.has(slug))
+    ),
+  ];
+  if (unregistered.length > 0) {
+    throw new Error(
+      `存在未在 src/data/threads.ts 登记的研究线 slug：${unregistered.join('、')}。` +
+        '请先在 threads 数组中登记这条线，再把笔记挂上去。'
+    );
+  }
+  return threads.map((thread) => ({ params: { thread: thread.slug }, props: { thread } }));
+}
+
+interface Props {
+  thread: Thread;
+}
+const { thread } = Astro.props;
+
+// 状态徽章：视觉语言参照 src/lib/format.ts 的 statusLabel
+const statusBadge: Record<string, { text: string; class: string }> = {
+  active: { text: '活跃', class: 'bg-accent-900/60 text-accent-300' },
+  dormant: { text: '蛰伏', class: 'bg-surface-800 text-ink-400' },
+  closed: { text: '已收束', class: 'bg-surface-800 text-ink-500' },
+};
+
+const entries = await getCollection(
+  'stories',
+  ({ data }) => !data.draft && data.thread === thread.slug
+);
+const finals = entries
+  .filter((s) => s.data.kind !== 'notebook')
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const notes = entries
+  .filter((s) => s.data.kind === 'notebook')
+  .sort((a, b) => (a.data.seq ?? 0) - (b.data.seq ?? 0));
+
+const pad = (n: number | undefined) => String(n ?? 0).padStart(2, '0');
+---
+
+<Base title={thread.title} description={thread.question}>
+  <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-12">
+      <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">Thread</p>
+      <h1 class="text-3xl font-semibold text-ink-100">{thread.title}</h1>
+      <p class="mt-4 text-xl font-medium leading-snug text-ink-200">{thread.question}</p>
+      <p class="mt-4 leading-relaxed text-ink-400">{thread.description}</p>
+      <p class="mt-4 flex items-center gap-3 font-mono text-xs text-ink-500">
+        <span
+          class:list={[
+            'rounded-full px-2.5 py-0.5 text-xs font-medium',
+            statusBadge[thread.status].class,
+          ]}
+        >
+          {statusBadge[thread.status].text}
+        </span>
+        <span>{thread.started} 起</span>
+      </p>
+    </header>
+
+    <section class="mb-12">
+      <h2 class="mb-4 text-lg font-semibold text-ink-100">定稿</h2>
+      {
+        finals.length > 0 ? (
+          <div class="grid gap-4 sm:grid-cols-2">
+            {finals.map((s) => (
+              <Card
+                href={`/stories/${s.id}`}
+                title={s.data.title}
+                description={s.data.description}
+                meta={formatDate(s.data.date)}
+                badge={
+                  s.data.kind === 'interactive'
+                    ? { text: '互动故事', accent: true }
+                    : { text: '文章' }
+                }
+                tags={s.data.tags}
+              />
+            ))}
+          </div>
+        ) : (
+          <p class="text-sm text-ink-500">这条线还在过程里——先读笔记。</p>
+        )
+      }
+    </section>
+
+    <section>
+      <h2 class="mb-2 text-lg font-semibold text-ink-100">研究笔记</h2>
+      <ul>
+        {
+          notes.map((s) => (
+            <li class="border-b border-surface-800">
+              <a href={`/stories/${s.id}`} class="group flex items-baseline gap-3 py-3">
+                <span class="shrink-0 font-mono text-sm text-accent-400">#{pad(s.data.seq)}</span>
+                <span class="flex-1 text-ink-200 transition-colors group-hover:text-accent-300">
+                  {s.data.title}
+                </span>
+                <span class="shrink-0 font-mono text-xs text-ink-500">
+                  {formatDate(s.data.date)}
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</Base>

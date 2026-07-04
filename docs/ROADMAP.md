@@ -80,7 +80,14 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 - [x] **Scene3D**：three.js 岛屿（globe / particles / simple-cube），尊重 reduced-motion
 - [x] **更多演示包**：`public/demos/robert/`、`public/demos/network/` 可玩切片，嵌入项目页
 - [x] **ImageGallery**：图片网格 + Lightbox，键盘可访问
-- [x] **验证体系补全**：Playwright 46 项测试 + CI test job
+- [x] **验证体系补全**：Playwright 全量测试 + CI test job
+- [x] **媒介引擎机制**（源自 Ink & Switch / Realtalk 调研，见 `docs/research/ink-and-switch.md`）：
+  - 两档发布制：`kind: notebook` 编号研究笔记 + 研究线（`src/data/threads.ts`、`/threads`）
+  - 论文式页眉与文末接口（署名/摘要/TOC/引用块/招募段）
+  - 「拆开看」：构建期自动注入媒介组件源码 disclosure（`plugins/remark-source-view.mjs`）
+  - `SideNote` 旁注、`InteractiveDemo` poster 档（视频先行、点击升级）
+  - `RuleGarden` + `RuleTarget`：Claim/When/Wish 规则引擎，"页面即房间"（第五媒介档位）
+  - 创作宪法 `docs/MEDIUM.md`：agent 将对话/文章转化为本站媒介的固定流水线
 - [ ] **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
 - [ ] **地图叙事 / 数据故事**：viz registry 已可扩展，待内容驱动
 - [ ] **产品化深水区**（有账户体系后）：读者标注与留言、订阅通知、创作数据面板

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> 创作规范（输入 → 媒介的转换方法）：[docs/MEDIUM.md](docs/MEDIUM.md)。本文件只管强制约束。
+
 ## 样式约束
 
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。

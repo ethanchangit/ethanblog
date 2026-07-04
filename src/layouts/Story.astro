@@ -1,17 +1,55 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatSeq } from '@/lib/format';
+import { profile, site } from '@/data/profile';
+import { getThread } from '@/data/threads';
 import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
 import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
+import Toc from '@/components/shell/Toc.astro';
 import type { CollectionEntry } from 'astro:content';
+
+interface TocHeading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+/** notebook 前后篇导航的精简条目 */
+interface NoteNav {
+  id: string;
+  title: string;
+  seq: number;
+}
 
 interface Props {
   story: CollectionEntry<'stories'>;
+  headings?: TocHeading[];
+  prev?: NoteNav;
+  next?: NoteNav;
 }
 
-const { story } = Astro.props;
-const { title, description, date, updated, kind, tags } = story.data;
+const { story, headings = [], prev, next } = Astro.props;
+const { title, description, date, updated, kind, tags, thread, seq } = story.data;
 const storySlug = story.id;
+
+// notebook = 编号过程笔记；essay / interactive = 定稿档
+const isNotebook = kind === 'notebook';
+const threadInfo = getThread(thread);
+const threadTitle = threadInfo?.title ?? thread;
+
+// 定稿档署名与「请这样引用」块（UTC 取值，避免构建时区偏移）
+const byline = profile.chineseName
+  ? `文 / ${profile.name}（${profile.chineseName}）`
+  : `文 / ${profile.name}`;
+const citeAuthor = profile.chineseName
+  ? `${profile.chineseName} (${profile.name})`
+  : profile.name;
+const citeDate = `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月`;
+const siteHost = new URL(site.url).host;
+const citation = `${citeAuthor}. 「${title}」. ${siteHost}, ${citeDate}. ${site.url}/stories/${storySlug}.`;
+
+// 文末招募段的来信入口
+const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于《' + title + '》')}`;
 ---
 
 <Base title={title} description={description}>
@@ -19,20 +57,34 @@ const storySlug = story.id;
   <div class="progress-track" aria-hidden="true"><div class="progress-thumb"></div></div>
   <ReadingProgress client:load storySlug={storySlug} />
 
-  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 xl:relative">
     <header class="mb-12">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-3">
-          <span
-            class:list={[
-              'rounded-full px-2.5 py-0.5 text-xs font-medium',
-              kind === 'interactive'
-                ? 'bg-accent-900/60 text-accent-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
-                : 'bg-surface-800 text-ink-400',
-            ]}
-          >
-            {kind === 'interactive' ? '互动故事' : '文章'}
-          </span>
+          {
+            isNotebook ? (
+              <span class="flex flex-wrap items-baseline gap-2 font-mono text-xs">
+                <a
+                  href={`/threads/${thread}`}
+                  class="text-accent-400 transition-colors hover:text-accent-300"
+                >
+                  研究线：{threadTitle}
+                </a>
+                <span class="text-ink-500">· 笔记 #{formatSeq(seq ?? 0)}</span>
+              </span>
+            ) : (
+              <span
+                class:list={[
+                  'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                  kind === 'interactive'
+                    ? 'bg-accent-900/60 text-accent-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+                    : 'bg-surface-800 text-ink-400',
+                ]}
+              >
+                {kind === 'interactive' ? '互动故事' : '文章'}
+              </span>
+            )
+          }
           <time datetime={date.toISOString()} class="font-mono text-xs text-ink-500">
             {formatDate(date)}
           </time>
@@ -44,8 +96,25 @@ const storySlug = story.id;
         </div>
         <BookmarkButton client:load storySlug={storySlug} />
       </div>
+      {
+        isNotebook && (
+          <p class="mb-4 text-xs text-ink-500">
+            编号过程笔记，记录进行中的研究，非定稿。发出去的不回改，勘误写在下一篇。
+          </p>
+        )
+      }
       <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">{title}</h1>
-      <p class="mt-4 text-lg leading-relaxed text-ink-400">{description}</p>
+      {!isNotebook && <p class="mt-3 font-mono text-xs text-ink-500">{byline}</p>}
+      {
+        isNotebook ? (
+          <p class="mt-4 text-lg leading-relaxed text-ink-400">{description}</p>
+        ) : (
+          <div class="mt-6">
+            <p class="mb-2 font-mono text-xs uppercase tracking-widest text-accent-400">摘要</p>
+            <p class="text-lg leading-relaxed text-ink-400">{description}</p>
+          </div>
+        )
+      }
       {
         tags.length > 0 && (
           <ul class="mt-5 flex flex-wrap gap-2">
@@ -57,12 +126,68 @@ const storySlug = story.id;
       }
     </header>
 
+    {/* TOC 只给定稿档；条目 <3 时组件自身不渲染 */}
+    {!isNotebook && <Toc headings={headings} />}
+
     <div class="prose-site">
       <slot />
     </div>
 
-    <footer class="mt-16 border-t border-surface-800 pt-8">
-      <a href="/stories" class="text-sm text-ink-500 transition-colors hover:text-primary-400">
+    <footer class="mt-16 space-y-8 border-t border-surface-800 pt-8">
+      {/* 招募段：全档 */}
+      <section>
+        <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">
+          如果你也在想这个问题
+        </p>
+        <p class="text-sm leading-relaxed text-ink-400">
+          这篇内容的反馈、反驳、延伸讨论，都欢迎写信来聊。
+          <a href={mailtoHref} class="text-primary-400 transition-colors hover:underline">
+            {profile.email}
+          </a>
+        </p>
+      </section>
+
+      {/* 请这样引用：仅定稿档 */}
+      {
+        !isNotebook && (
+          <section>
+            <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">请这样引用</p>
+            <p class="rounded-lg bg-surface-900 px-4 py-3 font-mono text-xs leading-relaxed text-ink-400">
+              {citation}
+            </p>
+          </section>
+        )
+      }
+
+      {/* 前后篇导航：仅 notebook，且至少有一侧 */}
+      {
+        isNotebook && (prev || next) && (
+          <nav class="flex items-baseline justify-between gap-4 text-sm" aria-label="前后篇">
+            <span>
+              {prev && (
+                <a
+                  href={`/stories/${prev.id}`}
+                  class="text-ink-400 transition-colors hover:text-accent-300"
+                >
+                  ← 笔记 #{formatSeq(prev.seq)} {prev.title}
+                </a>
+              )}
+            </span>
+            <span class="text-right">
+              {next && (
+                <a
+                  href={`/stories/${next.id}`}
+                  class="text-ink-400 transition-colors hover:text-accent-300"
+                >
+                  笔记 #{formatSeq(next.seq)} {next.title} →
+                </a>
+              )}
+            </span>
+          </nav>
+        )
+      }
+
+      <a href="/stories" class="block text-sm text-ink-500 transition-colors hover:text-primary-400">
         ← 返回全部故事
       </a>
     </footer>

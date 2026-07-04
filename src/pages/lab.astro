@@ -16,6 +16,9 @@ import {
   VideoEmbed,
   CodePlayground,
   Scene3D,
+  SideNote,
+  RuleGarden,
+  RuleTarget,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
 ---
@@ -138,7 +141,9 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
         client:visible
         src="/demos/knowledge-garden/"
         title="知识花园 · knowledge-garden"
-        caption="沙箱中运行的真实小软件：点击画布种下想法。"
+        poster="/media/posters/knowledge-garden.svg"
+        posterAlt="知识花园预览：深色背景上的知识网络"
+        caption="沙箱中运行的真实小软件：点击画布种下想法。未加载时先展示 poster 预览。"
       />
     </div>
 
@@ -213,6 +218,58 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
         scene="particles"
         height={240}
         caption="粒子场场景：900 个粒子缓慢旋转。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">SideNote</h2>
+    <div data-testid="side-note">
+      <p class="text-ink-300 leading-loose">
+        旁注是正文的余光：它不打断论证，只在页边补一句。下面这段文字旁边挂着一条旁注——
+        宽屏（≥1536px）时它悬挂在右页边，窄屏时回落为正文内的插注块。
+      </p>
+      <SideNote label="旁注">
+        这就是一条旁注。它来自 Ink &amp; Switch 的版式语言：零 JS，纯 CSS 双形态。
+      </SideNote>
+      <p class="text-ink-300 leading-loose">
+        旁注的纪律写在创作规范里：每屏至多一条，只放"离题但增味"的内容。
+        能进正文的话就不该做成旁注。
+      </p>
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">RuleGarden</h2>
+    <div data-testid="rule-garden">
+      <p class="text-ink-300 leading-loose">
+        页面即房间：下面这些物件都用 RuleTarget 声明了自己的身份。比如
+        <RuleTarget name="intro-text" label="这段文字">这段文字</RuleTarget>
+        ——当它进入视野或被鼠标掠过，房间里的其他物件会按规则响应。
+      </p>
+      <RuleTarget name="color-box" label="右侧色块" block>
+        <div class="h-16 w-full rounded-lg bg-surface-800"></div>
+      </RuleTarget>
+      <p class="mt-4 text-ink-300 leading-loose">
+        这里还有一个计数徽标：
+        <RuleTarget name="counter-badge" label="计数徽标"><span class="font-mono text-xs text-ink-400">已被点击</span></RuleTarget>
+      </p>
+      <RuleGarden
+        title="这个页面的规则"
+        rules={[
+          {
+            id: 'r1',
+            when: { kind: 'enters-view', target: 'intro-text' },
+            wish: { kind: 'tint', target: 'color-box', tone: 'accent' },
+          },
+          {
+            id: 'r2',
+            when: { kind: 'click', target: 'counter-badge' },
+            wish: { kind: 'count', target: 'counter-badge' },
+          },
+          {
+            id: 'r3',
+            when: { kind: 'hover', target: 'intro-text' },
+            wish: { kind: 'highlight', target: 'color-box' },
+          },
+        ]}
+        caption="Claim/When/Wish 的网页玩具版：勾选、改词槽、加规则，页面立即响应。"
       />
     </div>
   </div>

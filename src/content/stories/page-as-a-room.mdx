@@ -1,0 +1,96 @@
+---
+title: "页面即房间：一篇你读着读着就动手改写了的文章"
+description: "把 Realtalk 的 Claim/When/Wish 搬进一张网页：规则可读、可改、可组合。这篇文章讲动态媒介，而它本身就是一个动态媒介——读到最后，你会发现自己已经编了程。"
+date: 2026-07-03
+kind: interactive
+thread: web-as-medium
+tags: ["动态媒介", "Realtalk", "RuleGarden", "宣言"]
+featured: false
+draft: true
+---
+
+import { RuleGarden, RuleTarget, ParamSlider, SideNote } from '@/components/media';
+
+{/* TODO: 全文散文段落均为骨架草稿，请用你自己的声音改写。结构与组件编排可保留。 */}
+
+## 第一幕：你现在是读者
+
+{/* TODO: 用你自己的话讲"应用与媒介的区别"。骨架论点如下： */}
+
+大多数网页是**应用**：功能被开发者密封好，你只能沿着预设的路径点击。
+而**媒介**不同——纸可以折，黏土可以捏，粉笔字可以擦了重写。
+Bret Victor 的 Dynamicland 实验室把整栋建筑变成了计算机：纸张既是程序又是界面，
+放上桌子就运行，谁都可以当场改写。他们管这叫 Realtalk。
+
+Realtalk 的空间性看起来无法搬进屏幕——我们没有那张桌子。
+但有一个诚实的对应物：**页面即房间，视口即桌面，滚动即走动**。
+你往下读的每一步，都是在房间里移动。
+
+比如：<RuleTarget name="first-object" label="这句话">这句话就是房间里的第一个物件</RuleTarget>——
+它有名字，别的规则可以指认它。这正是 Realtalk 的 Claim：宣称"我在这里，我叫这个名字"。
+
+## 第二幕：你现在是操作者
+
+下面是这个房间的规则清单。它们**正在运行**——试着勾选、取消勾选第一条，
+然后把页面往回滚一点再滚下来，看看
+<RuleTarget name="reactive-box" label="右边的方块" block>
+  <div class="h-16 w-full rounded-lg bg-surface-800"></div>
+</RuleTarget>
+有什么反应。
+
+<RuleGarden
+  title="这个房间的规则"
+  rules={[
+    { id: 'act2-r1', when: { kind: 'enters-view', target: 'reactive-box' }, wish: { kind: 'tint', target: 'reactive-box', tone: 'accent' } },
+    { id: 'act2-r2', when: { kind: 'hover', target: 'first-object' }, wish: { kind: 'highlight', target: 'reactive-box' } },
+  ]}
+  caption="规则就写在它作用的对象旁边——Realtalk 的可见性原则：程序印在物体上。"
+/>
+
+{/* TODO: 一段过渡：指出读者刚才做的事（开关一条规则）在传统 app 里叫"设置"，
+    但接下来要做的事在传统 app 里根本不存在。 */}
+
+## 第三幕：你现在是修理者
+
+{/* TODO: 设计一条"写坏的"规则，请读者改一个词让它工作。
+    骨架示例：下面这条规则的目标选错了，把词槽里的目标改成"计数徽标"，它就活了。 */}
+
+房间里还有一个物件：<RuleTarget name="click-counter" label="计数徽标">一枚等着被点击的徽标</RuleTarget>。
+下面这条规则本想数它被点击的次数，但目标槽选错了对象。
+展开词槽，把它修好——然后点几下徽标试试。
+
+<RuleGarden
+  title="一条等你修理的规则"
+  rules={[
+    { id: 'act3-r1', when: { kind: 'click', target: 'first-object' }, wish: { kind: 'count', target: 'click-counter' } },
+  ]}
+  caption="修理即编程：你刚才改的不是设置，是程序的语义。"
+/>
+
+## 第四幕：你现在是作者
+
+{/* TODO: 邀请读者用"＋ 添加一条规则"写一条全新的规则，
+    并给出一两个建议组合（比如：每过 2 秒，让方块挪动一下）。 */}
+
+上面任何一个规则清单里都有一个"＋ 添加一条规则"。
+写一条你自己的——让某个物件在你滚动到页面一半时变色，或者每两秒挪动一下。
+没有语法错误这回事：词槽里的每个选项都是合法的。
+
+<SideNote label="为什么是下拉不是输入框">
+  这是从 Ink & Switch 的 Embark 学的取舍：用表达力换可预测性。
+  你永远不会写出一条"解析失败"的规则，因为规则根本不需要解析。
+</SideNote>
+
+## 第五幕：刚才发生了什么
+
+{/* TODO: 收束。骨架论点： */}
+
+你在读一篇文章的过程中，不知不觉做了四件事：读、操作、修理、创作。
+每一步的门槛都只比上一步高一点点——这就是 Ink & Switch 说的 gentle slope，
+从消费者到创造者之间不该有悬崖。
+
+"开发"与"使用"的分离是制度，不是必然。
+这个网站的每个组件下面都有一个「⌥ 源码」，
+这篇文章讲的道理，就是你刚刚亲身经历的事。
+
+{/* TODO: 文末加一段你个人的邀请——为什么你在意这件事，想和什么样的人聊。 */}

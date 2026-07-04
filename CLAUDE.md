@@ -1,6 +1,7 @@
 # CLAUDE.md - ethanchang.io 项目指南
 
 > 整体框架计划与分阶段路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+> **内容创作规范**（把对话/文章转化为本站媒介的方法）见 [docs/MEDIUM.md](docs/MEDIUM.md)。
 
 ## 项目信息
 
@@ -25,16 +26,20 @@ npm run deploy     # 构建并手动部署到 Cloudflare Pages
 ```
 src/
   styles/global.css        设计 token（@theme）+ 基础样式 + prose + .media-frame
-  content.config.ts        stories / projects 两个内容集合的 schema
+  content.config.ts        stories / projects 两个内容集合的 schema（stories 含 notebook 档 + thread/seq）
   data/profile.ts          个人资料单一数据源（姓名/bio/skills/now/社交）
-  lib/                     viz/registry.ts（canvas 绘制注册表）、motion.ts、format.ts、user.ts（Phase 2 接缝）
+  data/threads.ts          研究线单一数据源（notebook 挂线的唯一真相）
+  lib/                     viz/registry.ts、rules/（RuleGarden 规则引擎）、motion.ts、format.ts、user.ts
   layouts/                 Base / Story / Project
   components/shell/        Nav / Footer / Card / SectionHeading
   components/home/         Hero / NowPanel / SkillsGraph / FeaturedGrid
-  components/media/        ★ 媒介组件库（12 件，见其 README.md，契约必读）
-  pages/                   index / stories / projects / about / lab / 404 / rss.xml.ts / api/*
-  content/stories/*.mdx    故事（kind: interactive | essay）
+  components/media/        ★ 媒介组件库（见其 README.md，契约必读）
+  pages/                   index / stories / threads / projects / about / lab / 404 / rss.xml.ts / api/*
+  content/stories/*.mdx    故事（kind: interactive | essay | notebook）
+  content/stories/notes/   编号研究笔记（<thread>/<NN>-<slug>.mdx）
   content/projects/*.mdx   项目（结构化 frontmatter：repo/downloads/screenshots/demo）
+plugins/
+  remark-source-view.mjs   构建期为 MDX 媒介组件注入「⌥ 源码」disclosure（拆开看）
 public/
   demos/<name>/index.html  自包含软件演示包（knowledge-garden / robert / network）
   media/                   图片、音频等静态媒体
@@ -43,7 +48,9 @@ scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 
 ## 内容创作
 
-**写一篇故事**：在 `src/content/stories/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；`kind: interactive`（含交互组件）或 `essay`（纯文字）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。
+**先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——它规定了从"对话/文章"到本站媒介的完整转换流水线（档位判定、组件决策表、两档发布制、页面接口）。
+
+**写一篇故事**：在 `src/content/stories/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。
 
 **添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，frontmatter 见 `content.config.ts`。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
 
@@ -72,4 +79,4 @@ scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 - `Scene3D`：three.js 场景注册表（`src/lib/scene3d/registry.ts`）
 - `ImageGallery`：图片网格 + Lightbox
 - 演示包：`public/demos/{knowledge-garden,robert,network}/`
-- 测试：`npm run test`（Playwright 46 项，CI 在 deploy 前运行）
+- 测试：`npm run test`（Playwright 全量，CI 在 deploy 前运行）

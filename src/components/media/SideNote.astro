@@ -1,0 +1,18 @@
+---
+/**
+ * SideNote —— Ink & Switch 式旁注（零 JS）。
+ * 宽屏（≥96rem）悬挂在正文右页边；窄屏回落为正文内插注块。
+ * 纪律：只放"离题但增味"的内容，每屏至多一条。
+ */
+interface Props {
+  /** 可选的旁注小标（mono 小字） */
+  label?: string;
+}
+
+const { label } = Astro.props;
+---
+
+<aside class="sidenote" role="note">
+  {label && <span class="sidenote-label">{label}</span>}
+  <slot />
+</aside>

@@ -1,0 +1,21 @@
+---
+/**
+ * RuleTarget — 零 JS 标记组件（Realtalk 的 Claim）。
+ * 给页面元素声明身份：data-rule-target 是机器名，data-rule-label 是给人读的标签。
+ * RuleGarden 注水后会扫描这些标记，把它们当作"房间里的物件"供规则引用。
+ * 视觉上只加一条虚线下划线（.rule-target，见 global.css），不改变内容语义。
+ */
+interface Props {
+  /** 机器名：规则 when/wish 里引用的 target 字符串 */
+  name: string;
+  /** 人类标签：RuleGarden 词槽下拉里显示的名字 */
+  label: string;
+  /** 块级形态（默认行内 <span>，block 时用 <div>） */
+  block?: boolean;
+}
+
+const { name, label, block = false } = Astro.props;
+const Tag = block ? 'div' : 'span';
+---
+
+<Tag data-rule-target={name} data-rule-label={label} class="rule-target"><slot /></Tag>
