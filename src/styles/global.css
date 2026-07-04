@@ -93,6 +93,7 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    overflow-x: clip;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -172,7 +173,7 @@
   }
 
   .prose-site pre {
-    @apply bg-surface-900 border border-surface-800 rounded-lg;
+    @apply max-w-full overflow-x-auto bg-surface-900 border border-surface-800 rounded-lg;
   }
 
   /* 媒介组件的共享外框 —— Astro 与 Svelte 组件都使用这两个类 */
@@ -205,6 +206,8 @@
     margin: 0;
     border: none;
     border-radius: 0;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   /* 旁注 SideNote（T3）：窄屏插注块，≥96rem 悬挂右页边 */

@@ -87,20 +87,54 @@
     {/if}
   </div>
 {:else}
-  <div class="flex items-center gap-1">
+  <div class="relative">
     <button
       type="button"
-      class="rounded-md px-2.5 py-1.5 text-xs text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100 sm:text-sm"
-      onclick={() => signIn('github')}
+      class="rounded-md px-2 py-1.5 text-xs text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100 sm:hidden"
+      aria-expanded={menuOpen}
+      aria-haspopup="true"
+      onclick={toggleMenu}
     >
-      GitHub
+      登录
     </button>
-    <button
-      type="button"
-      class="rounded-md px-2.5 py-1.5 text-xs text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100 sm:text-sm"
-      onclick={() => signIn('google')}
-    >
-      Google
-    </button>
+    <div class="hidden items-center gap-1 sm:flex">
+      <button
+        type="button"
+        class="rounded-md px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100"
+        onclick={() => signIn('github')}
+      >
+        GitHub
+      </button>
+      <button
+        type="button"
+        class="rounded-md px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100"
+        onclick={() => signIn('google')}
+      >
+        Google
+      </button>
+    </div>
+    {#if menuOpen}
+      <div
+        class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-md border border-surface-800 bg-surface-900 py-1 shadow-lg sm:hidden"
+        role="menu"
+      >
+        <button
+          type="button"
+          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+          role="menuitem"
+          onclick={() => signIn('github')}
+        >
+          GitHub 登录
+        </button>
+        <button
+          type="button"
+          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+          role="menuitem"
+          onclick={() => signIn('google')}
+        >
+          Google 登录
+        </button>
+      </div>
+    {/if}
   </div>
 {/if}
