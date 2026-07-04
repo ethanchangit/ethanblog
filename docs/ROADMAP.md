@@ -71,7 +71,7 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 - [x] **认证**：better-auth + GitHub/Google OAuth → `src/pages/api/auth/[...all].ts`
 - [x] **接缝点亮**：`src/lib/user.ts` 经 `/api/me` 读取会话；Story 布局的阅读进度条与收藏按钮已接入
 - [x] **UI**：Nav 登录/登出（AuthMenu）、Story 收藏按钮（BookmarkButton）、滚动进度同步（ReadingProgress）
-- [ ] **部署配置**（需手动）：创建 D1 实例、设置 OAuth secrets（见 `src/env.d.ts` 注释）
+- [x] **部署配置**：CI 在 deploy 前自动创建/绑定 D1 与 SESSION KV（`scripts/ensure-d1.sh`）；OAuth secrets 仍需在 Cloudflare Pages 环境变量中手动设置（见 `src/env.d.ts`）
 - [ ] **标注（highlight）**：收藏与进度先行，标注其后
 
 ## 六、Phase 3+ —— 媒介升档（进行中）

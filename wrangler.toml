@@ -3,8 +3,9 @@ pages_build_output_dir = "dist"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare D1 — create with: wrangler d1 create ethanblog
-# Then replace database_id and run: wrangler d1 migrations apply ethanblog
+# Cloudflare D1 — placeholder ID for local dev only.
+# CI runs scripts/ensure-d1.sh before deploy to create/bind the real database.
+# Manual setup: wrangler d1 create ethanblog → update database_id → ./scripts/migrate-d1.sh remote
 [[d1_databases]]
 binding = "DB"
 database_name = "ethanblog"
