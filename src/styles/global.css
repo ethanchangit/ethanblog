@@ -3,16 +3,16 @@
 
 /*
  * Design tokens — the single source of truth for color.
- * Ported from the legacy Hugo custom-dark.css scheme:
- * surface-900 keeps the signature rgb(36 38 41) background,
+ * Canvas philosophy: a pure, flat background so media content carries the
+ * visual weight. Dark mode canvas = #191919; elevation uses neutral grays only.
  * primary = blue, accent = cyan.
  */
 @theme {
   /* Surfaces (page & panels, dark-only site) */
-  --color-surface-950: rgb(24 26 28);
-  --color-surface-900: rgb(36 38 41);
-  --color-surface-800: rgb(48 51 55);
-  --color-surface-700: rgb(62 66 71);
+  --color-surface-950: rgb(25 25 25);
+  --color-surface-900: rgb(25 25 25);
+  --color-surface-800: rgb(38 38 38);
+  --color-surface-700: rgb(52 52 52);
 
   /* Ink (text) */
   --color-ink-50: rgb(248 250 252);

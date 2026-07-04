@@ -43,7 +43,7 @@
       const colors = {
         accent: toThreeColor(token('--color-accent-400', 'rgb(34, 211, 238)')),
         primary: toThreeColor(token('--color-primary-500', 'rgb(59, 130, 246)')),
-        surface: toThreeColor(token('--color-surface-900', 'rgb(36, 38, 41)')),
+        surface: toThreeColor(token('--color-surface-950', 'rgb(25, 25, 25)')),
         ink: toThreeColor(token('--color-ink-400', 'rgb(148, 163, 184)')),
       };
 

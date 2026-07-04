@@ -57,7 +57,7 @@
 
 <figure class="media-frame not-prose" bind:this={root}>
   <!-- 设备边框：像一个运行中的小软件 -->
-  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950/60 px-4 py-2.5">
+  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950 px-4 py-2.5">
     <div class="flex items-center gap-3">
       <span class="flex gap-1.5" aria-hidden="true">
         <span class="h-2.5 w-2.5 rounded-full bg-surface-700"></span>
@@ -93,7 +93,7 @@
         ></iframe>
       {/key}
     {:else}
-      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-surface-900 to-surface-950">
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface-950">
         <!-- poster 档：内容丰富的预览打底，注水后可升级为循环视频 -->
         {#if hydrated && posterVideo && !reduceMotion}
           <video
