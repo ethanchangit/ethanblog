@@ -5,6 +5,41 @@
 > 强制性技术约束见 [AGENTS.md](../AGENTS.md)，组件契约见
 > [src/components/media/README.md](../src/components/media/README.md)，本文不复述、只引用。
 
+## 0. 触发约定
+
+创作者与 agent 用消息**首行**的触发词声明意图。`/publish`（或 `发布：`）= 把输入转化为本站页面，走本文流水线；`/infra`（或 `基建：`）= 改网站基建，见 [AGENTS.md](../AGENTS.md) 任务路由。
+
+### 用户模板
+
+```markdown
+/publish
+
+kind: notebook          # notebook | essay | interactive；可省略，由 agent 按 §3 判定
+thread: web-as-medium   # notebook 必填
+slug: my-slug           # 可选；省略则由 title 生成
+draft: true             # 默认 true
+
+---
+（blog 草稿、对话记录、bullet 论点等原始输入）
+```
+
+`---` 上方为可选 YAML 头，`---` 下方为原始素材。需要新媒介组件时，在 YAML 头加 `allow-new-component: true`（默认禁止，见 [AGENTS.md](../AGENTS.md)）。
+
+### Agent 检查清单（收到 `/publish` 后）
+
+1. **确认模式**：首行触发词 → 只动内容层，不碰基建。
+2. **解析 YAML 头**：读取 `kind` / `thread` / `slug` / `draft` / `allow-new-component`（均可省略）。
+3. **执行 §4 流水线**：`---` 下方为素材；提炼论点 → 选档 → 定 kind → 写 frontmatter → 组装 MDX → QA。
+4. **落盘路径**：
+   - `kind: notebook` → `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1）
+   - 其他 story → `src/content/stories/<slug>.mdx`
+   - 项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`
+   - 新开研究线 → 在 [`src/data/threads.ts`](../src/data/threads.ts) 登记
+5. **提交前验证**：`npm run check && npm run build`；正文含交互组件时加 `npm run test`。
+6. **完成后汇报**：slug、kind、draft 状态、本地预览路径（如 `/stories/<slug>`）。
+
+无前缀但意图明显是创作时，agent 仍应走 §4 流水线，但**优先建议用户下次使用 `/publish`**。
+
 ## 1. 这份文档是什么
 
 这个网站是一台**媒介引擎**。创作者的创作方式保持简单：与 agent 对话，或写下普通的文章草稿。
