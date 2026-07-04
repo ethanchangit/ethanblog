@@ -1,9 +1,9 @@
 ---
-name: "Network"
-tagline: "键盘为中心的桌面笔记应用"
-status: shipped
-order: 20
-stack: ["Electron", "React", "TypeScript", "Tiptap"]
+name: "Networks"
+tagline: "卡片既是文件夹也是文档的笔记工具"
+status: archived
+order: 30
+stack: ["Electron", "React", "TypeScript"]
 platforms: ["macOS", "Windows"]
 repo: "https://github.com/ethanchangit/network"
 featured: true
@@ -14,26 +14,18 @@ demo:
 
 import { InteractiveDemo } from '@/components/media';
 
-Network 是一款为重度键盘用户设计的桌面笔记应用——双手不离开键盘，完成从记录到组织的全部操作。
+我的第三个项目。简单来说，我希望把它做成一个 Heptabase，但每一张卡片的能力都被强化——既可以作为文件夹，也可以作为文档。规划中有 5、6 种不同类型的卡片，包括 Excalidraw、Whiteboard、普通卡片等。
 
 <InteractiveDemo
   client:visible
   src="/demos/network/"
-  title="Network · 键盘笔记"
+  title="Networks · 早期原型切片"
   height="480px"
-  caption="方向键导航卡片，Enter 进入 Markdown 编辑，Esc 保存退出。"
+  caption="演示包展示的是早期键盘导航原型，与最终愿景并非同一产品。"
 />
 
-## 功能
+## 为什么停下来了
 
-- 卡片式笔记库系统
-- 深度优化的键盘快捷键体系
-- 基于 Tiptap 的 Markdown 编辑体验
-- 标签化组织
-- PDF 与文档支持
+我发现自己的开发过分发散，直接做崩溃了。以当时的精力与时间，只能支持做好一个单一的 card + folder 机制；而完整愿景的难度要大得多，必须将多种卡片类型与 folder/card 机制统一协调——这超出了我当时的承载能力。
 
-## 技术架构
-
-- **前端**：Electron + React + TypeScript
-- **存储**：本地 SQLite + 云同步
-- **构建**：electron-builder
+项目暂停，但「一条笔记既是 folder 也是 document」的结构设计，延续到了后来的 Robert。

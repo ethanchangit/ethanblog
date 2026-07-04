@@ -5,20 +5,65 @@ import { getCollection } from 'astro:content';
 import { statusLabel } from '@/lib/format';
 
 const projects = (await getCollection('projects')).sort((a, b) => a.data.order - b.data.order);
+const journey = projects.filter((p) => p.id !== 'ethanchang-io');
+const meta = projects.find((p) => p.id === 'ethanchang-io');
 ---
 
-<Base title="作品" description="我写的软件与开源项目 —— 可下载、可导航、可在线体验。">
+<Base title="作品" description="我做的软件与开源项目——从复习卡片到 agent 阅读学习，一条清晰的创建之路。">
   <section class="mx-auto max-w-5xl px-4 py-14 sm:px-6">
     <header class="mb-10">
       <p class="mb-1 font-mono text-xs uppercase tracking-widest text-accent-400">Projects</p>
       <h1 class="text-3xl font-semibold text-ink-100">作品</h1>
-      <p class="mt-3 max-w-xl text-ink-400">
-        我做的软件与开源项目。有些可以直接下载使用，有些可以在页面里在线体验。
+      <p class="mt-3 max-w-2xl text-ink-400">
+        下面是我按时间顺序开发的五款软件，以及承载它们的这个网站。每个项目解决一类具体的阻力——复习、阅读、笔记结构、上下文整理、agent 学习。
       </p>
     </header>
+
+    <div class="prose-site mb-14">
+      <h2>我的软件创建之路</h2>
+
+      <h3>创客计划 —— 复习卡片</h3>
+      <p>
+        第一个项目是我们的创客计划：一个复习卡片的编写和复习软件。之所以想做这个，是因为我觉得当前市面上比较流行的复习软件要么噪音很多、界面不干净，要么功能实现得很糟。所谓「不干净」，指的是界面 UI 非常凌乱，复习功能不是一等公民，而是被隐藏在二级入口。复习时常常要求你先选择要复习的 deck，而不是直接允许你开启一天的复习，这会产生很多阻力和噪音。编辑卡片的编辑器也做得很拧巴，功能不够强大和完善。
+      </p>
+      <p>
+        我们理想中的卡片编辑器应该支持 QA 卡片的闭合挖空、图片支招挖空，以及更强大的遮罩文本挖空——将不同的支招块合并为同一个复习内容，合并成同一个复习的遮罩块，然后进行回忆；每一次回忆时将其他支招块隐藏。简单来说，就是「hide one, test all」和「merge different clozes」这种能力，在很多编辑器中都没有实现。因此，我想把它做成一个极简、易用的小软件。
+      </p>
+      <p>
+        第二个需求是拥有非常灵活的批量导入 flashcard 的能力：做好单一输入后，能够一次性导入大量 flashcard，像做笔记一样编写复习卡片，并将它们合适地归类到内容中。
+      </p>
+
+      <h3>Aletheia —— 照亮阅读</h3>
+      <p>
+        第二个项目叫 Aletheia，意思是「照亮」。它的功能主要是在英文阅读时进行查词——像灯一样点亮阅读时的困惑和迷茫。核心点有两个：查词的交互没有侵略性，做得相对简洁，不会剧烈改变阅读样式，搞的五六种颜色标注，最后都没法读，注意力全被标注吸引走了。并引入 AI 技术，让 AI 结合语境（context）来查询单词在语境中的含义，而不是调用传统词典。传统词典可能给出 5 到 10 种含义，用户需要自行匹配，这对阅读过程是巨大的阻力。
+      </p>
+      <p>
+        查词后如果不复习效率很低，所以我们又做了一个简单的复习软件，复习交互直接引用了第一个项目中使用的左滑、右滑、上滑、下滑等动画，实现了复用。
+      </p>
+
+      <h3>Networks —— 强化卡片</h3>
+      <p>
+        第三个项目叫 Networks，它是一款笔记工具。简单来说，我希望把它做成一个 Heptabase，但每一张卡片的能力都被强化，既可以作为文件夹，也可以作为文档。它会有 5、6 种不同类型的卡片，包括 Excalidraw、Whiteboard、普通的卡片等。但我发现自己的开发过分发散，直接做崩溃了，因为我的精力与时间只能支持做好一个单一 card + folder 机制，而完整愿景的难度要大得多。
+      </p>
+
+      <h3>Robert —— 个人上下文</h3>
+      <p>
+        第四个项目的名称叫 Robert，是因为我觉得这很像一个管家的名字，我想让它做我们的 personal context manager。它的结构与 Networks 一脉相承：一条笔记可以有多个 parent card，每一条笔记既是一个 folder 也是一个 document，既可以用来存储笔记内容，也可以用来导航探索找到笔记。
+      </p>
+      <p>
+        但由于多个 parent card 过分灵活，如果由用户手动来匹配这些 parent card，就相当于原来我们只需要给一条笔记找一个 folder 去存储管理，现在我们需要找到多个 folder，那就会带来非常大的阻力和使用疲惫。因此我们引入了 robert agent，尝试创建一种异步 agent 确认机制来跟用户达成哪些内容需要保留和不保留的共识——比如每天晚上 agent 获取用户今日写的笔记，结合已知结构，发送确认：是否要将新卡片连接到已有的主题卡片下。
+      </p>
+
+      <h3>Trace —— 阅读、聊天、学习</h3>
+      <p>
+        第五个软件叫 Trace，它的功能与定位是一个 agent 阅读聊天器，但又结合了学习能力。它是一个 AI chat 软件，但支持子 thread 能力，允许你在聊天中开启新的分支，保留清晰的 context，轻松深入任何你好奇的领域；它也是 agent 辅助的 flashcard 软件，当你阅读了好奇的内容，将想要学习与记忆的内容进行 highlight，agent 会为你的 highlight 生成 flashcards；因为我想阅读英文内容、直接学习原文，所以又给它引入了 Aletheia 中做过的生词卡片能力，它能结合 context 查询生词的语境义，并且允许收藏生成单词卡片复习。
+      </p>
+    </div>
+
+    <h2 class="mb-6 text-xl font-semibold text-ink-100">全部作品</h2>
     <div class="grid gap-4 sm:grid-cols-2">
       {
-        projects.map((p) => (
+        journey.map((p) => (
           <Card
             href={`/projects/${p.id}`}
             title={p.data.name}
@@ -31,6 +76,21 @@ const projects = (await getCollection('projects')).sort((a, b) => a.data.order -
             tags={p.data.stack}
           />
         ))
+      }
+      {
+        meta && (
+          <Card
+            href={`/projects/${meta.id}`}
+            title={meta.data.name}
+            description={meta.data.tagline}
+            meta={meta.data.platforms.join(' · ') || undefined}
+            badge={{
+              text: statusLabel[meta.data.status].text,
+              accent: meta.data.status === 'active',
+            }}
+            tags={meta.data.stack}
+          />
+        )
       }
     </div>
   </section>
