@@ -1,6 +1,7 @@
 ---
 import { site } from '@/data/profile';
 import AuthMenu from '@/components/shell/AuthMenu.svelte';
+import ThemeToggle from '@/components/shell/ThemeToggle.svelte';
 
 const links = [
   { href: '/stories', label: '故事' },
@@ -43,6 +44,9 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
           </li>
         ))
       }
+      <li>
+        <ThemeToggle client:load />
+      </li>
       <li>
         <AuthMenu client:load />
       </li>

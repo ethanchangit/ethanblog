@@ -5,7 +5,7 @@
 ## 样式约束
 
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
-- 全站深色（`color-scheme: dark`），页面画布为纯粹的 `#191919`（`surface-950`），不引入浅色模式；背景保持极简平坦，让媒介内容承担视觉重心。
+- 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。背景保持极简平坦，让媒介内容承担视觉重心。
 - 组件外框统一使用 `.media-frame` / `.media-caption`，不要各自发明卡片样式。
 
 ## 交互组件约束（媒介组件库契约的强制部分）

@@ -4,24 +4,23 @@
 /*
  * Design tokens — the single source of truth for color.
  * Canvas philosophy: a pure, flat background so media content carries the
- * visual weight. Dark mode canvas = #191919; elevation uses neutral grays only.
+ * visual weight. Light = white canvas; dark (night) = #191919.
  * primary = blue, accent = cyan.
  */
 @theme {
-  /* Surfaces (page & panels, dark-only site) */
-  --color-surface-950: rgb(25 25 25);
-  --color-surface-900: rgb(25 25 25);
-  --color-surface-800: rgb(38 38 38);
-  --color-surface-700: rgb(52 52 52);
+  /* Surfaces & ink resolve per theme via --theme-* variables below */
+  --color-surface-950: var(--theme-surface-950);
+  --color-surface-900: var(--theme-surface-900);
+  --color-surface-800: var(--theme-surface-800);
+  --color-surface-700: var(--theme-surface-700);
 
-  /* Ink (text) */
-  --color-ink-50: rgb(248 250 252);
-  --color-ink-100: rgb(241 245 249);
-  --color-ink-200: rgb(226 232 240);
-  --color-ink-300: rgb(203 213 225);
-  --color-ink-400: rgb(148 163 184);
-  --color-ink-500: rgb(100 116 139);
-  --color-ink-600: rgb(71 85 105);
+  --color-ink-50: var(--theme-ink-50);
+  --color-ink-100: var(--theme-ink-100);
+  --color-ink-200: var(--theme-ink-200);
+  --color-ink-300: var(--theme-ink-300);
+  --color-ink-400: var(--theme-ink-400);
+  --color-ink-500: var(--theme-ink-500);
+  --color-ink-600: var(--theme-ink-600);
 
   /* Primary — blue */
   --color-primary-50: rgb(239 246 255);
@@ -53,9 +52,45 @@
     "PingFang SC", monospace;
 }
 
+/* Light — pure white canvas (day) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --theme-surface-950: rgb(255 255 255);
+  --theme-surface-900: rgb(255 255 255);
+  --theme-surface-800: rgb(240 240 240);
+  --theme-surface-700: rgb(224 224 224);
+
+  --theme-ink-50: rgb(255 255 255);
+  --theme-ink-100: rgb(23 23 23);
+  --theme-ink-200: rgb(38 38 38);
+  --theme-ink-300: rgb(64 64 64);
+  --theme-ink-400: rgb(115 115 115);
+  --theme-ink-500: rgb(140 140 140);
+  --theme-ink-600: rgb(163 163 163);
+}
+
+/* Dark — pure #191919 canvas (night) */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --theme-surface-950: rgb(25 25 25);
+  --theme-surface-900: rgb(25 25 25);
+  --theme-surface-800: rgb(38 38 38);
+  --theme-surface-700: rgb(52 52 52);
+
+  --theme-ink-50: rgb(248 250 252);
+  --theme-ink-100: rgb(241 245 249);
+  --theme-ink-200: rgb(226 232 240);
+  --theme-ink-300: rgb(203 213 225);
+  --theme-ink-400: rgb(148 163 184);
+  --theme-ink-500: rgb(100 116 139);
+  --theme-ink-600: rgb(71 85 105);
+}
+
 @layer base {
   html {
-    color-scheme: dark;
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
   }
@@ -82,15 +117,23 @@
 /* Long-form prose — tuned for Chinese + English mixed text */
 @layer components {
   .prose-site {
-    @apply prose prose-invert max-w-none
+    @apply prose max-w-none
       prose-headings:text-ink-100 prose-headings:font-semibold
       prose-p:leading-loose prose-p:text-ink-300
       prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
       prose-strong:text-ink-100
-      prose-code:text-accent-300 prose-code:before:content-none prose-code:after:content-none
+      prose-code:before:content-none prose-code:after:content-none
       prose-blockquote:border-l-primary-500 prose-blockquote:text-ink-400
       prose-hr:border-surface-700
       prose-li:leading-loose;
+  }
+
+  [data-theme="light"] .prose-site {
+    @apply prose-code:text-accent-700;
+  }
+
+  [data-theme="dark"] .prose-site {
+    @apply prose-invert prose-code:text-accent-300;
   }
 
   .prose-site pre {

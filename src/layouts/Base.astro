@@ -23,6 +23,19 @@ const canonical = new URL(Astro.url.pathname, site.url);
 <html lang={site.lang}>
   <head>
     <meta charset="utf-8" />
+    <script is:inline>
+      {
+        try {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme =
+            stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
@@ -36,7 +49,9 @@ const canonical = new URL(Astro.url.pathname, site.url);
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL(ogImage, site.url)} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#191919" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#191919" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" id="theme-color" content="#ffffff" />
     <ClientRouter />
   </head>
   <body class="flex min-h-screen flex-col">
