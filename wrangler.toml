@@ -3,11 +3,14 @@ pages_build_output_dir = "dist"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare D1 — placeholder ID for local dev only.
-# CI runs scripts/ensure-d1.sh before deploy to create/bind the real database.
-# Manual setup: wrangler d1 create ethanblog → update database_id → ./scripts/migrate-d1.sh remote
+# Cloudflare D1 + KV bindings for ethanblog Pages project.
+# CI runs scripts/ensure-d1.sh before deploy to verify/create resources.
 [[d1_databases]]
 binding = "DB"
 database_name = "ethanblog"
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "1de188e2-c10c-42b9-86b8-709a27c88871"
 migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "SESSION"
+id = "5b6b6d1c5e4347289c28c34954be8cfe"
