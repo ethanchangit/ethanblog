@@ -113,7 +113,7 @@
         <div class="relative z-10 flex h-full items-end p-6 sm:items-center sm:p-12">
           {#each scenes as s, i (i)}
             <div
-              class="absolute max-w-md rounded-xl border border-surface-800 bg-surface-950/85 p-5 backdrop-blur transition-all duration-500"
+              class="absolute max-w-md rounded-xl border border-surface-800 bg-surface-950 p-5 transition-all duration-500"
               style="opacity: {active === i ? 1 : 0}; transform: translateY({active === i
                 ? 0
                 : 12}px); pointer-events: {active === i ? 'auto' : 'none'}"

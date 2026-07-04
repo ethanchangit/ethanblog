@@ -71,7 +71,7 @@
 </script>
 
 <figure class="media-frame not-prose">
-  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950/60 px-4 py-2.5">
+  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950 px-4 py-2.5">
     <p class="font-mono text-xs text-ink-400">{title}</p>
     {#if hydrated}
       <button
@@ -113,7 +113,7 @@
     </div>
   {:else if !hydrated}
     <!-- 注水前占位：保持与运行态相近的高度提示 -->
-    <div class="flex items-center justify-center border-t border-surface-800 bg-surface-950/40 px-4 py-8 font-mono text-xs text-ink-600">
+    <div class="flex items-center justify-center border-t border-surface-800 bg-surface-950 px-4 py-8 font-mono text-xs text-ink-600">
       启用 JavaScript 后点击 Run 在线运行
     </div>
   {/if}

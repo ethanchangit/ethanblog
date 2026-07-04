@@ -210,7 +210,7 @@
 
 <figure class="media-frame not-prose">
   {#if title}
-    <div class="border-b border-surface-800 bg-surface-950/60 px-4 py-2.5">
+    <div class="border-b border-surface-800 bg-surface-950 px-4 py-2.5">
       <p class="font-mono text-xs text-ink-400">{title}</p>
     </div>
   {/if}
