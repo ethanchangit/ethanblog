@@ -1,9 +1,9 @@
 ---
 name: "Robert"
-tagline: "语音优先的 iOS 灵活笔记应用"
+tagline: "带 robert agent 的个人上下文管理器"
 status: active
-order: 10
-stack: ["SwiftUI", "GRDB", "Cloudflare Workers"]
+order: 40
+stack: ["SwiftUI", "GRDB", "LLM", "Cloudflare Workers"]
 platforms: ["iOS 17+"]
 repo: "https://github.com/ethanchangit/robert"
 featured: true
@@ -14,28 +14,22 @@ demo:
 
 import { InteractiveDemo } from '@/components/media';
 
-Robert 是一款受 flomo 启发的灵活笔记应用，核心理念是**语音优先**——让记录的摩擦力降到最低。
+我的第四个项目。名称来自「管家」——我想让它做我们的 personal context manager。
+
+## 结构设计
+
+笔记结构沿用 Networks 中的设计：一条笔记可以有多个 parent card，每一条笔记既是一个 folder 也是一个 document。它既可以用来存储笔记内容，也可以用来导航、探索并找到笔记。
+
+## robert agent
+
+多个 parent card 过分灵活：如果由用户手动匹配这些 parent，就相当于原来只需要给一条笔记找一个 folder，现在需要找多个 folder——会带来非常大的阻力和使用疲惫。
+
+因此我们引入了 robert agent，尝试创建一种异步 agent 确认机制，跟用户达成哪些内容需要保留和不保留的共识。设计的思路是：每天晚上 agent 会获取一部分用户给定的 context，结合它已知的信息进行结构探索。比如用户原来就有一些编程笔记的 card，今天写了 5 条编程心得，agent 读完后会想到以前创建的「编程笔记」，然后发送一条确认：是否要将这 5 张卡片连接为「编程笔记」的子卡片。
 
 <InteractiveDemo
   client:visible
   src="/demos/robert/"
-  title="Robert · 语音笔记"
+  title="Robert · 交互原型"
   height="520px"
-  caption="点击麦克风模拟录制，转写后生成块级卡片。"
+  caption="演示包展示的是早期交互切片，核心方向是 agent 辅助的上下文整理。"
 />
-
-## 功能
-
-- 语音录制 + AI 转写（Whisper via Cloudflare Workers）
-- 块级内容管理（Block-based）
-- 待办系统，支持重复与提醒
-- AI 驱动的提问建议
-- 卡片合并 / 拆分推荐
-
-## 技术架构
-
-- **前端**：SwiftUI，面向 iOS 17+
-- **数据库**：GRDB（SQLite）
-- **后端**：Cloudflare Workers（Whisper 转写 + LLM 处理）
-
-语音进来，结构化的知识卡片出去——这是 Robert 想要打通的完整链路。
