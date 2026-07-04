@@ -12,7 +12,8 @@
  * - GOOGLE_CLIENT_ID         — Google OAuth client ID
  * - GOOGLE_CLIENT_SECRET     — Google OAuth client secret
  *
- * Local dev: copy to `.dev.vars` or `.env` (see wrangler docs).
+ * Local dev: copy `.dev.vars.example` → `.dev.vars`.
+ * Remote upload: copy → `.env.production`, then `npm run setup:cloudflare`.
  */
 type Env = {
   DB: D1Database;
