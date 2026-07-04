@@ -56,16 +56,16 @@
 
 <div class="relative">
   <div class="relative mx-auto max-w-5xl px-4 pb-24 pt-28 sm:px-6 sm:pt-36">
-    <p class="mb-3 font-mono text-sm text-accent-400">你好，我是</p>
+    <p class="mb-3 text-sm text-ink-500">你好，我是</p>
     <h1 class="text-5xl font-semibold tracking-tight text-ink-50 sm:text-6xl">{name}</h1>
-    <p class="mt-4 h-7 font-mono text-lg text-primary-300" aria-live="off">
-      {display}<span class="animate-pulse text-accent-400">▌</span>
+    <p class="mt-4 h-7 text-lg text-ink-300" aria-live="off">
+      {display}
     </p>
     <p class="mt-6 max-w-xl text-lg leading-relaxed text-ink-400">{bio}</p>
     <div class="mt-10 flex flex-wrap gap-3">
       <a
         href="/stories/how-this-site-works"
-        class="rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-ink-50 shadow-lg transition-all hover:bg-primary-500 hover:shadow-primary-900/40"
+        class="rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-ink-50 transition-colors hover:bg-primary-500"
       >
         这个网站不是博客 →
       </a>
