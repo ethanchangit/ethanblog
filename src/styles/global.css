@@ -5,7 +5,7 @@
  * Design tokens — the single source of truth for color.
  * Canvas philosophy: a pure, flat background so media content carries the
  * visual weight. Light = white canvas; dark (night) = #191919.
- * primary = blue, accent = cyan.
+ * primary = restrained blue (links & actions); accent = secondary emphasis in media/viz only.
  */
 @theme {
   /* Surfaces & ink resolve per theme via --theme-* variables below */
@@ -111,7 +111,42 @@
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-accent-400;
+    @apply outline-2 outline-offset-2 outline-ink-400;
+  }
+}
+
+/* Shell UI — 极简克制的共享标记与元信息样式 */
+@layer components {
+  .ui-eyebrow {
+    @apply mb-1 text-xs text-ink-500;
+  }
+
+  .ui-section-label {
+    @apply mb-2 text-xs font-medium text-ink-500;
+  }
+
+  .ui-badge {
+    @apply shrink-0 rounded-md border border-surface-700 px-2 py-0.5 text-xs text-ink-400;
+  }
+
+  .ui-badge--active {
+    @apply border-surface-700 bg-surface-800 text-ink-300;
+  }
+
+  .ui-meta {
+    @apply text-xs text-ink-500;
+  }
+
+  .ui-tag {
+    @apply rounded border border-surface-700 px-1.5 py-0.5 text-[11px] text-ink-500;
+  }
+
+  .ui-link {
+    @apply text-ink-400 transition-colors hover:text-ink-100;
+  }
+
+  .ui-link-subtle {
+    @apply text-sm text-ink-500 transition-colors hover:text-ink-200;
   }
 }
 
@@ -121,7 +156,7 @@
     @apply prose max-w-none
       prose-headings:text-ink-100 prose-headings:font-semibold
       prose-p:leading-loose prose-p:text-ink-300
-      prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
+      prose-a:text-ink-200 prose-a:underline prose-a:decoration-ink-500 prose-a:underline-offset-2 hover:prose-a:decoration-ink-300
       prose-strong:text-ink-100
       prose-code:before:content-none prose-code:after:content-none
       prose-blockquote:border-l-primary-500 prose-blockquote:text-ink-400
@@ -130,11 +165,11 @@
   }
 
   [data-theme="light"] .prose-site {
-    @apply prose-code:text-accent-700;
+    @apply prose-code:text-ink-200 prose-code:bg-surface-800;
   }
 
   [data-theme="dark"] .prose-site {
-    @apply prose-invert prose-code:text-accent-300;
+    @apply prose-invert prose-code:text-ink-200 prose-code:bg-surface-800;
   }
 
   .prose-site pre {
@@ -177,11 +212,11 @@
 
   /* 旁注 SideNote（T3）：窄屏插注块，≥96rem 悬挂右页边 */
   .sidenote {
-    @apply my-6 rounded-lg border-l-2 border-accent-700 bg-surface-900 px-4 py-3 text-sm leading-relaxed text-ink-400;
+    @apply my-6 rounded-lg border-l border-surface-700 bg-surface-900 px-4 py-3 text-sm leading-relaxed text-ink-400;
   }
 
   .sidenote-label {
-    @apply mb-1 block font-mono text-xs text-accent-400;
+    @apply mb-1 block text-xs font-medium text-ink-500;
   }
 
   @media (min-width: 96rem) {
@@ -309,6 +344,6 @@
   }
 
   .toc-mobile summary {
-    @apply cursor-pointer select-none py-2 font-mono text-xs text-ink-500;
+    @apply cursor-pointer select-none py-2 text-sm text-ink-500;
   }
 }

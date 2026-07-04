@@ -56,7 +56,7 @@
           {item.icon ?? '·'}
         </div>
         <div>
-          <p class="font-mono text-xs text-accent-400">{item.date}</p>
+          <p class="ui-meta">{item.date}</p>
           <h4 class="mt-0.5 font-semibold text-ink-100">{item.title}</h4>
           {#if item.body}
             <p class="mt-1 text-sm leading-relaxed text-ink-400">{item.body}</p>

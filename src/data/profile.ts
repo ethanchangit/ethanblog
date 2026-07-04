@@ -39,9 +39,9 @@ export const skills: Skill[] = [
   { name: 'TypeScript', domain: '后端', level: 80, projects: ['network'] },
   { name: 'Cloudflare Workers', domain: '后端', level: 78, projects: ['robert'] },
   { name: 'Electron / React', domain: '工具链', level: 72, projects: ['network'] },
-  { name: 'LLM 集成', domain: 'AI', level: 85, projects: ['robert', 'aletheia'] },
+  { name: 'LLM 集成', domain: 'AI', level: 85, projects: ['robert', 'aletheia', 'trace'] },
   { name: '语音 AI（Whisper）', domain: 'AI', level: 76, projects: ['robert'] },
-  { name: '知识管理方法论', domain: 'AI', level: 88, projects: ['chunk'] },
+  { name: '知识管理方法论', domain: 'AI', level: 88, projects: ['maker-plan', 'network', 'trace'] },
 ];
 
 export interface NowItem {

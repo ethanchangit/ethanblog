@@ -1,0 +1,21 @@
+---
+description: "用户消息以 /infra 或 基建： 开头，或要求修改组件、样式、布局、API、测试、部署时适用。遵循 AGENTS.md，不创建或改写 story 正文。"
+globs:
+  - src/components/**
+  - src/lib/**
+  - src/pages/**
+  - plugins/**
+alwaysApply: false
+---
+
+# `/infra` — 网站基建模式
+
+路由表见 [AGENTS.md](../../AGENTS.md#任务路由)。
+
+## 收到 `/infra` 后
+
+1. **只动基建层**：`src/components/`、`src/lib/`、`src/pages/`、`plugins/`、CI 配置等。
+2. **禁止内容创作**：不创建或改写 `src/content/` 下的 MDX，除非用户明确要求。
+3. **遵循约束**：[AGENTS.md](../../AGENTS.md) + [media/README.md](../../src/components/media/README.md)。
+4. **新组件准入**：满足 media/README 六条契约 → `/lab` 点亮 → 补测试 → 更新 README。
+5. **验证**：`npm run check && npm run build && npm run test`。

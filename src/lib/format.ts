@@ -12,8 +12,8 @@ export function formatSeq(seq: number): string {
 }
 
 export const statusLabel: Record<string, { text: string; class: string }> = {
-  active: { text: '活跃开发', class: 'bg-accent-900/60 text-accent-300' },
-  shipped: { text: '已发布', class: 'bg-primary-900/60 text-primary-300' },
-  wip: { text: '构思中', class: 'bg-surface-800 text-ink-400' },
-  archived: { text: '已归档', class: 'bg-surface-800 text-ink-500' },
+  active: { text: '活跃开发', class: 'ui-badge ui-badge--active' },
+  shipped: { text: '已发布', class: 'ui-badge ui-badge--active' },
+  wip: { text: '构思中', class: 'ui-badge' },
+  archived: { text: '已归档', class: 'ui-badge' },
 };
