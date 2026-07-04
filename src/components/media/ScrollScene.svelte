@@ -119,7 +119,7 @@
                 : 12}px); pointer-events: {active === i ? 'auto' : 'none'}"
               aria-hidden={active !== i}
             >
-              <p class="mb-1 font-mono text-xs text-accent-400">
+              <p class="ui-meta mb-1">
                 {String(i + 1).padStart(2, '0')} / {String(scenes.length).padStart(2, '0')}
               </p>
               <h3 class="mb-2 text-lg font-semibold text-ink-100">{s.title}</h3>
@@ -131,7 +131,7 @@
       {#if progressBar}
         <div class="h-0.5 bg-surface-800">
           <div
-            class="h-full bg-gradient-to-r from-primary-500 to-accent-400"
+            class="h-full bg-ink-500"
             style="width: {progress * 100}%"
           ></div>
         </div>
@@ -142,7 +142,7 @@
     <div class="divide-y divide-surface-800">
       {#each scenes as s, i (i)}
         <div class="p-6">
-          <p class="mb-1 font-mono text-xs text-accent-400">
+          <p class="ui-meta mb-1">
             {String(i + 1).padStart(2, '0')} / {String(scenes.length).padStart(2, '0')}
           </p>
           <h3 class="mb-2 text-lg font-semibold text-ink-100">{s.title}</h3>

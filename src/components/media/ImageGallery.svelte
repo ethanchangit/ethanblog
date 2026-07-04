@@ -138,7 +138,7 @@
     {#if images.length > 1}
       <button
         type="button"
-        class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 font-mono text-sm text-ink-300 transition-colors hover:border-accent-400 hover:text-accent-300 sm:left-6"
+        class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 text-sm text-ink-300 transition-colors hover:border-surface-600 hover:text-ink-100 sm:left-6"
         onclick={prev}
         aria-label="上一张"
       >
@@ -146,7 +146,7 @@
       </button>
       <button
         type="button"
-        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 font-mono text-sm text-ink-300 transition-colors hover:border-accent-400 hover:text-accent-300 sm:right-6"
+        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 text-sm text-ink-300 transition-colors hover:border-surface-600 hover:text-ink-100 sm:right-6"
         onclick={next}
         aria-label="下一张"
       >

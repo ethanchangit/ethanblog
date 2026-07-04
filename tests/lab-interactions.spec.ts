@@ -33,7 +33,7 @@ test('ParamSlider updates value when slider moves', async ({ page }) => {
 
   const slider = section.getByLabel('卡片数量');
   await setRange(slider, '120');
-  await expect(section.locator('.font-mono').filter({ hasText: '120' })).toBeVisible();
+  await expect(section.locator('.ui-meta').filter({ hasText: '120' })).toBeVisible();
 });
 
 test('ParamSlider redraws canvas when slider moves', async ({ page }) => {

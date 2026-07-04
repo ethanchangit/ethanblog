@@ -63,34 +63,24 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
         <div class="flex flex-wrap items-center gap-3">
           {
             isNotebook ? (
-              <span class="flex flex-wrap items-baseline gap-2 font-mono text-xs">
-                <a
-                  href={`/threads/${thread}`}
-                  class="text-accent-400 transition-colors hover:text-accent-300"
-                >
+              <span class="flex flex-wrap items-baseline gap-2 text-xs">
+                <a href={`/threads/${thread}`} class="ui-link">
                   研究线：{threadTitle}
                 </a>
                 <span class="text-ink-500">· 笔记 #{formatSeq(seq ?? 0)}</span>
               </span>
             ) : (
-              <span
-                class:list={[
-                  'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                  kind === 'interactive'
-                    ? 'bg-accent-900/60 text-accent-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
-                    : 'bg-surface-800 text-ink-400',
-                ]}
-              >
+              <span class:list={['text-xs font-medium', kind === 'interactive' ? 'ui-badge ui-badge--active' : 'ui-badge']}>
                 {kind === 'interactive' ? '互动故事' : '文章'}
               </span>
             )
           }
-          <time datetime={date.toISOString()} class="font-mono text-xs text-ink-500">
+          <time datetime={date.toISOString()} class="ui-meta">
             {formatDate(date)}
           </time>
           {
             updated && (
-              <span class="font-mono text-xs text-ink-600">更新于 {formatDate(updated)}</span>
+              <span class="ui-meta">更新于 {formatDate(updated)}</span>
             )
           }
         </div>
@@ -104,13 +94,13 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
         )
       }
       <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">{title}</h1>
-      {!isNotebook && <p class="mt-3 font-mono text-xs text-ink-500">{byline}</p>}
+      {!isNotebook && <p class="ui-meta mt-3">{byline}</p>}
       {
         isNotebook ? (
           <p class="mt-4 text-lg leading-relaxed text-ink-400">{description}</p>
         ) : (
           <div class="mt-6">
-            <p class="mb-2 font-mono text-xs uppercase tracking-widest text-accent-400">摘要</p>
+            <p class="ui-section-label">摘要</p>
             <p class="text-lg leading-relaxed text-ink-400">{description}</p>
           </div>
         )
@@ -119,7 +109,7 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
         tags.length > 0 && (
           <ul class="mt-5 flex flex-wrap gap-2">
             {tags.map((t) => (
-              <li class="rounded bg-surface-900 px-2 py-0.5 font-mono text-xs text-ink-500">#{t}</li>
+              <li class="ui-tag">#{t}</li>
             ))}
           </ul>
         )
@@ -136,12 +126,10 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
     <footer class="mt-16 space-y-8 border-t border-surface-800 pt-8">
       {/* 招募段：全档 */}
       <section>
-        <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">
-          如果你也在想这个问题
-        </p>
+        <p class="ui-section-label">如果你也在想这个问题</p>
         <p class="text-sm leading-relaxed text-ink-400">
           这篇内容的反馈、反驳、延伸讨论，都欢迎写信来聊。
-          <a href={mailtoHref} class="text-primary-400 transition-colors hover:underline">
+          <a href={mailtoHref} class="text-ink-200 underline decoration-ink-500 underline-offset-2 transition-colors hover:text-ink-100 hover:decoration-ink-300">
             {profile.email}
           </a>
         </p>
@@ -151,8 +139,8 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
       {
         !isNotebook && (
           <section>
-            <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">请这样引用</p>
-            <p class="rounded-lg bg-surface-900 px-4 py-3 font-mono text-xs leading-relaxed text-ink-400">
+            <p class="ui-section-label">请这样引用</p>
+            <p class="rounded-lg border border-surface-800 bg-surface-900 px-4 py-3 font-mono text-xs leading-relaxed text-ink-400">
               {citation}
             </p>
           </section>
@@ -167,7 +155,7 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
               {prev && (
                 <a
                   href={`/stories/${prev.id}`}
-                  class="text-ink-400 transition-colors hover:text-accent-300"
+                  class="ui-link"
                 >
                   ← 笔记 #{formatSeq(prev.seq)} {prev.title}
                 </a>
@@ -177,7 +165,7 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
               {next && (
                 <a
                   href={`/stories/${next.id}`}
-                  class="text-ink-400 transition-colors hover:text-accent-300"
+                  class="ui-link"
                 >
                   笔记 #{formatSeq(next.seq)} {next.title} →
                 </a>
@@ -187,7 +175,7 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
         )
       }
 
-      <a href="/stories" class="block text-sm text-ink-500 transition-colors hover:text-primary-400">
+      <a href="/stories" class="ui-link-subtle block">
         ← 返回全部故事
       </a>
     </footer>
@@ -204,7 +192,7 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
   }
   .progress-thumb {
     height: 100%;
-    background: linear-gradient(90deg, var(--color-primary-500), var(--color-accent-400));
+    background: var(--color-ink-500);
     transform-origin: 0 50%;
     transform: scaleX(0);
   }

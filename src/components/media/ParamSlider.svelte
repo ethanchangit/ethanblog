@@ -88,7 +88,7 @@
         <label class="block">
           <span class="mb-2 flex items-baseline justify-between text-sm">
             <span class="text-ink-300">{c.label}</span>
-            <span class="font-mono text-xs text-accent-300">{values[c.key]}{c.unit ?? ''}</span>
+            <span class="ui-meta text-ink-300">{values[c.key]}{c.unit ?? ''}</span>
           </span>
           <input
             type="range"
@@ -101,7 +101,7 @@
           />
         </label>
       {/each}
-      <p class="font-mono text-[11px] uppercase tracking-widest text-ink-600">拖动滑块试试 →</p>
+      <p class="text-[11px] text-ink-600">拖动滑块试试 →</p>
     </div>
     <div bind:this={box} class="relative" style="height: {height}px">
       <canvas bind:this={canvas} class="absolute inset-0"></canvas>

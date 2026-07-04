@@ -56,16 +56,16 @@
 
     <!-- 分割线与手柄（视觉） -->
     <div class="pointer-events-none absolute inset-y-0" style="left: {pos}%">
-      <div class="absolute inset-y-0 -ml-px w-0.5 bg-accent-400/90 shadow-[0_0_10px_rgba(34,211,238,0.6)]"></div>
+      <div class="absolute inset-y-0 -ml-px w-px bg-surface-700"></div>
       <div
-        class="absolute top-1/2 -ml-4 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-accent-400 bg-surface-950/90 font-mono text-[10px] text-accent-300"
+        class="absolute top-1/2 -ml-4 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-surface-700 bg-surface-950/90 text-[10px] text-ink-300"
       >
         ⇔
       </div>
     </div>
 
-    <span class="absolute left-3 top-3 rounded bg-surface-950/80 px-2 py-0.5 font-mono text-xs text-ink-300">{labels[0]}</span>
-    <span class="absolute right-3 top-3 rounded bg-surface-950/80 px-2 py-0.5 font-mono text-xs text-accent-300">{labels[1]}</span>
+    <span class="absolute left-3 top-3 rounded border border-surface-700 bg-surface-950/80 px-2 py-0.5 text-xs text-ink-300">{labels[0]}</span>
+    <span class="absolute right-3 top-3 rounded border border-surface-700 bg-surface-950/80 px-2 py-0.5 text-xs text-ink-300">{labels[1]}</span>
 
     <!-- 键盘可访问性：真正的控制器是这个视觉隐藏的 range -->
     <input

@@ -50,7 +50,7 @@
     {#each stats as s, i (i)}
       <div class="bg-surface-900 p-5 text-center">
         <dd class="font-mono text-3xl font-semibold text-ink-100">
-          {s.prefix ?? ''}{tweens[i].current.toFixed(s.decimals ?? 0)}<span class="text-accent-400">{s.suffix ?? ''}</span>
+          {s.prefix ?? ''}{tweens[i].current.toFixed(s.decimals ?? 0)}<span class="text-ink-400">{s.suffix ?? ''}</span>
         </dd>
         <dt class="mt-1 text-sm text-ink-500">{s.label}</dt>
       </div>

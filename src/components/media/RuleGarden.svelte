@@ -284,7 +284,7 @@
             {/if}
           </span>
           {#if fireCounts[rule.id]}
-            <span class="ml-auto shrink-0 self-center font-mono text-xs text-accent-400">
+            <span class="ui-meta ml-auto shrink-0 self-center">
               ·已触发 ×{fireCounts[rule.id]}
             </span>
           {/if}

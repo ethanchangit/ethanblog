@@ -17,12 +17,12 @@ const badge = statusLabel[status];
   <article class="mx-auto max-w-5xl px-4 py-14 sm:px-6">
     <header class="mb-10">
       <div class="mb-3 flex items-center gap-3">
-        <span class:list={['rounded-full px-2.5 py-0.5 text-xs font-medium', badge.class]}>
+        <span class:list={['text-xs font-medium', badge.class]}>
           {badge.text}
         </span>
         {
           platforms.map((p) => (
-            <span class="font-mono text-xs text-ink-500">{p}</span>
+            <span class="ui-meta">{p}</span>
           ))
         }
       </div>
@@ -82,7 +82,7 @@ const badge = statusLabel[status];
           {
             downloads.length > 0 && (
               <div class="mt-5">
-                <h2 class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">下载</h2>
+                <h2 class="ui-section-label">下载</h2>
                 <ul class="flex flex-col gap-1.5">
                   {downloads.map((d) => (
                     <li>
@@ -91,7 +91,7 @@ const badge = statusLabel[status];
                         class="flex items-center justify-between rounded-md border border-surface-800 px-3 py-2 text-sm text-ink-200 transition-colors hover:border-surface-600 hover:bg-surface-800"
                       >
                         <span>{d.label}</span>
-                        {d.platform && <span class="font-mono text-xs text-ink-500">{d.platform}</span>}
+                        {d.platform && <span class="ui-meta">{d.platform}</span>}
                       </a>
                     </li>
                   ))}
@@ -102,10 +102,10 @@ const badge = statusLabel[status];
           {
             stack.length > 0 && (
               <div class="mt-5">
-                <h2 class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">技术栈</h2>
+                <h2 class="ui-section-label">技术栈</h2>
                 <ul class="flex flex-wrap gap-1.5">
                   {stack.map((t) => (
-                    <li class="rounded bg-surface-800 px-2 py-0.5 font-mono text-xs text-ink-400">{t}</li>
+                    <li class="ui-tag">{t}</li>
                   ))}
                 </ul>
               </div>
@@ -116,7 +116,7 @@ const badge = statusLabel[status];
     </div>
 
     <footer class="mt-16 border-t border-surface-800 pt-8">
-      <a href="/projects" class="text-sm text-ink-500 transition-colors hover:text-primary-400">
+      <a href="/projects" class="ui-link-subtle">
         ← 返回全部作品
       </a>
     </footer>
