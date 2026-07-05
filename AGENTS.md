@@ -8,14 +8,15 @@
 
 | 触发词 | 模式 | 必读 | 允许改动 |
 |---|---|---|---|
-| `/publish`、`发布：` | 媒介创作 | [docs/MEDIUM.md](docs/MEDIUM.md) | `src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时） |
+| `/publish`、`发布：` | 媒介创作 | [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md)（可执行清单）+ [docs/MEDIUM.md](docs/MEDIUM.md)（创作宪法） | `src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时） |
 | `/infra`、`基建：` | 网站基建 | 本文 + [media/README.md](src/components/media/README.md) | `src/components/`、`src/lib/`、`src/pages/`、`plugins/` 等 |
 
 **`/publish`（媒介创作）硬性约束**：
 
 - **禁止**新建或修改媒介组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
 - 新页面默认 `draft: true`；`kind: notebook` 必须指定 `thread` + `seq`
-- 完整操作细则见 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
+- 定稿档应填 `source` 溯源块（`validate:content` 会提醒）
+- 完整操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
 
 **`/infra`（网站基建）硬性约束**：
 
@@ -43,4 +44,4 @@
 - Node 22+，`npm install` 后即可 `npm run dev`（无 submodule、无额外工具链）。
 - `npm run preview` 用静态服务器伺服 dist/（`@astrojs/cloudflare` adapter 不支持 `astro preview`）。
 - 构建产物 `dist/`（已 gitignore）。
-- 提交前跑 `npm run check && npm run build && npm run test`。
+- 提交前跑验证四连 `npm run validate:content && npm run check && npm run build && npm run test`。

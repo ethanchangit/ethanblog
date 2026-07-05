@@ -19,6 +19,12 @@ import {
   SideNote,
   RuleGarden,
   RuleTarget,
+  Var,
+  Calc,
+  VerdictTable,
+  Mention,
+  MentionTarget,
+  MediaFrame,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
 ---
@@ -234,6 +240,61 @@ import demoPeaks from '@/data/demo-chime-peaks.json';
         旁注的纪律写在创作规范里：每屏至多一条，只放"离题但增味"的内容。
         能进正文的话就不该做成旁注。
       </p>
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">反应式散文 Var + Calc</h2>
+    <div data-testid="reactive-prose">
+      <p class="text-ink-300 leading-loose">
+        正文里的数字可以拖：假设我每天读
+        <Var client:visible name="cards" min={1} max={50} initial={10} unit=" 张卡片" label="每天阅读的卡片数" />，
+        一年就是
+        <Calc client:visible expr="cards * 365" unit=" 张" />，
+        写满一个千卡片库要
+        <Calc client:visible expr="ceil(1000 / cards)" unit=" 天" />。
+        左右拖动下划线数字（或聚焦后按方向键），后面两个结果立即重算——
+        黑色是你的手，青色是机器的推导。
+      </p>
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">VerdictTable</h2>
+    <div data-testid="verdict-table">
+      <VerdictTable
+        title="媒介档位 × 设计原则"
+        corner="媒介"
+        columns={['亲手操作', '无 JS 降级', '实现成本']}
+        rows={[
+          {
+            label: '纯文字',
+            cells: ['no', 'yes', { verdict: 'yes', note: '零成本', bar: 100 }],
+          },
+          {
+            label: '交互组件',
+            cells: [
+              'yes',
+              { verdict: 'partial', note: '降级为静态内容' },
+              { verdict: 'partial', bar: 55 },
+            ],
+          },
+          {
+            label: '规则引擎',
+            cells: ['yes', { verdict: 'partial', note: '降级为散文描述' }, { verdict: 'no', bar: 20 }],
+          },
+        ]}
+        caption="裁决表：把「多方案 × 多维度」的论证变成可扫读的评分矩阵。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Mention + MentionTarget</h2>
+    <div data-testid="mention">
+      <p class="text-ink-300 leading-loose">
+        正文里的<Mention target="lab-mountain">这张山景图</Mention>与下方的媒介块互相印证：
+        悬停或聚焦任一侧，两侧同时点亮；点击词语会把图滚进视野。
+      </p>
+      <MentionTarget id="lab-mountain">
+        <MediaFrame caption="Mention 的落点：被正文词语引用的媒介块。">
+          <img src="/media/compare-after.svg" alt="彩色山景" class="w-full" />
+        </MediaFrame>
+      </MentionTarget>
     </div>
 
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">RuleGarden</h2>

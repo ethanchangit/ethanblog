@@ -11,8 +11,8 @@
 
 /**
  * 媒介组件白名单 —— 与 src/components/media/index.ts barrel 保持同步。
- * 刻意排除 MediaFrame / SideNote / RuleTarget：它们是纯排版/标记容器，源码无信息量。
- * RuleGarden 为即将新增的组件，预先列入。
+ * 刻意排除 MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget：
+ * 排版/标记容器与行内组件，源码无独立信息量（行内组件是 mdxJsxTextElement，本就不会命中）。
  */
 const MEDIA_TAGS = new Set([
   'ParamSlider',
@@ -27,6 +27,7 @@ const MEDIA_TAGS = new Set([
   'VideoEmbed',
   'CodePlayground',
   'RuleGarden',
+  'VerdictTable',
 ]);
 
 /** 构造 disclosure 节点：小写 HTML 元素 + 标准 mdast code 节点，绝不注入 import/mdxjsEsm。 */

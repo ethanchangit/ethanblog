@@ -338,6 +338,158 @@
     width: 4rem;
   }
 
+  /* 反应式散文（Var/Calc）：正文里可拖的数字与随之重算的结果 */
+
+  /* Var：人手可拖的值 —— mono + primary 点状下划线（区分链接实线与 .rule-target 虚线） */
+  .reactive-var {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--color-ink-100);
+    text-decoration: underline dotted;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--color-primary-400);
+    cursor: ew-resize;
+    user-select: none;
+    touch-action: none;
+    white-space: nowrap;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease;
+  }
+
+  .reactive-var:hover,
+  .reactive-var:active {
+    background-color: color-mix(in srgb, var(--color-primary-400) 10%, transparent);
+  }
+
+  /* Calc：机器算出的值 —— accent 音色（Untangle 黑/粉之分：人声用 ink，机器声用 accent） */
+  .reactive-calc {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--color-accent-600);
+    white-space: nowrap;
+  }
+
+  [data-theme='dark'] .reactive-calc {
+    color: var(--color-accent-400);
+  }
+
+  /* Mention 双向高亮：正文词语 ↔ 媒介块互相印证（Embark 范式） */
+  .mention {
+    text-decoration: underline dotted;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--color-accent-500);
+    cursor: pointer;
+  }
+
+  .mention-active {
+    background-color: color-mix(in srgb, var(--color-primary-400) 14%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--color-primary-400) 50%, transparent);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  /* VerdictTable 裁决表 */
+  .vt-scroll {
+    overflow-x: auto;
+  }
+
+  .vt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .vt-table th,
+  .vt-table td {
+    border: 1px solid var(--color-surface-800);
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .vt-table thead th {
+    font-weight: 500;
+    color: var(--color-ink-400);
+    background-color: var(--color-surface-900);
+    font-size: 0.75rem;
+  }
+
+  .vt-table tbody th {
+    font-weight: 500;
+    color: var(--color-ink-200);
+    white-space: nowrap;
+  }
+
+  .vt-yes {
+    color: var(--color-accent-600);
+    font-weight: 600;
+  }
+
+  [data-theme='dark'] .vt-yes {
+    color: var(--color-accent-400);
+  }
+
+  .vt-partial {
+    color: var(--color-ink-400);
+    font-weight: 600;
+  }
+
+  .vt-no {
+    color: var(--color-ink-600);
+    font-weight: 600;
+  }
+
+  .vt-note {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-ink-500);
+  }
+
+  .vt-bar {
+    display: block;
+    margin-top: 0.375rem;
+    height: 4px;
+    width: var(--vt-w, 0%);
+    border-radius: 2px;
+    background-color: color-mix(in srgb, var(--color-primary-400) 60%, transparent);
+  }
+
+  /* 版本历史即媒介（PageHistory）：「这一页如何长成」 */
+  .page-history summary {
+    @apply cursor-pointer font-mono text-xs text-ink-500 select-none hover:text-ink-200;
+  }
+
+  .page-history ol {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .page-history li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.375rem 0;
+    font-size: 0.8125rem;
+    color: var(--color-ink-400);
+  }
+
+  .page-history time {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-ink-500);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reactive-var,
+    .mention,
+    .mention-active {
+      transition: none;
+    }
+  }
+
   /* 论文化页面接口（T2） */
   .prose-site :is(h2, h3, h4) {
     scroll-margin-top: 5rem;

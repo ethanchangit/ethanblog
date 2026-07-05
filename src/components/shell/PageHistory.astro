@@ -1,0 +1,38 @@
+---
+/**
+ * PageHistory — 「这一页如何长成」：把故事文件的 git 提交史渲染成文末折叠时间线。
+ * 版本历史即媒介（Upwelling/Patchwork）：修订说明写给读者看，不是行政开销。
+ * 页面接口（MEDIUM §6），非媒介组件——由 Story.astro 在 history: true 时自动渲染。
+ */
+import { formatDate } from '@/lib/format';
+import type { CommitInfo } from '@/lib/history';
+
+interface Props {
+  commits: CommitInfo[];
+}
+
+const { commits } = Astro.props;
+
+const kindLabel: Record<CommitInfo['kind'], string> = {
+  publish: '发布',
+  revise: '修订',
+  other: '更新',
+};
+---
+
+<details class="page-history">
+  <summary>这一页如何长成 · {commits.length} 次修订</summary>
+  <ol>
+    {
+      commits.map((c) => (
+        <li>
+          <time datetime={c.date}>{formatDate(new Date(c.date))}</time>
+          <span class:list={['ui-badge', c.kind === 'publish' && 'ui-badge--active']}>
+            {kindLabel[c.kind]}
+          </span>
+          <span>{c.subject}</span>
+        </li>
+      ))
+    }
+  </ol>
+</details>
