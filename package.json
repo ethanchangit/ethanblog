@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "npx serve dist",
     "check": "astro check",
+    "validate:content": "node scripts/validate-story.mjs",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler pages deploy dist --project-name=ethanblog",

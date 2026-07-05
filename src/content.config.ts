@@ -22,6 +22,18 @@ const stories = defineCollection({
       featured: z.boolean().default(false),
       draft: z.boolean().default(false),
       lang: z.enum(['zh', 'en']).default('zh'),
+      // 溯源：这篇内容由什么原始素材转化而来（对话 / 笔记 / 博客草稿）。
+      // 定稿档建议必填（validate:content 会提醒），页眉自动渲染溯源行。
+      source: z
+        .object({
+          type: z.enum(['chat', 'notes', 'blog', 'mixed']),
+          origin: z.string().optional(), // 原始素材的自由文本描述
+          date: z.coerce.date().optional(),
+        })
+        .optional(),
+      // 版本历史即媒介：true 时文末自动渲染「这一页如何长成」（git 提交史）。
+      // opt-in——提交信息按 publish:/revise: 约定书写后再打开。
+      history: z.boolean().default(false),
     })
     .superRefine((data, ctx) => {
       // notebook 是研究线上的编号笔记，必须挂在某条线上并有编号

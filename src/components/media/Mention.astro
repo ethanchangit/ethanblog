@@ -1,0 +1,59 @@
+---
+/**
+ * Mention — 正文词语 ↔ 媒介块的双向高亮（Embark 的 mention 范式）。
+ * 悬停/聚焦任一侧，两侧同时点亮；点击或按 Enter 把目标滚进视野。
+ * 零注水：交互由下方文档级事件委托脚本承担（Astro 会把 <script> 去重为全站一份），
+ * ClientRouter 导航后 document 级监听器天然存活。无 JS 时是普通下划线文本。
+ */
+interface Props {
+  /** 对应 MentionTarget 的 id，必须在同一页面上 */
+  target: string;
+}
+
+const { target } = Astro.props;
+---
+
+<span class="mention" data-mention={target} tabindex="0" role="link"><slot /></span>
+
+<script>
+  const SEL = '[data-mention],[data-mention-target]';
+
+  function idOf(el: Element): string | null {
+    return el.getAttribute('data-mention') ?? el.getAttribute('data-mention-target');
+  }
+
+  function setActive(id: string, on: boolean) {
+    document
+      .querySelectorAll(`[data-mention="${id}"],[data-mention-target="${id}"]`)
+      .forEach((el) => el.classList.toggle('mention-active', on));
+  }
+
+  function handleHover(on: boolean) {
+    return (e: Event) => {
+      const hit = (e.target as Element | null)?.closest?.(SEL);
+      if (!hit) return;
+      const id = idOf(hit);
+      if (id) setActive(id, on);
+    };
+  }
+
+  document.addEventListener('mouseover', handleHover(true));
+  document.addEventListener('mouseout', handleHover(false));
+  document.addEventListener('focusin', handleHover(true));
+  document.addEventListener('focusout', handleHover(false));
+
+  function jump(e: Event) {
+    const mention = (e.target as Element | null)?.closest?.('[data-mention]');
+    if (!mention) return;
+    const id = mention.getAttribute('data-mention');
+    if (!id) return;
+    document
+      .querySelector(`[data-mention-target="${id}"]`)
+      ?.scrollIntoView({ block: 'center' }); // smooth/auto 由 html 的 reduced-motion 规则接管
+  }
+
+  document.addEventListener('click', jump);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') jump(e);
+  });
+</script>

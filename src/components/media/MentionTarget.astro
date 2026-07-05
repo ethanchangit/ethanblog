@@ -1,0 +1,18 @@
+---
+/**
+ * MentionTarget — Mention 的落点标记（正交容器，可以包住任何内容，
+ * 包括已套 MediaFrame 的媒介组件调用；RuleTarget 的同款设计）。
+ * 零 JS：只渲染 data-mention-target 供委托脚本寻址，无 JS 时是透明容器。
+ */
+interface Props {
+  /** 页内唯一 id，与 Mention 的 target 对应 */
+  id: string;
+  /** 块级形态（默认 true，通常包媒介块；行内包词语时写 false） */
+  block?: boolean;
+}
+
+const { id, block = true } = Astro.props;
+const Tag = block ? 'div' : 'span';
+---
+
+<Tag data-mention-target={id}><slot /></Tag>

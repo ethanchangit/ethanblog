@@ -13,13 +13,16 @@
 ## 常用命令
 
 ```bash
-npm run dev        # 本地开发（端口 4321）
-npm run build      # 生产构建，输出到 dist/
-npm run preview    # 静态伺服 dist/（Cloudflare adapter 不支持 astro preview）
-npm run check      # astro check：类型 + 内容 schema 校验
-npm run test       # Playwright 测试（需先 npm run build）
-npm run deploy     # 构建并手动部署到 Cloudflare Pages
+npm run dev              # 本地开发（端口 4321）
+npm run build            # 生产构建，输出到 dist/
+npm run preview          # 静态伺服 dist/（Cloudflare adapter 不支持 astro preview）
+npm run check            # astro check：类型 + 内容 schema 校验
+npm run validate:content # 内容闸门：schema 查不到的创作规约（注水指令/溯源/Var-Calc 顺序等）
+npm run test             # Playwright 测试（需先 npm run build）
+npm run deploy           # 构建并手动部署到 Cloudflare Pages
 ```
+
+提交内容前跑**验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
 
 ## 项目结构
 
@@ -29,13 +32,13 @@ src/
   content.config.ts        stories / projects 两个内容集合的 schema（stories 含 notebook 档 + thread/seq）
   data/profile.ts          个人资料单一数据源（姓名/bio/skills/now/社交）
   data/threads.ts          研究线单一数据源（notebook 挂线的唯一真相）
-  lib/                     viz/registry.ts、rules/（RuleGarden 规则引擎）、motion.ts、format.ts、user.ts
+  lib/                     viz/registry.ts、rules/（RuleGarden 引擎）、reactive/（Var/Calc：eval.ts 安全求值器 + store.svelte.ts 跨岛屿状态）、history.ts（PageHistory 读 git 史）、motion.ts、format.ts、user.ts
   layouts/                 Base / Story / Project
-  components/shell/        Nav / Footer / Card / SectionHeading
+  components/shell/        Nav / Footer / Card / SectionHeading / PageHistory
   components/home/         Hero / NowPanel / SkillsGraph / FeaturedGrid
   components/media/        ★ 媒介组件库（见其 README.md，契约必读）
   pages/                   index / stories / threads / projects / about / lab / 404 / rss.xml.ts / api/*
-  content/stories/*.mdx    故事（kind: interactive | essay | notebook）
+  content/stories/*.mdx    故事（kind: interactive | essay | notebook；可选 source 溯源 + history 版本史）
   content/stories/notes/   编号研究笔记（<thread>/<NN>-<slug>.mdx）
   content/projects/*.mdx   项目（结构化 frontmatter：repo/downloads/screenshots/demo）
 plugins/
@@ -44,13 +47,15 @@ public/
   demos/<name>/index.html  自包含软件演示包（knowledge-garden / robert / network）
   media/                   图片、音频等静态媒体
 scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
+scripts/validate-story.mjs 内容闸门（npm run validate:content）
+.claude/skills/publish/    /publish 的可执行操作清单（SKILL.md）
 ```
 
 ## 内容创作
 
-**触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 媒介创作，走 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定) 与转化流水线，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 story 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
+**触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 媒介创作，**按 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 的可执行清单逐步执行**，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 story 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
 
-**先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——它规定了从"对话/文章"到本站媒介的完整转换流水线（档位判定、组件决策表、两档发布制、页面接口）。
+**先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——创作宪法：从"对话/笔记/文章"到本站媒介的完整转换流水线（输入类型专则、档位判定、组件决策表、两档发布制、溯源、页面接口）。理论地基见 [docs/research/](docs/research/)。
 
 **写一篇故事**：在 `src/content/stories/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。
 
@@ -82,3 +87,14 @@ scripts/audio-peaks.mjs    为 AudioClip 预计算波形峰值（PCM16 WAV）
 - `ImageGallery`：图片网格 + Lightbox
 - 演示包：`public/demos/{knowledge-garden,robert,network}/`
 - 测试：`npm run test`（Playwright 全量，CI 在 deploy 前运行）
+
+## Phase 4 Batch 1 反应式文档与溯源（已实现）
+
+- **反应式散文** `Var` + `Calc`：正文里可拖的数字 + 随之重算的内联结果（Tangle 手感，
+  `src/lib/reactive/`，同 scope 跨岛屿共享；SSR 纯文本降级）
+- `VerdictTable`：多方案 × 多维度评分裁决表（零 JS）
+- `Mention` + `MentionTarget`：正文词语 ↔ 媒介块双向高亮（零 JS 委托脚本）
+- `PageHistory`：frontmatter `history: true` 时文末「这一页如何长成」git 提交史
+- **溯源** `source` schema + 页眉溯源行；人机双声（正文 ink 色 vs `Calc` accent 色）
+- **/publish skill 化** + `validate:content` 内容闸门（`scripts/validate-story.mjs`，CI 已接入）
+- 蓝图：Phase 4 Batch 2/3 见 [docs/ROADMAP.md](docs/ROADMAP.md)

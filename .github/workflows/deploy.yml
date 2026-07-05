@@ -15,6 +15,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -27,6 +30,9 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
+
+      - name: Validate content
+        run: npm run validate:content
 
       - name: Check
         run: npm run check
@@ -43,6 +49,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4

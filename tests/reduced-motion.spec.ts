@@ -22,6 +22,9 @@ test.describe('prefers-reduced-motion', () => {
       'timeline',
       'stat-counter',
       'interactive-demo',
+      'reactive-prose',
+      'verdict-table',
+      'mention',
     ]) {
       await expect(page.getByTestId(testId)).toBeVisible();
     }

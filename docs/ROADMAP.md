@@ -88,9 +88,45 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
   - `SideNote` 旁注、`InteractiveDemo` poster 档（视频先行、点击升级）
   - `RuleGarden` + `RuleTarget`：Claim/When/Wish 规则引擎，"页面即房间"（第五媒介档位）
   - 创作宪法 `docs/MEDIUM.md`：agent 将对话/文章转化为本站媒介的固定流水线
+- [x] **创作宪法 v2 + publish skill 化**（Batch 1）：`docs/MEDIUM.md` v2（七条研究原则、
+  输入类型转换专则、反应式散文纪律）+ 可执行的 `.claude/skills/publish/SKILL.md` +
+  内容闸门 `scripts/validate-story.mjs`（`npm run validate:content`，CI 已接入）+
+  `source` 溯源 schema 与页眉溯源行
 - [ ] **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
-- [ ] **地图叙事 / 数据故事**：viz registry 已可扩展，待内容驱动
 - [ ] **产品化深水区**（有账户体系后）：读者标注与留言、订阅通知、创作数据面板
+
+## 六·五、Phase 4 —— 反应式文档与溯源（分批蓝图）
+
+源自对 Bret Victor（Explorable Explanations / Tangle / Ladder of Abstraction）与
+Ink & Switch（Potluck / Embark / Untangle / Upwelling / Patchwork / Ambsheets）的第二轮精读
+（见 `docs/research/`）。核心转向：从"可交互"到"**可拨动假设、可溯源、可改写**"。
+
+**Batch 1 ✅（已完成）—— 反应式散文 + 溯源 + 版本史**
+- [x] `Var` + `Calc` 反应式散文：正文里可拖的数字 + 随之重算的内联结果（Tangle 手感，
+  跨岛屿共享 store，安全表达式求值，SSR 纯文本降级）——档 4 的文字形态
+- [x] `VerdictTable`：多方案 × 多维度评分裁决表（Ink & Switch scorecard 范式）
+- [x] `Mention` + `MentionTarget`：正文词语 ↔ 媒介块双向高亮（Embark 范式，零 JS 委托脚本）
+- [x] `PageHistory`：frontmatter `history: true` 时文末「这一页如何长成」git 提交史
+  （Upwelling/Patchwork「版本历史即媒介」；配 commit 信息约定）
+- [x] 人机双声的视觉基础：正文 ink 色 = 人声，`Calc` 的 accent 色 = 机器声（Untangle 黑/粉）
+
+**Batch 2 —— 对话媒介与双声部**
+- [ ] `Transcript` 对话组件：chat 输入的原生承载——人声/AI 声双色分栏，保留往返结构
+  （Untangle 黑/粉原则的完整实现，把 §8 chat 专则里"暂不保留往返"的约束解除）
+- [ ] `Voice` 包装组件：把"accent = 机器声"从惯例升级为显式组件，任意内容可标注声部
+- [ ] `Var`/`Calc` ↔ `vizRegistry` 打通：`Var` 驱动 canvas 可视化，`ParamSlider` 反向写 scope
+  （反应式散文与参数可视化合流）
+
+**Batch 3 —— 可能性空间与空间媒介**
+- [ ] RuleGarden 阅读位置谓词：「当读者读到第 N 节」（接 Toc heading 锚点，比 scroll-depth
+  更接近"阅读"这个动作）
+- [ ] amb / 可能性扇出组件：一个值位同时容纳多个假设值，`Calc` 展开为区间/分布（Ambsheets）
+- [ ] 空间画布：自由摆放、可缩放的混合媒体卡片桌面（Muse / Capstone）
+- [ ] charts / dataviz：`vizRegistry` 扩展数据驱动图表
+- [ ] 地图叙事 / 数据故事：地理与数据的空间叙事
+
+**观察项**（不预先建 skill）：`/infra` 任务异构（组件/样式/API/部署），暂无可固化的流水线；
+若出现稳定重复的基建套路再考虑 skill 化。
 
 ## 七、演进原则
 

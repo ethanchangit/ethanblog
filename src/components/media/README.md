@@ -19,7 +19,8 @@
 Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（`plugins/remark-source-view.mjs`）
 会自动为 MDX 故事中的每个媒介组件在其下方注入一个「⌥ 源码」disclosure，
 读者展开即可看到这段组件调用的 MDX 原文。白名单与本目录的 `index.ts` barrel 保持同步
-（MediaFrame / SideNote / RuleTarget 这类纯排版/标记容器除外）。
+（MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget 这类纯排版、
+标记与行内组件除外——行内组件在 MDX 里是 `mdxJsxTextElement`，本就不会被插件命中）。
 
 退出阀有两个：
 
@@ -46,6 +47,11 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 | `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块（零 JS，不套 media-frame） |
 | `RuleGarden` | Astro → Svelte | 规则花园：Claim/When/Wish 的网页版，"页面即房间"，规则句可开关/改写/添加；无 JS 时降级为 describeRules 散文 |
 | `RuleTarget` | Astro | 零 JS 目标标记：给页面元素声明 `data-rule-target` 身份（Claim），供 RuleGarden 的规则引用（不套 media-frame） |
+| `Var` | Svelte（行内） | 反应式散文：正文里可拖动的数字（Tangle 手感），同 scope 共享状态；SSR 是纯文本，注水后 `role="slider"` + 键盘可访问 |
+| `Calc` | Svelte（行内） | 反应式散文：随 `Var` 实时重算的内联结果（accent「机器声」音色）；安全表达式求值，无 JS 时显示初值 |
+| `VerdictTable` | Astro | 零 JS 裁决表：多方案 × 多维度评分矩阵（✓/—/✗ + 备注 + 条形图），窄屏横滚 |
+| `Mention` | Astro | 正文词语，与同 id 的 `MentionTarget` 双向高亮；点击/Enter 滚动到目标（零 JS 降级为普通文本） |
+| `MentionTarget` | Astro | `Mention` 的落点容器（可包住任何媒介块，含已套 MediaFrame 的组件） |
 
 ## MDX 用法示例
 
@@ -112,7 +118,48 @@ import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D } from '@/components
 | `height` | `number` | 画布高度（px），默认 320 |
 | `caption` | `string` | 图注 |
 
-## 路线图（未实现）
+### 反应式散文 Var / Calc props
 
-- 图片画廊 / Lightbox
-- Phase 2：账户体系点亮后，组件可读写用户态（进度、收藏、标注）
+`Var`（正文里可拖的数字）与 `Calc`（随之重算的结果）通过共享 store 联动，
+同一 `scope`（缺省 `page`）内以 `name` 关联。**`Calc` 必须写在它引用的所有 `Var` 之后**
+（SSR 初值依赖文档顺序）。求值器（`src/lib/reactive/eval.ts`）只支持算术
+与白名单函数 `min/max/round/floor/ceil/abs/sqrt/clamp`，不用 `eval`。
+
+| 组件 | Prop | 类型 | 说明 |
+|---|---|---|---|
+| `Var` | `name` | `string` | scope 内变量名，`Calc` 表达式引用它 |
+| `Var` | `initial` / `min` / `max` | `number` | 初值与范围 |
+| `Var` | `step` | `number` | 步长，默认 1 |
+| `Var` | `unit` | `string` | 显示后缀（自带空格，如 `" 张卡片"`） |
+| `Var` | `decimals` | `number` | 显示小数位；缺省由 step 推断 |
+| `Var` | `scope` | `string` | 缺省 `page`；一页多组时分组 |
+| `Var` | `label` | `string` | 读屏标签，缺省用 name |
+| `Calc` | `expr` | `string` | 安全算术表达式（引用 Var 名） |
+| `Calc` | `unit` / `decimals` / `scope` | 同上 | — |
+
+```mdx
+每天读 <Var client:visible name="cards" min={1} max={50} initial={10} unit=" 张卡片" />，
+一年就是 <Calc client:visible expr="cards * 365" unit=" 张" />。
+```
+
+### VerdictTable props
+
+| Prop | 类型 | 说明 |
+|---|---|---|
+| `columns` | `string[]` | 维度列头 |
+| `rows` | `{ label, cells: (Verdict \| { verdict, note?, bar? })[] }[]` | 每行一个方案；`Verdict` = `'yes' \| 'partial' \| 'no'`，`bar` 为 0–100 |
+| `corner` | `string` | 左上角表头，默认「方案」 |
+| `title` / `caption` | `string` | mono 顶条标题 / 图注 |
+
+### Mention props
+
+| 组件 | Prop | 类型 | 说明 |
+|---|---|---|---|
+| `Mention` | `target` | `string` | 对应 `MentionTarget` 的 id（须在同页） |
+| `MentionTarget` | `id` | `string` | 页内唯一 id |
+| `MentionTarget` | `block` | `boolean` | 块级容器，默认 true；行内包词语时写 false |
+
+> 页面接口 `PageHistory`（frontmatter `history: true` 时文末的「这一页如何长成」）
+> 由 `src/components/shell/PageHistory.astro` + `src/lib/history.ts` 实现，
+> 是 Story 布局的自动接口而非媒介组件，不在此 barrel 中——详见
+> [docs/MEDIUM.md §6](../../../docs/MEDIUM.md)。

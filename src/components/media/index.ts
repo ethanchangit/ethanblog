@@ -21,3 +21,12 @@ export { default as SideNote } from './SideNote.astro';
 export { default as RuleGarden } from './RuleGarden.astro';
 // RuleTarget：零 JS 标记组件，给页面元素声明 data-rule-target 身份，供 RuleGarden 规则引用
 export { default as RuleTarget } from './RuleTarget.astro';
+// 反应式散文（Tangle/Potluck）：Var 是正文里可拖动的数字，Calc 是随之重算的内联结果。
+// 两者都是行内 Svelte 岛屿，MDX 里必须写 client:visible；同 scope 共享状态。
+export { default as Var } from './Var.svelte';
+export { default as Calc } from './Calc.svelte';
+// VerdictTable：零 JS 裁决表（原则 × 方案 评分矩阵，Ink & Switch 评分卡范式）
+export { default as VerdictTable } from './VerdictTable.astro';
+// Mention / MentionTarget：正文词语 ↔ 媒介块 的双向高亮（Embark 范式），零 JS 降级为普通文本
+export { default as Mention } from './Mention.astro';
+export { default as MentionTarget } from './MentionTarget.astro';

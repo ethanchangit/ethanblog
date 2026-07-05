@@ -118,6 +118,32 @@ Formulas（`Weather(in: @Aachen, on: @Friday)`，刻意选"具体计算+智能�
 Webstrates、Automerge）+ 可组合 UI（OpenDoc、Dynamicland）。对 AI 的论述："把 AI 编码工具
 丢进今天的软件生态，如同给自助餐厅配名厨"——没有可塑基底，AI 只能生产更多孤岛。
 
+### Untangle（2023）—— 黑/粉双色，人机声音之辨（★ Batch 1 溯源）
+手绘 + SMT 求解器（Z3）解决日常"够用就好"的约束问题（排班/座位/分配）。
+关键设计：**用户手写的输入是黑墨，求解器算出的结果是粉墨——两种声音永远视觉可辨**。
+过约束时优雅降级（放松约束而非报错，"错误答案好过没有答案"，被违反的规则标红）；
+多解并陈，用户滑动挑一个顺眼的。**本站翻译**：正文 ink 色 = 人声（创作者的判断），
+`Calc` 的 accent 色 = 机器声（AI/计算的推导）——这是本站"人机双声"视觉体系的直接出处
+（见 MEDIUM §8 chat 专则）。
+
+### Upwelling / Patchwork —— 版本历史即媒介（★ Batch 1 溯源）
+**Upwelling（2023）**：写作者需要"创作隐私"——初稿不想被实时围观（fishbowl effect），
+用 draft 图层做可私有/可分享的工作区，再刻意合并进永久 stack；每个 draft 带标题说明意图
+（借自 Git commit message）；变更可视化把"删除"藏在可交互标记后而非删除线，降低视觉噪音。
+**Patchwork（2024–）**："版本历史即聊天"——用类聊天界面给历史加轻量标注，
+分支是"探索的一等公民"，愿景是把版本控制推广到图表/表格等任意数据（beyond prose）。
+**核心洞见**：版本历史不是行政开销、不是备份，而是**一种可读的媒介**——修订说明写给读者看，
+让思路的演进透明。**本站翻译**：`PageHistory`（frontmatter `history: true`）把一篇故事的
+git 提交史渲染成文末"这一页如何长成"时间线；配 commit 信息约定
+（`publish:` / `revise:` 前缀 + 一句话意图，写给读者看）。
+
+### Ambsheets（2024–2025）—— 一格多值的可能性空间（Batch 3 出处）
+"如果单个单元格能同时持有多个值会怎样？"`{500, 1200}` 表示"500 或 1200"，
+即一个 amb（ambiguous）值，代表可能性空间的一维。amb 值像普通值一样流过公式，
+`{500,1200} × {2800,3700,5500}` 自动扇出成 6 个场景，用堆叠/表格视图可视化结果分布。
+**对本站**：非常适合展示 AI 生成的多个备选表达 / 多条推理路径——已列入 Batch 3
+（`Calc` 的 amb 扩展），本档案先存出处。
+
 ### 他们的文章页面本身如何做（形式自证）
 1. 嵌入式可交互 demo（Potluck 页面里的示例文档可直接编辑，"Open in Potluck"）；
    **视频先行、点击升级为可交互实例**。
@@ -196,6 +222,8 @@ Webstrates、Automerge）+ 可组合 UI（OpenDoc、Dynamicland）。对 AI 的�
 链接下划线是手绘 SVG；分隔线是墨点飞溅。手绘"墨水"风统一插图与装饰，软化论文严肃感。
 
 ### 对本站的可借鉴机制（已转化为建设任务）
+
+**第一轮（Phase 3+，已完成）**：
 1. **两档发布制**（essay/notebook）→ stories 集合 kind: notebook + thread/seq
 2. **项目/研究线为一等公民** → src/data/threads.ts + /threads 路由
 3. **论文式页眉**（署名+摘要+引用+反馈接口）→ Story 布局升级
@@ -203,6 +231,14 @@ Webstrates、Automerge）+ 可组合 UI（OpenDoc、Dynamicland）。对 AI 的�
 5. **视频先行、点击升级** → InteractiveDemo poster 档
 6. **可见性** → remark 源码 disclosure（"拆开看"）
 7. **每篇文末的关系接口** → 招募段 + mailto
+
+**第二轮（Phase 4 Batch 1，已完成）**：
+8. **反应式文档**（Tangle：拨动作者的假设）→ `Var` + `Calc` 反应式散文
+9. **scorecard 评分表**（Local-first 的 7 理想 × 候选方案）→ `VerdictTable`
+10. **文本 ↔ 视图双向高亮**（Embark 的 mention/view 同步）→ `Mention` + `MentionTarget`
+11. **版本历史即媒介**（Upwelling/Patchwork）→ `PageHistory` + commit 约定
+12. **人机双声之辨**（Untangle 黑/粉）→ 正文 ink 色 vs `Calc` accent 色 + `source` 溯源
+13. **渐进形式化 / 缓坡**（Potluck/Malleable）→ 输入类型转换专则（MEDIUM §8）+ 两档发布制
 
 ## 附：主要来源
 

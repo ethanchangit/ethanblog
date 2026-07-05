@@ -1,11 +1,13 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { formatDate, formatSeq } from '@/lib/format';
+import { formatDate, formatSeq, sourceTypeLabel } from '@/lib/format';
 import { profile, site } from '@/data/profile';
 import { getThread } from '@/data/threads';
 import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
 import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
 import Toc from '@/components/shell/Toc.astro';
+import PageHistory from '@/components/shell/PageHistory.astro';
+import { getFileHistory } from '@/lib/history';
 import type { CollectionEntry } from 'astro:content';
 
 interface TocHeading {
@@ -29,8 +31,20 @@ interface Props {
 }
 
 const { story, headings = [], prev, next } = Astro.props;
-const { title, description, date, updated, kind, tags, thread, seq } = story.data;
+const { title, description, date, updated, kind, tags, thread, seq, source } = story.data;
 const storySlug = story.id;
+
+// 版本历史即媒介：history: true 时构建期读 git 提交史；无 git / 无 filePath 时静默隐藏
+const commits = story.data.history ? getFileHistory(story.filePath) : [];
+
+// 溯源行：这篇内容由什么原始素材转化而来（MEDIUM §6 的页面接口之一）
+const sourceParts = source
+  ? [
+      sourceTypeLabel[source.type] ?? source.type,
+      source.origin,
+      source.date && formatDate(source.date),
+    ].filter(Boolean)
+  : [];
 
 // notebook = 编号过程笔记；essay / interactive = 定稿档
 const isNotebook = kind === 'notebook';
@@ -81,6 +95,13 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
           {
             updated && (
               <span class="ui-meta">更新于 {formatDate(updated)}</span>
+            )
+          }
+          {
+            sourceParts.length > 0 && (
+              <span class="ui-meta" data-source-line>
+                原始素材：{sourceParts.join(' · ')}
+              </span>
             )
           }
         </div>
@@ -146,6 +167,9 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
           </section>
         )
       }
+
+      {/* 这一页如何长成：frontmatter history: true 且 git 史可读时 */}
+      {commits.length > 0 && <PageHistory commits={commits} />}
 
       {/* 前后篇导航：仅 notebook，且至少有一侧 */}
       {
