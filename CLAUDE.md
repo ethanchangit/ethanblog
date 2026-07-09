@@ -68,17 +68,18 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 ## 部署流程
 
 1. 本地验证：`npm run check && npm run build`
-2. 提交并推送到 main → GitHub Actions 自动部署（`.github/workflows/deploy.yml`：setup-node → npm ci → check → build → wrangler pages deploy）
+2. 提交并推送到 main → GitHub Actions 自动部署（`.github/workflows/deploy.yml`：test job 跑验证四连 → deploy job 跑 `scripts/ensure-d1.sh`（校验/创建 D1 与 SESSION KV + 应用远程迁移）→ wrangler pages deploy）
 3. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+   - token 必须具备 **Account 级 Cloudflare Pages:Edit + D1:Edit + Workers KV Storage:Edit** 三项权限（现用 token 名 `ethanblog-ci`，2026-07-09 创建）。权限不足会在 ensure-d1.sh 处报 `Authentication error [code: 10000]`——2026-07 曾因旧 token 只有 Pages 权限导致部署中断一个月
 4. 手动部署：`npm run deploy`
 
-## Phase 2 账户体系（已实现，部署需配置）
+## Phase 2 账户体系（已实现，生产已配置）
 
 - API 路由：`src/pages/api/{auth,me,bookmarks,progress}.ts`（`export const prerender = false`）
 - D1：`wrangler.toml` 绑定 `DB` → `migrations/0001_init.sql`；迁移脚本 `./scripts/migrate-d1.sh`
 - Auth：better-auth + GitHub/Google OAuth → `src/lib/auth.ts` + `src/lib/auth-client.ts`
 - 用户态：一律经 `src/lib/user.ts`（服务端 `getUser()` / 客户端 `fetchUser()`），组件不自建全局状态
-- 部署前需设置 Cloudflare Pages 环境变量（见 `src/env.d.ts`）：`BETTER_AUTH_SECRET`、`GITHUB_CLIENT_*`、`GOOGLE_CLIENT_*`
+- Cloudflare Pages 环境变量（见 `src/env.d.ts`）：`BETTER_AUTH_SECRET`、`GITHUB_CLIENT_*`、`GOOGLE_CLIENT_*` —— **已于 2026-07-09 上传至生产**（`wrangler pages secret bulk .env.production`）；D1 迁移同日已应用。本地改密钥后重跑 `npm run setup:cloudflare`；本地开发登录需另建 `.dev.vars`（见 `.dev.vars.example`）并在 OAuth 应用里加 localhost 回调
 
 ## Phase 3+ 媒介升档（已实现）
 
