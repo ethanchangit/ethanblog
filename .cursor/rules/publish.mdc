@@ -5,14 +5,14 @@ globs:
 alwaysApply: false
 ---
 
-# `/publish` — 媒介创作模式
+# `/publish` — 内容创作模式
 
 完整规范见 [docs/MEDIUM.md §0](../../docs/MEDIUM.md#0-触发约定)。
 
 ## 收到 `/publish` 后
 
 1. **只动内容层**：`src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时）。
-2. **禁止基建**：不新建/改媒介组件、布局、样式、API、测试；除非用户写明 `allow-new-component: true`。
+2. **禁止基建**：不新建/改组件、布局、样式、API、测试；除非用户写明 `allow-new-component: true`。
 3. **解析 YAML 头**（`---` 上方，均可省略）：`kind` / `thread` / `slug` / `draft`（默认 `true`）/ `allow-new-component`。
 4. **执行 MEDIUM.md §4 六步**：`---` 下方为原始素材（blog、对话、bullet 等）。
 5. **落盘**：

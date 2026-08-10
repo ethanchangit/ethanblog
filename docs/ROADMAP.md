@@ -1,137 +1,114 @@
 # ethanchang.io 框架计划书与路线图
 
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
-> 执行层的细节见 [CLAUDE.md](../CLAUDE.md)（日常操作指南）、[AGENTS.md](../AGENTS.md)（强制约束）、[媒介组件库 README](../src/components/media/README.md)（组件契约）。
+> 执行层的细节见 [CLAUDE.md](../CLAUDE.md)（日常操作指南）、[AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
 
 ## 一、愿景与核心理念
 
-**这个网站不是博客，是一个超媒体产品**——一个能同时承载文字、图像、音视频和软件级交互的容器，并且像软件一样持续加功能。
+**这是一个极简个人博客**——以文字与排版为主。需要时，文章里可以嵌入图片、音视频或少量交互组件；交互是可选升档，不是站点身份。
 
-核心理念一句话：**我们不分享文章，我们分享超媒介。**
-
-信息媒介存在档位：
+信息媒介存在档位（写作时按需选用，默认用文字）：
 
 | 档位 | 媒介 | 读者获得什么 |
 |---|---|---|
 | 1 | 文字 | 靠抽象思维自己想象 |
 | 2 | 图像 | 亲眼看见 |
 | 3 | 音频 / 视频 | 时间与温度，但仍是单向的 |
-| 4 | **可交互的软件** | **亲手操作，从操作中获得理解** |
+| 4 | 可交互组件 | 亲手操作，从操作中获得理解 |
 
-网站的存在理由是第四档：滑块联动可视化、滚动驱动叙事、沙箱中运行的真实软件。同时**文字档位是尊贵的子集**——能用文字讲清楚的内容就安静地用文字，交互是升档而非门槛。
+视觉原则：**无装饰性边框、无背景色块、无圆角卡片、无色条**。页面靠排版与留白组织。
 
-这一理念的现场证明：[/stories/how-this-site-works](https://ethanchang.io/stories/how-this-site-works)。
-
-## 二、技术决策一览（2026-07 确定）
+## 二、技术决策一览（2026-07 确定，2026-08 视觉收束）
 
 | 决策 | 选择 | 理由 |
 |---|---|---|
-| 框架 | Astro 5（islands + MDX + content collections） | 内容为主、按需注水交互，是"超媒体容器"的最佳匹配 |
-| 岛屿 UI | Svelte 5（runes） | 每页多个小岛屿时打包体积远小于 React；`$state` 响应式天然契合"滑块改变可视化" |
-| 滚动叙事 | GSAP 3 + ScrollTrigger | scrollytelling 行业标准（已完全免费）；微交互用 svelte/motion |
-| 样式 | Tailwind CSS v4 `@theme` 设计 token | 深色视觉身份从旧 Hugo 站的 custom-dark.css 完整移植 |
-| 内容 | MDX + `stories` / `projects` 两个集合 | 散文与交互组件自由交织——这就是超媒体本身 |
-| 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | Phase 1 纯静态；Phase 2 加 API 路由零重构 |
-| 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | 域名、secrets 延续；`wrangler-action@v3` |
+| 框架 | Astro 5（islands + MDX + content collections） | 内容为主、按需注水交互，适合博客 |
+| 岛屿 UI | Svelte 5（runes） | 每页多个小岛屿时打包体积远小于 React |
+| 滚动叙事 | GSAP 3 + ScrollTrigger | 仅在少数故事需要时使用 |
+| 样式 | Tailwind CSS v4 `@theme` 设计 token | 极简双主题（白 / `#191919`），禁止裸色值 |
+| 内容 | MDX + `stories` / `projects` 两个集合 | 散文为主，交互组件按需嵌入 |
+| 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
+| 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | 域名、secrets 延续 |
 | 语言 | 单语言（中文为主） | 控制复杂度，不引入 i18n 框架 |
-| 主题 | 仅深色 | 深色即身份 |
+| 主题 | 浅色 / 深色双主题 | 跟随系统，可手动切换 |
 
 ## 三、站点架构
 
 ```
 内容层    src/content/{stories,projects}/*.mdx   + src/data/profile.ts（个人资料单一数据源）
-媒介层    src/components/media/                   12 个可嵌入 MDX 的媒介组件（网站的心脏）
-可视化    src/lib/viz/registry.ts                 canvas 绘制注册表，新可视化在此注册
+组件层    src/components/media/                   可嵌入 MDX 的可选交互组件
+可视化    src/lib/viz/registry.ts                 canvas 绘制注册表
 外壳层    layouts/{Base,Story,Project}            + components/{shell,home}
-质保层    /lab 页面                               每个组件的常驻最小示例（先点亮再进故事）
+质保层    /lab 页面                               每个组件的常驻最小示例
 接缝层    src/lib/user.ts                         用户态入口（/api/me，未登录时 null）
 ```
 
-**媒介组件库契约要点**（完整版见 [media/README.md](../src/components/media/README.md)）：
-props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只消费设计 token / 统一 `.media-frame` 外框 / ScrollScene 必须提前注水（`rootMargin: '150% 0px'`）。
+**组件契约要点**（完整版见 [media/README.md](../src/components/media/README.md)）：
+props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只消费设计 token / `.media-frame` 仅作间距与图注（无边框无背景）/ ScrollScene 必须提前注水（`rootMargin: '150% 0px'`）。
 
-**主页 = 个人 OS**：Hero（解码动效 + 网络画布）→ Now 面板（正在做/读/想）→ 技能图谱（芯片点击联动项目）→ 精选网格。
+**主页**：Hero → Now → 精选 → 技能 → 联系。纯文字排版，无卡片壳。
 
-## 四、Phase 1 —— 超媒体容器 ✅（2026-07 完成）
+## 四、Phase 1 —— 博客骨架与组件库 ✅（2026-07 完成）
 
 - [x] Hugo + Blowfish 整体迁移到 Astro 5（删 submodule，无损迁移全部文章与项目，旧 URL 301）
-- [x] 媒介组件库 10 件（Phase 1）：ParamSlider ★ / ScrollScene ★ / InteractiveDemo ★ / BeforeAfterSlider / Timeline / StatCounter / AudioClip / VideoEmbed / CodePlayground(stub) / MediaFrame
-- [x] 首个软件演示包 `public/demos/knowledge-garden/`（沙箱 iframe 承载）
-- [x] 旗舰交互故事 how-this-site-works（宣言 + 全组件演示）
-- [x] 个人 OS 主页、/lab 试验场、RSS
+- [x] 交互组件库（Phase 1）：ParamSlider / ScrollScene / InteractiveDemo / BeforeAfterSlider / Timeline / StatCounter / AudioClip / VideoEmbed / CodePlayground(stub) / MediaFrame
+- [x] 首个演示包 `public/demos/knowledge-garden/`
+- [x] 旗舰故事 how-this-site-works、主页、/lab、RSS
 - [x] CI 重写（Node 22 + astro check + wrangler-action@v3）
-- [x] 验证体系：Playwright 真实交互测试（46 项）、全站路由爬取、reduced-motion 降级检查、双端截图
+- [x] 验证体系：Playwright、全站路由爬取、reduced-motion、双端截图
 
 ## 五、Phase 2 —— 账户体系 ✅（2026-07 完成）
 
-目标：网站开始"认识回来的你"——登录、收藏、阅读进度、跨设备记忆。
+目标：登录、收藏、阅读进度、跨设备记忆。
 
 - [x] **API 路由**：`src/pages/api/**`（auth / me / bookmarks / progress），`export const prerender = false`
-- [x] **数据库**：Cloudflare D1 绑定 `wrangler.toml` → `migrations/0001_init.sql`（better-auth 表 + bookmarks / progress）
-- [x] **认证**：better-auth + GitHub/Google OAuth → `src/pages/api/auth/[...all].ts`
-- [x] **接缝点亮**：`src/lib/user.ts` 经 `/api/me` 读取会话；Story 布局的阅读进度条与收藏按钮已接入
-- [x] **UI**：Nav 登录/登出（AuthMenu）、Story 收藏按钮（BookmarkButton）、滚动进度同步（ReadingProgress）
-- [x] **部署配置**：CI 在 deploy 前自动创建/绑定 D1 与 SESSION KV（`scripts/ensure-d1.sh`）；OAuth secrets 仍需在 Cloudflare Pages 环境变量中手动设置（见 `src/env.d.ts`）
-- [ ] **标注（highlight）**：收藏与进度先行，标注其后
+- [x] **数据库**：Cloudflare D1 绑定 `wrangler.toml` → `migrations/0001_init.sql`
+- [x] **认证**：better-auth + GitHub/Google OAuth
+- [x] **接缝点亮**：`src/lib/user.ts`；Story 布局的收藏与进度同步已接入
+- [x] **UI**：Nav 登录/登出、Story 收藏按钮、滚动进度同步
+- [x] **部署配置**：CI 在 deploy 前自动创建/绑定 D1 与 SESSION KV（`scripts/ensure-d1.sh`）
+- [ ] **标注（highlight）**：收藏与进度先行，标注其后（可选，非优先）
 
-## 六、Phase 3+ —— 媒介升档（进行中）
+## 六、Phase 3+ —— 交互组件补全 ✅
 
-- [x] **CodePlayground 真实运行**：Sandpack 沙箱 iframe，支持 vanilla / vanilla-ts / react / svelte 模板
-- [x] **Scene3D**：three.js 岛屿（globe / particles / simple-cube），尊重 reduced-motion
-- [x] **更多演示包**：`public/demos/robert/`、`public/demos/network/` 可玩切片，嵌入项目页
-- [x] **ImageGallery**：图片网格 + Lightbox，键盘可访问
+- [x] **CodePlayground 真实运行**：Sandpack 沙箱
+- [x] **Scene3D**：three.js 岛屿
+- [x] **更多演示包**：`public/demos/robert/`、`public/demos/network/`
+- [x] **ImageGallery**：图片网格 + Lightbox
 - [x] **验证体系补全**：Playwright 全量测试 + CI test job
-- [x] **媒介引擎机制**（源自 Ink & Switch / Realtalk 调研，见 `docs/research/ink-and-switch.md`）：
-  - 两档发布制：`kind: notebook` 编号研究笔记 + 研究线（`src/data/threads.ts`、`/threads`）
-  - 论文式页眉与文末接口（署名/摘要/TOC/引用块/招募段）
-  - 「拆开看」：构建期自动注入媒介组件源码 disclosure（`plugins/remark-source-view.mjs`）
-  - `SideNote` 旁注、`InteractiveDemo` poster 档（视频先行、点击升级）
-  - `RuleGarden` + `RuleTarget`：Claim/When/Wish 规则引擎，"页面即房间"（第五媒介档位）
-  - 创作宪法 `docs/MEDIUM.md`：agent 将对话/文章转化为本站媒介的固定流水线
-- [x] **创作宪法 v2 + publish skill 化**（Batch 1）：`docs/MEDIUM.md` v2（七条研究原则、
-  输入类型转换专则、反应式散文纪律）+ 可执行的 `.claude/skills/publish/SKILL.md` +
-  内容闸门 `scripts/validate-story.mjs`（`npm run validate:content`，CI 已接入）+
-  `source` 溯源 schema 与页眉溯源行
+- [x] **内容机制**：两档发布制（notebook / 定稿）、论文式页眉与文末、`SideNote`、`RuleGarden`、创作规范 `docs/MEDIUM.md`、`/publish` skill、`validate:content`
 - [ ] **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
-- [ ] **产品化深水区**（有账户体系后）：读者标注与留言、订阅通知、创作数据面板
 
 ## 六·五、Phase 4 —— 反应式文档与溯源（分批蓝图）
 
-源自对 Bret Victor（Explorable Explanations / Tangle / Ladder of Abstraction）与
-Ink & Switch（Potluck / Embark / Untangle / Upwelling / Patchwork / Ambsheets）的第二轮精读
-（见 `docs/research/`）。核心转向：从"可交互"到"**可拨动假设、可溯源、可改写**"。
+源自 Bret Victor 与 Ink & Switch 调研（见 `docs/research/`）。从"可交互"到"可拨动假设、可溯源"。
 
 **Batch 1 ✅（已完成）—— 反应式散文 + 溯源 + 版本史**
-- [x] `Var` + `Calc` 反应式散文：正文里可拖的数字 + 随之重算的内联结果（Tangle 手感，
-  跨岛屿共享 store，安全表达式求值，SSR 纯文本降级）——档 4 的文字形态
-- [x] `VerdictTable`：多方案 × 多维度评分裁决表（Ink & Switch scorecard 范式）
-- [x] `Mention` + `MentionTarget`：正文词语 ↔ 媒介块双向高亮（Embark 范式，零 JS 委托脚本）
-- [x] `PageHistory`：frontmatter `history: true` 时文末「这一页如何长成」git 提交史
-  （Upwelling/Patchwork「版本历史即媒介」；配 commit 信息约定）
-- [x] 人机双声的视觉基础：正文 ink 色 = 人声，`Calc` 的 accent 色 = 机器声（Untangle 黑/粉）
+- [x] `Var` + `Calc` 反应式散文
+- [x] `VerdictTable` 裁决表
+- [x] `Mention` + `MentionTarget` 双向高亮
+- [x] `PageHistory` git 提交史
+- [x] 人机双声视觉基础（正文 ink vs `Calc` accent）
 
-**Batch 2 —— 对话媒介与双声部**
-- [ ] `Transcript` 对话组件：chat 输入的原生承载——人声/AI 声双色分栏，保留往返结构
-  （Untangle 黑/粉原则的完整实现，把 §8 chat 专则里"暂不保留往返"的约束解除）
-- [ ] `Voice` 包装组件：把"accent = 机器声"从惯例升级为显式组件，任意内容可标注声部
-- [ ] `Var`/`Calc` ↔ `vizRegistry` 打通：`Var` 驱动 canvas 可视化，`ParamSlider` 反向写 scope
-  （反应式散文与参数可视化合流）
+**Batch 2 —— 对话媒介与双声部**（可选，按需）
+- [ ] `Transcript` 对话组件
+- [ ] `Voice` 包装组件
+- [ ] `Var`/`Calc` ↔ `vizRegistry` 打通
 
-**Batch 3 —— 可能性空间与空间媒介**
-- [ ] RuleGarden 阅读位置谓词：「当读者读到第 N 节」（接 Toc heading 锚点，比 scroll-depth
-  更接近"阅读"这个动作）
-- [ ] amb / 可能性扇出组件：一个值位同时容纳多个假设值，`Calc` 展开为区间/分布（Ambsheets）
-- [ ] 空间画布：自由摆放、可缩放的混合媒体卡片桌面（Muse / Capstone）
-- [ ] charts / dataviz：`vizRegistry` 扩展数据驱动图表
-- [ ] 地图叙事 / 数据故事：地理与数据的空间叙事
-
-**观察项**（不预先建 skill）：`/infra` 任务异构（组件/样式/API/部署），暂无可固化的流水线；
-若出现稳定重复的基建套路再考虑 skill 化。
+**Batch 3 —— 可能性空间**（可选，按需）
+- [ ] RuleGarden 阅读位置谓词
+- [ ] amb / 可能性扇出组件
+- [ ] charts / dataviz
 
 ## 七、演进原则
 
-1. **媒介优先**：新功能先问"它给叙事增加了什么档位"，再问技术
+1. **文字优先**：能用文字讲清楚就不要硬加交互
 2. **内容永不被劫持**：任何交互失效时，读者仍能获得完整内容
 3. **组件先进 /lab，再进故事**
-4. **接缝先行**：为下一阶段留接口，但不提前实现
+4. **视觉极简**：不引入边框、色块、卡片壳等产品感装饰
 5. **每一步可验证**：构建通过 + Playwright 驱动真实页面
+
+## 八、视觉收束 ✅（2026-08）
+
+- [x] 去掉全站装饰性边框、背景色块、圆角卡片、色条与设备边框
+- [x] 站点定位文档（本文 / CLAUDE / AGENTS）与极简博客一致

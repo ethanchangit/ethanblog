@@ -17,5 +17,6 @@ alwaysApply: false
 1. **只动基建层**：`src/components/`、`src/lib/`、`src/pages/`、`plugins/`、CI 配置等。
 2. **禁止内容创作**：不创建或改写 `src/content/` 下的 MDX，除非用户明确要求。
 3. **遵循约束**：[AGENTS.md](../../AGENTS.md) + [media/README.md](../../src/components/media/README.md)。
-4. **新组件准入**：满足 media/README 六条契约 → `/lab` 点亮 → 补测试 → 更新 README。
+4. **新组件准入**：满足 media/README 契约（含视觉极简）→ `/lab` 点亮 → 补测试 → 更新 README。
 5. **验证**：`npm run check && npm run build && npm run test`。
+6. **视觉**：不引入边框、背景色块、圆角卡片、色条等装饰；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。

@@ -3,8 +3,8 @@
 
 /*
  * Design tokens — the single source of truth for color.
- * Canvas philosophy: a pure, flat background so media content carries the
- * visual weight. Light = white canvas; dark (night) = #191919.
+ * Minimal blog canvas: flat white (day) / #191919 (night). Typography carries
+ * the page; no decorative borders, background panels, or chrome.
  * primary = restrained blue (links & actions); accent = secondary emphasis in media/viz only.
  */
 @theme {
