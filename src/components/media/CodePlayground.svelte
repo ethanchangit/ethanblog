@@ -71,14 +71,14 @@
 </script>
 
 <figure class="media-frame not-prose">
-  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950 px-4 py-2.5">
+  <div class="flex items-center justify-between py-2">
     <p class="font-mono text-xs text-ink-400">{title}</p>
     {#if hydrated}
       <button
         type="button"
         onclick={run}
         disabled={loading}
-        class="rounded bg-primary-600 px-3 py-1 font-mono text-xs text-ink-50 transition-colors hover:bg-primary-500 disabled:cursor-wait disabled:opacity-60"
+        class="font-mono text-xs text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:decoration-ink-300 disabled:cursor-wait disabled:opacity-60"
       >
         {loading ? '▶ 启动中…' : running ? '▶ 重新运行' : '▶ Run'}
       </button>
@@ -86,19 +86,19 @@
       <button
         type="button"
         disabled
-        class="cursor-not-allowed rounded bg-surface-800 px-3 py-1 font-mono text-xs text-ink-600"
+        class="cursor-not-allowed font-mono text-xs text-ink-600"
       >
         ▶ Run
       </button>
     {/if}
   </div>
 
-  <div class="overflow-x-auto border-b border-surface-800 p-4 text-sm">
+  <div class="overflow-x-auto py-2 text-sm">
     <pre class="font-mono leading-relaxed text-ink-300"><code class="language-{lang}">{code}</code></pre>
   </div>
 
   {#if running}
-    <div class="relative bg-surface-950" style="height: 280px">
+    <div class="relative" style="height: 280px">
       <iframe
         bind:this={previewFrame}
         title="{title} preview"
@@ -106,20 +106,19 @@
         sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
       ></iframe>
       {#if loading}
-        <div class="absolute inset-0 flex items-center justify-center bg-surface-950/80 font-mono text-xs text-ink-500">
+        <div class="absolute inset-0 flex items-center justify-center font-mono text-xs text-ink-500">
           正在加载 Sandpack 沙箱…
         </div>
       {/if}
     </div>
   {:else if !hydrated}
-    <!-- 注水前占位：保持与运行态相近的高度提示 -->
-    <div class="flex items-center justify-center border-t border-surface-800 bg-surface-950 px-4 py-8 font-mono text-xs text-ink-600">
+    <div class="flex items-center justify-center py-8 font-mono text-xs text-ink-600">
       启用 JavaScript 后点击 Run 在线运行
     </div>
   {/if}
 
   {#if error}
-    <p class="border-t border-surface-800 px-4 py-2 font-mono text-xs text-red-400">{error}</p>
+    <p class="py-2 font-mono text-xs text-ink-400">{error}</p>
   {/if}
 
   {#if caption}

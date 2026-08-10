@@ -19,8 +19,8 @@ const withDemo = projects.filter((p) => p.data.demo).length;
   description="我做的软件不是一排卡片，而是一条研究线——每个项目都在继承上一个项目里试通的能力。"
 >
   <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-    <header class="mb-12 border-b border-surface-800 pb-10">
-      <p class="mb-2 font-mono text-xs uppercase tracking-widest text-accent-400">Projects</p>
+    <header class="mb-12 pb-10">
+      <p class="mb-2 font-mono text-xs uppercase tracking-widest text-ink-500">Projects</p>
       <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">作品是一条线</h1>
       <p class="mt-4 text-lg leading-relaxed text-ink-400">
         这不是作品集导航页。往下滚，你会看到我做过的软件如何<strong class="text-ink-200">彼此继承</strong>——在
@@ -161,7 +161,7 @@ const withDemo = projects.filter((p) => p.data.demo).length;
       <p>需要仓库链接、技术栈或完整说明？每个项目仍有独立档案页：</p>
     </div>
 
-    <ul class="mt-6 divide-y divide-surface-800 border-y border-surface-800">
+    <ul class="mt-6">
       {
         projects.map((p) => {
           const badge = statusLabel[p.data.status];
@@ -171,9 +171,9 @@ const withDemo = projects.filter((p) => p.data.demo).length;
                 href={`/projects/${p.id}`}
                 class="group flex flex-col gap-1 py-4 transition-colors sm:flex-row sm:items-baseline sm:justify-between"
               >
-                <span class="font-medium text-ink-100 group-hover:text-primary-400">{p.data.name}</span>
+                <span class="font-medium text-ink-100 group-hover:text-ink-50">{p.data.name}</span>
                 <span class="text-sm text-ink-500">{p.data.tagline}</span>
-                <span class:list={['w-fit rounded-full px-2 py-0.5 text-xs font-medium sm:ml-4', badge.class]}>
+                <span class:list={['w-fit text-xs font-medium sm:ml-4', badge.class]}>
                   {badge.text}
                 </span>
               </a>

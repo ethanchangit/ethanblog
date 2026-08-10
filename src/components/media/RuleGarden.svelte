@@ -210,13 +210,13 @@
 
 <figure class="media-frame not-prose">
   {#if title}
-    <div class="border-b border-surface-800 bg-surface-950 px-4 py-2.5">
+    <div class="py-2">
       <p class="font-mono text-xs text-ink-400">{title}</p>
     </div>
   {/if}
 
   {#if hydrated}
-    <ul class="m-0 list-none space-y-1 p-3">
+    <ul class="m-0 list-none space-y-1 py-1">
       {#each rules as rule, i (rule.id)}
         {@const triggerOpt = TRIGGER_OPTIONS.find((o) => o.kind === rule.when.kind)}
         {@const effectOpt = EFFECT_OPTIONS.find((o) => o.kind === rule.wish.kind)}
@@ -291,25 +291,25 @@
         </li>
       {/each}
     </ul>
-    <div class="flex gap-2 border-t border-surface-800 px-3 py-2">
+    <div class="flex gap-4 py-2">
       <button
         type="button"
         onclick={addRule}
-        class="rounded bg-surface-800 px-3 py-1 font-mono text-xs text-ink-300 transition-colors hover:bg-surface-700 hover:text-ink-100"
+        class="font-mono text-xs text-ink-400 transition-colors hover:text-ink-100"
       >
         ＋ 添加一条规则
       </button>
       <button
         type="button"
         onclick={resetRules}
-        class="rounded bg-surface-800 px-3 py-1 font-mono text-xs text-ink-300 transition-colors hover:bg-surface-700 hover:text-ink-100"
+        class="font-mono text-xs text-ink-400 transition-colors hover:text-ink-100"
       >
         复原
       </button>
     </div>
   {:else}
     <!-- SSR / 无 JS 降级：把规则说成一段通顺散文，内容不被劫持 -->
-    <p class="px-4 py-4 text-sm leading-loose text-ink-400">
+    <p class="py-2 text-sm leading-loose text-ink-400">
       {ssrProse}（启用 JavaScript 后，你可以亲手开关、改写、添加这些规则。）
     </p>
   {/if}

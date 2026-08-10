@@ -95,7 +95,7 @@
       <button
         onclick={toggle}
         aria-label={playing ? '暂停' : '播放'}
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-600 text-ink-50 transition-colors hover:bg-primary-500"
+        class="flex h-11 w-11 shrink-0 items-center justify-center text-ink-100 transition-colors hover:text-ink-50"
       >
         {#if playing}
           <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">

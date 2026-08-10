@@ -66,7 +66,7 @@
 {#if !loading && loggedIn}
   <button
     type="button"
-    class="inline-flex items-center gap-1.5 rounded-md border border-surface-800 px-2.5 py-1 text-xs text-ink-400 transition-colors hover:border-surface-700 hover:text-ink-100 disabled:opacity-50 sm:text-sm"
+    class="inline-flex items-center gap-1.5 px-1 py-1 text-xs text-ink-400 transition-colors hover:text-ink-100 disabled:opacity-50 sm:text-sm"
     aria-pressed={bookmarked}
     aria-label={bookmarked ? '取消收藏' : '收藏此故事'}
     disabled={busy}

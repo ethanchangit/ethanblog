@@ -97,7 +97,7 @@ const pad = (n: number | undefined) => String(n ?? 0).padStart(2, '0');
       <ul>
         {
           notes.map((s) => (
-            <li class="border-b border-surface-800">
+            <li class="py-1">
               <a href={`/stories/${s.id}`} class="group flex items-baseline gap-3 py-3">
                 <span class="ui-meta shrink-0 tabular-nums">#{pad(s.data.seq)}</span>
                 <span class="flex-1 text-ink-200 transition-colors group-hover:text-ink-100">

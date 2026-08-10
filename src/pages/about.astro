@@ -24,27 +24,20 @@ const domains = [...new Set(skills.map((s) => s.domain))];
         <li><strong>AI 集成</strong> —— 用 LLM 和语音 AI 增强生产力工具</li>
         <li><strong>个人知识管理</strong> —— 打造帮助捕捉和组织思考的工具与方法</li>
       </ul>
-
-      <h2>为什么是「超媒体」</h2>
-      <p>
-        文字是最基础的媒介：你读一段话，靠抽象思维自己想象。图片让你看见，视频让你身临其境。
-        而这个网站想往上再走一层——<strong>让你能亲手交互的软件级媒介</strong>。
-        所以这里的故事可能藏着滑块、动画和真正能运行的软件。它们不是装饰，它们是叙事本身。
-      </p>
     </div>
 
     <section class="mt-12">
       <h2 class="mb-6 text-xl font-semibold text-ink-100">技术栈</h2>
-      <div class="grid gap-6 sm:grid-cols-2">
+      <div class="grid gap-8 sm:grid-cols-2">
         {
           domains.map((domain) => (
-            <div class="rounded-xl border border-surface-800 bg-surface-900 p-5">
+            <div>
               <h3 class="ui-section-label">{domain}</h3>
-              <ul class="flex flex-wrap gap-2">
+              <ul class="flex flex-wrap gap-x-3 gap-y-1">
                 {skills
                   .filter((s) => s.domain === domain)
                   .map((s) => (
-                    <li class="rounded bg-surface-800 px-2.5 py-1 text-sm text-ink-300">{s.name}</li>
+                    <li class="text-sm text-ink-300">{s.name}</li>
                   ))}
               </ul>
             </div>
@@ -53,7 +46,7 @@ const domains = [...new Set(skills.map((s) => s.domain))];
       </div>
     </section>
 
-    <section class="mt-12 rounded-xl border border-surface-800 bg-surface-900 p-6">
+    <section class="mt-12">
       <h2 class="mb-3 text-xl font-semibold text-ink-100">联系我</h2>
       <ul class="flex flex-wrap gap-4 text-sm">
         {

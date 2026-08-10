@@ -19,8 +19,8 @@ test.describe('Projects 超媒体长页', () => {
   test('文末保留项目档案链接', async ({ page }) => {
     await page.goto('/projects');
     await expect(page.getByRole('heading', { name: '项目档案' })).toBeVisible();
-    const archive = page.locator('ul.divide-y a[href="/projects/trace"]');
+    const archive = page.locator('a[href="/projects/trace"]');
     await expect(archive).toBeVisible();
-    await expect(page.locator('ul.divide-y a[href="/projects/chunk"]')).toBeVisible();
+    await expect(page.locator('a[href="/projects/chunk"]')).toBeVisible();
   });
 });
