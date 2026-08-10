@@ -19,8 +19,8 @@ test.describe('Projects 超媒体长页', () => {
   test('文末保留项目档案链接', async ({ page }) => {
     await page.goto('/projects');
     await expect(page.getByRole('heading', { name: '项目档案' })).toBeVisible();
-    const archive = page.locator('a[href="/projects/trace"]');
-    await expect(archive).toBeVisible();
-    await expect(page.locator('a[href="/projects/chunk"]')).toBeVisible();
+    // 档案区在「项目档案」标题之后的列表；用 ul 定位，避开正文内联链接
+    await expect(page.locator('ul a[href="/projects/trace"]').last()).toBeVisible();
+    await expect(page.locator('ul a[href="/projects/chunk"]').last()).toBeVisible();
   });
 });
