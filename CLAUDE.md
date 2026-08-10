@@ -1,11 +1,13 @@
 # CLAUDE.md - ethanchang.io 项目指南
 
+> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 整体框架与路线图见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 > **内容创作规范**（把对话/文章转化为本站 MDX 页面的方法）见 [docs/MEDIUM.md](docs/MEDIUM.md)。
 
 ## 项目信息
 
-- **定位**: 极简个人博客（Astro）——以文字与排版为主；需要时再嵌入交互组件
+- **定位**: Ethan Chang 的个人博客 —— 极简 Astro 站点，以文字与排版为主；需要时再嵌入交互组件
+- **作者**: Ethan Chang（张峻源）
 - **框架**: Astro 5（islands）+ Svelte 5（runes）+ MDX + Tailwind CSS v4 + GSAP
 - **部署**: Cloudflare Pages（项目名 `ethanblog`）
 - **域名**: https://ethanchang.io

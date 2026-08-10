@@ -1,5 +1,6 @@
 # AGENTS.md
 
+> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 创作规范（输入 → 页面的转换方法）：[docs/MEDIUM.md](docs/MEDIUM.md)。本文件只管强制约束。
 
 ## 任务路由

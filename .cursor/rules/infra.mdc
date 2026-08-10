@@ -10,7 +10,7 @@ alwaysApply: false
 
 # `/infra` — 网站基建模式
 
-路由表见 [AGENTS.md](../../AGENTS.md#任务路由)。
+路由表见 [AGENTS.md](../../AGENTS.md#任务路由)。本站是 **Ethan Chang 的个人博客**（https://ethanchang.io）。
 
 ## 收到 `/infra` 后
 

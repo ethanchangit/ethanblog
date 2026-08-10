@@ -1,6 +1,8 @@
 # 媒介组件库（Media Component Library）
 
-一组可以直接嵌进 MDX 故事里的**可选**交互组件。
+> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）上的可选交互组件。
+
+一组可以直接嵌进 MDX 故事里的交互组件。
 写故事时默认用文字；需要时再逐级升档：文字 → 图片 → 音视频 → 可交互组件。
 
 在线演示与 QA：访问 [/lab](/lab)。
