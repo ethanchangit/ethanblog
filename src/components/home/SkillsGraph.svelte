@@ -20,20 +20,20 @@
   }
 </script>
 
-<div class="grid gap-4 md:grid-cols-[1fr_280px]">
+<div class="grid gap-8 md:grid-cols-[1fr_240px]">
   <div class="flex flex-col gap-5">
     {#each domains as domain (domain)}
       <div>
         <h3 class="ui-section-label">{domain}</h3>
-        <ul class="flex flex-wrap gap-2">
+        <ul class="flex flex-wrap gap-x-4 gap-y-2">
           {#each skills.filter((s) => s.domain === domain) as s (s.name)}
             <li>
               <button
                 onclick={() => toggle(s)}
                 aria-pressed={selected?.name === s.name}
-                class:border-ink-400={selected?.name === s.name}
                 class:text-ink-100={selected?.name === s.name}
-                class="rounded-lg border border-surface-700 bg-surface-900 px-3 py-1.5 text-sm text-ink-300 transition-all hover:-translate-y-0.5 hover:border-surface-600"
+                class:underline={selected?.name === s.name}
+                class="text-sm text-ink-400 underline-offset-4 transition-colors hover:text-ink-100"
               >
                 {s.name}
               </button>
@@ -44,29 +44,19 @@
     {/each}
   </div>
 
-  <aside class="rounded-xl border border-surface-800 bg-surface-900 p-5 md:sticky md:top-20 md:self-start">
+  <aside class="md:sticky md:top-20 md:self-start">
     {#if selected}
       <p class="ui-meta">{selected.domain}</p>
       <h4 class="mt-1 font-semibold text-ink-100">{selected.name}</h4>
-      <div class="mt-3">
-        <div class="mb-1 flex justify-between ui-meta">
-          <span>熟练度</span><span>{selected.level}%</span>
-        </div>
-        <div class="h-1.5 overflow-hidden rounded-full bg-surface-800">
-          <div
-            class="h-full rounded-full bg-ink-400 transition-all duration-500"
-            style="width: {selected.level}%"
-          ></div>
-        </div>
-      </div>
+      <p class="ui-meta mt-3">熟练度 {selected.level}%</p>
       {#if selected.projects.length}
         <p class="ui-meta mt-4 mb-1.5">用在了这些项目里</p>
-        <ul class="flex flex-wrap gap-1.5">
+        <ul class="flex flex-col gap-1">
           {#each selected.projects as slug (slug)}
             <li>
               <a
                 href={`/projects/${slug}`}
-                class="ui-tag transition-colors hover:border-surface-600 hover:text-ink-300"
+                class="ui-link text-sm"
               >
                 {slug} →
               </a>
@@ -76,7 +66,7 @@
       {/if}
     {:else}
       <p class="text-sm leading-relaxed text-ink-500">
-        点一个技能芯片，看它的熟练度，以及它被用在了哪些项目里。
+        点一个技能，看熟练度以及它被用在了哪些项目里。
       </p>
     {/if}
   </aside>

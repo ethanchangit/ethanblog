@@ -100,7 +100,7 @@
 </script>
 
 <figure class="media-frame not-prose">
-  <div bind:this={container} class="relative w-full overflow-hidden bg-surface-950" style="height: {height}px">
+  <div bind:this={container} class="relative w-full overflow-hidden" style="height: {height}px">
     {#if !hydrated}
       <div class="flex h-full items-center justify-center font-mono text-xs text-ink-600">
         3D 场景将在 JavaScript 就绪后加载

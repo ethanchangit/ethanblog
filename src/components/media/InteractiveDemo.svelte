@@ -56,16 +56,8 @@
 </script>
 
 <figure class="media-frame not-prose" bind:this={root}>
-  <!-- 设备边框：像一个运行中的小软件 -->
-  <div class="flex items-center justify-between border-b border-surface-800 bg-surface-950 px-4 py-2.5">
-    <div class="flex items-center gap-3">
-      <span class="flex gap-1.5" aria-hidden="true">
-        <span class="h-2.5 w-2.5 rounded-full bg-surface-700"></span>
-        <span class="h-2.5 w-2.5 rounded-full bg-surface-700"></span>
-        <span class="h-2.5 w-2.5 rounded-full bg-accent-600/70"></span>
-      </span>
-      <p class="font-mono text-xs text-ink-400">{title}</p>
-    </div>
+  <div class="flex items-center justify-between py-2">
+    <p class="font-mono text-xs text-ink-400">{title}</p>
     <div class="flex items-center gap-3 font-mono text-xs">
       {#if loaded}
         <button
@@ -93,8 +85,7 @@
         ></iframe>
       {/key}
     {:else}
-      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-surface-950">
-        <!-- poster 档：内容丰富的预览打底，注水后可升级为循环视频 -->
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-4">
         {#if hydrated && posterVideo && !reduceMotion}
           <video
             src={posterVideo}
@@ -115,24 +106,20 @@
             class="absolute inset-0 h-full w-full object-cover"
           />
         {/if}
-        {#if poster || posterVideo}
-          <div class="absolute inset-0 bg-gradient-to-t from-surface-950/80 via-surface-950/30 to-transparent" aria-hidden="true"></div>
-        {/if}
         {#if hydrated}
           <button
             onclick={() => (loaded = true)}
-            class="relative rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-ink-50 shadow-lg transition-all hover:bg-primary-500 hover:shadow-primary-900/40"
+            class="relative text-sm font-medium text-ink-100 underline decoration-ink-500 underline-offset-4 transition-colors hover:decoration-ink-300"
           >
             ▶ 启动演示
           </button>
-          <p class="relative font-mono text-xs text-ink-600">软件将在页面内沙箱中运行</p>
+          <p class="relative font-mono text-xs text-ink-600">演示将在页面内沙箱中运行</p>
         {:else}
-          <!-- 无 JS 降级：直接给出新窗口链接 -->
           <a
             href={src}
             target="_blank"
             rel="noopener noreferrer"
-            class="relative rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-ink-50"
+            class="relative text-sm font-medium text-ink-100 underline decoration-ink-500 underline-offset-4"
           >
             在新窗口打开演示 ↗
           </a>

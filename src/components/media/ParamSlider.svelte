@@ -82,8 +82,8 @@
 </script>
 
 <figure class="media-frame not-prose">
-  <div class="grid md:grid-cols-[220px_1fr]">
-    <div class="flex flex-col justify-center gap-5 border-b border-surface-800 p-5 md:border-b-0 md:border-r">
+  <div class="grid md:grid-cols-[220px_1fr] md:gap-8">
+    <div class="flex flex-col justify-center gap-5 py-2">
       {#each items as c (c.key)}
         <label class="block">
           <span class="mb-2 flex items-baseline justify-between text-sm">
@@ -115,30 +115,22 @@
 <style>
   .param-range {
     appearance: none;
-    height: 4px;
-    border-radius: 9999px;
-    background: var(--color-surface-700);
+    height: 2px;
+    background: var(--color-ink-600);
     outline-offset: 4px;
   }
   .param-range::-webkit-slider-thumb {
     appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 9999px;
-    background: var(--color-accent-400);
-    border: 2px solid var(--color-surface-950);
+    width: 14px;
+    height: 14px;
+    background: var(--color-ink-200);
     cursor: grab;
-    transition: transform 0.15s ease;
-  }
-  .param-range::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
   }
   .param-range::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 9999px;
-    background: var(--color-accent-400);
-    border: 2px solid var(--color-surface-950);
+    width: 14px;
+    height: 14px;
+    background: var(--color-ink-200);
+    border: none;
     cursor: grab;
   }
 </style>

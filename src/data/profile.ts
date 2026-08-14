@@ -6,8 +6,7 @@
 export const site = {
   title: 'Ethan Chang',
   wordmark: 'ethan.chang',
-  description:
-    '一个超媒体容器 —— 在这里阅读我的文章、体验我的软件、经历我的故事。我们不分享文章，我们分享超媒介。',
+  description: 'Ethan Chang 的个人博客 —— 文章、笔记与作品。',
   url: 'https://ethanchang.io',
   lang: 'zh-CN',
 } as const;
@@ -16,7 +15,7 @@ export const profile = {
   name: 'Ethan Chang',
   chineseName: '张峻源',
   role: ['iOS 开发者', 'AI 工具制作人', '知识管理实践者'],
-  bio: '我做原生 iOS 应用，把 LLM 和语音 AI 融进生产力工具，也持续打磨自己的个人知识管理方法。这个网站是我的作品，也是我的一件作品。',
+  bio: '我做原生 iOS 应用，把 LLM 和语音 AI 融进生产力工具，也持续打磨自己的个人知识管理方法。',
   email: 'hey@ethanchang.io',
   socials: [
     { label: 'GitHub', url: 'https://github.com/ethanchangit', icon: 'github' },
@@ -50,9 +49,9 @@ export interface NowItem {
 }
 
 export const now: NowItem[] = [
-  { verb: '正在做', text: '把这个网站从博客升级成超媒体产品' },
+  { verb: '正在做', text: '写博客，打磨笔记与作品页' },
   { verb: '正在读', text: 'Heptabase 深度学习工作流的长期实践笔记' },
   { verb: '正在想', text: '语音优先的笔记输入如何降低记录的摩擦力' },
 ];
 
-export const nowUpdated = '2026-07-03';
+export const nowUpdated = '2026-08-10';

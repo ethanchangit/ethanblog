@@ -2,17 +2,15 @@
 import { now, nowUpdated } from '@/data/profile';
 ---
 
-<div class="rounded-xl border border-surface-800">
-  <div class="flex items-center justify-between border-b border-surface-800 px-5 py-2.5">
-    <p class="ui-eyebrow">
-      Now
-    </p>
+<div>
+  <div class="mb-4 flex items-center justify-between">
+    <p class="ui-eyebrow">Now</p>
     <p class="ui-meta">更新于 {nowUpdated}</p>
   </div>
-  <dl class="grid gap-px overflow-hidden rounded-b-xl bg-surface-800 sm:grid-cols-3">
+  <dl class="grid gap-6 sm:grid-cols-3">
     {
       now.map((item) => (
-        <div class="bg-surface-900 p-5">
+        <div>
           <dt class="ui-meta mb-1">{item.verb}</dt>
           <dd class="text-sm leading-relaxed text-ink-300">{item.text}</dd>
         </div>

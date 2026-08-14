@@ -44,11 +44,11 @@
 
 <figure class="media-frame not-prose" bind:this={root}>
   <dl
-    class="grid gap-px overflow-hidden bg-surface-800"
+    class="grid gap-8"
     style="grid-template-columns: repeat({Math.min(stats.length, 4)}, minmax(0, 1fr))"
   >
     {#each stats as s, i (i)}
-      <div class="bg-surface-900 p-5 text-center">
+      <div class="text-center sm:text-left">
         <dd class="font-mono text-3xl font-semibold text-ink-100">
           {s.prefix ?? ''}{tweens[i].current.toFixed(s.decimals ?? 0)}<span class="text-ink-400">{s.suffix ?? ''}</span>
         </dd>

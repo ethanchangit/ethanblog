@@ -25,9 +25,9 @@ test.describe('Threads (研究线)', () => {
     const navLink = page.locator('header nav a[href="/threads"]');
     await expect(navLink).toBeVisible();
     await expect(navLink).toHaveText('研究线');
-    // Nav 的 isActive 实现：命中时输出 aria-current="page" 且带 bg-surface-800 类
+    // Nav 的 isActive 实现：命中时输出 aria-current="page" 且文字用 ink-100
     await expect(navLink).toHaveAttribute('aria-current', 'page');
-    await expect(navLink).toHaveClass(/bg-surface-800/);
+    await expect(navLink).toHaveClass(/text-ink-100/);
   });
 
   test('draft note #02 does not appear in the notes list', async ({ page }) => {

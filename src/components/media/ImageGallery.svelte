@@ -71,7 +71,7 @@
       {#if hydrated}
         <button
           type="button"
-          class="group relative overflow-hidden rounded-lg border border-surface-800 bg-surface-950 text-left transition-colors hover:border-surface-700 focus-visible:border-accent-400"
+          class="group relative overflow-hidden text-left transition-opacity hover:opacity-90"
           onclick={() => openLightbox(i)}
           aria-label={`查看大图：${img.alt}`}
         >
@@ -82,9 +82,7 @@
             class="block aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           />
           {#if img.caption}
-            <span
-              class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface-950/90 to-transparent px-3 py-2 text-xs text-ink-300"
-            >
+            <span class="mt-2 block text-xs text-ink-500">
               {img.caption}
             </span>
           {/if}
@@ -95,7 +93,7 @@
           href={img.src}
           target="_blank"
           rel="noopener noreferrer"
-          class="block overflow-hidden rounded-lg border border-surface-800 bg-surface-950"
+          class="block overflow-hidden"
         >
           <img
             src={img.src}
@@ -118,7 +116,7 @@
 {#if lightboxOpen && hydrated}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-surface-950/95 p-4 backdrop-blur-sm"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-surface-950 p-4"
     role="dialog"
     aria-modal="true"
     aria-label="图片灯箱"
@@ -128,7 +126,7 @@
   >
     <button
       type="button"
-      class="absolute right-4 top-4 rounded-md border border-surface-700 bg-surface-900 px-3 py-1.5 font-mono text-xs text-ink-300 transition-colors hover:border-surface-600 hover:text-ink-100"
+      class="absolute right-4 top-4 font-mono text-xs text-ink-300 transition-colors hover:text-ink-100"
       onclick={closeLightbox}
       aria-label="关闭灯箱"
     >
@@ -138,7 +136,7 @@
     {#if images.length > 1}
       <button
         type="button"
-        class="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 text-sm text-ink-300 transition-colors hover:border-surface-600 hover:text-ink-100 sm:left-6"
+        class="absolute left-3 top-1/2 -translate-y-1/2 px-3 py-2 text-sm text-ink-300 transition-colors hover:text-ink-100 sm:left-6"
         onclick={prev}
         aria-label="上一张"
       >
@@ -146,7 +144,7 @@
       </button>
       <button
         type="button"
-        class="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-surface-700 bg-surface-900/90 px-3 py-2 text-sm text-ink-300 transition-colors hover:border-surface-600 hover:text-ink-100 sm:right-6"
+        class="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-2 text-sm text-ink-300 transition-colors hover:text-ink-100 sm:right-6"
         onclick={next}
         aria-label="下一张"
       >
@@ -158,7 +156,7 @@
       <img
         src={images[lightboxIndex].src}
         alt={images[lightboxIndex].alt}
-        class="max-h-[75vh] w-full rounded-lg object-contain"
+        class="max-h-[75vh] w-full object-contain"
         class:transition-opacity={!reducedMotion()}
         class:duration-200={!reducedMotion()}
       />

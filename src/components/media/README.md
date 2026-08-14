@@ -1,7 +1,9 @@
 # 媒介组件库（Media Component Library）
 
-这是本站的心脏：一组可以直接嵌进 MDX 故事里的交互媒介组件。
-写故事时，从最低档的文字开始，需要时逐级升档：文字 → 图片 → 音视频 → **可交互的软件级媒介**。
+> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）上的可选交互组件。
+
+一组可以直接嵌进 MDX 故事里的交互组件。
+写故事时默认用文字；需要时再逐级升档：文字 → 图片 → 音视频 → 可交互组件。
 
 在线演示与 QA：访问 [/lab](/lab)。
 
@@ -11,8 +13,9 @@
 2. **无 JS 必须优雅降级**：服务端渲染出有意义的静态内容（ScrollScene 平铺全部场景、AudioClip 渲染原生 `<audio>`、InteractiveDemo 给出新窗口链接、CodePlayground 渲染只读代码块）
 3. **注水指令**：默认 `client:visible`；仅首屏组件用 `client:load`；能不注水就不注水（VideoEmbed 是零 JS 的 Astro 组件）。**CodePlayground** 为 Astro 薄包装，内部已含 `client:visible`，MDX 可直接 `<CodePlayground />` 无需写指令。**ScrollScene 例外**：必须用 `client:visible={{ rootMargin: '150% 0px' }}` 提前注水——它注水后会从静态平铺膨胀成数倍视口高度的滚动剧场，提前展开可避免读者眼前的布局跳动
 4. **只消费设计 token**（`--color-*`），组件内不写死色值；canvas / WebGL 通过 `getComputedStyle` 读 token
-5. **统一支持 `caption`**，外框统一用 `.media-frame` / `.media-caption`
+5. **统一支持 `caption`**，外框统一用 `.media-frame` / `.media-caption`（仅间距与图注，**无边框、无背景色块**）
 6. **动效尊重 `prefers-reduced-motion`**（用 `@/lib/motion` 的 `reducedMotion()`），GSAP / three.js 只在 onMount/$effect 里创建并在销毁时 kill / dispose
+7. **视觉极简**：不使用装饰性边框、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome
 
 ## 可见性：拆开看
 

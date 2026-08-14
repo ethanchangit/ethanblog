@@ -42,18 +42,15 @@
 </script>
 
 <figure class="media-frame not-prose" bind:this={root}>
-  <ol class="relative m-0 list-none p-6 pl-2">
-    <div class="absolute inset-y-6 left-[27px] w-px bg-surface-700" aria-hidden="true"></div>
+  <ol class="relative m-0 list-none p-0">
     {#each items as item, i (i)}
       <li
         data-tl-item={i}
-        class="relative flex gap-4 py-4 pl-4 transition-all duration-700"
+        class="relative flex gap-4 py-4 transition-all duration-700"
         style={animated && !visible[i] ? 'opacity: 0; transform: translateY(16px)' : ''}
       >
-        <div
-          class="z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-700 bg-surface-900 text-sm"
-        >
-          {item.icon ?? '·'}
+        <div class="ui-meta w-8 shrink-0 pt-0.5 tabular-nums">
+          {item.icon ?? String(i + 1).padStart(2, '0')}
         </div>
         <div>
           <p class="ui-meta">{item.date}</p>

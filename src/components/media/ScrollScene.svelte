@@ -113,7 +113,7 @@
         <div class="relative z-10 flex h-full items-end p-6 sm:items-center sm:p-12">
           {#each scenes as s, i (i)}
             <div
-              class="absolute max-w-md rounded-xl border border-surface-800 bg-surface-950 p-5 transition-all duration-500"
+              class="absolute max-w-md p-2 transition-all duration-500 sm:p-0"
               style="opacity: {active === i ? 1 : 0}; transform: translateY({active === i
                 ? 0
                 : 12}px); pointer-events: {active === i ? 'auto' : 'none'}"
@@ -129,19 +129,14 @@
         </div>
       </div>
       {#if progressBar}
-        <div class="h-0.5 bg-surface-800">
-          <div
-            class="h-full bg-ink-500"
-            style="width: {progress * 100}%"
-          ></div>
-        </div>
+        <p class="ui-meta px-4 py-2 tabular-nums">{Math.round(progress * 100)}%</p>
       {/if}
     </div>
   {:else}
     <!-- 注水前 / 关闭动效时的降级：全部场景静态平铺，内容一字不少 -->
-    <div class="divide-y divide-surface-800">
+    <div class="space-y-8">
       {#each scenes as s, i (i)}
-        <div class="p-6">
+        <div>
           <p class="ui-meta mb-1">
             {String(i + 1).padStart(2, '0')} / {String(scenes.length).padStart(2, '0')}
           </p>

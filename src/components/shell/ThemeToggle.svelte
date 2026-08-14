@@ -13,7 +13,7 @@
 
 <button
   type="button"
-  class="theme-toggle flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+  class="theme-toggle flex items-center gap-1.5 px-2 py-1.5 text-sm text-ink-400 transition-colors hover:text-ink-100"
   aria-label="切换浅色/深色模式"
   title="切换主题"
   onclick={handleToggle}

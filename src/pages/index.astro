@@ -26,28 +26,19 @@ import { profile, skills } from '@/data/profile';
       <SkillsGraph client:visible skills={skills} />
     </section>
 
-    <section
-      aria-label="联系"
-      class="rounded-xl border border-surface-800 p-8 text-center"
-    >
-      <h2 class="text-xl font-semibold text-ink-100">这个网站会持续长出新功能</h2>
+    <section aria-label="联系" class="py-4 text-center">
+      <h2 class="text-xl font-semibold text-ink-100">想聊聊？</h2>
       <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
-        因为它不是博客，是一个软件。想看它的引擎盖下面？去组件试验场把每个媒介组件玩一遍。
+        关于文章、作品或任何想法，欢迎来信。
       </p>
-      <div class="mt-6 flex flex-wrap justify-center gap-3">
-        <a
-          href="/lab"
-          class="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-ink-50 transition-colors hover:bg-primary-500"
-        >
-          组件试验场 /lab
-        </a>
+      <p class="mt-6 text-sm">
         <a
           href={`mailto:${profile.email}`}
-          class="rounded-md border border-surface-700 px-4 py-2 text-sm font-medium text-ink-200 transition-colors hover:bg-surface-900"
+          class="text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-300"
         >
-          联系我
+          {profile.email}
         </a>
-      </div>
+      </p>
     </section>
   </div>
 </Base>

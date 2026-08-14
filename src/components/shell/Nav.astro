@@ -14,9 +14,7 @@ const path = Astro.url.pathname;
 const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
-<header
-  class="sticky top-0 z-50 border-b border-surface-800 bg-surface-950"
->
+<header class="sticky top-0 z-50 bg-surface-950">
   <nav class="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
     <a
       href="/"
@@ -25,7 +23,7 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
     >
       {site.wordmark}
     </a>
-    <ul class="flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-2">
+    <ul class="flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
       {
         links.map((link) => (
           <li class="shrink-0">
@@ -33,10 +31,10 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
               href={link.href}
               aria-current={isActive(link.href) ? 'page' : undefined}
               class:list={[
-                'rounded-md px-1.5 py-1.5 text-xs transition-colors sm:px-3 sm:text-sm',
+                'px-1.5 py-1.5 text-xs transition-colors sm:px-2 sm:text-sm',
                 isActive(link.href)
-                  ? 'bg-surface-800 text-ink-100'
-                  : 'text-ink-400 hover:bg-surface-900 hover:text-ink-100',
+                  ? 'text-ink-100'
+                  : 'text-ink-400 hover:text-ink-100',
               ]}
             >
               {link.label}

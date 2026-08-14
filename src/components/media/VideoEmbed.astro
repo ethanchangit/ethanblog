@@ -39,7 +39,7 @@ const posterSrc =
         data-video-facade
         data-embed-src={embedSrc}
         data-title={title}
-        class="group relative block aspect-video w-full cursor-pointer overflow-hidden border-0 bg-surface-950 p-0"
+        class="group relative block aspect-video w-full cursor-pointer overflow-hidden border-0 p-0"
         aria-label={`播放视频：${title}`}
       >
         {posterSrc ? (
@@ -51,16 +51,16 @@ const posterSrc =
             class="absolute inset-0 h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
           />
         ) : (
-          <div class="absolute inset-0 bg-surface-950" />
+          <div class="absolute inset-0" />
         )}
         <span class="absolute inset-0 flex items-center justify-center">
-          <span class="flex h-16 w-16 items-center justify-center rounded-full border border-surface-700 bg-surface-950/80 text-ink-200 backdrop-blur transition-transform group-hover:scale-105">
+          <span class="flex h-12 w-12 items-center justify-center text-ink-200 transition-opacity group-hover:opacity-80">
             <svg width="22" height="22" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
               <path d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z" />
             </svg>
           </span>
         </span>
-        <span class="absolute bottom-3 left-3 rounded bg-surface-950/80 px-2 py-1 text-xs text-ink-300">
+        <span class="absolute bottom-3 left-3 text-xs text-ink-300">
           {title}
         </span>
       </button>

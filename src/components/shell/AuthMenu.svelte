@@ -42,12 +42,12 @@
 </script>
 
 {#if loading}
-  <span class="h-8 w-16 animate-pulse rounded-md bg-surface-800" aria-hidden="true"></span>
+  <span class="inline-block h-4 w-12 animate-pulse text-ink-600" aria-hidden="true">···</span>
 {:else if user}
   <div class="relative">
     <button
       type="button"
-      class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-300 transition-colors hover:bg-surface-900 hover:text-ink-100"
+      class="flex items-center gap-2 px-2 py-1.5 text-sm text-ink-300 transition-colors hover:text-ink-100"
       aria-expanded={menuOpen}
       aria-haspopup="true"
       onclick={toggleMenu}
@@ -56,13 +56,13 @@
         <img
           src={user.avatarUrl}
           alt=""
-          class="h-6 w-6 rounded-full border border-surface-700"
+          class="h-6 w-6"
           width="24"
           height="24"
         />
       {:else}
         <span
-          class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-800 text-xs font-medium text-ink-300"
+          class="flex h-6 w-6 items-center justify-center text-xs font-medium text-ink-300"
           aria-hidden="true"
         >
           {user.name.charAt(0).toUpperCase()}
@@ -72,12 +72,12 @@
     </button>
     {#if menuOpen}
       <div
-        class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-md border border-surface-800 bg-surface-900 py-1 shadow-lg"
+        class="absolute right-0 top-full z-50 mt-1 min-w-32 bg-surface-950 py-1"
         role="menu"
       >
         <button
           type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:text-ink-100"
           role="menuitem"
           onclick={signOut}
         >
@@ -90,7 +90,7 @@
   <div class="relative">
     <button
       type="button"
-      class="rounded-md px-2 py-1.5 text-xs text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100 sm:hidden"
+      class="px-2 py-1.5 text-xs text-ink-400 transition-colors hover:text-ink-100 sm:hidden"
       aria-expanded={menuOpen}
       aria-haspopup="true"
       onclick={toggleMenu}
@@ -100,14 +100,14 @@
     <div class="hidden items-center gap-1 sm:flex">
       <button
         type="button"
-        class="rounded-md px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100"
+        class="px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:text-ink-100"
         onclick={() => signIn('github')}
       >
         GitHub
       </button>
       <button
         type="button"
-        class="rounded-md px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:bg-surface-900 hover:text-ink-100"
+        class="px-2.5 py-1.5 text-sm text-ink-400 transition-colors hover:text-ink-100"
         onclick={() => signIn('google')}
       >
         Google
@@ -115,12 +115,12 @@
     </div>
     {#if menuOpen}
       <div
-        class="absolute right-0 top-full z-50 mt-1 min-w-32 rounded-md border border-surface-800 bg-surface-900 py-1 shadow-lg sm:hidden"
+        class="absolute right-0 top-full z-50 mt-1 min-w-32 bg-surface-950 py-1 sm:hidden"
         role="menu"
       >
         <button
           type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:text-ink-100"
           role="menuitem"
           onclick={() => signIn('github')}
         >
@@ -128,7 +128,7 @@
         </button>
         <button
           type="button"
-          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:bg-surface-800 hover:text-ink-100"
+          class="block w-full px-3 py-1.5 text-left text-sm text-ink-400 transition-colors hover:text-ink-100"
           role="menuitem"
           onclick={() => signIn('google')}
         >
