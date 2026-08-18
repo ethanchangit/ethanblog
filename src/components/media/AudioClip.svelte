@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { readLang, subscribeLang, t, type Lang } from '@/lib/i18n';
 
   interface Props {
     src: string;
@@ -18,6 +19,7 @@
   let playing = $state(false);
   let progress = $state(0); // 0-1
   let duration = $state(0);
+  let lang = $state<Lang>('zh-CN');
 
   function fmt(s: number) {
     if (!isFinite(s)) return '0:00';
@@ -78,9 +80,16 @@
 
   onMount(() => {
     hydrated = true;
+    lang = readLang();
+    const unsub = subscribeLang((next) => {
+      lang = next;
+    });
     const ro = new ResizeObserver(() => draw());
     if (wrap) ro.observe(wrap);
-    return () => ro.disconnect();
+    return () => {
+      unsub();
+      ro.disconnect();
+    };
   });
 
   $effect(() => {
@@ -94,7 +103,7 @@
     {#if hydrated}
       <button
         onclick={toggle}
-        aria-label={playing ? '暂停' : '播放'}
+        aria-label={playing ? t(lang, 'audioPause') : t(lang, 'audioPlay')}
         class="flex h-11 w-11 shrink-0 items-center justify-center text-ink-100 transition-colors hover:text-ink-50"
       >
         {#if playing}
@@ -116,7 +125,7 @@
           </p>
         </div>
         <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-        <div bind:this={wrap} class="cursor-pointer" onclick={seek} title="点击跳转">
+        <div bind:this={wrap} class="cursor-pointer" onclick={seek} title={t(lang, 'audioSeek')}>
           <canvas bind:this={canvas}></canvas>
         </div>
       </div>

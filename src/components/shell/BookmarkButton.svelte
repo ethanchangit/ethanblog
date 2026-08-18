@@ -1,11 +1,21 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { readLang, subscribeLang, t, type Lang } from '@/lib/i18n';
   import { fetchUser } from '@/lib/user';
 
   interface Props {
-    storySlug: string;
+    slug: string;
   }
 
-  let { storySlug }: Props = $props();
+  let { slug }: Props = $props();
+  let lang = $state<Lang>('zh-CN');
+
+  onMount(() => {
+    lang = readLang();
+    return subscribeLang((next) => {
+      lang = next;
+    });
+  });
 
   let bookmarked = $state(false);
   let loggedIn = $state(false);
@@ -25,7 +35,7 @@
       }
 
       try {
-        const res = await fetch(`/api/bookmarks?slug=${encodeURIComponent(storySlug)}`, {
+        const res = await fetch(`/api/bookmarks?slug=${encodeURIComponent(slug)}`, {
           credentials: 'include',
         });
         if (res.ok) {
@@ -51,7 +61,7 @@
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storySlug }),
+        body: JSON.stringify({ storySlug: slug }),
       });
       if (res.ok) {
         const data = (await res.json()) as { bookmarked: boolean };
@@ -68,7 +78,7 @@
     type="button"
     class="inline-flex items-center gap-1.5 px-1 py-1 text-xs text-ink-400 transition-colors hover:text-ink-100 disabled:opacity-50 sm:text-sm"
     aria-pressed={bookmarked}
-    aria-label={bookmarked ? '取消收藏' : '收藏此故事'}
+    aria-label={bookmarked ? t(lang, 'unbookmarkAria') : t(lang, 'bookmarkAria')}
     disabled={busy}
     onclick={toggle}
   >
@@ -93,6 +103,6 @@
         />
       {/if}
     </svg>
-    {bookmarked ? '已收藏' : '收藏'}
+    {bookmarked ? t(lang, 'bookmarked') : t(lang, 'bookmark')}
   </button>
 {/if}

@@ -27,14 +27,15 @@ import {
   MediaFrame,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
+import I18n from '@/components/shell/I18n.astro';
 ---
 
-<Base title="Lab" description="媒介组件试验场">
+<Base title="Lab" titleEn="Lab" description="媒介组件试验场" descriptionEn="Media component lab">
   <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
     <header class="mb-10">
       <p class="ui-eyebrow">Lab</p>
-      <h1 class="text-3xl font-semibold text-ink-100">组件试验场</h1>
-      <p class="mt-3 text-ink-400">媒介组件库的现场演示与 QA 页面。</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl"><I18n k="labTitle" /></h1>
+      <p class="mt-3 text-ink-400"><I18n k="labLead" /></p>
     </header>
 
     <h2 class="mb-2 text-xl font-semibold text-ink-100">ParamSlider</h2>
