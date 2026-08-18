@@ -11,7 +11,7 @@ function selectedGroup(url: string): string | null {
 }
 
 function tagCloudLink(page: Page, tag: string) {
-  return page.getByRole('link', { name: new RegExp(`^#\\s*${tag}$`) });
+  return page.locator('[data-tag-list]').getByRole('link', { name: tag, exact: true });
 }
 
 test.describe('Tags（内容集合过滤）', () => {
@@ -31,6 +31,12 @@ test.describe('Tags（内容集合过滤）', () => {
     await expect(tagCloudLink(page, '知识管理')).toBeVisible();
     await expect(page.getByRole('heading', { name: '文档' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '我的软件创建之路' })).toBeHidden();
+
+    const item = page.locator('[data-tag-item][data-tag-name="知识管理"]');
+    await expect(item.getByRole('link')).toHaveText('知识管理', { useInnerText: true });
+    await expect(item.locator('.ui-meta')).toHaveText(/^\d+$/);
+    await expect(page.locator('[data-tag-group-tabs]')).toBeVisible();
+    await expect(page.locator('[data-tag-list]')).toBeVisible();
   });
 
   test('点分组标题只显示该组标签', async ({ page }) => {

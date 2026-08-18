@@ -26,7 +26,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
   descriptionEn={copy.en.tagsDesc}
 >
   <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-tag-index>
-    <header class="mb-4">
+    <header class="mb-8">
       <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
         <I18n k="tagsTitle" />
       </h1>
@@ -35,10 +35,15 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
     <TagFilter client:load />
 
     <div data-tag-cloud>
-      <nav class="flex flex-wrap gap-x-5 gap-y-1" data-tag-group-tabs>
+      <nav
+        class="tag-index-domains"
+        data-tag-group-tabs
+        aria-label={copy['zh-CN'].tagsDomainsAria}
+        data-i18n-aria="tagsDomainsAria"
+      >
         <a
           href={tagsPageHref()}
-          class="ui-tag-link text-lg"
+          class="ui-tag-link"
           data-tag-group-select={ALL_GROUP}
           aria-current="true"
         >
@@ -48,7 +53,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
           groups.map((group) => (
             <a
               href={tagsPageHref({ group: group.slug })}
-              class="ui-tag-link text-lg"
+              class="ui-tag-link"
               data-tag-group-select={group.slug}
             >
               <Bi zh={group.title} en={group.titleEn} />
@@ -56,14 +61,19 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
           ))
         }
       </nav>
-      <ul class="ui-tag-list ui-tag-list--start mt-3 gap-x-5" data-tag-list>
+      <ul
+        class="tag-index-list"
+        data-tag-list
+        aria-label={copy['zh-CN'].tagsListAria}
+        data-i18n-aria="tagsListAria"
+      >
         {
           items.map(({ tag, group }) => (
             <li data-tag-item data-tag-name={tag.toLowerCase()} data-tag-group={group}>
               <a href={tagHref(tag)} class="ui-tag-link text-sm" data-tag-select={tag}>
                 {tag}
               </a>
-              <span class="ui-meta text-sm"> {counts[tag]}</span>
+              <span class="ui-meta tabular-nums">{counts[tag]}</span>
             </li>
           ))
         }
