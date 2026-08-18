@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { reducedMotion } from '@/lib/motion';
+  import { readLang, subscribeLang, t, type Lang } from '@/lib/i18n';
 
   interface Props {
     /** 演示包地址：public/demos/<name>/index.html 或外部 URL */
@@ -35,23 +36,32 @@
   let hydrated = $state(false);
   let reduceMotion = $state(false);
   let reloadKey = $state(0);
+  let lang = $state<Lang>('zh-CN');
 
   onMount(() => {
     hydrated = true;
     reduceMotion = reducedMotion();
+    lang = readLang();
+    const unsub = subscribeLang((next) => {
+      lang = next;
+    });
+    let io: IntersectionObserver | undefined;
     if (loading === 'visible' && root) {
-      const io = new IntersectionObserver(
+      io = new IntersectionObserver(
         (entries) => {
           if (entries.some((e) => e.isIntersecting)) {
             loaded = true;
-            io.disconnect();
+            io?.disconnect();
           }
         },
         { rootMargin: '100px' }
       );
       io.observe(root);
-      return () => io.disconnect();
     }
+    return () => {
+      unsub();
+      io?.disconnect();
+    };
   });
 </script>
 
@@ -64,7 +74,7 @@
           class="text-ink-500 transition-colors hover:text-ink-200"
           onclick={() => (reloadKey += 1)}
         >
-          ↻ 重载
+          {t(lang, 'demoReload')}
         </button>
       {/if}
       <a
@@ -73,7 +83,7 @@
         rel="noopener noreferrer"
         class="text-ink-500 transition-colors hover:text-ink-200"
       >
-        全屏 ↗
+        {t(lang, 'demoFullscreen')}
       </a>
     </div>
   </div>
@@ -111,9 +121,9 @@
             onclick={() => (loaded = true)}
             class="relative text-sm font-medium text-ink-100 underline decoration-ink-500 underline-offset-4 transition-colors hover:decoration-ink-300"
           >
-            ▶ 启动演示
+            {t(lang, 'demoStart')}
           </button>
-          <p class="relative font-mono text-xs text-ink-600">演示将在页面内沙箱中运行</p>
+          <p class="relative font-mono text-xs text-ink-600">{t(lang, 'demoSandbox')}</p>
         {:else}
           <a
             href={src}
@@ -121,7 +131,7 @@
             rel="noopener noreferrer"
             class="relative text-sm font-medium text-ink-100 underline decoration-ink-500 underline-offset-4"
           >
-            在新窗口打开演示 ↗
+            {t(lang, 'demoNewWindow')}
           </a>
         {/if}
       </div>

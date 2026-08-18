@@ -1,10 +1,12 @@
 ---
 /**
- * PageHistory — 「这一页如何长成」：把故事文件的 git 提交史渲染成文末折叠时间线。
+ * PageHistory — 「这一页如何长成」：把文章文件的 git 提交史渲染成文末折叠时间线。
  * 版本历史即媒介（Upwelling/Patchwork）：修订说明写给读者看，不是行政开销。
- * 页面接口（MEDIUM §6），非媒介组件——由 Story.astro 在 history: true 时自动渲染。
+ * 页面接口（MEDIUM §6），非媒介组件——由 Article.astro 在 history: true 时自动渲染。
  */
-import { formatDate } from '@/lib/format';
+import DateText from '@/components/shell/DateText.astro';
+import I18n from '@/components/shell/I18n.astro';
+import { copy } from '@/lib/i18n';
 import type { CommitInfo } from '@/lib/history';
 
 interface Props {
@@ -12,23 +14,25 @@ interface Props {
 }
 
 const { commits } = Astro.props;
-
-const kindLabel: Record<CommitInfo['kind'], string> = {
-  publish: '发布',
-  revise: '修订',
-  other: '更新',
-};
+const n = String(commits.length);
 ---
 
 <details class="page-history">
-  <summary>这一页如何长成 · {commits.length} 次修订</summary>
+  <summary>
+    <span class="i18n-zh">{copy['zh-CN'].pageHistory.replace('{n}', n)}</span>
+    <span class="i18n-en" aria-hidden="true">{copy.en.pageHistory.replace('{n}', n)}</span>
+  </summary>
   <ol>
     {
       commits.map((c) => (
         <li>
-          <time datetime={c.date}>{formatDate(new Date(c.date))}</time>
+          <time datetime={c.date}>
+            <DateText date={new Date(c.date)} />
+          </time>
           <span class:list={['ui-badge', c.kind === 'publish' && 'ui-badge--active']}>
-            {kindLabel[c.kind]}
+            <I18n
+              k={c.kind === 'publish' ? 'historyPublish' : c.kind === 'revise' ? 'historyRevise' : 'historyUpdate'}
+            />
           </span>
           <span>{c.subject}</span>
         </li>

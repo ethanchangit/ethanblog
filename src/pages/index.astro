@@ -3,33 +3,28 @@ import Base from '@/layouts/Base.astro';
 import Hero from '@/components/home/Hero.svelte';
 import SkillsGraph from '@/components/home/SkillsGraph.svelte';
 import NowPanel from '@/components/home/NowPanel.astro';
-import FeaturedGrid from '@/components/home/FeaturedGrid.astro';
 import SectionHeading from '@/components/shell/SectionHeading.astro';
+import I18n from '@/components/shell/I18n.astro';
 import { profile, skills } from '@/data/profile';
 ---
 
 <Base>
-  <Hero client:load name={profile.name} roles={[...profile.role]} bio={profile.bio} />
+  <Hero client:load name={profile.name} />
 
   <div class="mx-auto flex max-w-5xl flex-col gap-20 px-4 pb-24 sm:px-6">
-    <section aria-label="正在进行">
+    <section data-i18n-aria="nowAria" aria-label="正在进行">
       <NowPanel />
     </section>
 
-    <section aria-label="精选内容">
-      <SectionHeading eyebrow="Featured" title="精选" href="/stories" linkLabel="全部故事 →" />
-      <FeaturedGrid />
-    </section>
-
-    <section aria-label="技能">
-      <SectionHeading eyebrow="Skills" title="我用什么造东西" />
+    <section data-i18n-aria="skillsAria" aria-label="技能">
+      <SectionHeading eyebrow="Skills" titleKey="skillsTitle" />
       <SkillsGraph client:visible skills={skills} />
     </section>
 
-    <section aria-label="联系" class="py-4 text-center">
-      <h2 class="text-xl font-semibold text-ink-100">想聊聊？</h2>
+    <section data-i18n-aria="contactAria" aria-label="联系" class="py-4 text-center">
+      <h2 class="text-xl font-semibold text-ink-100"><I18n k="contactTitle" /></h2>
       <p class="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
-        关于文章、作品或任何想法，欢迎来信。
+        <I18n k="contactBody" />
       </p>
       <p class="mt-6 text-sm">
         <a

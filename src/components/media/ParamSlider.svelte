@@ -1,5 +1,6 @@
 <script lang="ts">
   import { vizRegistry } from '@/lib/viz/registry';
+  import { t } from '@/lib/i18n';
 
   interface Control {
     key: string;
@@ -101,7 +102,9 @@
           />
         </label>
       {/each}
-      <p class="text-[11px] text-ink-600">拖动滑块试试 →</p>
+      <p class="text-[11px] text-ink-600">
+        <span class="i18n-zh">{t('zh-CN', 'paramHint')}</span><span class="i18n-en" aria-hidden="true">{t('en', 'paramHint')}</span>
+      </p>
     </div>
     <div bind:this={box} class="relative" style="height: {height}px">
       <canvas bind:this={canvas} class="absolute inset-0"></canvas>

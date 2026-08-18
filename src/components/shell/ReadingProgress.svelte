@@ -2,10 +2,10 @@
   import { fetchUser } from '@/lib/user';
 
   interface Props {
-    storySlug: string;
+    slug: string;
   }
 
-  let { storySlug }: Props = $props();
+  let { slug }: Props = $props();
 
   let loggedIn = $state(false);
   let restored = $state(false);
@@ -40,7 +40,7 @@
       if (!user || restored) return;
 
       try {
-        const res = await fetch(`/api/progress?slug=${encodeURIComponent(storySlug)}`, {
+        const res = await fetch(`/api/progress?slug=${encodeURIComponent(slug)}`, {
           credentials: 'include',
         });
         if (!res.ok || cancelled) return;
@@ -70,7 +70,7 @@
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ storySlug, percent }),
+            body: JSON.stringify({ storySlug: slug, percent }),
           });
         } catch {
           /* best-effort sync */
@@ -88,4 +88,4 @@
   });
 </script>
 
-<!-- Progress sync is side-effect only; the visual bar lives in Story.astro -->
+<!-- Progress sync is side-effect only; the visual bar lives in Article.astro -->
