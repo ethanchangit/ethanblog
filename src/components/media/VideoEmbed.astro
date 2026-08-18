@@ -1,7 +1,11 @@
 ---
 /**
- * 官方视频嵌入：YouTube / Bilibili 直接出 iframe 播放器；本地文件用原生 <video>。
+ * 官方视频嵌入：YouTube 默认封面 + 外链，点击后再加载 iframe（避免一进页就撞上
+ * YouTube 的 bot / 登录墙）；无 JS 时封面就是链到原站。Bilibili 仍直接出播放器；
+ * 本地文件用原生 <video>。
  */
+import I18n from '@/components/shell/I18n.astro';
+
 interface Props {
   provider: 'youtube' | 'bilibili' | 'file';
   id?: string;
@@ -13,12 +17,23 @@ interface Props {
 
 const { provider, id, src, title, poster, caption } = Astro.props;
 
+const watchUrl =
+  provider === 'youtube'
+    ? `https://www.youtube.com/watch?v=${id}`
+    : provider === 'bilibili'
+      ? `https://www.bilibili.com/video/${id}`
+      : src;
+
 const embedSrc =
   provider === 'youtube'
     ? `https://www.youtube.com/embed/${id}`
     : provider === 'bilibili'
       ? `https://player.bilibili.com/player.html?bvid=${id}&high_quality=1`
       : src;
+
+const posterSrc =
+  poster ??
+  (provider === 'youtube' && id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined);
 ---
 
 <figure class="media-frame not-prose">
@@ -29,6 +44,41 @@ const embedSrc =
         您的浏览器不支持视频播放。
         <a href={src}>下载视频</a>
       </video>
+    ) : provider === 'youtube' ? (
+      <div data-video-embed data-embed-src={embedSrc} data-embed-title={title}>
+        <a
+          data-video-facade
+          href={watchUrl}
+          class="block"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={title}
+        >
+          <img
+            src={posterSrc}
+            alt=""
+            width="480"
+            height="360"
+            class="aspect-video w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            referrerpolicy="no-referrer"
+          />
+        </a>
+        <p class="flex items-center gap-4 py-2 font-mono text-xs">
+          <span data-video-play-hint class="text-ink-500">
+            <I18n k="videoPlayHint" />
+          </span>
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="ml-auto text-ink-500 transition-colors hover:text-ink-200"
+          >
+            <I18n k="videoWatchYoutube" />
+          </a>
+        </p>
+      </div>
     ) : (
       <iframe
         class="aspect-video w-full border-0"
@@ -43,3 +93,47 @@ const embedSrc =
   }
   {caption && <figcaption class="media-caption">{caption}</figcaption>}
 </figure>
+
+<script>
+  const BOUND = 'data-video-embed-bound';
+
+  function withAutoplay(src: string): string {
+    return src.includes('?') ? `${src}&autoplay=1` : `${src}?autoplay=1`;
+  }
+
+  function loadPlayer(root: Element) {
+    const src = root.getAttribute('data-embed-src');
+    const facade = root.querySelector('[data-video-facade]');
+    if (!src || !facade) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'aspect-video w-full border-0';
+    iframe.src = withAutoplay(src);
+    iframe.title = root.getAttribute('data-embed-title') || '';
+    iframe.allow =
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.allowFullscreen = true;
+    facade.replaceWith(iframe);
+    root.querySelector('[data-video-play-hint]')?.remove();
+  }
+
+  function onClick(e: MouseEvent) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const facade = target.closest('[data-video-facade]');
+    if (!facade) return;
+    const root = facade.closest('[data-video-embed]');
+    if (!root) return;
+    e.preventDefault();
+    loadPlayer(root);
+  }
+
+  if (!document.documentElement.hasAttribute(BOUND)) {
+    document.documentElement.setAttribute(BOUND, '');
+    document.addEventListener('click', onClick);
+  }
+</script>

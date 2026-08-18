@@ -2,6 +2,8 @@
 /**
  * 自绘 X 卡片：构建期从 syndication / 本地缓存拉正文，用本站 chrome 渲染。
  * 长帖完整展开，不折叠、不「显示更多」；无关注、互动栏、回复入口；零 widgets.js。
+ * 只有 X logo 进原帖，头像 / handle 进主页；视频在页内用原生 player 播放
+ * （X CDN 拒绝带 Referer 的热链，Chromium 需无 Referer fetch 成 blob）。
  */
 import I18n from '@/components/shell/I18n.astro';
 import { formatTweetStamp } from '@/lib/format';
@@ -23,23 +25,52 @@ const dateOk = created && !Number.isNaN(created.valueOf());
 const handle = tweet.screenName ? `@${tweet.screenName}` : '';
 const avatar = hiresAvatar(tweet.avatar);
 const initial = (tweet.name || tweet.screenName || 'X').slice(0, 1);
-const ariaLabel = tweet.screenName
+const profileUrl = tweet.screenName ? `https://x.com/${tweet.screenName}` : undefined;
+const tweetAria = tweet.screenName
   ? `在 X 上查看 @${tweet.screenName} 的帖子`
   : '在 X 上查看这条帖子';
+const profileAria = tweet.screenName ? `在 X 上查看 @${tweet.screenName} 的主页` : '在 X 上查看主页';
+const hasVideo = tweet.photos.some((photo) => Boolean(photo.videoSrc || photo.video));
+const showStamp = Boolean(created && dateOk);
 ---
 
 <figure class="media-frame not-prose">
-  <a
-    class="tweet-embed block rounded-xl border border-surface-700 bg-surface-950 p-4 text-inherit no-underline transition-colors hover:bg-surface-800/40"
-    href={tweet.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={ariaLabel}
+  <div
+    class="tweet-embed rounded-xl border border-surface-700 bg-surface-950 p-4"
     data-tweet-embed
   >
-    <span class="flex items-start gap-3">
+    <div class="tweet-embed__header flex items-center gap-3">
       {
-        avatar ? (
+        profileUrl ? (
+          <a
+            class="tweet-embed__avatar shrink-0 rounded-full no-underline"
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={profileAria}
+            data-tweet-profile
+          >
+            {avatar ? (
+              <img
+                class="h-10 w-10 rounded-full object-cover"
+                src={avatar}
+                alt=""
+                width="40"
+                height="40"
+                loading="lazy"
+                decoding="async"
+                referrerpolicy="no-referrer"
+              />
+            ) : (
+              <span
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-surface-800 text-sm font-semibold text-ink-200"
+                aria-hidden="true"
+              >
+                {initial}
+              </span>
+            )}
+          </a>
+        ) : avatar ? (
           <img
             class="h-10 w-10 shrink-0 rounded-full object-cover"
             src={avatar}
@@ -59,102 +90,287 @@ const ariaLabel = tweet.screenName
           </span>
         )
       }
-      <span class="min-w-0 flex-1">
-        <span class="flex items-center gap-1">
-          {tweet.name && <span class="truncate font-bold text-ink-100">{tweet.name}</span>}
+      <div class="min-w-0 flex-1 leading-tight">
+        <div class="flex items-center gap-0.5">
+          {
+            tweet.name && (
+              <span class="truncate text-[15px] font-bold leading-tight text-ink-100">{tweet.name}</span>
+            )
+          }
           {
             tweet.verified && (
-              <span class="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary-500 text-surface-950">
-                <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+              <span class="tweet-embed__verified inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center text-primary-500">
+                <svg viewBox="0 0 22 22" width="18" height="18" aria-hidden="true">
                   <path
                     fill="currentColor"
-                    d="M4.7 9.2 1.8 6.3l1.1-1.1 1.8 1.8 4.4-4.4 1.1 1.1z"></path>
+                    fill-rule="evenodd"
+                    clip-rule="evenodd"
+                    d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"
+                  ></path>
                 </svg>
                 <span class="sr-only"><I18n k="tweetVerified" /></span>
               </span>
             )
           }
-        </span>
-        {handle && <span class="mt-0.5 block truncate text-[15px] text-ink-500">{handle}</span>}
-      </span>
-      <svg
-        class="mt-0.5 shrink-0 text-ink-100"
-        viewBox="0 0 24 24"
-        width="20"
-        height="20"
-        aria-hidden="true"
+        </div>
+        {
+          handle && profileUrl ? (
+            <a
+              class="tweet-embed__handle block truncate text-[15px] leading-tight no-underline"
+              href={profileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tweet-profile
+            >
+              {handle}
+            </a>
+          ) : handle ? (
+            <span class="tweet-embed__handle block truncate text-[15px] leading-tight">{handle}</span>
+          ) : null
+        }
+      </div>
+      <a
+        class="tweet-embed__permalink shrink-0 no-underline"
+        href={tweet.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={tweetAria}
+        data-tweet-permalink
       >
-        <path
-          fill="currentColor"
-          d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.727-8.983L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"
-        ></path>
-      </svg>
-    </span>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.727-8.983L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"
+          ></path>
+        </svg>
+      </a>
+    </div>
 
     {
       tweet.text ? (
-        <span class="tweet-embed__body mt-3 block whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-200">
+        <p class="tweet-embed__body mt-3 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-200">
           {tweet.text}
-        </span>
+        </p>
       ) : (
-        <span class="tweet-embed__body mt-3 block text-[15px] leading-relaxed text-ink-400">
+        <p class="tweet-embed__body mt-3 text-[15px] leading-relaxed text-ink-400">
           <I18n k="tweetUnavailable" />
-        </span>
+        </p>
       )
     }
 
     {
       tweet.quoted && (
-        <span class="mt-3 block rounded-xl border border-surface-700 p-3">
-          <span class="block text-sm text-ink-500">
-            {tweet.quoted.name} @{tweet.quoted.screenName}
-          </span>
-          <span class="mt-1 block whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-300">
+        <div class="mt-3 rounded-xl border border-surface-700 p-3">
+          <p class="text-sm text-ink-500">
+            {tweet.quoted.name}{' '}
+            <a
+              class="tweet-embed__handle no-underline"
+              href={`https://x.com/${tweet.quoted.screenName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tweet-profile
+            >
+              @{tweet.quoted.screenName}
+            </a>
+          </p>
+          <p class="mt-1 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-300">
             {tweet.quoted.text}
-          </span>
-        </span>
+          </p>
+        </div>
       )
     }
 
     {
       tweet.photos.length > 0 && (
-        <span class="mt-3 block space-y-3">
+        <div class="mt-3 space-y-3">
           {tweet.photos.map((photo) => (
-            <span class="relative block overflow-hidden rounded-xl">
-              <img
-                class="block h-auto w-full"
-                src={photo.src}
-                alt={photo.alt}
-                loading="lazy"
-                decoding="async"
-                referrerpolicy="no-referrer"
-              />
-              {photo.video && (
-                <span class="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                  <span class="flex h-14 w-14 items-center justify-center rounded-full bg-ink-100/85 pl-0.5 text-surface-950">
-                    <svg viewBox="0 0 14 14" width="18" height="18">
-                      <path
-                        fill="currentColor"
-                        d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z"
-                      ></path>
-                    </svg>
-                  </span>
-                </span>
-              )}
-            </span>
+            <div data-tweet-video={photo.videoSrc || photo.video ? '' : undefined}>
+              <div class="relative overflow-hidden rounded-xl">
+                {photo.videoSrc ? (
+                  <video
+                    class="block h-auto w-full"
+                    controls
+                    playsinline
+                    preload="metadata"
+                    poster={photo.src}
+                    src={photo.videoSrc}
+                    data-tweet-video-src={photo.videoSrc}
+                    referrerpolicy="no-referrer"
+                  >
+                    <source
+                      src={photo.videoSrc}
+                      type="video/mp4"
+                      referrerpolicy="no-referrer"
+                    />
+                  </video>
+                ) : (
+                  <>
+                    <img
+                      class="block h-auto w-full"
+                      src={photo.src}
+                      alt={photo.alt}
+                      loading="lazy"
+                      decoding="async"
+                      referrerpolicy="no-referrer"
+                    />
+                    {photo.video && (
+                      <span
+                        class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                        aria-hidden="true"
+                      >
+                        <span class="flex h-14 w-14 items-center justify-center rounded-full bg-ink-100/85 pl-0.5 text-surface-950">
+                          <svg viewBox="0 0 14 14" width="18" height="18">
+                            <path
+                              fill="currentColor"
+                              d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z"
+                            ></path>
+                          </svg>
+                        </span>
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           ))}
-        </span>
+        </div>
       )
     }
 
     {
-      created && dateOk && (
-        <span class="mt-3 block text-[13px] text-ink-500">
-          <span class="i18n-zh">{formatTweetStamp(created, 'zh-CN')}</span>
-          <span class="i18n-en" aria-hidden="true">{formatTweetStamp(created, 'en')}</span>
-        </span>
+      (showStamp || hasVideo) && (
+        <p class="tweet-embed__meta mt-3 flex items-baseline justify-between gap-3 text-[13px] text-ink-500">
+          {
+            showStamp && created && (
+              <span>
+                <span class="i18n-zh">{formatTweetStamp(created, 'zh-CN')}</span>
+                <span class="i18n-en" aria-hidden="true">{formatTweetStamp(created, 'en')}</span>
+              </span>
+            )
+          }
+          {
+            hasVideo && (
+              <span class="tweet-embed__watch ml-auto font-mono text-xs" data-tweet-watch-fallback>
+                <a
+                  class="text-inherit no-underline"
+                  href={tweet.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-tweet-watch
+                >
+                  <I18n k="tweetView" />
+                </a>
+              </span>
+            )
+          }
+        </p>
       )
     }
-  </a>
+  </div>
   {caption && <figcaption class="media-caption">{caption}</figcaption>}
 </figure>
+
+<style>
+  .tweet-embed a,
+  .tweet-embed a:hover {
+    text-decoration: none;
+  }
+
+  .tweet-embed .tweet-embed__handle {
+    color: var(--color-ink-500);
+  }
+
+  .tweet-embed .tweet-embed__permalink {
+    color: var(--color-ink-100);
+  }
+
+  .tweet-embed__avatar:hover,
+  .tweet-embed__handle:hover,
+  .tweet-embed__permalink:hover {
+    opacity: 0.7;
+  }
+
+  .tweet-embed .tweet-embed__watch a:hover {
+    opacity: 0.7;
+  }
+
+  [data-tweet-video-error] video {
+    display: none;
+  }
+</style>
+
+<script>
+  /**
+   * X 的 video.twimg.com 见到非 twitter Referer 就 403。
+   * Chromium 的 <video referrerpolicy> 仍会带 Referer，所以失败后再用
+   * fetch(referrerPolicy: 'no-referrer') 拉成 blob 给原生 player。
+   */
+  const BOUND = 'data-tweet-video-bound';
+  const blobs = new Map<string, Promise<string>>();
+  const hydrating = new WeakSet<HTMLVideoElement>();
+  const hydrated = new WeakSet<HTMLVideoElement>();
+
+  function remoteSrc(video: HTMLVideoElement): string {
+    return (
+      video.getAttribute('data-tweet-video-src') ||
+      video.getAttribute('src') ||
+      video.querySelector('source')?.getAttribute('src') ||
+      ''
+    );
+  }
+
+  function markError(video: HTMLVideoElement) {
+    video.closest('[data-tweet-video]')?.setAttribute('data-tweet-video-error', '');
+  }
+
+  function blobUrlFor(src: string): Promise<string> {
+    const cached = blobs.get(src);
+    if (cached) return cached;
+    const pending = fetch(src, { mode: 'cors', referrerPolicy: 'no-referrer' }).then(async (res) => {
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      if (!blob.size) throw new Error('empty');
+      return URL.createObjectURL(blob);
+    });
+    blobs.set(src, pending);
+    return pending;
+  }
+
+  async function hydrate(video: HTMLVideoElement) {
+    if (hydrated.has(video)) {
+      markError(video);
+      return;
+    }
+    if (hydrating.has(video)) return;
+    const src = remoteSrc(video);
+    if (!src || src.startsWith('blob:')) {
+      markError(video);
+      return;
+    }
+    hydrating.add(video);
+    try {
+      video.querySelectorAll('source').forEach((node) => node.remove());
+      video.src = await blobUrlFor(src);
+      video.load();
+      hydrated.add(video);
+    } catch {
+      markError(video);
+    } finally {
+      hydrating.delete(video);
+    }
+  }
+
+  function onMediaError(event: Event) {
+    const el = event.target;
+    if (!(el instanceof HTMLVideoElement) || !el.closest('[data-tweet-video]')) return;
+    void hydrate(el);
+  }
+
+  if (!document.documentElement.hasAttribute(BOUND)) {
+    document.documentElement.setAttribute(BOUND, '');
+    document.addEventListener('error', onMediaError, true);
+    document.querySelectorAll('[data-tweet-video] video').forEach((node) => {
+      if (node instanceof HTMLVideoElement && node.error) void hydrate(node);
+    });
+  }
+</script>

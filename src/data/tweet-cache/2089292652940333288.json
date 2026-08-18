@@ -11,7 +11,8 @@
     {
       "src": "https://pbs.twimg.com/amplify_video_thumb/2089251219084816385/img/3A2zLMScMzHJWcPX.jpg",
       "alt": "",
-      "video": true
+      "video": true,
+      "videoSrc": "https://video.twimg.com/amplify_video/2089251219084816385/vid/avc1/1186x720/SjMvMFjIp4ifDVsK.mp4"
     }
   ]
 }

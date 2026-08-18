@@ -112,14 +112,22 @@ test('AudioClip renders waveform canvas', async ({ page }) => {
   await expect(section.locator('canvas')).toBeVisible();
 });
 
-test('VideoEmbed renders an official YouTube iframe', async ({ page }) => {
+test('VideoEmbed is a YouTube facade until clicked', async ({ page }) => {
   const section = page.getByTestId('video-embed');
   await section.scrollIntoViewIfNeeded();
 
+  const facade = section.locator('[data-video-facade]');
+  await expect(facade).toBeVisible();
+  await expect(facade).toHaveAttribute('href', 'https://www.youtube.com/watch?v=jNQXAC9IVRw');
+  await expect(section.locator('iframe')).toHaveCount(0);
+  await expect(section.getByRole('link', { name: /在 YouTube 观看/ })).toBeVisible();
+
+  await facade.click();
   const frame = section.locator('iframe');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveAttribute('src', /youtube\.com\/embed\/jNQXAC9IVRw/);
   await expect(frame).toHaveAttribute('title', 'Me at the zoo（示例视频）');
+  await expect(section.getByRole('link', { name: /在 YouTube 观看/ })).toBeVisible();
 });
 
 test('TweetEmbed renders a self-drawn card with the original permalink', async ({ page }) => {
@@ -128,7 +136,17 @@ test('TweetEmbed renders a self-drawn card with the original permalink', async (
 
   const card = section.locator('[data-tweet-embed]');
   await expect(card).toBeVisible();
-  await expect(card).toHaveAttribute('href', /status\/2089292652940333288/);
+  await expect(card).not.toHaveAttribute('href');
+  await expect(section.locator('[data-tweet-permalink]')).toHaveAttribute(
+    'href',
+    /status\/2089292652940333288/,
+  );
+  await expect(section.locator('[data-tweet-profile]').first()).toHaveAttribute(
+    'href',
+    'https://x.com/gkxspace',
+  );
+  await expect(section.locator('video')).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await expect(section.locator('video')).toHaveAttribute('data-tweet-video-src', /video\.twimg\.com/);
   await expect(section.getByText('这个组合确实有点牛逼')).toBeVisible();
 });
 

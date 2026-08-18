@@ -3,13 +3,16 @@
  * syndication 端点拉正文。不接官方 X API，不在浏览器发请求。
  *
  * 缓存目录 src/data/tweet-cache/<id>.json 是 lab / CI 的离线真相；
- * 文章里未缓存的链接在构建时拉取，失败则降级为可点击的原文入口。
+ * 文章里未缓存的链接在构建时拉取，失败则降级为只有 X logo 可点的原文入口。
+ * 视频优先抽出 mp4，供卡片在页内播放。
  */
 export interface TweetPhoto {
   src: string;
   alt: string;
-  /** 视频封面，点击仍去原帖，不在站内播放。 */
+  /** 视频封面；有 `videoSrc` 时在页内播放。 */
   video?: boolean;
+  /** 可直接给原生 `<video>` 的 mp4。 */
+  videoSrc?: string;
 }
 
 export interface TweetQuote {
@@ -100,10 +103,19 @@ export function hiresAvatar(src: string | undefined): string | undefined {
   return src.replace(/_normal(\.[a-z0-9]+)$/i, '_x96$1');
 }
 
+interface SyndicationVariant {
+  type?: string;
+  content_type?: string;
+  src?: string;
+  url?: string;
+  bitrate?: number;
+}
+
 interface SyndicationPhoto {
   media_url_https?: string;
   ext_alt_text?: string;
   type?: string;
+  video_info?: { variants?: SyndicationVariant[] };
 }
 
 interface SyndicationTweet {
@@ -115,7 +127,7 @@ interface SyndicationTweet {
   photos?: SyndicationPhoto[];
   mediaDetails?: SyndicationPhoto[];
   quoted_tweet?: SyndicationTweet;
-  video?: { poster?: string };
+  video?: { poster?: string; variants?: SyndicationVariant[] };
 }
 
 /** react-tweet 同源的无鉴权 token，只用于构建期 syndication 请求。 */
@@ -123,26 +135,69 @@ function syndicationToken(id: string): string {
   return ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, '');
 }
 
+/** syndication 路径里常带 `1186x720`；`video.variants` 往往没有 bitrate。 */
+function heightFromSrc(src: string): number {
+  const match = src.match(/(\d+)x(\d+)/);
+  return match ? Number(match[2]) : 0;
+}
+
+/** 优先取接近 720p 的渐进 mp4，避免 HLS（需要额外播放器）。 */
+function bestMp4(variants: SyndicationVariant[] | undefined): string | undefined {
+  const mp4s = (variants ?? [])
+    .map((item) => ({
+      src: item.src ?? item.url,
+      type: item.type ?? item.content_type,
+      bitrate: item.bitrate ?? 0,
+    }))
+    .filter((item): item is { src: string; type: string; bitrate: number } =>
+      Boolean(item.src && (item.type === 'video/mp4' || item.src.includes('.mp4'))),
+    );
+  if (!mp4s.length) return undefined;
+
+  const withBitrate = mp4s.filter((item) => item.bitrate > 0);
+  const pool = withBitrate.length ? withBitrate : mp4s;
+  const scored = [...pool].sort((a, b) => {
+    const aScore = a.bitrate || heightFromSrc(a.src);
+    const bScore = b.bitrate || heightFromSrc(b.src);
+    return aScore - bScore;
+  });
+  const prefer720 = (item: (typeof scored)[number]) =>
+    item.bitrate > 0 ? item.bitrate <= 2_200_000 : heightFromSrc(item.src) <= 720;
+  return [...scored].reverse().find(prefer720)?.src ?? scored.at(-1)?.src;
+}
+
 function photosFrom(raw: SyndicationTweet): TweetPhoto[] {
-  const seen = new Set<string>();
   const out: TweetPhoto[] = [];
-  const push = (src: string | undefined, alt: string, video = false) => {
-    if (!src || seen.has(src)) return;
-    seen.add(src);
-    out.push({ src, alt, ...(video ? { video: true } : {}) });
+  const push = (src: string | undefined, alt: string, videoSrc?: string, video = false) => {
+    if (!src) return;
+    const existing = out.find((item) => item.src === src);
+    if (existing) {
+      if (video || videoSrc) existing.video = true;
+      if (videoSrc && !existing.videoSrc) existing.videoSrc = videoSrc;
+      return;
+    }
+    out.push({
+      src,
+      alt,
+      ...(video || videoSrc ? { video: true } : {}),
+      ...(videoSrc ? { videoSrc } : {}),
+    });
   };
 
   for (const item of raw.photos ?? []) {
-    push(item.media_url_https, item.ext_alt_text ?? '', item.type === 'video' || item.type === 'animated_gif');
+    const isVideo = item.type === 'video' || item.type === 'animated_gif';
+    push(item.media_url_https, item.ext_alt_text ?? '', isVideo ? bestMp4(item.video_info?.variants) : undefined, isVideo);
   }
   for (const item of raw.mediaDetails ?? []) {
+    const isVideo = item.type === 'video' || item.type === 'animated_gif';
     push(
       item.media_url_https,
       item.ext_alt_text ?? '',
-      item.type === 'video' || item.type === 'animated_gif',
+      isVideo ? bestMp4(item.video_info?.variants) : undefined,
+      isVideo,
     );
   }
-  push(raw.video?.poster, '', true);
+  push(raw.video?.poster, '', bestMp4(raw.video?.variants), true);
   return out;
 }
 
