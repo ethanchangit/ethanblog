@@ -106,8 +106,9 @@
     @apply bg-surface-950 text-ink-300 font-sans antialiased;
   }
 
+  /* Light: blue highlight + ink text. Dark: same tokens invert (ink-100 is light). */
   ::selection {
-    @apply bg-primary-600/60 text-ink-50;
+    @apply bg-primary-600/60 text-ink-100;
   }
 
   :focus-visible {
@@ -189,10 +190,6 @@
 
 /* Shell UI — 极简：纯文字标记，无边框 / 无色块 */
 @layer components {
-  .ui-eyebrow {
-    @apply mb-2 font-mono text-xs uppercase tracking-widest text-ink-500;
-  }
-
   .ui-section-label {
     @apply mb-2 text-xs font-medium text-ink-500;
   }
@@ -209,8 +206,81 @@
     @apply text-xs text-ink-500;
   }
 
+  .ui-tag-list {
+    @apply ml-auto flex flex-wrap justify-end gap-2;
+  }
+
+  .ui-tag-list--start {
+    @apply ml-0 justify-start;
+  }
+
+  [data-tag-cloud] [data-tag-list] {
+    column-gap: 1.25rem;
+    row-gap: 0.5rem;
+  }
+
+  [data-tag-cloud] [data-tag-list] > li {
+    display: inline-flex;
+    align-items: baseline;
+  }
+
+  [data-tag-cloud] .ui-tag-list--start li::before {
+    content: '·';
+    color: var(--color-ink-500);
+    margin-right: 0.75rem;
+  }
+
   .ui-tag {
     @apply text-[11px] text-ink-500;
+  }
+
+  /* Site-wide tag prefix. Group tabs use .ui-tag-link outside .ui-tag-list. */
+  .ui-tag::before,
+  .ui-tag-list a::before {
+    content: '#';
+  }
+
+  .ui-tag-link {
+    color: var(--color-ink-400);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.2em;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+
+  .ui-tag-link:hover,
+  .ui-tag-link:focus-visible {
+    color: var(--color-primary-600);
+    text-decoration-color: var(--color-primary-300);
+  }
+
+  .ui-tag-link[aria-current='true'] {
+    color: var(--color-ink-100);
+    text-decoration-color: var(--color-ink-400);
+  }
+
+  [data-theme="dark"] .ui-tag-link:hover,
+  [data-theme="dark"] .ui-tag-link:focus-visible {
+    color: var(--color-primary-400);
+    text-decoration-color: var(--color-primary-600);
+  }
+
+  [data-tag-cloud] .ui-tag-link {
+    text-underline-offset: 0.25rem;
+  }
+
+  [data-tag-cloud] .ui-tag-link:hover,
+  [data-tag-cloud] .ui-tag-link:focus-visible,
+  [data-theme="dark"] [data-tag-cloud] .ui-tag-link:hover,
+  [data-theme="dark"] [data-tag-cloud] .ui-tag-link:focus-visible {
+    color: var(--color-ink-200);
+    text-decoration-color: var(--color-ink-500);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ui-tag-link {
+      transition: none;
+    }
   }
 
   .ui-link {
@@ -219,6 +289,228 @@
 
   .ui-link-subtle {
     @apply text-sm text-ink-500 transition-colors hover:text-ink-200;
+  }
+
+  .comment-list {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .comment-list li + li {
+    margin-top: 1.25rem;
+  }
+
+  .comment-list time {
+    margin-left: 0.75rem;
+  }
+
+  .comment-private-mark {
+    margin-left: 0.5rem;
+    color: var(--color-ink-500);
+  }
+
+  .comment-form {
+    position: relative;
+    margin-top: 1.25rem;
+  }
+
+  .comment-capsule {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    padding: 0.7rem 1.15rem 0.55rem;
+    border: 1px solid var(--color-ink-500);
+    border-radius: 1.5rem;
+    background: transparent;
+    transition: border-color 150ms ease;
+  }
+
+  .comment-capsule:hover {
+    border-color: var(--color-ink-400);
+  }
+
+  .comment-capsule:focus-within {
+    border-color: var(--color-ink-100);
+  }
+
+  .comment-vis {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: baseline;
+    cursor: pointer;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-ink-500);
+    white-space: nowrap;
+    user-select: none;
+    transition: color 150ms ease;
+  }
+
+  .comment-vis:hover {
+    color: var(--color-ink-300);
+  }
+
+  .comment-vis:has(:focus-visible) {
+    color: var(--color-ink-100);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .comment-vis-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .comment-vis-on-public[hidden],
+  .comment-vis-on-private[hidden] {
+    display: none;
+  }
+
+  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-public {
+    display: none;
+  }
+
+  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-private[hidden],
+  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-private {
+    display: inline;
+  }
+
+  .comment-compose-body {
+    min-width: 0;
+  }
+
+  .comment-compose-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .comment-compose-name {
+    flex: 0 1 8rem;
+    min-width: 0;
+    width: 6.5rem;
+  }
+
+  .comment-field {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--color-ink-500);
+    border-radius: 0;
+    color: var(--color-ink-200);
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0.2rem 0;
+    outline: none;
+    box-shadow: none;
+    transition: border-color 150ms ease;
+  }
+
+  .comment-field::-webkit-search-decoration,
+  .comment-field::-webkit-search-cancel-button,
+  .comment-field::-webkit-search-results-button,
+  .comment-field::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+
+  .comment-field::placeholder {
+    color: var(--color-ink-500);
+  }
+
+  .comment-field:hover {
+    border-bottom-color: var(--color-ink-400);
+  }
+
+  .comment-field:focus,
+  .comment-field:focus-visible {
+    outline: none;
+    outline-offset: 0;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--color-ink-100);
+    background: transparent;
+  }
+
+  .comment-capsule .comment-field {
+    border: 0;
+    padding: 0.15rem 0;
+    border-radius: 0;
+    background: transparent;
+    outline: none;
+    box-shadow: none;
+  }
+
+  .comment-capsule .comment-field:hover,
+  .comment-capsule .comment-field:focus,
+  .comment-capsule .comment-field:focus-visible {
+    border: 0;
+    outline: none;
+    outline-offset: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .comment-field--body {
+    display: block;
+    min-height: 4.125rem;
+    resize: none;
+    overflow-y: auto;
+  }
+
+  .comment-send {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-400);
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: color 150ms ease;
+  }
+
+  .comment-send:hover,
+  .comment-send:focus-visible {
+    color: var(--color-ink-100);
+    outline: none;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .comment-send:disabled {
+    opacity: 0.5;
+    cursor: default;
+    text-decoration: none;
+  }
+
+  .comment-honeypot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   /* Bilingual chrome: English copy is in the DOM, hidden until html[data-lang='en']. */
@@ -267,7 +559,7 @@
     @apply prose max-w-none
       prose-headings:text-ink-100 prose-headings:font-semibold
       prose-p:leading-loose prose-p:text-ink-300
-      prose-a:text-ink-200 prose-a:underline prose-a:decoration-ink-500 prose-a:underline-offset-2 hover:prose-a:decoration-ink-300
+      prose-a:underline prose-a:underline-offset-2
       prose-strong:text-ink-100
       prose-code:before:content-none prose-code:after:content-none
       prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-ink-400 prose-blockquote:italic
@@ -283,8 +575,60 @@
     @apply prose-invert prose-code:text-ink-200;
   }
 
+  /*
+   * In-prose links use primary (blue) so they read as clickable next to
+   * ink-300 body copy. Declared after prose-invert so dark-theme color wins
+   * ([data-theme] + .prose-site a matches invert's specificity).
+   */
+  .prose-site a {
+    color: var(--color-primary-600);
+    text-decoration-color: var(--color-primary-300);
+  }
+
+  .prose-site a:hover {
+    color: var(--color-primary-500);
+    text-decoration-color: var(--color-primary-500);
+  }
+
+  [data-theme="dark"] .prose-site a {
+    color: var(--color-primary-400);
+    text-decoration-color: var(--color-primary-600);
+  }
+
+  [data-theme="dark"] .prose-site a:hover {
+    color: var(--color-primary-300);
+    text-decoration-color: var(--color-primary-400);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .prose-site a {
+      transition-property: color, text-decoration-color;
+      transition-duration: 150ms;
+      transition-timing-function: ease;
+    }
+  }
+
   .prose-site pre {
     @apply max-w-full overflow-x-auto;
+  }
+
+  /*
+   * Shiki vesper inlines background #101010 + color #FFF on <pre>.
+   * prose-code:text-ink-200 then paints the inner <code> with theme ink,
+   * which is near-black in light mode — unreadable on vesper's dark well.
+   * Plaintext fences often have uncolored <span>s, so they inherit that
+   * fight. Map fg/bg to tokens so fenced blocks stay readable in both
+   * site themes (syntax span colors flattened on purpose).
+   */
+  .astro-code {
+    background-color: var(--color-surface-800) !important;
+    color: var(--color-ink-200) !important;
+  }
+
+  .astro-code code,
+  .astro-code span {
+    color: inherit !important;
+    background-color: transparent;
   }
 
   /* 媒介组件的共享外框 —— 无边框、无背景、无圆角 */
@@ -566,7 +910,11 @@
   @media (prefers-reduced-motion: reduce) {
     .reactive-var,
     .mention,
-    .mention-active {
+    .mention-active,
+    .comment-field,
+    .comment-capsule,
+    .comment-vis,
+    .comment-send {
       transition: none;
     }
   }
@@ -580,10 +928,26 @@
     @apply cursor-pointer select-none py-2 text-sm text-ink-500;
   }
 
+  .toc-mobile ul {
+    margin: 0;
+    padding: 0.15rem 0 0.75rem;
+    list-style: none;
+  }
+
   /*
-   * 悬挂目录：默认只露右缘刻度（h3 内缩）；悬停 / :focus-within 展开标签。
-   * 标签用 max-width + overflow 视觉折叠，不用 display:none，方便读屏仍读到标题。
-   * pointer-events 只开在 sticky 簇上，避免整列左页边误触展开。
+   * 目录与摘要同一行：.article-body-row 的顶 = Abstract 顶。
+   * nav.toc 绝对定位在该行里（top:0 / bottom:0），right:100% 探进左侧留白。
+   * 不占正文宽度，也不跟 H1 同行。
+   */
+  .article-body-row:has(> nav.toc) > nav.toc {
+    top: 0;
+    bottom: 0;
+  }
+
+  /*
+   * 悬挂目录：Notion 式层级靠缩进 / 字号 / 深浅，不靠刻度、色条或 pill。
+   * 左对齐；H3 在 H2 下再缩一档。
+   * pointer-events 只开在 sticky 簇上，避免整列左页边误触。
    */
   .toc {
     pointer-events: none;
@@ -592,24 +956,16 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    max-height: calc(100vh - 6rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     pointer-events: auto;
   }
 
   .toc-title {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    min-height: 0.75rem;
-  }
-
-  .toc-title::after {
-    content: '';
-    width: 2px;
-    height: 2px;
-    flex-shrink: 0;
-    background: var(--color-ink-500);
+    margin: 0 0 1rem;
+    text-align: left;
   }
 
   .toc ul {
@@ -618,66 +974,54 @@
     list-style: none;
   }
 
-  .toc a {
-    --toc-tick-w: 0.625rem;
-    --toc-tick-c: var(--color-ink-500);
-    --toc-tick-inset: 0px;
-    display: flex;
-    width: 100%;
-    min-height: 1.35rem;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    line-height: 1.35;
+  .toc a,
+  .toc-mobile a {
+    display: block;
+    padding-block: 0.4rem;
+    overflow-wrap: anywhere;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    color: var(--color-ink-400);
+    text-align: left;
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.25rem;
+    transition:
+      color 160ms ease,
+      text-decoration-color 160ms ease;
+  }
+
+  .toc a[data-depth='3'],
+  .toc-mobile a[data-depth='3'] {
+    padding-inline-start: 0.875rem;
+    font-size: 0.75rem;
     color: var(--color-ink-500);
   }
 
-  .toc a[data-depth='3'] {
-    --toc-tick-w: 0.375rem;
-    --toc-tick-c: var(--color-ink-600);
-    --toc-tick-inset: 0.375rem;
-  }
-
-  .toc a::after {
-    content: '';
-    width: var(--toc-tick-w);
-    height: 1.5px;
-    margin-right: var(--toc-tick-inset);
-    flex-shrink: 0;
-    background: var(--toc-tick-c);
-  }
-
-  .toc-label {
-    max-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    opacity: 0;
-    transition: opacity 160ms ease;
-  }
-
-  .toc:hover .toc-label,
-  .toc:focus-within .toc-label {
-    max-width: 11rem;
-    opacity: 1;
-  }
-
-  .toc:hover a,
-  .toc:focus-within a {
-    color: var(--color-ink-400);
+  .toc li:not(:first-child) a[data-depth='2'],
+  .toc-mobile li:not(:first-child) a[data-depth='2'] {
+    margin-top: 0.55rem;
   }
 
   .toc a:hover,
-  .toc a:focus-visible {
+  .toc a:focus-visible,
+  .toc-mobile a:hover,
+  .toc-mobile a:focus-visible {
     color: var(--color-ink-200);
-    --toc-tick-c: var(--color-ink-200);
-    --toc-tick-w: 0.75rem;
-    --toc-tick-inset: 0px;
+    text-decoration-color: var(--color-ink-500);
+  }
+
+  .toc a[aria-current='true'],
+  .toc a.is-active,
+  .toc-mobile a[aria-current='true'],
+  .toc-mobile a.is-active {
+    color: var(--color-ink-200);
+    text-decoration-color: var(--color-ink-500);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .toc-label {
+    .toc a,
+    .toc-mobile a {
       transition: none;
     }
   }

@@ -21,8 +21,8 @@ export const profile = {
     'I build native iOS apps, fold LLMs and voice AI into productivity tools, and keep refining how I manage knowledge.',
   email: 'hey@ethanchang.io',
   socials: [
-    { label: 'GitHub', url: 'https://github.com/ethanchangit', icon: 'github' },
     { label: 'Twitter', url: 'https://twitter.com/ethanchang_', icon: 'twitter' },
+    { label: 'GitHub', url: 'https://github.com/ethanchangit', icon: 'github' },
     { label: 'Email', url: 'mailto:hey@ethanchang.io', icon: 'mail' },
   ],
 } as const;

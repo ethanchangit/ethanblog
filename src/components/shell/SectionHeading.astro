@@ -5,20 +5,16 @@ import type { CopyKey } from '@/lib/i18n';
 interface Props {
   title?: string;
   titleKey?: CopyKey;
-  eyebrow?: string;
   href?: string;
   linkLabel?: string;
 }
-const { title, titleKey, eyebrow, href, linkLabel = '查看全部 →' } = Astro.props;
+const { title, titleKey, href, linkLabel = '查看全部 →' } = Astro.props;
 ---
 
 <div class="mb-6 flex items-end justify-between gap-4">
-  <div>
-    {eyebrow && <p class="ui-eyebrow">{eyebrow}</p>}
-    <h2 class="text-2xl font-semibold text-ink-100">
-      {titleKey ? <I18n k={titleKey} /> : title}
-    </h2>
-  </div>
+  <h2 class="text-2xl font-semibold text-ink-100">
+    {titleKey ? <I18n k={titleKey} /> : title}
+  </h2>
   {
     href && (
       <a href={href} class="ui-link-subtle shrink-0">

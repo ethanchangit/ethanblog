@@ -5,10 +5,7 @@ import { nowVerbKey } from '@/lib/i18n';
 ---
 
 <div>
-  <div class="mb-4 flex items-center justify-between">
-    <p class="ui-eyebrow">Now</p>
-    <p class="ui-meta"><I18n k="nowUpdated" /> {nowUpdated}</p>
-  </div>
+  <p class="ui-meta mb-4"><I18n k="nowUpdated" /> {nowUpdated}</p>
   <dl class="grid gap-6 sm:grid-cols-3">
     {
       now.map((item) => {

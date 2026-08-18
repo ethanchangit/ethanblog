@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "npx serve dist",
+    "preview": "npx serve dist -c ../serve.json",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
     "test": "playwright test",

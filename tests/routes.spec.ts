@@ -9,6 +9,13 @@ test.describe('Route crawling', () => {
     });
   }
 
+  test('/ redirects to /articles', async ({ page }) => {
+    const response = await page.goto('/');
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(/\/articles\/?$/);
+    await expect(page.locator('h1')).toHaveText('文章', { useInnerText: true });
+  });
+
   test('/404 page renders', async ({ page }) => {
     const response = await page.goto('/404');
     expect(response?.status()).toBe(200);
