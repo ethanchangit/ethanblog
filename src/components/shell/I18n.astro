@@ -1,0 +1,11 @@
+---
+import { t, type CopyKey } from '@/lib/i18n';
+
+interface Props {
+  k: CopyKey;
+}
+
+const { k } = Astro.props;
+---
+
+<span class="i18n-zh">{t('zh-CN', k)}</span><span class="i18n-en" aria-hidden="true">{t('en', k)}</span>

@@ -6,44 +6,88 @@ import '@/styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import Nav from '@/components/shell/Nav.astro';
 import Footer from '@/components/shell/Footer.astro';
+import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
 
 interface Props {
   title?: string;
+  titleEn?: string;
   description?: string;
+  descriptionEn?: string;
   ogImage?: string;
 }
 
-const { title, description = site.description, ogImage = '/og-default.svg' } = Astro.props;
-const pageTitle = title ? `${title} · ${site.title}` : `${site.title} — 博客`;
+const {
+  title,
+  titleEn,
+  description = site.description,
+  descriptionEn = site.descriptionEn ?? site.description,
+  ogImage = '/og-default.svg',
+} = Astro.props;
+const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — 博客`;
+const pageTitleEn = (titleEn ?? title)
+  ? `${titleEn ?? title} · ${site.title}`
+  : `${site.title} — Blog`;
 const canonical = new URL(Astro.url.pathname, site.url);
 ---
 
 <!doctype html>
-<html lang={site.lang}>
+<html
+  lang={site.lang}
+  data-title-zh={pageTitleZh}
+  data-title-en={pageTitleEn}
+  data-desc-zh={description}
+  data-desc-en={descriptionEn}
+>
   <head>
     <meta charset="utf-8" />
     <script is:inline>
       {
-        try {
+        // ClientRouter 换页会用新文档的 <html> 属性覆盖当前 data-theme；
+        // 源码里没有该属性，且本脚本全站相同、默认不重跑。须在 swap 前后写回。
+        function applyPrefs(root) {
+          var doc = root.ownerDocument || document;
           var stored = localStorage.getItem('theme');
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme =
             stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-          document.documentElement.dataset.theme = theme;
+          var lang = localStorage.getItem('lang') === 'en' ? 'en' : 'zh-CN';
+          root.dataset.theme = theme;
+          root.lang = lang;
+          root.dataset.lang = lang;
+          var title =
+            lang === 'en' ? root.getAttribute('data-title-en') : root.getAttribute('data-title-zh');
+          if (title) doc.title = title;
+          var desc =
+            lang === 'en' ? root.getAttribute('data-desc-en') : root.getAttribute('data-desc-zh');
+          var meta = doc.querySelector('meta[name="description"]');
+          if (meta && desc) meta.setAttribute('content', desc);
+          var themeColor = doc.querySelector('meta#theme-color');
+          if (themeColor) themeColor.setAttribute('content', theme === 'dark' ? '#191919' : '#ffffff');
+        }
+        try {
+          applyPrefs(document.documentElement);
+          document.addEventListener('astro:before-swap', function (e) {
+            applyPrefs(e.newDocument.documentElement);
+          });
+          document.addEventListener('astro:after-swap', function () {
+            applyPrefs(document.documentElement);
+          });
         } catch (e) {
           document.documentElement.dataset.theme = 'light';
+          document.documentElement.lang = 'zh-CN';
+          document.documentElement.dataset.lang = 'zh-CN';
         }
       }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{pageTitle}</title>
+    <title>{pageTitleZh}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     <meta name="generator" content={Astro.generator} />
-    <meta property="og:title" content={pageTitle} />
+    <meta property="og:title" content={pageTitleZh} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
@@ -59,7 +103,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:px-3 focus:py-2 focus:text-ink-100"
     >
-      跳到正文
+      <I18n k="skipToContent" />
     </a>
     <Nav />
     <main id="main" class="flex-1">

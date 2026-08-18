@@ -118,7 +118,7 @@
 /* Shell UI — 极简：纯文字标记，无边框 / 无色块 */
 @layer components {
   .ui-eyebrow {
-    @apply mb-1 text-xs text-ink-500;
+    @apply mb-2 font-mono text-xs uppercase tracking-widest text-ink-500;
   }
 
   .ui-section-label {
@@ -147,6 +147,45 @@
 
   .ui-link-subtle {
     @apply text-sm text-ink-500 transition-colors hover:text-ink-200;
+  }
+
+  /* Bilingual chrome: English copy is in the DOM, hidden until html[data-lang='en']. */
+  .i18n-en {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-zh {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-en {
+    display: inline;
+  }
+
+  /* MDX body wrappers: display:contents so prose styles still hit headings/paragraphs. */
+  .i18n-zh-block {
+    display: contents;
+  }
+  .i18n-en-block {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-zh-block:has(+ .i18n-en-block) {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-en-block {
+    display: contents;
+  }
+
+  /* Paired sections (TOC, etc.): hide the inactive language as a unit. */
+  .i18n-zh-only {
+    display: contents;
+  }
+  .i18n-en-only {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-zh-only {
+    display: none;
+  }
+  html[data-lang='en'] .i18n-en-only {
+    display: contents;
   }
 }
 
@@ -467,5 +506,107 @@
 
   .toc-mobile summary {
     @apply cursor-pointer select-none py-2 text-sm text-ink-500;
+  }
+
+  /*
+   * 悬挂目录：默认只露右缘刻度（h3 内缩）；悬停 / :focus-within 展开标签。
+   * 标签用 max-width + overflow 视觉折叠，不用 display:none，方便读屏仍读到标题。
+   * pointer-events 只开在 sticky 簇上，避免整列左页边误触展开。
+   */
+  .toc {
+    pointer-events: none;
+  }
+  .toc .sticky {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    pointer-events: auto;
+  }
+
+  .toc-title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    min-height: 0.75rem;
+  }
+
+  .toc-title::after {
+    content: '';
+    width: 2px;
+    height: 2px;
+    flex-shrink: 0;
+    background: var(--color-ink-500);
+  }
+
+  .toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .toc a {
+    --toc-tick-w: 0.625rem;
+    --toc-tick-c: var(--color-ink-500);
+    --toc-tick-inset: 0px;
+    display: flex;
+    width: 100%;
+    min-height: 1.35rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: var(--color-ink-500);
+  }
+
+  .toc a[data-depth='3'] {
+    --toc-tick-w: 0.375rem;
+    --toc-tick-c: var(--color-ink-600);
+    --toc-tick-inset: 0.375rem;
+  }
+
+  .toc a::after {
+    content: '';
+    width: var(--toc-tick-w);
+    height: 1.5px;
+    margin-right: var(--toc-tick-inset);
+    flex-shrink: 0;
+    background: var(--toc-tick-c);
+  }
+
+  .toc-label {
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .toc:hover .toc-label,
+  .toc:focus-within .toc-label {
+    max-width: 11rem;
+    opacity: 1;
+  }
+
+  .toc:hover a,
+  .toc:focus-within a {
+    color: var(--color-ink-400);
+  }
+
+  .toc a:hover,
+  .toc a:focus-visible {
+    color: var(--color-ink-200);
+    --toc-tick-c: var(--color-ink-200);
+    --toc-tick-w: 0.75rem;
+    --toc-tick-inset: 0px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toc-label {
+      transition: none;
+    }
   }
 }

@@ -1,0 +1,22 @@
+---
+interface Props {
+  zh: string;
+  en?: string | null;
+}
+
+const { zh, en } = Astro.props;
+const hasEn = Boolean(en);
+---
+
+{
+  hasEn ? (
+    <>
+      <span class="i18n-zh">{zh}</span>
+      <span class="i18n-en">
+        {en}
+      </span>
+    </>
+  ) : (
+    zh
+  )
+}

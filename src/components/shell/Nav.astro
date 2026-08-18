@@ -1,13 +1,13 @@
 ---
-import { site } from '@/data/profile';
-import AuthMenu from '@/components/shell/AuthMenu.svelte';
-import ThemeToggle from '@/components/shell/ThemeToggle.svelte';
+import I18n from '@/components/shell/I18n.astro';
+import LangToggle from '@/components/shell/LangToggle.svelte';
+import type { CopyKey } from '@/lib/i18n';
+import { ARTICLES_PATH, PROJECTS_PATH } from '@/lib/routes';
 
-const links = [
-  { href: '/stories', label: '故事' },
-  { href: '/threads', label: '研究线' },
-  { href: '/projects', label: '作品' },
-  { href: '/about', label: '关于' },
+const links: { href: string; key: CopyKey }[] = [
+  { href: ARTICLES_PATH, key: 'navArticles' },
+  { href: PROJECTS_PATH, key: 'navProjects' },
+  { href: '/about', key: 'navAbout' },
 ];
 
 const path = Astro.url.pathname;
@@ -15,14 +15,7 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
 <header class="sticky top-0 z-50 bg-surface-950">
-  <nav class="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
-    <a
-      href="/"
-      class="shrink-0 text-sm font-medium text-ink-100 transition-colors hover:text-ink-50"
-      aria-label={site.title}
-    >
-      {site.wordmark}
-    </a>
+  <nav class="mx-auto flex h-14 max-w-5xl items-center justify-end gap-2 px-4 sm:gap-4 sm:px-6">
     <ul class="flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
       {
         links.map((link) => (
@@ -37,16 +30,13 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
                   : 'text-ink-400 hover:text-ink-100',
               ]}
             >
-              {link.label}
+              <I18n k={link.key} />
             </a>
           </li>
         ))
       }
-      <li>
-        <ThemeToggle client:load />
-      </li>
-      <li>
-        <AuthMenu client:load />
+      <li class="shrink-0">
+        <LangToggle client:load />
       </li>
     </ul>
   </nav>
