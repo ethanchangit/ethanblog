@@ -146,6 +146,9 @@ export const copy = {
     sourceView: '⌥ 源码',
     citeBy: '文 /',
     citeMonth: '{y}年{m}月',
+    tweetView: '在 X 上查看',
+    tweetUnavailable: '无法载入这条帖子，点击查看原文。',
+    tweetVerified: '已认证',
   },
   en: {
     navArticles: 'Articles',
@@ -284,6 +287,9 @@ export const copy = {
     sourceView: '⌥ Source',
     citeBy: 'By',
     citeMonth: '{m} {y}',
+    tweetView: 'View on X',
+    tweetUnavailable: 'Could not load this post. Click to view the original.',
+    tweetVerified: 'Verified',
   },
 } as const;
 

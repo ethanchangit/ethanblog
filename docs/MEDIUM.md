@@ -133,7 +133,7 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
    它会渲染成页面摘要块与 RSS 描述）；**`source` 溯源块**记录素材类型与来历。
 6. **组装正文**：从 `@/components/media` 导入组件；Svelte 组件写 `client:visible`
    （含 `Var` / `Calc`；ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`；
-   CodePlayground / RuleGarden / VideoEmbed / MediaFrame / SideNote / RuleTarget /
+   CodePlayground / RuleGarden / VideoEmbed / TweetEmbed / MediaFrame / SideNote / RuleTarget /
    VerdictTable / Mention / MentionTarget 是 Astro 组件无需指令）。
    把组件调用写得值得被读——它会被"拆开看"原样展示（§7）。
 7. **QA**：用到新组件？先在 `/lab` 点亮。提交前验证四连（§10）。
@@ -155,6 +155,7 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
 | 空间/地理/立体结构 | `Scene3D` | 平面图足够时 |
 | 声音是内容本体 | `AudioClip` | — |
 | 引用外部视频 | `VideoEmbed` | — |
+| 引用一条推文 | `TweetEmbed`（自绘卡片，全文展开） | 只需要转述一句话、不必出示原帖时 |
 | 一组图片证据 | `ImageGallery` | 单图（用普通 img + MediaFrame） |
 | **正文词语与某个媒介块互相印证** | **`Mention` + `MentionTarget`（双向高亮）** | 词语与媒介块紧邻出现时 |
 | 行为与因果、系统如何响应 | `RuleGarden` + 正文散布 `RuleTarget` | 因果链只有一步且无需读者试 |

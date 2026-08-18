@@ -1,7 +1,6 @@
 ---
 /**
- * 视频 facade：默认只渲染封面 + 播放按钮（零注水成本），
- * 点击后才注入真正的 iframe / video —— 页面加载不为视频付一字节的代价。
+ * 官方视频嵌入：YouTube / Bilibili 直接出 iframe 播放器；本地文件用原生 <video>。
  */
 interface Props {
   provider: 'youtube' | 'bilibili' | 'file';
@@ -16,77 +15,31 @@ const { provider, id, src, title, poster, caption } = Astro.props;
 
 const embedSrc =
   provider === 'youtube'
-    ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`
+    ? `https://www.youtube.com/embed/${id}`
     : provider === 'bilibili'
-      ? `https://player.bilibili.com/player.html?bvid=${id}&autoplay=1&high_quality=1`
+      ? `https://player.bilibili.com/player.html?bvid=${id}&high_quality=1`
       : src;
-
-const posterSrc =
-  poster ?? (provider === 'youtube' ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined);
 ---
 
 <figure class="media-frame not-prose">
   {
     provider === 'file' ? (
-      <video controls preload="metadata" poster={posterSrc} class="block w-full" title={title}>
+      <video controls preload="metadata" poster={poster} class="block w-full" title={title}>
         <source src={src} />
         您的浏览器不支持视频播放。
         <a href={src}>下载视频</a>
       </video>
     ) : (
-      <button
-        type="button"
-        data-video-facade
-        data-embed-src={embedSrc}
-        data-title={title}
-        class="group relative block aspect-video w-full cursor-pointer overflow-hidden border-0 p-0"
-        aria-label={`播放视频：${title}`}
-      >
-        {posterSrc ? (
-          <img
-            src={posterSrc}
-            alt=""
-            loading="lazy"
-            onerror="this.remove()"
-            class="absolute inset-0 h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
-          />
-        ) : (
-          <div class="absolute inset-0" />
-        )}
-        <span class="absolute inset-0 flex items-center justify-center">
-          <span class="flex h-12 w-12 items-center justify-center text-ink-200 transition-opacity group-hover:opacity-80">
-            <svg width="22" height="22" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-              <path d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z" />
-            </svg>
-          </span>
-        </span>
-        <span class="absolute bottom-3 left-3 text-xs text-ink-300">
-          {title}
-        </span>
-      </button>
+      <iframe
+        class="aspect-video w-full border-0"
+        src={embedSrc}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen
+        loading="lazy"
+      />
     )
   }
   {caption && <figcaption class="media-caption">{caption}</figcaption>}
 </figure>
-
-<script>
-  // facade 点击 → 原地替换为 iframe。事件委托，一次注册对所有实例生效
-  function bindFacades() {
-    document.querySelectorAll<HTMLButtonElement>('[data-video-facade]').forEach((btn) => {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = '1';
-      btn.addEventListener('click', () => {
-        const iframe = document.createElement('iframe');
-        iframe.src = btn.dataset.embedSrc ?? '';
-        iframe.title = btn.dataset.title ?? '';
-        iframe.allow =
-          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-        iframe.allowFullscreen = true;
-        iframe.className = 'aspect-video w-full border-0';
-        btn.replaceWith(iframe);
-      });
-    });
-  }
-  bindFacades();
-  document.addEventListener('astro:page-load', bindFacades);
-</script>

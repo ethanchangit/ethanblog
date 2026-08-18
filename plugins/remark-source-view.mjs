@@ -25,6 +25,7 @@ const MEDIA_TAGS = new Set([
   'ImageGallery',
   'Scene3D',
   'VideoEmbed',
+  'TweetEmbed',
   'CodePlayground',
   'RuleGarden',
   'VerdictTable',

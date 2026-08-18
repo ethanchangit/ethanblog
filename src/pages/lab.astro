@@ -14,6 +14,7 @@ import {
   InteractiveDemo,
   ImageGallery,
   VideoEmbed,
+  TweetEmbed,
   CodePlayground,
   Scene3D,
   SideNote,
@@ -193,7 +194,21 @@ import I18n from '@/components/shell/I18n.astro';
         provider="youtube"
         id="jNQXAC9IVRw"
         title="Me at the zoo（示例视频）"
-        caption="视频 facade：点击封面才加载播放器，零注水成本。"
+        caption="官方 YouTube 嵌入播放器。"
+      />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">TweetEmbed</h2>
+    <div data-testid="tweet-embed">
+      <TweetEmbed
+        url="https://x.com/jack/status/20"
+        caption="自绘 X 卡片：完整正文，点进原帖。"
+      />
+    </div>
+    <div data-testid="tweet-embed-gkx" class="mt-10">
+      <TweetEmbed
+        url="https://x.com/gkxspace/status/2089292652940333288"
+        caption="长帖完整展开，不折叠、不显示回复入口。"
       />
     </div>
 

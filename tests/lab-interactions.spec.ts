@@ -112,12 +112,24 @@ test('AudioClip renders waveform canvas', async ({ page }) => {
   await expect(section.locator('canvas')).toBeVisible();
 });
 
-test('VideoEmbed shows clickable facade', async ({ page }) => {
+test('VideoEmbed renders an official YouTube iframe', async ({ page }) => {
   const section = page.getByTestId('video-embed');
   await section.scrollIntoViewIfNeeded();
 
-  await expect(section.getByText('Me at the zoo（示例视频）')).toBeVisible();
-  await expect(section.locator('button, a').first()).toBeVisible();
+  const frame = section.locator('iframe');
+  await expect(frame).toBeVisible();
+  await expect(frame).toHaveAttribute('src', /youtube\.com\/embed\/jNQXAC9IVRw/);
+  await expect(frame).toHaveAttribute('title', 'Me at the zoo（示例视频）');
+});
+
+test('TweetEmbed renders a self-drawn card with the original permalink', async ({ page }) => {
+  const section = page.getByTestId('tweet-embed-gkx');
+  await section.scrollIntoViewIfNeeded();
+
+  const card = section.locator('[data-tweet-embed]');
+  await expect(card).toBeVisible();
+  await expect(card).toHaveAttribute('href', /status\/2089292652940333288/);
+  await expect(section.getByText('这个组合确实有点牛逼')).toBeVisible();
 });
 
 test('CodePlayground renders code block', async ({ page }) => {

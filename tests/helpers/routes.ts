@@ -4,6 +4,7 @@ export const STATIC_ROUTES = [
   '/articles',
   '/articles/2',
   '/articles/how-this-site-works',
+  '/articles/embed-preview',
   '/articles/pkm-method',
   '/articles/heptabase-method',
   '/articles/notes/web-as-medium/01-medium-engine-groundwork',

@@ -14,6 +14,13 @@ export function formatDate(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
   return `${parts.year} 年 ${parts.month} 月 ${parts.day} 日`;
 }
 
+/** 推文卡页脚：时间 · 日期，对齐官方 embed 的阅读节奏。 */
+export function formatTweetStamp(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
+  const locale = lang === 'en' ? 'en-US' : 'zh-CN';
+  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(date);
+  return `${time} · ${formatDate(date, lang)}`;
+}
+
 /** 研究线笔记编号：两位补零（1 → "01"）。 */
 export function formatSeq(seq: number): string {
   return String(seq).padStart(2, '0');
