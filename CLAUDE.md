@@ -69,11 +69,14 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 
 ## 部署流程
 
+生产只走 **GitHub Actions 手动部署**（`.github/workflows/deploy.yml` 仅 `workflow_dispatch`，推 `main` 不会发版）。
+
 1. 本地验证：`npm run check && npm run build`
-2. 提交并推送到 main → GitHub Actions 自动部署（`.github/workflows/deploy.yml`：test job 跑验证四连 → deploy job 跑 `scripts/ensure-d1.sh`（校验/创建 D1 与 SESSION KV + 应用远程迁移）→ wrangler pages deploy）
-3. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+2. 合并进 `main` 后，在 GitHub → Actions → **Deploy to Cloudflare Pages** → **Run workflow**（或 `gh workflow run "Deploy to Cloudflare Pages" --ref main`）
+3. 流水线：test job 跑验证四连 → deploy job 跑 `scripts/ensure-d1.sh`（校验/创建 D1 与 SESSION KV + 应用远程迁移）→ `wrangler pages deploy dist --project-name=ethanblog`
+4. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
    - token 必须具备 **Account 级 Cloudflare Pages:Edit + D1:Edit + Workers KV Storage:Edit** 三项权限（现用 token 名 `ethanblog-ci`，2026-07-09 创建）。权限不足会在 ensure-d1.sh 处报 `Authentication error [code: 10000]`——2026-07 曾因旧 token 只有 Pages 权限导致部署中断一个月
-4. 手动部署：`npm run deploy`
+5. 本机直推 Cloudflare（不经 CI）：`npm run deploy`
 
 ## 账户体系（可选；生产仍绑定 OAuth / D1，导航不再露出登录）
 
