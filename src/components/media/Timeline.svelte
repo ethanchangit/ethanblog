@@ -48,20 +48,27 @@
 </script>
 
 {#snippet row(item: Item, i: number)}
-  <div class="ui-meta w-8 shrink-0 pt-0.5 tabular-nums">
+  <div
+    class="flex w-12 shrink-0 items-center justify-center text-2xl leading-none text-ink-500 tabular-nums {item.href
+      ? 'transition-colors group-hover:text-ink-300'
+      : ''}"
+  >
     {item.icon ?? String(i + 1).padStart(2, '0')}
   </div>
   <div>
-    <p class="ui-meta"><BiText zh={item.date} en={item.dateEn} /></p>
     <h4
-      class="mt-0.5 font-semibold {item.href
-        ? 'text-ink-200 transition-colors group-hover:text-ink-100'
-        : 'text-ink-100'}"
+      class="font-semibold text-ink-100 {item.href
+        ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500'
+        : ''}"
     >
       {item.title}
     </h4>
     {#if item.body}
-      <p class="mt-1 text-sm leading-relaxed text-ink-400">
+      <p
+        class="mt-1 text-sm leading-relaxed text-ink-400 {item.href
+          ? 'transition-colors group-hover:text-ink-300'
+          : ''}"
+      >
         <BiText zh={item.body} en={item.bodyEn} />
       </p>
     {/if}
@@ -77,11 +84,11 @@
         style={animated && !visible[i] ? 'opacity: 0; transform: translateY(16px)' : ''}
       >
         {#if item.href}
-          <a href={item.href} class="group flex gap-4 text-inherit no-underline">
+          <a href={item.href} class="group flex items-center gap-4 text-inherit no-underline">
             {@render row(item, i)}
           </a>
         {:else}
-          <div class="flex gap-4">
+          <div class="flex items-center gap-4">
             {@render row(item, i)}
           </div>
         {/if}
