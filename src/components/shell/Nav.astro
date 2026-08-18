@@ -15,38 +15,40 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
 {/*
-  移动端：fixed 悬浮，随时可点，局部模糊过渡，不裁切正文。
-  桌面端（md+）：回到文档流，随页面滚走（与改前一致）。
+  移动端：整行半透明渐隐 + 分层模糊，正文向上滚时逐渐变糊；链接随时可点。
+  桌面端（md+）：文档流随页滚走，不显示 veil。
 */}
 <header
   class="site-nav pointer-events-none fixed inset-x-0 top-0 z-50 md:pointer-events-auto md:relative md:inset-auto md:z-auto"
 >
-  <nav class="mx-auto flex h-14 max-w-5xl items-center justify-end px-4 sm:px-6">
-    <div class="site-nav-cluster pointer-events-auto relative">
-      <div class="site-nav-veil" aria-hidden="true"></div>
-      <ul class="relative flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
-        {
-          links.map((link) => (
-            <li class="shrink-0">
-              <a
-                href={link.href}
-                aria-current={isActive(link.href) ? 'page' : undefined}
-                class:list={[
-                  'px-1.5 py-1.5 text-xs transition-colors sm:px-2 sm:text-sm',
-                  isActive(link.href)
-                    ? 'text-ink-100'
-                    : 'text-ink-400 hover:text-ink-100',
-                ]}
-              >
-                <I18n k={link.key} />
-              </a>
-            </li>
-          ))
-        }
-        <li class="shrink-0">
-          <LangToggle client:load />
-        </li>
-      </ul>
-    </div>
+  <div class="site-nav-veil" aria-hidden="true">
+    <div class="site-nav-veil-layer site-nav-veil-layer--soft"></div>
+    <div class="site-nav-veil-layer site-nav-veil-layer--mid"></div>
+    <div class="site-nav-veil-layer site-nav-veil-layer--strong"></div>
+  </div>
+  <nav class="relative mx-auto flex h-14 max-w-5xl items-center justify-end px-4 sm:px-6">
+    <ul class="pointer-events-auto flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
+      {
+        links.map((link) => (
+          <li class="shrink-0">
+            <a
+              href={link.href}
+              aria-current={isActive(link.href) ? 'page' : undefined}
+              class:list={[
+                'px-1.5 py-1.5 text-xs transition-colors sm:px-2 sm:text-sm',
+                isActive(link.href)
+                  ? 'text-ink-100'
+                  : 'text-ink-400 hover:text-ink-100',
+              ]}
+            >
+              <I18n k={link.key} />
+            </a>
+          </li>
+        ))
+      }
+      <li class="shrink-0">
+        <LangToggle client:load />
+      </li>
+    </ul>
   </nav>
 </header>

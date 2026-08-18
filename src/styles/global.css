@@ -115,35 +115,64 @@
   }
 
   /*
-   * Mobile floating nav: soft fade + blur local to the link cluster.
-   * Desktop (md+) scrolls away in document flow — veil is unused there.
+   * Mobile: full-width soft veil — semi-transparent surface + stacked
+   * backdrop blurs so scrolling text fades into a gradual blur under the row.
+   * Desktop (md+) keeps in-flow nav; veil is hidden.
    */
-  .site-nav-cluster {
-    position: relative;
-    isolation: isolate;
-  }
-
   .site-nav-veil {
     position: absolute;
-    /* Bleed past the links so the soft edge sits outside the text. */
-    inset: -0.65rem -0.85rem -1.25rem;
-    z-index: -1;
+    inset: 0 0 auto;
+    height: 5.75rem;
     pointer-events: none;
-    background: radial-gradient(
-      120% 100% at 70% 0%,
-      color-mix(in srgb, var(--theme-surface-950) 78%, transparent) 0%,
-      color-mix(in srgb, var(--theme-surface-950) 32%, transparent) 55%,
+    overflow: hidden;
+  }
+
+  .site-nav-veil-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Bottom of the band: light blur, almost clear. */
+  .site-nav-veil-layer--soft {
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--theme-surface-950) 18%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 8%, transparent) 55%,
       transparent 100%
     );
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    -webkit-mask-image: radial-gradient(
-      120% 110% at 70% 0%,
-      #000 0%,
-      #000 42%,
-      transparent 78%
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 100%);
+  }
+
+  /* Mid band: stronger blur + a bit more surface. */
+  .site-nav-veil-layer--mid {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--theme-surface-950) 42%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 14%, transparent) 60%,
+      transparent 100%
     );
-    mask-image: radial-gradient(120% 110% at 70% 0%, #000 0%, #000 42%, transparent 78%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 38%, transparent 82%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 38%, transparent 82%);
+  }
+
+  /* Top of the row (behind links): clearest read, still not solid. */
+  .site-nav-veil-layer--strong {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--theme-surface-950) 62%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 20%, transparent) 55%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
   }
 
   @media (min-width: 768px) {
@@ -153,7 +182,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .site-nav-veil {
+    .site-nav-veil-layer {
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
