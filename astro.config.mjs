@@ -17,6 +17,10 @@ export default defineConfig({
       status: 301,
       destination: '/articles',
     },
+    '/articles/1': {
+      status: 301,
+      destination: '/articles',
+    },
   },
   integrations: [mdx({ remarkPlugins: [remarkSourceView, remarkLangSplit] }), svelte()],
   vite: {

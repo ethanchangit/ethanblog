@@ -2,6 +2,7 @@
 export const STATIC_ROUTES = [
   '/',
   '/articles',
+  '/articles/2',
   '/articles/how-this-site-works',
   '/articles/pkm-method',
   '/articles/heptabase-method',

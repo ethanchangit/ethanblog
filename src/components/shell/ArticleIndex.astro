@@ -1,0 +1,76 @@
+---
+import Card from '@/components/shell/Card.astro';
+import I18n from '@/components/shell/I18n.astro';
+import { articlesPageHref } from '@/lib/routes';
+import {
+  articleCardProps,
+  groupArticlesByYear,
+  paginateArticles,
+  publishedArticles,
+} from '@/lib/tags';
+
+interface Props {
+  page: number;
+}
+
+const { page } = Astro.props;
+const all = await publishedArticles();
+const paged = paginateArticles(all, page);
+const groups = groupArticlesByYear(paged.items);
+---
+
+<section class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+  <header class="mb-10">
+    <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+      <I18n k="articlesTitle" />
+    </h1>
+  </header>
+  {
+    groups.map((group, index) => (
+      <section class:list={[index > 0 && 'mt-10']}>
+        <h2 class="mb-2 text-xl font-semibold tracking-tight text-ink-100 sm:text-2xl">{group.year}</h2>
+        <div class="flex flex-col">
+          {group.items.map((entry) => {
+            const card = articleCardProps(entry);
+            return (
+              <Card
+                href={card.href}
+                title={card.title}
+                titleEn={card.titleEn}
+                description={card.description}
+                descriptionEn={card.descriptionEn}
+                meta={card.meta}
+                metaEn={card.metaEn}
+                tags={card.tags}
+              />
+            );
+          })}
+        </div>
+      </section>
+    ))
+  }
+  {
+    paged.totalPages > 1 && (
+      <nav
+        class="mt-12 flex items-baseline justify-between gap-4"
+        aria-label="文章分页"
+        data-i18n-aria="articlesPagerAria"
+      >
+        <span>
+          {paged.hasPrev && (
+            <a href={articlesPageHref(paged.page - 1)} class="ui-link-subtle">
+              <I18n k="articlesNewer" />
+            </a>
+          )}
+        </span>
+        <span class="text-right">
+          {paged.hasNext && (
+            <a href={articlesPageHref(paged.page + 1)} class="ui-link-subtle">
+              <I18n k="articlesEarlier" />
+            </a>
+          )}
+        </span>
+      </nav>
+    )
+  }
+</section>
