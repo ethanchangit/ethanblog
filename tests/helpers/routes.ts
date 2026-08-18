@@ -19,6 +19,9 @@ export const STATIC_ROUTES = [
   '/projects/chunk',
   '/projects/deeptalk',
   '/about',
+  '/search',
+  '/tags',
+  '/tags/PKM',
   '/lab',
 ] as const;
 
@@ -28,5 +31,7 @@ export const KEY_PAGES_FOR_LINK_CHECK = [
   '/threads',
   '/projects',
   '/about',
+  '/search',
+  '/tags',
   '/lab',
 ] as const;

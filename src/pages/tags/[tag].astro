@@ -1,0 +1,30 @@
+---
+import { TAGS_PATH } from '@/lib/routes';
+import { publishedArticles, uniqueTags } from '@/lib/tags';
+
+export async function getStaticPaths() {
+  const articles = await publishedArticles();
+  return uniqueTags(articles).map((tag) => ({
+    params: { tag },
+  }));
+}
+
+const tag = Astro.params.tag ?? '';
+const dest = `${TAGS_PATH}?tag=${encodeURIComponent(tag)}`;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${dest}`} />
+    <link rel="canonical" href={dest} />
+    <title>Redirecting</title>
+    <script is:inline define:vars={{ dest }}>
+      location.replace(dest);
+    </script>
+  </head>
+  <body>
+    <p><a href={dest}>Continue</a></p>
+  </body>
+</html>

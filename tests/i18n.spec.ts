@@ -38,7 +38,9 @@ test.describe('Language（中/EN）', () => {
     await expect(page.locator('header nav ul a[href="/"]')).toHaveCount(0);
     await expect(page.locator('header nav a[href="/articles"]')).toHaveText('文章', inner);
     await expect(page.locator('header nav a[href="/projects"]')).toHaveText('项目', inner);
+    await expect(page.locator('header nav a[href="/tags"]')).toHaveText('标签', inner);
     await expect(page.locator('header nav a[href="/about"]')).toHaveText('关于', inner);
+    await expect(page.locator('header nav a[href="/search"]')).toHaveAttribute('aria-label', '搜索');
     await expect(page.locator('header').getByRole('button', { name: langButtonName })).toHaveCount(0);
 
     const toggle = page.getByRole('contentinfo').getByRole('button', { name: langAriaZh });
@@ -53,7 +55,9 @@ test.describe('Language（中/EN）', () => {
     await expect(home).toHaveAttribute('aria-label', 'Home');
     await expect(page.locator('header nav a[href="/articles"]')).toHaveText('Articles', inner);
     await expect(page.locator('header nav a[href="/projects"]')).toHaveText('Projects', inner);
+    await expect(page.locator('header nav a[href="/tags"]')).toHaveText('Tags', inner);
     await expect(page.locator('header nav a[href="/about"]')).toHaveText('About', inner);
+    await expect(page.locator('header nav a[href="/search"]')).toHaveAttribute('aria-label', 'Search');
     await expect(page).toHaveURL(/\/articles\/?$/);
     await expect(page.locator('h1')).toHaveText('Articles', inner);
 
