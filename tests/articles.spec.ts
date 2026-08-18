@@ -8,9 +8,8 @@ test.describe('文章列表分页', () => {
 
     await expect(page.locator(CARD)).toHaveCount(7);
     await expect(page.getByRole('heading', { level: 2, name: '2026' })).toBeVisible();
-    await expect(page.locator('a[href="/articles/software-creation-journey"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/dummy-2026-05"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/pkm-method"]')).toHaveCount(0);
     await expect(page.locator('a[href="/articles/dummy-2026-01"]')).toHaveCount(0);
 
     const earlier = page.getByRole('link', { name: '更早' });
@@ -18,15 +17,21 @@ test.describe('文章列表分页', () => {
     await expect(page.getByRole('link', { name: '更新' })).toHaveCount(0);
   });
 
-  test('第 2 页是余下 3 条，可回到首页', async ({ page }) => {
+  test('文章索引不收录项目', async ({ page }) => {
+    await page.goto('/articles');
+    await expect(page.locator('a[href="/projects/robert"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/articles/robert"]')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Robert' })).toHaveCount(0);
+  });
+
+  test('第 2 页是余下 1 条，可回到首页', async ({ page }) => {
     await page.goto('/articles/2');
 
-    await expect(page.locator(CARD)).toHaveCount(3);
+    await expect(page.locator(CARD)).toHaveCount(1);
     await expect(page.getByRole('heading', { level: 2, name: '2026' })).toBeVisible();
-    await expect(page.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2026-02"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/software-creation-journey"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/articles/embed-preview"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/articles/pkm-method"]')).toHaveCount(0);
 
     const newer = page.getByRole('link', { name: '更新' });
     await expect(newer).toHaveAttribute('href', '/articles');
@@ -43,7 +48,7 @@ test.describe('文章列表分页（无 JS）', () => {
 
     await page.getByRole('link', { name: '更早' }).click();
     await expect(page).toHaveURL(/\/articles\/2\/?$/);
-    await expect(page.locator(CARD)).toHaveCount(3);
+    await expect(page.locator(CARD)).toHaveCount(1);
     await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
   });
 });

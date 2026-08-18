@@ -94,9 +94,9 @@ test.describe('Language（中/EN）', () => {
     await page.addInitScript(() => localStorage.removeItem('lang'));
     await page.goto('/articles');
 
-    const card = page.locator('a[href="/articles/software-creation-journey"]');
-    await expect(card.locator('.ui-meta .i18n-zh')).toHaveText('2026 年 7 月 4 日', inner);
-    await expect(card.locator('.ui-meta .i18n-en')).toHaveText('July 4, 2026');
+    const card = page.locator('a[href="/articles/dummy-2026-05"]');
+    await expect(card.locator('.ui-meta .i18n-zh')).toHaveText('2026 年 5 月 1 日', inner);
+    await expect(card.locator('.ui-meta .i18n-en')).toHaveText('May 1, 2026');
 
     await page.goto('/articles/pkm-method');
     const published = page.locator('.article-lede time.ui-meta');
@@ -108,6 +108,8 @@ test.describe('Language（中/EN）', () => {
     await page.addInitScript(() => localStorage.removeItem('lang'));
     await page.goto('/articles/pkm-method');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('我的 PKM 实践：从笔记到知识网络', inner);
+    await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', '目录');
+    await expect(page.locator('.article-dek-label, .toc-title')).toHaveCount(0);
 
     await chooseLang(page, 'English');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
@@ -115,6 +117,9 @@ test.describe('Language（中/EN）', () => {
       inner
     );
     await expect(page.getByText('Your notes are not a warehouse')).toBeVisible();
+    await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', 'Table of contents');
+    await expect(page.getByText('Abstract', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Contents', { exact: true })).toHaveCount(0);
   });
 
   test('地球图标打开两项菜单，Escape 关闭', async ({ page }) => {

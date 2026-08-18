@@ -16,15 +16,8 @@
 ```markdown
 /publish
 
-kind: notebook          # notebook | essay | interactive；可省略，由 agent 按 §3 判定
-thread: web-as-medium   # notebook 必填
 slug: my-slug           # 可选；省略则由 title 生成
 draft: true             # 默认 true
-source:                 # 溯源（可省略，agent 会按素材类型补全）
-  type: chat            # chat | notes | blog | mixed
-  origin: "与 Claude 关于阅读节奏的三轮对话"
-  date: 2026-07-01
-history: false          # 修订史成为论据时才开（见 §6）
 
 ---
 （对话记录、bullet 笔记、blog 草稿等原始素材）
@@ -36,7 +29,7 @@ history: false          # 修订史成为论据时才开（见 §6）
 
 **按 [.claude/skills/publish/SKILL.md](../.claude/skills/publish/SKILL.md) 的十步清单逐步执行**——那是本文流水线的可执行形态。速查：
 
-- **落盘路径**：`kind: notebook` → `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1）；其他 article → `src/content/articles/<slug>.mdx`；项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`；新开研究线 → 在 [`src/data/threads.ts`](../src/data/threads.ts) 登记。对外路由 `/articles/<slug>`、`/projects/<slug>`。
+- **落盘路径**：文章 → `src/content/articles/<slug>.mdx`；项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`。对外路由 `/articles/<slug>`、`/projects/<slug>`。
 - **提交前验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
 
 无前缀但意图明显是创作时，agent 仍应走流水线，但**优先建议用户下次使用 `/publish`**。
@@ -49,7 +42,7 @@ history: false          # 修订史成为论据时才开（见 §6）
 转化的目标不是"加特效"，而是在论点需要时让读者**亲手操作、亲眼验证**；
 默认档位永远是安静的文字。
 
-### 七条研究原则
+### 六条研究原则
 
 本站媒介形态的理论地基（详见 [docs/research/](research/) 两份调研档案），每条都落到了具体机制：
 
@@ -57,11 +50,10 @@ history: false          # 修订史成为论据时才开（见 §6）
 |---|---|---|---|
 | 1 | **反应式文档**：读者可以拨动作者的假设，看结论如何变化 | Bret Victor《Explorable Explanations》/ Tangle | `Var` + `Calc` 反应式散文 |
 | 2 | **活数据，而非死符号**；尽量同时展示所有状态，而不是一次一帧 | 《Media for Thinking the Unthinkable》/《Ladder of Abstraction》 | `ParamSlider`、`ScrollScene`、反应式散文 |
-| 3 | **可见源码**：程序印在物体上，页面自我解释 | Dynamicland / Realtalk | 「拆开看」source-view（§7） |
-| 4 | **溯源与双声**：每篇声明原始素材；人的声音与机器的推导视觉可辨 | Ink & Switch《Untangle》黑/粉原则 | frontmatter `source` + 溯源行；`Calc` 的 accent 音色 |
+| 3 | **可见源码**：程序印在物体上，页面自我解释 | Dynamicland / Realtalk | 「拆开看」source-view 插件保留，默认永不注入（§7） |
+| 4 | **双声**：人的声音与机器的推导视觉可辨 | Ink & Switch《Untangle》黑/粉原则 | `Calc` 的 accent 音色 |
 | 5 | **文字是尊贵的子集**：计算叠加在散文之上，绝不改写它 | Ink & Switch《Potluck》 | 无 JS 降级铁律（§2）；Var/Calc 的 SSR 纯文本 |
-| 6 | **版本历史即媒介**：修订史写给读者看，不是行政开销 | Ink & Switch《Upwelling》/ Patchwork | frontmatter `history` + PageHistory（§6） |
-| 7 | **缓坡而非悬崖**：从读者到操作者到作者，每一步都是小台阶 | Ink & Switch《Malleable Software》 | 两档发布制（§3）、五档媒介阶梯（§2） |
+| 6 | **缓坡而非悬崖**：从读者到操作者，每一步都是小台阶 | Ink & Switch《Malleable Software》 | 五档媒介阶梯（§2） |
 
 ## 2. 媒介观与升档纪律
 
@@ -97,30 +89,20 @@ history: false          # 修订史成为论据时才开（见 §6）
 - 拖拽值不进 URL、不持久化——它是思想实验，不是应用状态。
 - 视觉即语义：`Var` 是人手可拖的值（ink 色 + primary 点状下划线），`Calc` 是机器算出的值（accent 音色）。这是 Untangle 黑/粉原则的本站翻译，**不要**用样式覆盖抹掉这层区分。
 
-## 3. 两档发布制
+## 3. 文章就是文章
 
-模仿 Ink & Switch 的 essay / lab notebook 双轨。**发布档位写在 frontmatter 的 `kind`**：
-
-| kind | 含义 | 承诺 |
-|---|---|---|
-| `notebook` | 编号过程笔记 | 有过程、有失败、有半成品；**发出去的不回改，勘误写在下一篇** |
-| `essay` | 定稿文章（纯文字为主） | 有结论、经得起引用 |
-| `interactive` | 定稿互动故事 | 有结论 + 交互组件实证 |
+本站不再区分 notebook / essay / interactive 档位，也没有研究线路由。
+一篇 MDX 就是一篇 `/articles/<slug>`。要不要嵌交互组件，按 §5 决策表逐论点判断，
+不写 `kind`。
 
 **判定清单**（转化输入时逐条问）：
-- 有明确结论且经得起引用 → 定稿档（`essay` 或 `interactive`，取决于是否值得升档）
-- 记录的是过程、尝试、失败、中间状态 → `notebook`
-- 拿不准 → `notebook`。低门槛是 notebook 的存在理由：五行 frontmatter 就能发。
-- **无论哪档，frontmatter 应填 `source` 溯源块**（这篇由什么原始素材转化而来；`validate:content` 对定稿档缺失会提醒）。
-
-**研究线（thread）**：长期追问的问题，登记在 [`src/data/threads.ts`](../src/data/threads.ts)。
-notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也可挂线。
-新开一条线的条件：这个问题会持续产出至少 3 条笔记。开线 = 在 threads.ts 加一个对象，
-文件放 `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`。
+- 有明确结论且经得起引用 → 写成文章
+- 记录的是过程、尝试、失败、中间状态 → 仍写成文章；半成品判断留在正文里，不要另开编号笔记
+- 拿不准 → `draft: true` 先放着
 
 ## 4. 转换流水线（The Pipeline）
 
-把"对话/笔记/文章"变成本站页面的固定七步：
+把"对话/笔记/文章"变成本站页面的固定六步：
 
 1. **识别输入类型**：chat（对话记录）/ notes（个人笔记）/ blog（文章草稿）/ mixed。
    按 §8 的对应专则处理——不同素材的"翻译腔"不同。
@@ -128,15 +110,14 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
    转化的是形式，不是观点。
 3. **逐论点选档**：对每个论点查 §5 决策表。默认档位是文字；只有当"亲手操作能替代
    一段解释"时才升档。一篇文章通常 1-3 个交互组件就够，超过 4 个要自我怀疑。
-4. **定发布档**：按 §3 判定清单选 kind；notebook 则确定 thread 与下一个 seq。
-5. **写 frontmatter**：用 §11 模板。description 即摘要（≤80 字、可检验的陈述，
-   它会渲染成页面摘要块与 RSS 描述）；**`source` 溯源块**记录素材类型与来历。
-6. **组装正文**：从 `@/components/media` 导入组件；Svelte 组件写 `client:visible`
+4. **写 frontmatter**：用 §11 模板。description 即摘要（≤80 字、可检验的陈述，
+   它会渲染成页面摘要块与 RSS 描述）。
+5. **组装正文**：从 `@/components/media` 导入组件；Svelte 组件写 `client:visible`
    （含 `Var` / `Calc`；ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`；
    CodePlayground / RuleGarden / VideoEmbed / TweetEmbed / MediaFrame / SideNote / RuleTarget /
    VerdictTable / Mention / MentionTarget 是 Astro 组件无需指令）。
-   把组件调用写得值得被读——它会被"拆开看"原样展示（§7）。
-7. **QA**：用到新组件？先在 `/lab` 点亮。提交前验证四连（§10）。
+   组件调用写清楚即可；不要向读者展示源码（见 §7）。
+6. **QA**：用到新组件？先在 `/lab` 点亮。提交前验证四连（§10）。
 
 ## 5. 组件选用决策表
 
@@ -159,7 +140,6 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
 | 一组图片证据 | `ImageGallery` | 单图（用普通 img + MediaFrame） |
 | **正文词语与某个媒介块互相印证** | **`Mention` + `MentionTarget`（双向高亮）** | 词语与媒介块紧邻出现时 |
 | 行为与因果、系统如何响应 | `RuleGarden` + 正文散布 `RuleTarget` | 因果链只有一步且无需读者试 |
-| **页面自身的成长过程是论据** | **frontmatter `history: true`**（文末自动出版本史，见 §6） | 首次发布尚无修订史 |
 | 离题但增味的补充 | `SideNote` | 内容其实属于正文时 |
 | 任意内容需要统一外框 | `MediaFrame` | — |
 
@@ -183,32 +163,17 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
 
 Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 
+- **收录位置** = `slot`：`article` → `/articles`，`project` → `/projects`。不要写进 topical `tags`。
 - **摘要** = description：≤80 字，写成可检验的陈述句，不写悬念句。
-- **溯源行**：frontmatter 填了 `source` 就自动渲染在页眉
-  （如「原始素材：对话记录 · 与 Claude 关于阅读节奏的三轮对话 · 2026年7月1日」）——
-  读者有权知道这篇内容从何而来（原则 4）。
-- **目录**：定稿档且 h2/h3 ≥ 3 时自动出现，无需手工维护——因此**标题层级要写实**。
-- **署名与引用块**：定稿档自动渲染（数据来自 `src/data/profile.ts`），不要在正文重复署名。
-- **版本历史**：frontmatter `history: true` 时，文末自动出现「这一页如何长成」折叠区，
-  数据来自 git 提交史（原则 6）。**前提**：这篇的提交信息按约定书写
-  （`publish: <slug> — <意图>` / `revise: <slug> — <改了什么>`，见 publish skill 第 9 步）——
-  提交信息会原样渲染给读者。opt-in 设计：修订史没写好就先不开。
-- **notebook 眉头**：自动显示研究线与编号、"非定稿"说明、前后篇导航——正文里不必解释这些。
-- **文末招募段**：全档自动渲染（反馈 mailto）。若这篇内容特别需要同路人，
-  可在正文末尾自写一段更具体的邀请（参照 Ink & Switch notebook 的 "we'd love to chat"）。
+- **日期**：`date` 为首发；有修订时再写 `updated`（页眉会显示「更新于」）。
+- **目录**：h2/h3 ≥ 3 时自动出现，无需手工维护——因此**标题层级要写实**。
+- **标签**：`tags` 渲染在摘要下方。
 - **SideNote 纪律**：每屏至多一条；只放"删掉不影响论证，读到会心一笑"的内容。
 
 ## 7. 可见性原则（拆开看）
 
-Realtalk：程序印在物体上。本站：**每个媒介组件下方自动出现「⌥ 源码」disclosure**
-（构建期 remark 插件注入，见 media/README 的可见性小节），读者展开即见这段 MDX 原文。
-
-创作者/agent 唯一的责任：**把组件调用写得值得被读**——props 排版即文档，
-好的调用代码本身就在教读者"这个网站怎么用"。
-退出阀（frontmatter `sourceView: false`、组件 `noSource` 属性）几乎永远不该用。
-
-PageHistory 是这条原则的时间维度：**空间上拆组件**（源码 disclosure），
-**时间上拆页面**（提交史）。两者合起来，页面在结构上就是自我说明的。
+Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期 remark 插件，见 media/README），
+但 **永不向读者注入**——不要写 `sourceView`，嵌入媒介组件时不出现「⌥ 源码」行。
 
 ## 8. 输入类型转换专则
 
@@ -225,35 +190,30 @@ PageHistory 是这条原则的时间维度：**空间上拆组件**（源码 dis
   视觉上天然可辨（原则 4）。
 - **对话的往返结构不保留**。一问一答是思考的脚手架，不是结论的形态——只提炼论点。
   （原生承载对话往返的 `Transcript` 组件在 Batch 2 蓝图中，见 ROADMAP。）
-- frontmatter：`source.type: chat`，`origin` 写清对话对象与主题（如「与 Claude 关于阅读节奏的三轮对话」）。
 
 ### notes（个人笔记）
 
 - bullet 群先**聚类成 3–8 个论点**，再走流水线；笔记的碎片感不该带进成稿。
-- 半成品判断、未验证的直觉 → 走 `notebook` 档（这正是它的用途）。
+- 半成品判断、未验证的直觉可以写进正文，用 `draft: true` 先放着。
 - 数字类 bullet（"每天 X 就能 Y"）优先考虑 `Var`/`Calc` 或 `StatCounter`。
-- frontmatter：`source.type: notes`，`origin` 写笔记的来源（如「Heptabase 三周阅读实验白板」）。
 
 ### blog（文章草稿）
 
 - 结构已在，转换以**升档植入**为主：找出草稿里"用文字硬讲参数关系/对比/因果"的段落，
   逐段查 §5 决策表替换为对应媒介。
 - **不重写作者语气**；只动被升档的段落，其余原样保留。
-- frontmatter：`source.type: blog`，`origin` 写草稿出处。
 
 ### mixed（混合素材）
 
-按占比最大的类型走对应专则，其余素材作为补充；`source.type: mixed`。
+按占比最大的类型走对应专则，其余素材作为补充。
 
 ## 9. 语言与调性
 
 - 中文为主，技术名词保留英文原文。
 - 宣言式短段落；第二人称克制使用；每个抽象论点尽快落到一个可操作的实证。
-- notebook 用 findings 式坦率：记录失败与被砍的设计，价值不低于成功。
 - 机器声组件（`Calc`、AI 补充的 `SideNote`/`VerdictTable`）的 caption 也用创作者语气写——
   声音的区分靠视觉（accent 色），不靠文风突变。
-- 范本：[/articles/how-this-site-works](../src/content/articles/how-this-site-works.mdx)（调性）
-  与 `notes/web-as-medium/` 下的编号笔记（notebook 文体）。
+- 范本：现有文章（调性）。
 - 转化对话输入时**保留创作者的用词与判断**；agent 补的是结构和媒介，不是观点。
 
 ## 10. 强制约束与验证
@@ -267,10 +227,10 @@ npm run validate:content && npm run check && npm run build && npm run test
 ```
 
 `validate:content`（`scripts/validate-story.mjs`）查的是 schema 查不到的创作规约：
-**定稿双语硬门**（`titleEn`/`descriptionEn`，项目用 `taglineEn`；正文必须有
-`<div data-lang-split></div>` 及之后的英文副本）、注水指令、Astro 组件误加指令、
-RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名、barrel 导入、
-溯源字段合法性。error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工作台）。
+**定稿双语硬门**（`titleEn`/`descriptionEn`；正文必须有
+`<div data-lang-split></div>` 及之后的英文副本）、`slot: article | project`、注水指令、Astro 组件误加指令、
+RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名、barrel 导入。
+error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工作台）。
 
 ### 图片落盘
 
@@ -279,69 +239,55 @@ RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名
 
 ### 页面架构
 
-固定页（手写 Astro）：`/articles`、`/projects`、`/about`。详情页是 MDX 集合
-`articles` 与 `projects`。两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
+固定页（手写 Astro）：`/articles`、`/projects`、`/about`。详情页是同一套 MDX 文档形态，
+用 frontmatter `slot: article | project` 决定出现在哪份索引（不是 topical `tags`）。
+落盘仍可分 `articles/` 与 `projects/` 两个文件夹，只是方便；列表与路由按 `slot` 过滤。
+两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
 `/projects` 可以在列表上方写传承导语与时间线，不要把项目长文堆在索引上。
 对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
 
 ## 11. 附录：模板
 
-**notebook 笔记**（放 `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`）：
+**文章**（放 `src/content/articles/<slug>.mdx`）：
 
 ```yaml
 ---
+slot: article
 title: "……"
 titleEn: "……"
 description: "……（≤80 字摘要）"
 descriptionEn: "……"
 date: 2026-07-03
-kind: notebook
-thread: web-as-medium
-seq: 3
-tags: ["研究线"]
-draft: true   # 创作者审阅后移除
-source:
-  type: chat            # chat | notes | blog | mixed
-  origin: "与 Claude 关于阅读节奏的三轮对话"
-  date: 2026-07-01
----
-```
-
-**定稿互动文章**：
-
-```yaml
----
-title: "……"
-titleEn: "……"
-description: "……（≤80 字摘要）"
-descriptionEn: "……"
-date: 2026-07-03
-kind: interactive   # 纯文字定稿用 essay
-thread: web-as-medium   # 可选
+updated: 2026-08-18   # 可选；有修订时才写
 tags: []
-featured: false
 draft: true
-source:
-  type: blog
-  origin: "旧博客草稿《……》"
-history: false    # 定稿经历有意义的修订后改 true，文末自动长出版本史
 ---
 ```
 
 正文中英之间插一行 `<div data-lang-split></div>`。图片放 `public/media/articles/<slug>/`。
 
-**新研究线登记**（`src/data/threads.ts` 追加）：
+**项目**（放 `src/content/projects/<slug>.mdx`；同一套字段，`slot` 决定出现在 `/projects`）：
 
-```ts
-{
-  slug: 'a-new-thread',
-  title: '线名',
-  question: '这条线追问的一句话问题？',
-  status: 'active',
-  started: '2026-08',
-  description: '一段宣言式简介。',
-},
+```yaml
+---
+slot: project
+title: "……"
+titleEn: "……"          # 标题已是英文时可省略
+description: "……"
+descriptionEn: "……"
+draft: true
+# 以下均可选
+status: wip
+order: 99
+stack: []
+repo: https://github.com/…
+demo:
+  src: /demos/<name>/
+---
 ```
+
+`slot` 是「哪份索引收录我」的标记，不要写进 topical `tags`（否则会污染 `/tags`）。
+项目可多写 `repo` / `homepage` / `downloads` / `screenshots` / `demo`；文章省略即可。
 
 **新媒介组件准入**：满足 media/README 六条契约 → 在 `/lab` 加带 `data-testid` 的最小示例
 → 补 lab-interactions / reduced-motion 两类测试 → 更新 README 目录表与本文 §5 决策表

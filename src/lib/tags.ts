@@ -1,14 +1,13 @@
-import { getCollection, type CollectionEntry } from 'astro:content';
 import { formatDate } from '@/lib/format';
-import { articleHref } from '@/lib/routes';
+import { docHref, docsBySlot, type DocEntry } from '@/lib/docs';
 
-export type PublishedArticle = CollectionEntry<'articles'>;
+export type PublishedArticle = DocEntry;
 
 export const ARTICLES_PER_PAGE = 7;
 
 export async function publishedArticles(): Promise<PublishedArticle[]> {
-  return (await getCollection('articles', ({ data }) => !data.draft)).sort((a, b) => {
-    const byDate = b.data.date.valueOf() - a.data.date.valueOf();
+  return (await docsBySlot('article')).sort((a, b) => {
+    const byDate = (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0);
     if (byDate !== 0) return byDate;
     return a.id.localeCompare(b.id);
   });
@@ -34,7 +33,9 @@ export function paginateArticles<T>(items: T[], page: number, perPage = ARTICLES
 export function groupArticlesByYear(articles: PublishedArticle[]): { year: number; items: PublishedArticle[] }[] {
   const groups: { year: number; items: PublishedArticle[] }[] = [];
   for (const entry of articles) {
-    const year = articleYear(entry.data.date);
+    const date = entry.data.date;
+    if (!date) continue;
+    const year = articleYear(date);
     const last = groups[groups.length - 1];
     if (last?.year === year) last.items.push(entry);
     else groups.push({ year, items: [entry] });
@@ -53,10 +54,14 @@ export function articlesWithTag(articles: PublishedArticle[], tag: string): Publ
 }
 
 export function articleCardProps(entry: PublishedArticle) {
-  const dateZh = formatDate(entry.data.date, 'zh-CN');
-  const dateEn = formatDate(entry.data.date, 'en');
+  const date = entry.data.date;
+  if (!date) {
+    throw new Error(`slot: article 条目缺少 date：${entry.id}`);
+  }
+  const dateZh = formatDate(date, 'zh-CN');
+  const dateEn = formatDate(date, 'en');
   return {
-    href: articleHref(entry.id),
+    href: docHref(entry),
     title: entry.data.title,
     titleEn: entry.data.titleEn,
     description: entry.data.description,

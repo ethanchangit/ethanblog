@@ -214,20 +214,69 @@
     @apply ml-0 justify-start;
   }
 
-  [data-tag-cloud] [data-tag-list] {
-    column-gap: 1.25rem;
-    row-gap: 0.5rem;
+  /*
+   * Article dek: a lead/abstract, not the first body paragraph.
+   * Distinction via type, spacing, and one token hairline
+   * (same spirit as .tag-index-list) — no cards or fill.
+   */
+  .article-dek {
+    margin: 0 0 3rem;
+    padding: 0 0 1.25rem;
+    border-bottom: 1px solid var(--color-surface-700);
   }
 
-  [data-tag-cloud] [data-tag-list] > li {
+  .article-dek-text {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 400;
+    line-height: 1.8;
+    color: var(--color-ink-400);
+  }
+
+  .article-dek .ui-tag-list {
+    margin-top: 1.25rem;
+  }
+
+  /* Quiet meta: smaller than dek text, same register as .ui-tag. */
+  .article-dek .ui-tag-list a {
+    font-size: 0.6875rem;
+    color: var(--color-ink-500);
+  }
+
+  .article-dek .ui-tag-list a:hover,
+  .article-dek .ui-tag-list a:focus-visible {
+    color: var(--color-primary-600);
+  }
+
+  [data-theme="dark"] .article-dek .ui-tag-list a:hover,
+  [data-theme="dark"] .article-dek .ui-tag-list a:focus-visible {
+    color: var(--color-primary-400);
+  }
+
+  /* /tags index: domain nav vs wrapping tag units — typography + spacing, not chips. */
+  .tag-index-domains {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 1.5rem;
+    row-gap: 0.4rem;
+  }
+
+  .tag-index-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 2.5rem;
+    row-gap: 1rem;
+    margin: 1.25rem 0 0;
+    padding: 1.25rem 0 0;
+    border-top: 1px solid var(--color-surface-700);
+    list-style: none;
+  }
+
+  .tag-index-list > li {
     display: inline-flex;
     align-items: baseline;
-  }
-
-  [data-tag-cloud] .ui-tag-list--start li::before {
-    content: '·';
-    color: var(--color-ink-500);
-    margin-right: 0.75rem;
+    gap: 0.625rem;
   }
 
   .ui-tag {
@@ -265,15 +314,19 @@
     text-decoration-color: var(--color-primary-600);
   }
 
-  [data-tag-cloud] .ui-tag-link {
+  .tag-index-domains .ui-tag-link {
     text-underline-offset: 0.25rem;
   }
 
-  [data-tag-cloud] .ui-tag-link:hover,
-  [data-tag-cloud] .ui-tag-link:focus-visible,
-  [data-theme="dark"] [data-tag-cloud] .ui-tag-link:hover,
-  [data-theme="dark"] [data-tag-cloud] .ui-tag-link:focus-visible {
-    color: var(--color-ink-200);
+  .tag-index-list .ui-tag-link {
+    color: var(--color-ink-300);
+  }
+
+  .tag-index-list .ui-tag-link:hover,
+  .tag-index-list .ui-tag-link:focus-visible,
+  [data-theme="dark"] .tag-index-list .ui-tag-link:hover,
+  [data-theme="dark"] .tag-index-list .ui-tag-link:focus-visible {
+    color: var(--color-ink-100);
     text-decoration-color: var(--color-ink-500);
   }
 
@@ -565,6 +618,11 @@
       prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-ink-400 prose-blockquote:italic
       prose-hr:border-0 prose-hr:border-t-0
       prose-li:leading-loose;
+    /* ol/ul markers: typography defaults to gray counters/bullets; match h2 ink. */
+    --tw-prose-counters: var(--color-ink-100);
+    --tw-prose-bullets: var(--color-ink-100);
+    --tw-prose-invert-counters: var(--color-ink-100);
+    --tw-prose-invert-bullets: var(--color-ink-100);
   }
 
   [data-theme="light"] .prose-site {
@@ -573,6 +631,15 @@
 
   [data-theme="dark"] .prose-site {
     @apply prose-invert prose-code:text-ink-200;
+  }
+
+  /*
+   * List markers (ol numbers, nested ul bullets). After prose-invert so the
+   * plugin's gray --tw-prose-counters / --tw-prose-bullets cannot win.
+   * ink-100 already flips with [data-theme]; layout/indent unchanged.
+   */
+  .prose-site :is(ol, ul) > li::marker {
+    color: var(--color-ink-100);
   }
 
   /*
@@ -598,6 +665,15 @@
   [data-theme="dark"] .prose-site a:hover {
     color: var(--color-primary-300);
     text-decoration-color: var(--color-primary-400);
+  }
+
+  /* TweetEmbed 的头像 / handle / X 是卡片 chrome，不是正文引用链 */
+  .prose-site [data-tweet-embed] a,
+  .prose-site [data-tweet-embed] a:hover,
+  [data-theme="dark"] .prose-site [data-tweet-embed] a,
+  [data-theme="dark"] .prose-site [data-tweet-embed] a:hover {
+    text-decoration: none;
+    text-decoration-color: inherit;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -880,33 +956,6 @@
     display: none;
   }
 
-  /* 版本历史即媒介（PageHistory）：「这一页如何长成」 */
-  .page-history summary {
-    @apply cursor-pointer font-mono text-xs text-ink-500 select-none hover:text-ink-200;
-  }
-
-  .page-history ol {
-    margin: 0.75rem 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .page-history li {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    padding: 0.375rem 0;
-    font-size: 0.8125rem;
-    color: var(--color-ink-400);
-  }
-
-  .page-history time {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--color-ink-500);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .reactive-var,
     .mention,
@@ -924,24 +973,36 @@
     scroll-margin-top: 5rem;
   }
 
-  .toc-mobile summary {
-    @apply cursor-pointer select-none py-2 text-sm text-ink-500;
-  }
-
-  .toc-mobile ul {
-    margin: 0;
-    padding: 0.15rem 0 0.75rem;
-    list-style: none;
-  }
-
   /*
    * 目录与摘要同一行：.article-body-row 的顶 = Abstract 顶。
    * nav.toc 绝对定位在该行里（top:0 / bottom:0），right:100% 探进左侧留白。
-   * 不占正文宽度，也不跟 H1 同行。
+   * 不占正文宽度，也不跟 H1 同行；窄 gutter 用 ellipsis，gutter 没了才隐藏。
+   *
+   * 宽 = min(14rem, 50vw - 24rem)：24rem 是 max-w-3xl 的一半。配合
+   * margin-right: 0.5rem，流体宽度时左缘约 1rem。56rem 时宽约 4rem；
+   * 再窄就没有可读的左栏，直接隐藏。xl 起恢复 14rem 栏 + 2rem 缝。
    */
   .article-body-row:has(> nav.toc) > nav.toc {
+    display: none;
+    position: absolute;
     top: 0;
     bottom: 0;
+    right: 100%;
+    margin-right: 0.5rem;
+    width: min(14rem, calc(50vw - 24rem));
+  }
+
+  @media (min-width: 56rem) {
+    .article-body-row:has(> nav.toc) > nav.toc {
+      display: block;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .article-body-row:has(> nav.toc) > nav.toc {
+      margin-right: 2rem;
+      width: 14rem;
+    }
   }
 
   /*
@@ -956,16 +1017,12 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    min-width: 0;
     max-height: calc(100vh - 6rem);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     pointer-events: auto;
-  }
-
-  .toc-title {
-    margin: 0 0 1rem;
-    text-align: left;
   }
 
   .toc ul {
@@ -974,54 +1031,52 @@
     list-style: none;
   }
 
-  .toc a,
-  .toc-mobile a {
+  .toc a {
     display: block;
+    overflow: hidden;
     padding-block: 0.4rem;
-    overflow-wrap: anywhere;
     font-size: 0.8125rem;
     line-height: 1.7;
     color: var(--color-ink-400);
     text-align: left;
     text-decoration-line: underline;
     text-decoration-color: transparent;
+    text-overflow: ellipsis;
     text-underline-offset: 0.25rem;
+    white-space: nowrap;
     transition:
       color 160ms ease,
       text-decoration-color 160ms ease;
   }
 
-  .toc a[data-depth='3'],
-  .toc-mobile a[data-depth='3'] {
+  .toc-label {
+    min-width: 0;
+  }
+
+  .toc a[data-depth='3'] {
     padding-inline-start: 0.875rem;
     font-size: 0.75rem;
     color: var(--color-ink-500);
   }
 
-  .toc li:not(:first-child) a[data-depth='2'],
-  .toc-mobile li:not(:first-child) a[data-depth='2'] {
+  .toc li:not(:first-child) a[data-depth='2'] {
     margin-top: 0.55rem;
   }
 
   .toc a:hover,
-  .toc a:focus-visible,
-  .toc-mobile a:hover,
-  .toc-mobile a:focus-visible {
+  .toc a:focus-visible {
     color: var(--color-ink-200);
     text-decoration-color: var(--color-ink-500);
   }
 
   .toc a[aria-current='true'],
-  .toc a.is-active,
-  .toc-mobile a[aria-current='true'],
-  .toc-mobile a.is-active {
+  .toc a.is-active {
     color: var(--color-ink-200);
     text-decoration-color: var(--color-ink-500);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .toc a,
-    .toc-mobile a {
+    .toc a {
       transition: none;
     }
   }

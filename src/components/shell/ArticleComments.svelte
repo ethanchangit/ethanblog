@@ -113,9 +113,9 @@
 </script>
 
 <section id="comments" class="not-prose" aria-labelledby="comments-heading">
-  <p id="comments-heading" class="ui-section-label">
+  <h2 id="comments-heading" class="ui-section-label">
     <span class="i18n-zh">{label('zh-CN', 'commentsHeading')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsHeading')}</span>
-  </p>
+  </h2>
 
   {#if items.length > 0}
     <ol class="comment-list">

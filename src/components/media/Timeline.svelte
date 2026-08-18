@@ -4,9 +4,10 @@
   import BiText from '@/components/shell/BiText.svelte';
 
   interface Item {
-    date: string;
+    date?: string;
     dateEn?: string;
     title: string;
+    titleEn?: string;
     body?: string;
     bodyEn?: string;
     icon?: string;
@@ -61,7 +62,7 @@
         ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500'
         : ''}"
     >
-      {item.title}
+      <BiText zh={item.title} en={item.titleEn} />
     </h4>
     {#if item.body}
       <p

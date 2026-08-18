@@ -11,20 +11,20 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ## 边界（先确认，再动手）
 
-- 只动内容层：`src/content/articles/`、`src/content/projects/`、`src/data/threads.ts`（仅开新研究线时）。
+- 只动内容层：`src/content/articles/`、`src/content/projects/`。
 - **禁止**新建或修改媒介组件、布局、样式、API、测试基建——除非用户在 YAML 头写了 `allow-new-component: true`。
 - 新页面默认 `draft: true`。
 
 ## 十步清单
 
 ### 1. 解析输入头
-读 `---` 上方的可选 YAML：`kind` / `thread` / `slug` / `draft` / `source` / `history` / `allow-new-component`（都可省略）。`---` 下方是原始素材。
+读 `---` 上方的可选 YAML：`slug` / `draft` / `allow-new-component`（都可省略）。`---` 下方是原始素材。
 
 ### 2. 识别输入类型 → 读对应专则
 判断素材是 **chat**（对话记录）/ **notes**（个人笔记）/ **blog**（文章草稿）/ **mixed**，
 然后读 [MEDIUM.md §8](../../../docs/MEDIUM.md) 的对应专则。要点速记：
 - **chat**：区分人声（创作者判断 → 正文）与机器声（AI 补充 → `Calc`/`SideNote`/`VerdictTable`）；不保留一问一答的往返结构，只提炼论点。
-- **notes**：bullet 先聚类成 3–8 个论点；半成品判断走 notebook 档。
+- **notes**：bullet 先聚类成 3–8 个论点。
 - **blog**：升档植入为主，不重写作者语气；只动"用文字硬讲参数/对比/因果"的段落。
 
 ### 3. 提炼论点清单
@@ -36,23 +36,15 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 常用映射：数字关系且读者会想改假设 → `Var`+`Calc`；多方案 × 多维度 → `VerdictTable`；
 正文词语与媒介块互证 → `Mention`+`MentionTarget`；行为/因果 → `RuleGarden`。
 
-### 5. 定 kind 与落盘路径
-按 [MEDIUM.md §3](../../../docs/MEDIUM.md) 判定清单选 `kind`：
-- 有结论且可引用 → `essay`（纯文字）或 `interactive`（含交互实证）
-- 记录过程/失败/半成品，或拿不准 → `notebook`
-
-落盘：
-- `notebook` → `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1；notebook 必填 `thread` + `seq`）
-- 其他 article → `src/content/articles/<slug>.mdx`
+### 5. 定落盘路径
+- 文章 → `src/content/articles/<slug>.mdx`
 - 项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`
-- 新开研究线（该问题会持续产出 ≥3 条笔记）→ 先在 `src/data/threads.ts` 登记
 
 ### 6. 写 frontmatter
 - `description` ≤80 字，可检验的陈述句（渲染成摘要块 + RSS，别写悬念句）
-- **定稿必须双语**：`titleEn` + `descriptionEn`（项目用 `taglineEn`），正文用 `<div data-lang-split></div>` 切开中英；草稿可暂缺（`validate:content` 对 draft 降级）
-- **`source` 溯源块必填**：`type`（chat/notes/blog/mixed）+ `origin`（素材来历一句话）+ `date`
+- **定稿必须双语**：`titleEn` + `descriptionEn`（文章必填 `titleEn`；项目可省略若标题已是英文），正文用 `<div data-lang-split></div>` 切开中英；草稿可暂缺（`validate:content` 对 draft 降级）
+- **`slot`**：`article` 或 `project`，决定出现在 `/articles` 还是 `/projects`。不要写进 topical `tags`。
 - `draft: true`
-- 修订史值得展示时才 `history: true`（见第 9 步的 commit 约定）
 - 模板见 [MEDIUM.md §11](../../../docs/MEDIUM.md)
 
 ### 7. 组装 MDX
@@ -63,7 +55,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 - **Astro 组件不写 client 指令**：`VideoEmbed` / `TweetEmbed` / `CodePlayground` / `MediaFrame` / `SideNote` /
   `RuleGarden` / `RuleTarget` / `VerdictTable` / `Mention` / `MentionTarget`
 - **`Calc` 必须出现在它引用的所有 `Var` 之后**（SSR 初值依赖文档顺序）
-- 把组件调用写得值得被读——它会被「拆开看」原样展示
+- 不要写 `sourceView`：读者侧永不注入「⌥ 源码」
 
 ### 8. 验证四连
 ```bash
@@ -72,13 +64,11 @@ npm run validate:content && npm run check && npm run build && npm run test
 含交互组件时 `npm run test` 不可省。`validate:content` 报 error 必须先修
 （draft 文件的 error 会降级为 warning，但正式发布前应清零）。
 
-### 9. 提交信息约定（PageHistory 会渲染给读者）
-一篇 `history: true` 的文章，文末的「这一页如何长成」直接展示 git 提交信息——**写给读者看**：
-- 首次发布：`publish: <slug> — <一句话意图>`
-- 修订：`revise: <slug> — <改了什么 / 为什么>`
+### 9. 提交
+普通 git 提交即可。不要为读者写 `publish:` / `revise:` 前缀——文末不再渲染提交史。
 
 ### 10. 汇报
-向用户报告：slug、kind、draft 状态、本地预览路径（如 `/articles/<slug>`）、`source` 摘要、
+向用户报告：slug、draft 状态、本地预览路径（如 `/articles/<slug>`）、
 用到的媒介组件清单。
 
 ## 新媒介组件（仅当 allow-new-component: true）

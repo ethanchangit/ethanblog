@@ -19,7 +19,7 @@ npm run dev              # 本地开发（端口 4321）
 npm run build            # 生产构建，输出到 dist/
 npm run preview          # 静态伺服 dist/（Cloudflare adapter 不支持 astro preview）
 npm run check            # astro check：类型 + 内容 schema 校验
-npm run validate:content # 内容闸门：schema 查不到的创作规约（注水指令/溯源/Var-Calc 顺序等）
+npm run validate:content # 内容闸门：schema 查不到的创作规约（注水指令/Var-Calc 顺序等）
 npm run test             # Playwright 测试（需先 npm run build）
 npm run deploy           # 构建并手动部署到 Cloudflare Pages
 ```
@@ -31,20 +31,18 @@ npm run deploy           # 构建并手动部署到 Cloudflare Pages
 ```
 src/
   styles/global.css        设计 token（@theme）+ 基础样式 + prose + .media-frame
-  content.config.ts        articles / projects 两个内容集合的 schema（articles 含 notebook 档 + thread/seq）
+  content.config.ts        articles / projects 共用 schema；`slot` 分流索引
   data/profile.ts          个人资料单一数据源（姓名/bio/skills/now/社交）
-  data/threads.ts          研究线单一数据源（notebook 挂线的唯一真相）
-  lib/                     viz/registry.ts、rules/、reactive/、history.ts、motion.ts、format.ts、user.ts、routes.ts
-  layouts/                 Base / Article / Project
-  components/shell/        Nav / Footer / Card / SectionHeading / PageHistory
+  lib/                     docs.ts、viz/registry.ts、rules/、reactive/、motion.ts、format.ts、user.ts、routes.ts
+  layouts/                 Base / Doc
+  components/shell/        Nav / Footer / Card / SectionHeading
   components/home/         Hero / NowPanel / SkillsGraph
   components/media/        可选交互组件（见其 README.md）
-  pages/                   index / articles / threads / projects / about / lab / 404 / rss.xml.ts / api/*（auth 可选）
-  content/articles/*.mdx   文章（kind: interactive | essay | notebook；可选 source 溯源 + history 版本史）
-  content/articles/notes/  编号研究笔记（<thread>/<NN>-<slug>.mdx）
-  content/projects/*.mdx   项目（结构化 frontmatter：repo/downloads/screenshots/demo）
+  pages/                   index / articles / projects / about / lab / 404 / rss.xml.ts / api/*（auth 可选）
+  content/articles/*.mdx   文章（slot: article）
+  content/projects/*.mdx   项目（slot: project；可选 repo/downloads/screenshots/demo）
 plugins/
-  remark-source-view.mjs   构建期为 MDX 交互组件注入「⌥ 源码」disclosure
+  remark-source-view.mjs   构建期插件保留，默认永不注入「⌥ 源码」
 public/
   demos/<name>/index.html  自包含演示包（knowledge-garden / robert / network）
   media/                   图片、音频等静态媒体
@@ -57,11 +55,11 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 
 **触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 内容创作，**按 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 的可执行清单逐步执行**，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 article 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
 
-**先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——创作规范：从"对话/笔记/文章"到本站 MDX 的转换流水线（输入类型专则、档位判定、组件决策表、两档发布制、溯源、页面接口）。调研笔记见 [docs/research/](docs/research/)。
+**先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——创作规范：从"对话/笔记/文章"到本站 MDX 的转换流水线（输入类型专则、组件决策表、页面接口）。调研笔记见 [docs/research/](docs/research/)。
 
-**写一篇文章**：在 `src/content/articles/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；定稿还必须有 `titleEn`/`descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本。`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。页面路由是 `/articles/<slug>`。
+**写一篇文章**：在 `src/content/articles/` 建 `<slug>.mdx`。frontmatter 必填 `slot: article`、title/description/date；定稿还必须有 `titleEn`/`descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。页面路由是 `/articles/<slug>`。
 
-**添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，frontmatter 见 `content.config.ts`。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
+**添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，同一套字段加 `slot: project`；`repo`/`demo`/`screenshots` 等可选。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
 
 **更新主页状态**：改 `src/data/profile.ts` 的 `now` 和 `nowUpdated`。
 
@@ -94,12 +92,10 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 - 演示包：`public/demos/{knowledge-garden,robert,network}/`
 - 测试：`npm run test`（Playwright 全量，CI 在 deploy 前运行）
 
-## 反应式文档与溯源（已实现）
+## 反应式文档（已实现）
 
 - **反应式散文** `Var` + `Calc`：正文里可拖的数字 + 随之重算的内联结果（`src/lib/reactive/`，同 scope 跨岛屿共享；SSR 纯文本降级）
 - `VerdictTable`：多方案 × 多维度评分裁决表（零 JS）
 - `Mention` + `MentionTarget`：正文词语 ↔ 媒介块双向高亮（零 JS 委托脚本）
-- `PageHistory`：frontmatter `history: true` 时文末「这一页如何长成」git 提交史
-- **溯源** `source` schema + 页眉溯源行
 - **/publish skill 化** + `validate:content` 内容闸门（`scripts/validate-story.mjs`，CI 已接入）
 - 后续蓝图见 [docs/ROADMAP.md](docs/ROADMAP.md)
