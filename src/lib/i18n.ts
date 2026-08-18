@@ -147,8 +147,10 @@ export const copy = {
     citeBy: '文 /',
     citeMonth: '{y}年{m}月',
     tweetView: '在 X 上查看',
-    tweetUnavailable: '无法载入这条帖子，点击查看原文。',
+    tweetUnavailable: '无法载入这条帖子。',
     tweetVerified: '已认证',
+    videoPlayHint: '点击封面播放',
+    videoWatchYoutube: '在 YouTube 观看 ↗',
   },
   en: {
     navArticles: 'Articles',
@@ -288,8 +290,10 @@ export const copy = {
     citeBy: 'By',
     citeMonth: '{m} {y}',
     tweetView: 'View on X',
-    tweetUnavailable: 'Could not load this post. Click to view the original.',
+    tweetUnavailable: 'Could not load this post.',
     tweetVerified: 'Verified',
+    videoPlayHint: 'Click the image to play',
+    videoWatchYoutube: 'Watch on YouTube ↗',
   },
 } as const;
 

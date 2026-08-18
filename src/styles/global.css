@@ -600,6 +600,15 @@
     text-decoration-color: var(--color-primary-400);
   }
 
+  /* TweetEmbed 的头像 / handle / X 是卡片 chrome，不是正文引用链 */
+  .prose-site [data-tweet-embed] a,
+  .prose-site [data-tweet-embed] a:hover,
+  [data-theme="dark"] .prose-site [data-tweet-embed] a,
+  [data-theme="dark"] .prose-site [data-tweet-embed] a:hover {
+    text-decoration: none;
+    text-decoration-color: inherit;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .prose-site a {
       transition-property: color, text-decoration-color;
