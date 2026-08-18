@@ -115,8 +115,8 @@
   }
 
   /*
-   * Floating site nav: soft fade + blur local to the link cluster,
-   * so sticky links stay readable without a full-width header band.
+   * Mobile floating nav: soft fade + blur local to the link cluster.
+   * Desktop (md+) scrolls away in document flow — veil is unused there.
    */
   .site-nav-cluster {
     position: relative;
@@ -144,6 +144,12 @@
       transparent 78%
     );
     mask-image: radial-gradient(120% 110% at 70% 0%, #000 0%, #000 42%, transparent 78%);
+  }
+
+  @media (min-width: 768px) {
+    .site-nav-veil {
+      display: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
