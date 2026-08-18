@@ -19,18 +19,14 @@
 
 ## 可见性：拆开看
 
-Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（`plugins/remark-source-view.mjs`）
-会自动为 MDX 故事中的每个媒介组件在其下方注入一个「⌥ 源码」disclosure，
-读者展开即可看到这段组件调用的 MDX 原文。白名单与本目录的 `index.ts` barrel 保持同步
+构建期 remark 插件（`plugins/remark-source-view.mjs`）仍在仓库里，
+**默认不向读者注入「⌥ 源码」**。需要自我解释时把插件 `ENABLED` 打开，并在 frontmatter 写 `sourceView: true`。
+
+白名单与本目录的 `index.ts` barrel 保持同步
 （MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget 这类纯排版、
 标记与行内组件除外——行内组件在 MDX 里是 `mdxJsxTextElement`，本就不会被插件命中）。
 
-退出阀有两个：
-
-- 整篇关闭：frontmatter 写 `sourceView: false`
-- 单处关闭：给组件加 `noSource` 属性（构建期会被摘除，不会泄漏到渲染输出）
-
-几乎永远不该使用退出阀——把组件调用写得值得被读。
+单处关闭：给组件加 `noSource` 属性（构建期会被摘除，不会泄漏到渲染输出）。
 
 ## 目录
 

@@ -1,30 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('source-view（拆开看）', () => {
-  test('article page injects source disclosures for media components', async ({ page }) => {
-    await page.goto('/articles/how-this-site-works/');
+  test('articles do not inject source disclosures by default', async ({ page }) => {
+    await page.goto('/articles/embed-preview/');
 
-    const disclosures = page.locator('details.source-view');
-    await expect(disclosures.first()).toBeAttached();
-    expect(await disclosures.count()).toBeGreaterThanOrEqual(5);
-  });
-
-  test('expanding a disclosure reveals the MDX source', async ({ page }) => {
-    await page.goto('/articles/how-this-site-works/');
-
-    const first = page.locator('details.source-view').first();
-    await first.scrollIntoViewIfNeeded();
-    await first.locator('summary').click();
-
-    await expect(first).toHaveAttribute('open', '');
-    await expect(first.locator('code').first()).toContainText('client:visible');
-  });
-
-  test('disclosure code block is highlighted by shiki', async ({ page }) => {
-    await page.goto('/articles/how-this-site-works/');
-
-    const first = page.locator('details.source-view').first();
-    await expect(first.locator('.astro-code').first()).toBeAttached();
+    await expect(page.locator('[data-tweet-embed]').first()).toBeVisible();
+    await expect(page.locator('iframe[src*="youtube.com/embed"], [data-video-embed]').first()).toBeVisible();
+    await expect(page.locator('details.source-view')).toHaveCount(0);
   });
 
   test('lab page (.astro, not MDX) has no source disclosures', async ({ page }) => {

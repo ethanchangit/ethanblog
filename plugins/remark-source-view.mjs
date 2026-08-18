@@ -1,10 +1,8 @@
 /**
  * 拆开看（source-view）—— 构建期 remark 插件。
  *
- * Realtalk 可见性原则：程序印在物体上。读者在故事里看到一个媒介组件，
- * 就应当能就地拆开，看到驱动它的那段 MDX 原文。
- * 本插件在每个媒介组件节点之后注入一个 <details class="source-view">，
- * 内含该组件调用的源码片段（标准 mdast code 节点，交给 shiki 高亮）。
+ * 默认不向读者注入。机制留在仓库里，日后若要自我解释的页，把 ENABLED 设回 true
+ * 并在 frontmatter 写 sourceView: true。
  *
  * 零依赖：手写递归遍历，不引入 unist-util-visit。
  */
@@ -65,10 +63,13 @@ function makeDisclosure(name, code) {
   };
 }
 
+/** 默认关闭，不向文章注入。 */
+const ENABLED = false;
+
 export function remarkSourceView() {
   return (tree, file) => {
-    // 整篇退出阀：frontmatter 写 sourceView: false 时跳过全文
-    if (file.data?.astro?.frontmatter?.sourceView === false) return;
+    if (!ENABLED) return;
+    if (file.data?.astro?.frontmatter?.sourceView !== true) return;
 
     const src = String(file.value);
 
