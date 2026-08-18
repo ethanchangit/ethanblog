@@ -41,7 +41,7 @@ const { href, title, titleEn, description, descriptionEn, meta, metaEn, badge, t
     )}
     {
       tags.length > 0 && (
-        <ul class="flex flex-wrap justify-end gap-2">
+        <ul class="ui-tag-list">
           {tags.slice(0, 3).map((t) => (
             <li class="ui-tag">{t}</li>
           ))}

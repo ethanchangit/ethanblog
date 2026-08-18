@@ -17,5 +17,8 @@ test.describe('Threads (研究线)', () => {
     await expect(page.locator('header nav a[href="/articles"]')).toHaveText('文章', {
       useInnerText: true,
     });
+    await expect(page.locator('header nav a[href="/tags"]')).toHaveText('标签', {
+      useInnerText: true,
+    });
   });
 });

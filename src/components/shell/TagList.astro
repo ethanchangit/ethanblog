@@ -1,0 +1,24 @@
+---
+import { tagHref } from '@/lib/routes';
+
+interface Props {
+  tags: string[];
+  class?: string;
+}
+
+const { tags, class: className } = Astro.props;
+---
+
+{
+  tags.length > 0 && (
+    <ul class:list={['ui-tag-list', className ?? 'mt-5']}>
+      {tags.map((tag) => (
+        <li>
+          <a href={tagHref(tag)} class="ui-tag-link">
+            {tag}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}

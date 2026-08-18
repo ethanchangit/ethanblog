@@ -1,0 +1,94 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import I18n from '@/components/shell/I18n.astro';
+import SearchFilter from '@/components/shell/SearchFilter.astro';
+import { copy } from '@/lib/i18n';
+import { SEARCH_PATH } from '@/lib/routes';
+import { matchesQuery, searchCardProps } from '@/lib/search';
+import { publishedArticles } from '@/lib/tags';
+
+const articles = await publishedArticles();
+const cards = articles.map(searchCardProps);
+const q = Astro.url.searchParams.get('q') ?? '';
+---
+
+<Base
+  title={copy['zh-CN'].searchTitle}
+  titleEn={copy.en.searchTitle}
+  description={copy['zh-CN'].searchDesc}
+  descriptionEn={copy.en.searchDesc}
+>
+  <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-search-index>
+    <header class="mb-10">
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+        <I18n k="searchTitle" />
+      </h1>
+      <form class="mt-8" action={SEARCH_PATH} method="get" role="search">
+        <SearchFilter query={q} />
+        <button type="submit" class="sr-only"><I18n k="navSearch" /></button>
+      </form>
+    </header>
+    <div class="flex flex-col">
+      {
+        cards.map((card) => (
+          <div data-search-item data-search-hay={card.haystack} hidden={!matchesQuery(card.haystack, q)}>
+            <Card
+              href={card.href}
+              title={card.title}
+              titleEn={card.titleEn}
+              description={card.description}
+              descriptionEn={card.descriptionEn}
+              meta={card.meta}
+              metaEn={card.metaEn}
+              tags={card.tags}
+            />
+          </div>
+        ))
+      }
+    </div>
+    <p class="mt-4 text-sm text-ink-500" data-search-empty hidden={cards.some((card) => matchesQuery(card.haystack, q))}>
+      <I18n k="searchEmpty" />
+    </p>
+  </section>
+</Base>
+
+<script is:inline data-astro-rerun>
+  (function () {
+    function applySiteSearch() {
+      var root = document.querySelector('[data-search-index]');
+      if (!root) return;
+      var input = root.querySelector('[data-testid="site-search"]');
+      var fromUrl = new URLSearchParams(location.search).get('q');
+      if (input && fromUrl !== null && document.activeElement !== input) {
+        input.value = fromUrl;
+      }
+      var q = ((input && input.value) || '').trim().toLowerCase();
+      var visible = 0;
+      root.querySelectorAll('[data-search-item]').forEach(function (el) {
+        var hay = el.getAttribute('data-search-hay') || '';
+        var show = !q || hay.indexOf(q) !== -1;
+        el.hidden = !show;
+        if (show) visible += 1;
+      });
+      var empty = root.querySelector('[data-search-empty]');
+      if (empty) empty.hidden = visible > 0;
+    }
+
+    function bindSiteSearch() {
+      var root = document.querySelector('[data-search-index]');
+      if (!root || root.getAttribute('data-search-bound') === '1') return;
+      root.setAttribute('data-search-bound', '1');
+      var input = root.querySelector('[data-testid="site-search"]');
+      if (input) input.addEventListener('input', applySiteSearch);
+      applySiteSearch();
+    }
+
+    bindSiteSearch();
+    if (!document.documentElement.hasAttribute('data-site-search-bound')) {
+      document.documentElement.setAttribute('data-site-search-bound', '1');
+      document.addEventListener('astro:after-swap', bindSiteSearch);
+      document.addEventListener('astro:page-load', bindSiteSearch);
+    }
+  })();
+</script>

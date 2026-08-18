@@ -1,0 +1,115 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import Bi from '@/components/shell/Bi.astro';
+import I18n from '@/components/shell/I18n.astro';
+import TagFilter from '@/components/shell/TagFilter.svelte';
+import { ALL_GROUP, groupedTags } from '@/data/tag-groups';
+import { copy } from '@/lib/i18n';
+import { tagHref, tagsPageHref } from '@/lib/routes';
+import { articleCardProps, publishedArticles, uniqueTags } from '@/lib/tags';
+
+const articles = await publishedArticles();
+const tags = uniqueTags(articles);
+const groups = groupedTags(tags);
+const items = groups.flatMap((group) => group.tags.map((tag) => ({ tag, group: group.slug })));
+const counts = Object.fromEntries(
+  tags.map((tag) => [tag, articles.filter((entry) => entry.data.tags.includes(tag)).length])
+);
+const cards = articles.filter((entry) => entry.data.tags.length > 0).map(articleCardProps);
+---
+
+<Base
+  title={copy['zh-CN'].tagsTitle}
+  titleEn={copy.en.tagsTitle}
+  description={copy['zh-CN'].tagsDesc}
+  descriptionEn={copy.en.tagsDesc}
+>
+  <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-tag-index>
+    <header class="mb-4">
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+        <I18n k="tagsTitle" />
+      </h1>
+    </header>
+
+    <TagFilter client:load />
+
+    <div data-tag-cloud>
+      <nav class="flex flex-wrap gap-x-5 gap-y-1" data-tag-group-tabs>
+        <a
+          href={tagsPageHref()}
+          class="ui-tag-link text-lg"
+          data-tag-group-select={ALL_GROUP}
+          aria-current="true"
+        >
+          <I18n k="tagsAll" />
+        </a>
+        {
+          groups.map((group) => (
+            <a
+              href={tagsPageHref({ group: group.slug })}
+              class="ui-tag-link text-lg"
+              data-tag-group-select={group.slug}
+            >
+              <Bi zh={group.title} en={group.titleEn} />
+            </a>
+          ))
+        }
+      </nav>
+      <ul class="ui-tag-list ui-tag-list--start mt-3 gap-x-5" data-tag-list>
+        {
+          items.map(({ tag, group }) => (
+            <li data-tag-item data-tag-name={tag.toLowerCase()} data-tag-group={group}>
+              <a href={tagHref(tag)} class="ui-tag-link text-sm" data-tag-select={tag}>
+                {tag}
+              </a>
+              <span class="ui-meta text-sm"> {counts[tag]}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <p class="mt-2 text-sm text-ink-500" data-tag-empty hidden>
+      <I18n k="tagsEmpty" />
+    </p>
+
+    <div class="mt-10" data-doc-results hidden>
+      <div class="flex flex-col">
+        {
+          cards.map((card) => (
+            <div data-doc-item data-doc-tags={card.tags.join('\n')} hidden>
+              <Card
+                href={card.href}
+                title={card.title}
+                titleEn={card.titleEn}
+                description={card.description}
+                descriptionEn={card.descriptionEn}
+                meta={card.meta}
+                metaEn={card.metaEn}
+                tags={card.tags}
+              />
+            </div>
+          ))
+        }
+      </div>
+      <p class="mt-4 text-sm text-ink-500" data-doc-empty hidden>
+        <I18n k="tagsNoDocs" />
+      </p>
+    </div>
+    <script is:inline>
+      (function () {
+        var root = document.querySelector('[data-tag-index]');
+        if (!root) return;
+        var group = new URLSearchParams(location.search).get('group') || 'all';
+        if (group === 'all') return;
+        root.querySelectorAll('[data-tag-item]').forEach(function (el) {
+          el.hidden = el.getAttribute('data-tag-group') !== group;
+        });
+        root.querySelectorAll('[data-tag-group-select]').forEach(function (a) {
+          if (a.getAttribute('data-tag-group-select') === group) a.setAttribute('aria-current', 'true');
+          else a.removeAttribute('aria-current');
+        });
+      })();
+    </script>
+  </section>
+</Base>
