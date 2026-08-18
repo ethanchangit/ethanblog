@@ -11,11 +11,11 @@
 
 1. **Props 必须 JSON 可序列化**（跨岛屿注水边界）；富内容用声明式数据（数组/对象），不用函数
 2. **无 JS 必须优雅降级**：服务端渲染出有意义的静态内容（ScrollScene 平铺全部场景、AudioClip 渲染原生 `<audio>`、InteractiveDemo 给出新窗口链接、CodePlayground 渲染只读代码块）
-3. **注水指令**：默认 `client:visible`；仅首屏组件用 `client:load`；能不注水就不注水（VideoEmbed / TweetEmbed 是 Astro 组件，走官方播放器 / widget）。**CodePlayground** 为 Astro 薄包装，内部已含 `client:visible`，MDX 可直接 `<CodePlayground />` 无需写指令。**ScrollScene 例外**：必须用 `client:visible={{ rootMargin: '150% 0px' }}` 提前注水——它注水后会从静态平铺膨胀成数倍视口高度的滚动剧场，提前展开可避免读者眼前的布局跳动
+3. **注水指令**：默认 `client:visible`；仅首屏组件用 `client:load`；能不注水就不注水（VideoEmbed 走官方播放器；TweetEmbed 是零 JS 自绘卡片）。**CodePlayground** 为 Astro 薄包装，内部已含 `client:visible`，MDX 可直接 `<CodePlayground />` 无需写指令。**ScrollScene 例外**：必须用 `client:visible={{ rootMargin: '150% 0px' }}` 提前注水——它注水后会从静态平铺膨胀成数倍视口高度的滚动剧场，提前展开可避免读者眼前的布局跳动
 4. **只消费设计 token**（`--color-*`），组件内不写死色值；canvas / WebGL 通过 `getComputedStyle` 读 token
 5. **统一支持 `caption`**，外框统一用 `.media-frame` / `.media-caption`（仅间距与图注，**无边框、无背景色块**）
 6. **动效尊重 `prefers-reduced-motion`**（用 `@/lib/motion` 的 `reducedMotion()`），GSAP / three.js 只在 onMount/$effect 里创建并在销毁时 kill / dispose
-7. **视觉极简**：不使用装饰性边框、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome
+7. **视觉极简**：不使用装饰性边框、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。**TweetEmbed 例外**：边框与圆角只为对齐 X 帖子的阅读结构，不含关注 / 互动 / 回复入口。
 
 ## 可见性：拆开看
 
@@ -45,7 +45,7 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 | `InteractiveDemo` | Svelte | 沙箱 iframe 承载自包含软件演示（`public/demos/<name>/index.html`）；可选 `poster`/`posterVideo`/`posterAlt` 提供未加载态预览（视频先行、点击升级；reduced-motion 或无 JS 时退回图片） |
 | `Scene3D` | Svelte | three.js 岛屿：线框地球 / 粒子场 / 旋转立方体 |
 | `VideoEmbed` | Astro | YouTube / Bilibili 官方 iframe 播放器；本地文件用原生 video |
-| `TweetEmbed` | Astro | 官方 X embed（widgets.js）；只给 url，无 JS 时降级为原文链接 |
+| `TweetEmbed` | Astro | 自绘 X 卡片：构建期拉正文并完整展开；只给 url，无关注 / 互动 / 回复入口 |
 | `CodePlayground` | Astro → Svelte | Sandpack 沙箱：点击 Run 在 iframe 中执行代码 |
 | `MediaFrame` | Astro | 把任意内容包进统一媒介外框 |
 | `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块（零 JS，不套 media-frame） |
@@ -104,7 +104,7 @@ import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D, TweetEmbed } from '
 | `url` | `string` | X / Twitter 帖子链接（`https://x.com/<user>/status/<id>`） |
 | `caption` | `string` | 图注 |
 
-构建期从链接解析 id，优先读 `src/data/tweet-cache/<id>.json` 作为无 JS 降级正文，页面加载官方 `widgets.js` 做成推文卡。MDX 无需 `client:*`。
+构建期从链接解析 id，优先读 `src/data/tweet-cache/<id>.json`，没有再走 syndication 拉正文；用本站 chrome 画成推文卡（头像 / 认证 / 全文 / 媒体 / 时间）。长帖不折叠、没有「显示更多」，也没有「查看 N 条回复」。整块点进原帖。MDX 无需 `client:*`。卡片边框与圆角是为了对齐 X 的阅读结构，不引入官方 widget。
 
 ### CodePlayground props
 

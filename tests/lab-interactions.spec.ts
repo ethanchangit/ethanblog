@@ -122,13 +122,14 @@ test('VideoEmbed renders an official YouTube iframe', async ({ page }) => {
   await expect(frame).toHaveAttribute('title', 'Me at the zoo（示例视频）');
 });
 
-test('TweetEmbed renders the official X blockquote', async ({ page }) => {
+test('TweetEmbed renders a self-drawn card with the original permalink', async ({ page }) => {
   const section = page.getByTestId('tweet-embed-gkx');
   await section.scrollIntoViewIfNeeded();
 
-  const quote = section.locator('blockquote.twitter-tweet');
-  await expect(quote).toBeAttached();
-  await expect(quote.locator('a[href*="status/2089292652940333288"]')).toHaveCount(1);
+  const card = section.locator('[data-tweet-embed]');
+  await expect(card).toBeVisible();
+  await expect(card).toHaveAttribute('href', /status\/2089292652940333288/);
+  await expect(section.getByText('这个组合确实有点牛逼')).toBeVisible();
 });
 
 test('CodePlayground renders code block', async ({ page }) => {

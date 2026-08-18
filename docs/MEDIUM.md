@@ -155,7 +155,7 @@ notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也�
 | 空间/地理/立体结构 | `Scene3D` | 平面图足够时 |
 | 声音是内容本体 | `AudioClip` | — |
 | 引用外部视频 | `VideoEmbed` | — |
-| 引用一条推文 | `TweetEmbed` | 只需要转述一句话、不必出示原帖时 |
+| 引用一条推文 | `TweetEmbed`（自绘卡片，全文展开） | 只需要转述一句话、不必出示原帖时 |
 | 一组图片证据 | `ImageGallery` | 单图（用普通 img + MediaFrame） |
 | **正文词语与某个媒介块互相印证** | **`Mention` + `MentionTarget`（双向高亮）** | 词语与媒介块紧邻出现时 |
 | 行为与因果、系统如何响应 | `RuleGarden` + 正文散布 `RuleTarget` | 因果链只有一步且无需读者试 |

@@ -25,6 +25,9 @@ export interface TweetSnapshot {
   createdAt?: string;
   name: string;
   screenName: string;
+  /** 作者头像；构建期写入缓存，渲染时升到 x96。 */
+  avatar?: string;
+  verified?: boolean;
   photos: TweetPhoto[];
   quoted?: TweetQuote;
   /** 拉取失败时为 true：组件仍渲染可点击的原文入口。 */
@@ -86,6 +89,15 @@ export function parseTweetUrl(raw: string): ParsedTweet | null {
 interface SyndicationUser {
   name?: string;
   screen_name?: string;
+  profile_image_url_https?: string;
+  verified?: boolean;
+  is_blue_verified?: boolean;
+}
+
+/** syndication 头像默认 `_normal`（48px）；卡片用 `_x96`。 */
+export function hiresAvatar(src: string | undefined): string | undefined {
+  if (!src) return undefined;
+  return src.replace(/_normal(\.[a-z0-9]+)$/i, '_x96$1');
 }
 
 interface SyndicationPhoto {
@@ -165,6 +177,8 @@ function normalize(raw: SyndicationTweet, parsed: ParsedTweet): TweetSnapshot | 
     createdAt: raw.created_at,
     name: raw.user?.name ?? screenName,
     screenName,
+    avatar: hiresAvatar(raw.user?.profile_image_url_https),
+    verified: Boolean(raw.user?.verified || raw.user?.is_blue_verified),
     photos: photosFrom(raw),
     quoted: quoteFrom(raw.quoted_tweet),
   };
