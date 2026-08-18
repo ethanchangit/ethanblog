@@ -1,18 +1,24 @@
 ---
 import Base from '@/layouts/Base.astro';
-import { formatSeq, sourceTypeLabel } from '@/lib/format';
-import { profile, site } from '@/data/profile';
-import { getThread } from '@/data/threads';
+import { sourceTypeLabel } from '@/lib/format';
 import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
 import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
 import Toc from '@/components/shell/Toc.astro';
 import PageHistory from '@/components/shell/PageHistory.astro';
+import ArticleComments from '@/components/shell/ArticleComments.svelte';
+import { getSession } from '@/lib/auth';
+import { listComments } from '@/lib/db';
+import type { ArticleComment } from '@/lib/comments';
+import { isSiteOwner } from '@/lib/user';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
 import DateText from '@/components/shell/DateText.astro';
 import { getFileHistory } from '@/lib/history';
 import { copy } from '@/lib/i18n';
+import TagList from '@/components/shell/TagList.astro';
+import CopyUrl from '@/components/shell/CopyUrl.svelte';
 import { articleHref } from '@/lib/routes';
+import { site } from '@/data/profile';
 import type { CollectionEntry } from 'astro:content';
 
 interface TocHeading {
@@ -26,7 +32,6 @@ interface NoteNav {
   id: string;
   title: string;
   titleEn?: string;
-  seq: number;
 }
 
 interface Props {
@@ -38,9 +43,10 @@ interface Props {
 }
 
 const { article, headings = [], headingsEn = [], prev, next } = Astro.props;
-const { title, titleEn, description, descriptionEn, date, updated, kind, tags, thread, seq, source } =
+const { title, titleEn, description, descriptionEn, date, updated, kind, tags, source } =
   article.data;
 const slug = article.id;
+const canonicalUrl = new URL(Astro.url.pathname, site.url).href;
 
 const commits = article.data.history ? getFileHistory(article.filePath) : [];
 
@@ -49,46 +55,35 @@ const sourceOrigin = source?.origin;
 const sourceDate = source?.date;
 
 const isNotebook = kind === 'notebook';
-const threadInfo = getThread(thread);
-const threadTitle = threadInfo?.title ?? thread;
-const threadTitleEn = threadInfo?.titleEn ?? threadTitle;
 
-const citeAuthor = profile.chineseName
-  ? `${profile.chineseName} (${profile.name})`
-  : profile.name;
-const y = date.getUTCFullYear();
-const m = date.getUTCMonth() + 1;
-const monthEn = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(date);
-const siteHost = new URL(site.url).host;
-const pageUrl = `${site.url}${articleHref(slug)}`;
-const displayTitleEn = titleEn ?? title;
-const citationZh = `${citeAuthor}. 「${title}」. ${siteHost}, ${y}年${m}月. ${pageUrl}.`;
-const citationEn = `${citeAuthor}. "${displayTitleEn}." ${siteHost}, ${monthEn} ${y}. ${pageUrl}.`;
-
-const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于《' + title + '》')}`;
+let initialComments: ArticleComment[] = [];
+try {
+  const env = Astro.locals.runtime?.env;
+  const db = env?.DB;
+  if (db) {
+    let includePrivate = false;
+    if (env) {
+      try {
+        const session = await getSession(Astro.request, env);
+        includePrivate = isSiteOwner(session?.user);
+      } catch {
+        includePrivate = false;
+      }
+    }
+    initialComments = await listComments(db, slug, { includePrivate });
+  }
+} catch {
+  initialComments = [];
+}
 ---
 
 <Base title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
   <ReadingProgress client:load slug={slug} />
 
-  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 xl:relative">
-    <header class="mb-12">
+  <div class="article-shell relative mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="article-lede">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-3">
-          {
-            isNotebook && (
-              <span class="flex flex-wrap items-baseline gap-2 text-xs">
-                <a href={`/threads/${thread}`} class="ui-link">
-                  <I18n k="threadLabel" />
-                  <Bi zh={threadTitle ?? ''} en={threadTitleEn} />
-                </a>
-                <span class="text-ink-500">
-                  · <I18n k="noteHash" />
-                  {formatSeq(seq ?? 0)}
-                </span>
-              </span>
-            )
-          }
           <time datetime={date.toISOString()} class="ui-meta">
             <DateText date={date} />
           </time>
@@ -122,83 +117,68 @@ const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于
         <Bi zh={title} en={titleEn} />
       </h1>
       {
-        isNotebook ? (
+        isNotebook && (
           <p class="mt-4 text-lg leading-relaxed text-ink-400">
             <Bi zh={description} en={descriptionEn} />
           </p>
-        ) : (
-          <div class="mt-6">
-            <p class="ui-section-label"><I18n k="abstract" /></p>
-            <p class="text-lg leading-relaxed text-ink-400">
-              <Bi zh={description} en={descriptionEn} />
-            </p>
-          </div>
         )
       }
-      {
-        tags.length > 0 && (
-          <ul class="mt-5 flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <li class="ui-tag">#{tag}</li>
-            ))}
-          </ul>
-        )
-      }
+      {isNotebook && <TagList tags={tags} />}
     </header>
 
-    {!isNotebook && <Toc headings={headings} headingsEn={headingsEn} />}
+    <CopyUrl client:visible url={canonicalUrl} />
 
-    <div class="prose-site">
-      <slot />
+    <div class:list={['article-body-row', isNotebook ? 'mt-12' : 'relative mt-6']}>
+      {!isNotebook && <Toc headings={headings} headingsEn={headingsEn} />}
+
+      <article class="article-page">
+        {
+          !isNotebook && (
+            <header class="article-dek mb-12">
+              <p class="ui-section-label">
+                <I18n k="abstract" />
+              </p>
+              <p class="text-lg leading-relaxed text-ink-400">
+                <Bi zh={description} en={descriptionEn} />
+              </p>
+              <TagList tags={tags} />
+            </header>
+          )
+        }
+
+        <div class="article-main">
+          <div class="prose-site">
+            <slot />
+          </div>
+
+          <footer class="mt-16 space-y-8 pt-8">
+            <ArticleComments client:visible slug={slug} comments={initialComments} />
+
+            {commits.length > 0 && <PageHistory commits={commits} />}
+
+            {
+              isNotebook && (prev || next) && (
+                <nav class="flex items-baseline justify-between gap-4 text-sm" aria-label={copy['zh-CN'].prevNextAria} data-i18n-aria="prevNextAria">
+                  <span>
+                    {prev && (
+                      <a href={articleHref(prev.id)} class="ui-link">
+                        ← <Bi zh={prev.title} en={prev.titleEn} />
+                      </a>
+                    )}
+                  </span>
+                  <span class="text-right">
+                    {next && (
+                      <a href={articleHref(next.id)} class="ui-link">
+                        <Bi zh={next.title} en={next.titleEn} /> →
+                      </a>
+                    )}
+                  </span>
+                </nav>
+              )
+            }
+          </footer>
+        </div>
+      </article>
     </div>
-
-    <footer class="mt-16 space-y-8 pt-8">
-      <section>
-        <p class="ui-section-label"><I18n k="recruitHeading" /></p>
-        <p class="text-sm leading-relaxed text-ink-400">
-          <I18n k="recruitBody" />
-          <a href={mailtoHref} class="text-ink-200 underline decoration-ink-500 underline-offset-2 transition-colors hover:text-ink-100 hover:decoration-ink-300">
-            {profile.email}
-          </a>
-        </p>
-      </section>
-
-      {
-        !isNotebook && (
-          <section>
-            <p class="ui-section-label"><I18n k="citeHeading" /></p>
-            <p class="font-mono text-xs leading-relaxed text-ink-400">
-              <span class="i18n-zh">{citationZh}</span>
-              <span class="i18n-en" aria-hidden="true">{citationEn}</span>
-            </p>
-          </section>
-        )
-      }
-
-      {commits.length > 0 && <PageHistory commits={commits} />}
-
-      {
-        isNotebook && (prev || next) && (
-          <nav class="flex items-baseline justify-between gap-4 text-sm" aria-label={copy['zh-CN'].prevNextAria} data-i18n-aria="prevNextAria">
-            <span>
-              {prev && (
-                <a href={articleHref(prev.id)} class="ui-link">
-                  ← <I18n k="noteHash" />
-                  {formatSeq(prev.seq)} <Bi zh={prev.title} en={prev.titleEn} />
-                </a>
-              )}
-            </span>
-            <span class="text-right">
-              {next && (
-                <a href={articleHref(next.id)} class="ui-link">
-                  <I18n k="noteHash" />
-                  {formatSeq(next.seq)} <Bi zh={next.title} en={next.titleEn} /> →
-                </a>
-              )}
-            </span>
-          </nav>
-        )
-      }
-    </footer>
-  </article>
+  </div>
 </Base>
