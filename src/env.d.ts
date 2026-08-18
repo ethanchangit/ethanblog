@@ -30,3 +30,13 @@ type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
 declare namespace App {
   interface Locals extends Runtime {}
 }
+
+/** <video>/<source> 运行时需要这个属性；Astro 的 VideoHTMLAttributes 尚未收录。 */
+declare namespace astroHTML.JSX {
+  interface VideoHTMLAttributes {
+    referrerpolicy?: string | null;
+  }
+  interface SourceHTMLAttributes {
+    referrerpolicy?: string | null;
+  }
+}
