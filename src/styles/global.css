@@ -122,7 +122,7 @@
   .site-nav-veil {
     position: absolute;
     inset: 0 0 auto;
-    height: 5.75rem;
+    height: 6.5rem;
     pointer-events: none;
     overflow: hidden;
   }
@@ -133,46 +133,46 @@
     pointer-events: none;
   }
 
-  /* Bottom of the band: light blur, almost clear. */
+  /* Lowest band: light blur, almost clear — start of the soft fade. */
   .site-nav-veil-layer--soft {
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--theme-surface-950) 18%, transparent) 0%,
-      color-mix(in srgb, var(--theme-surface-950) 8%, transparent) 55%,
+      color-mix(in srgb, var(--theme-surface-950) 28%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 10%, transparent) 50%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 20%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 25%, transparent 100%);
   }
 
-  /* Mid band: stronger blur + a bit more surface. */
+  /* Mid band: stronger blur across the whole row. */
   .site-nav-veil-layer--mid {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--theme-surface-950) 42%, transparent) 0%,
-      color-mix(in srgb, var(--theme-surface-950) 14%, transparent) 60%,
+      color-mix(in srgb, var(--theme-surface-950) 48%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 18%, transparent) 58%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 38%, transparent 82%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 38%, transparent 82%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 88%);
   }
 
-  /* Top of the row (behind links): clearest read, still not solid. */
+  /* Top of the row (behind links): most readable, still not solid opaque. */
   .site-nav-veil-layer--strong {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--theme-surface-950) 62%, transparent) 0%,
-      color-mix(in srgb, var(--theme-surface-950) 20%, transparent) 55%,
+      color-mix(in srgb, var(--theme-surface-950) 68%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 28%, transparent) 52%,
       transparent 100%
     );
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
-    mask-image: linear-gradient(to bottom, #000 0%, #000 48%, transparent 78%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 85%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 85%);
   }
 
   @media (min-width: 768px) {
