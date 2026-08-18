@@ -7,3 +7,5 @@
 /posts/welcome /articles 301
 /posts/ /articles 301
 /posts /articles 301
+/articles/1 /articles 301
+/articles/1/ /articles 301
