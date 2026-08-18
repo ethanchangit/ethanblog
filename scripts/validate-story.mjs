@@ -31,6 +31,7 @@ const SVELTE_ISLANDS = [
 ];
 const ASTRO_ONLY = [
   'VideoEmbed',
+  'TweetEmbed',
   'CodePlayground',
   'MediaFrame',
   'SideNote',

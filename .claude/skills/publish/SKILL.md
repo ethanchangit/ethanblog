@@ -60,7 +60,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 - **Svelte 岛屿写 `client:visible`**：`ParamSlider` / `ScrollScene` / `Timeline` / `StatCounter` /
   `BeforeAfterSlider` / `AudioClip` / `InteractiveDemo` / `ImageGallery` / `Scene3D` / **`Var` / `Calc`**
   （`ScrollScene` 必须 `client:visible={{ rootMargin: '150% 0px' }}`）
-- **Astro 组件不写 client 指令**：`VideoEmbed` / `CodePlayground` / `MediaFrame` / `SideNote` /
+- **Astro 组件不写 client 指令**：`VideoEmbed` / `TweetEmbed` / `CodePlayground` / `MediaFrame` / `SideNote` /
   `RuleGarden` / `RuleTarget` / `VerdictTable` / `Mention` / `MentionTarget`
 - **`Calc` 必须出现在它引用的所有 `Var` 之后**（SSR 初值依赖文档顺序）
 - 把组件调用写得值得被读——它会被「拆开看」原样展示

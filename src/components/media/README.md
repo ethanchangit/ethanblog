@@ -11,7 +11,7 @@
 
 1. **Props 必须 JSON 可序列化**（跨岛屿注水边界）；富内容用声明式数据（数组/对象），不用函数
 2. **无 JS 必须优雅降级**：服务端渲染出有意义的静态内容（ScrollScene 平铺全部场景、AudioClip 渲染原生 `<audio>`、InteractiveDemo 给出新窗口链接、CodePlayground 渲染只读代码块）
-3. **注水指令**：默认 `client:visible`；仅首屏组件用 `client:load`；能不注水就不注水（VideoEmbed 是零 JS 的 Astro 组件）。**CodePlayground** 为 Astro 薄包装，内部已含 `client:visible`，MDX 可直接 `<CodePlayground />` 无需写指令。**ScrollScene 例外**：必须用 `client:visible={{ rootMargin: '150% 0px' }}` 提前注水——它注水后会从静态平铺膨胀成数倍视口高度的滚动剧场，提前展开可避免读者眼前的布局跳动
+3. **注水指令**：默认 `client:visible`；仅首屏组件用 `client:load`；能不注水就不注水（VideoEmbed / TweetEmbed 是零 JS 的 Astro 组件）。**CodePlayground** 为 Astro 薄包装，内部已含 `client:visible`，MDX 可直接 `<CodePlayground />` 无需写指令。**ScrollScene 例外**：必须用 `client:visible={{ rootMargin: '150% 0px' }}` 提前注水——它注水后会从静态平铺膨胀成数倍视口高度的滚动剧场，提前展开可避免读者眼前的布局跳动
 4. **只消费设计 token**（`--color-*`），组件内不写死色值；canvas / WebGL 通过 `getComputedStyle` 读 token
 5. **统一支持 `caption`**，外框统一用 `.media-frame` / `.media-caption`（仅间距与图注，**无边框、无背景色块**）
 6. **动效尊重 `prefers-reduced-motion`**（用 `@/lib/motion` 的 `reducedMotion()`），GSAP / three.js 只在 onMount/$effect 里创建并在销毁时 kill / dispose
@@ -45,6 +45,7 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 | `InteractiveDemo` | Svelte | 沙箱 iframe 承载自包含软件演示（`public/demos/<name>/index.html`）；可选 `poster`/`posterVideo`/`posterAlt` 提供未加载态预览（视频先行、点击升级；reduced-motion 或无 JS 时退回图片） |
 | `Scene3D` | Svelte | three.js 岛屿：线框地球 / 粒子场 / 旋转立方体 |
 | `VideoEmbed` | Astro | YouTube/Bilibili/本地视频 facade，点击才加载 |
+| `TweetEmbed` | Astro | 引用一条 X 帖子：只给 url，构建期渲染完整正文，整块点进原帖 |
 | `CodePlayground` | Astro → Svelte | Sandpack 沙箱：点击 Run 在 iframe 中执行代码 |
 | `MediaFrame` | Astro | 把任意内容包进统一媒介外框 |
 | `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块（零 JS，不套 media-frame） |
@@ -59,7 +60,7 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 ## MDX 用法示例
 
 ```mdx
-import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D } from '@/components/media';
+import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D, TweetEmbed } from '@/components/media';
 
 <ParamSlider
   client:visible
@@ -68,6 +69,11 @@ import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D } from '@/components
   min={10} max={200} initial={60}
   viz="network"
   caption="左边的滑块控制右边的知识网络。"
+/>
+
+<TweetEmbed
+  url="https://x.com/ethanchang_/status/1234567890"
+  caption="月度整理里引用的一条原帖。"
 />
 
 <CodePlayground
@@ -90,6 +96,15 @@ import { ParamSlider, ScrollScene, InteractiveDemo, Scene3D } from '@/components
   caption="一个可以玩的小软件。"
 />
 ```
+
+### TweetEmbed props
+
+| Prop | 类型 | 说明 |
+|---|---|---|
+| `url` | `string` | X / Twitter 帖子链接（`https://x.com/<user>/status/<id>`） |
+| `caption` | `string` | 图注 |
+
+构建期从链接解析 id，优先读 `src/data/tweet-cache/<id>.json`，否则走 syndication 拉取。不加载 `widgets.js`。MDX 无需 `client:*`。
 
 ### CodePlayground props
 

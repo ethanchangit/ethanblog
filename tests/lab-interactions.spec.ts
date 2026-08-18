@@ -120,6 +120,17 @@ test('VideoEmbed shows clickable facade', async ({ page }) => {
   await expect(section.locator('button, a').first()).toBeVisible();
 });
 
+test('TweetEmbed renders cached tweet text and original link', async ({ page }) => {
+  const section = page.getByTestId('tweet-embed');
+  await section.scrollIntoViewIfNeeded();
+
+  await expect(section.getByText('just setting up my twttr')).toBeVisible();
+  await expect(section.getByRole('link', { name: '在 X 上查看 @jack 的帖子' })).toHaveAttribute(
+    'href',
+    'https://x.com/jack/status/20',
+  );
+});
+
 test('CodePlayground renders code block', async ({ page }) => {
   const section = page.getByTestId('code-playground');
   await section.scrollIntoViewIfNeeded();
