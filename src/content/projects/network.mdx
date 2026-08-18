@@ -1,6 +1,7 @@
 ---
 name: "Networks"
 tagline: "卡片既是文件夹也是文档的笔记工具"
+taglineEn: "A notes app where every card is both folder and document"
 status: archived
 order: 30
 stack: ["Electron", "React", "TypeScript"]
@@ -16,6 +17,10 @@ import { InteractiveDemo } from '@/components/media';
 
 我的第三个项目。简单来说，我希望把它做成一个 Heptabase，但每一张卡片的能力都被强化——既可以作为文件夹，也可以作为文档。规划中有 5、6 种不同类型的卡片，包括 Excalidraw、Whiteboard、普通卡片等。
 
+这也是我第一个认真**发布**的桌面笔记工具。核心赌注很简单：重度写作者愿意为了速度，把双手永远放在键盘上。整款产品围绕**卡片**组织——每张卡片是一个独立的 Markdown 单元，方向键在卡片间跳转，Enter 进入编辑，Esc 保存退出。这不是装饰性的「卡片 UI」，而是内容的数据模型：笔记天然被切成可搬运、可链接、可重组的块。
+
+它验证了两件事：卡片作为内容单元是成立的；键盘导航可以覆盖从浏览到编辑的完整闭环。后者后来被 [Chunk](/projects/chunk) 直接继承。
+
 <InteractiveDemo
   client:visible
   src="/demos/network/"
@@ -29,3 +34,25 @@ import { InteractiveDemo } from '@/components/media';
 我发现自己的开发过分发散，直接做崩溃了。以当时的精力与时间，只能支持做好一个单一的 card + folder 机制；而完整愿景的难度要大得多，必须将多种卡片类型与 folder/card 机制统一协调——这超出了我当时的承载能力。
 
 项目暂停，但「一条笔记既是 folder 也是 document」的结构设计，延续到了后来的 Robert。
+
+<div data-lang-split></div>
+
+My third project. In short, I wanted a Heptabase where every card was stronger — able to be a folder and a document. The plan had five or six card types: Excalidraw, Whiteboard, ordinary cards, and more.
+
+It was also the first desktop notes app I seriously **shipped**. The bet was simple: heavy writers will keep both hands on the keyboard if it is fast enough. The product is organized around **cards** — each card a Markdown unit, arrow keys to move, Enter to edit, Esc to save and leave. This is not decorative “card UI”; it is the data model: notes cut into blocks you can move, link, and recombine.
+
+It proved two things: the card as a content unit holds; keyboard navigation can cover the loop from browsing to editing. [Chunk](/projects/chunk) inherited the latter directly.
+
+<InteractiveDemo
+  client:visible
+  src="/demos/network/"
+  title="Networks · early prototype slice"
+  height="480px"
+  caption="The demo pack is an early keyboard-navigation prototype, not the full vision."
+/>
+
+## Why it stopped
+
+The work spread too far and collapsed. With the time I had, I could only do a single card-plus-folder mechanism well. The full vision — many card types coordinated with folder/card — was more than I could carry then.
+
+The project paused. The structure “a note is both folder and document” continued into Robert.

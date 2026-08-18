@@ -1,9 +1,9 @@
 ---
 name: publish
-description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客草稿）转化为 Ethan Chang 个人博客（ethanchang.io）的 MDX 故事页面。当用户消息首行以 /publish 或 发布： 开头时必须使用本 skill。它是 docs/MEDIUM.md 创作规范的可执行形态。
+description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客草稿）转化为 Ethan Chang 个人博客（ethanchang.io）的 MDX 文章页面。当用户消息首行以 /publish 或 发布： 开头时必须使用本 skill。它是 docs/MEDIUM.md 创作规范的可执行形态。
 ---
 
-# /publish —— 把素材写成故事页
+# /publish —— 把素材写成文章页
 
 **这是 Ethan Chang 的个人博客。** 用户负责写剧本（对话 / 笔记 / 草稿），你负责把它翻译成本站的 MDX 页面（默认文字；需要时再嵌交互组件）。
 本 skill 是操作清单；**判定规则的完整依据在 [docs/MEDIUM.md](../../../docs/MEDIUM.md)**，
@@ -11,7 +11,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ## 边界（先确认，再动手）
 
-- 只动内容层：`src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（仅开新研究线时）。
+- 只动内容层：`src/content/articles/`、`src/content/projects/`、`src/data/threads.ts`（仅开新研究线时）。
 - **禁止**新建或修改媒介组件、布局、样式、API、测试基建——除非用户在 YAML 头写了 `allow-new-component: true`。
 - 新页面默认 `draft: true`。
 
@@ -42,13 +42,14 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 - 记录过程/失败/半成品，或拿不准 → `notebook`
 
 落盘：
-- `notebook` → `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1；notebook 必填 `thread` + `seq`）
-- 其他 story → `src/content/stories/<slug>.mdx`
+- `notebook` → `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1；notebook 必填 `thread` + `seq`）
+- 其他 article → `src/content/articles/<slug>.mdx`
 - 项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`
 - 新开研究线（该问题会持续产出 ≥3 条笔记）→ 先在 `src/data/threads.ts` 登记
 
 ### 6. 写 frontmatter
 - `description` ≤80 字，可检验的陈述句（渲染成摘要块 + RSS，别写悬念句）
+- **定稿必须双语**：`titleEn` + `descriptionEn`（项目用 `taglineEn`），正文用 `<div data-lang-split></div>` 切开中英；草稿可暂缺（`validate:content` 对 draft 降级）
 - **`source` 溯源块必填**：`type`（chat/notes/blog/mixed）+ `origin`（素材来历一句话）+ `date`
 - `draft: true`
 - 修订史值得展示时才 `history: true`（见第 9 步的 commit 约定）
@@ -77,7 +78,7 @@ npm run validate:content && npm run check && npm run build && npm run test
 - 修订：`revise: <slug> — <改了什么 / 为什么>`
 
 ### 10. 汇报
-向用户报告：slug、kind、draft 状态、本地预览路径（如 `/stories/<slug>`）、`source` 摘要、
+向用户报告：slug、kind、draft 状态、本地预览路径（如 `/articles/<slug>`）、`source` 摘要、
 用到的媒介组件清单。
 
 ## 新媒介组件（仅当 allow-new-component: true）

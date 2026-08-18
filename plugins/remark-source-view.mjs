@@ -41,7 +41,23 @@ function makeDisclosure(name, code) {
         type: 'mdxJsxFlowElement',
         name: 'summary',
         attributes: [],
-        children: [{ type: 'text', value: '⌥ 源码 · ' + name }],
+        children: [
+          {
+            type: 'mdxJsxFlowElement',
+            name: 'span',
+            attributes: [{ type: 'mdxJsxAttribute', name: 'class', value: 'i18n-zh' }],
+            children: [{ type: 'text', value: '⌥ 源码 · ' + name }],
+          },
+          {
+            type: 'mdxJsxFlowElement',
+            name: 'span',
+            attributes: [
+              { type: 'mdxJsxAttribute', name: 'class', value: 'i18n-en' },
+              { type: 'mdxJsxAttribute', name: 'aria-hidden', value: 'true' },
+            ],
+            children: [{ type: 'text', value: '⌥ Source · ' + name }],
+          },
+        ],
       },
       { type: 'code', lang: 'mdx', value: code },
     ],

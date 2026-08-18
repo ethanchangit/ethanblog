@@ -1,10 +1,13 @@
 ---
 /**
  * 目录（T2）——零 JS 双形态：
- * xl+ 悬挂在正文列左页边（绝对定位 + sticky），窄屏折叠为 <details>。
- * 只收 depth 2-3 的标题；条目不足 3 条时整体不渲染。
+ * xl+ 悬挂在正文列左页边（绝对定位 + sticky）；默认只露刻度，悬停 / :focus-within 展开全文。
+ * 窄屏折叠为 <details>。只收 depth 2-3；不足 3 条时整体不渲染。
  * 使用前提：外层正文容器需带 xl:relative。
  */
+import I18n from '@/components/shell/I18n.astro';
+import Bi from '@/components/shell/Bi.astro';
+
 interface TocHeading {
   depth: number;
   slug: string;
@@ -13,46 +16,116 @@ interface TocHeading {
 
 interface Props {
   headings: TocHeading[];
+  headingsEn?: TocHeading[];
 }
 
-const { headings } = Astro.props;
+const { headings, headingsEn = [] } = Astro.props;
 const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+const enItems = headingsEn.filter((h) => h.depth === 2 || h.depth === 3);
+
+function attr(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/** :target 命中对应标题时加粗对应刻度（纯 CSS，无滚动监听）。 */
+const activeCss = [...items, ...enItems]
+  .map((h) => {
+    const id = attr(h.slug);
+    return `body:has([id="${id}"]:target) nav.toc a[href="#${id}"]`;
+  })
+  .join(',\n');
 ---
 
 {
   items.length >= 3 && (
     <>
-      <nav class="toc absolute right-full top-0 mr-8 hidden h-full w-52 xl:block" aria-label="目录">
+      {activeCss && (
+        <Fragment
+          set:html={`<style>${activeCss}{--toc-tick-w:0.875rem;--toc-tick-c:var(--color-ink-200);--toc-tick-inset:0px}</style>`}
+        />
+      )}
+      <nav
+        class="toc absolute right-full top-0 mr-8 hidden h-full w-52 xl:block"
+        aria-label="目录"
+        data-i18n-aria="tocAria"
+      >
         <div class="sticky top-20">
-          <p class="ui-meta mb-3">目录</p>
-          <ul class="space-y-2">
-            {items.map((h) => (
-              <li class:list={[h.depth === 3 && 'pl-3']}>
-                <a
-                  href={'#' + h.slug}
-                  class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
-                >
-                  {h.text}
-                </a>
-              </li>
-            ))}
+          <p class="toc-title ui-meta" aria-hidden="true">
+            <span class="toc-label">
+              <I18n k="toc" />
+            </span>
+          </p>
+          <ul>
+            {items.map((h, i) => {
+              const en = enItems[i];
+              return (
+                <li>
+                  {en ? (
+                    <>
+                      <span class="i18n-zh-only">
+                        <a href={'#' + h.slug} aria-label={h.text} data-depth={h.depth}>
+                          <span class="toc-label">{h.text}</span>
+                        </a>
+                      </span>
+                      <span class="i18n-en-only">
+                        <a href={'#' + en.slug} aria-label={en.text} data-depth={en.depth}>
+                          <span class="toc-label">{en.text}</span>
+                        </a>
+                      </span>
+                    </>
+                  ) : (
+                    <a href={'#' + h.slug} aria-label={h.text} data-depth={h.depth}>
+                      <span class="toc-label">
+                        <Bi zh={h.text} />
+                      </span>
+                    </a>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </nav>
 
       <details class="toc-mobile mb-8 xl:hidden">
-        <summary>目录</summary>
+        <summary>
+          <I18n k="toc" />
+        </summary>
         <ul class="space-y-2 pb-3">
-          {items.map((h) => (
-            <li class:list={[h.depth === 3 && 'pl-3']}>
-              <a
-                href={'#' + h.slug}
-                class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
-              >
-                {h.text}
-              </a>
-            </li>
-          ))}
+          {items.map((h, i) => {
+            const en = enItems[i];
+            return (
+              <li class:list={[h.depth === 3 && 'pl-3']}>
+                {en ? (
+                  <>
+                    <span class="i18n-zh-only">
+                      <a
+                        href={'#' + h.slug}
+                        class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
+                      >
+                        {h.text}
+                      </a>
+                    </span>
+                    <span class="i18n-en-only">
+                      <a
+                        href={'#' + en.slug}
+                        class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
+                      >
+                        {en.text}
+                      </a>
+                    </span>
+                  </>
+                ) : (
+                  <a
+                    href={'#' + h.slug}
+                    class="text-sm leading-snug text-ink-500 transition-colors hover:text-ink-200"
+                  >
+                    {h.text}
+                  </a>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </details>
     </>

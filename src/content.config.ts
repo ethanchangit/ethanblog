@@ -2,16 +2,18 @@ import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 
 /**
- * stories — 站点的叙事单元。
+ * articles — 站点的文章单元（对外路由 /articles）。
  * kind 区分发布档位：notebook = 编号过程笔记，essay = 定稿文章，
- * interactive = 定稿互动故事。notebook 也可以嵌交互组件。
+ * interactive = 定稿互动文章。notebook 也可以嵌交互组件。
  */
-const stories = defineCollection({
-  loader: glob({ pattern: '**/*.mdx', base: './src/content/stories' }),
+const articles = defineCollection({
+  loader: glob({ pattern: '**/*.mdx', base: './src/content/articles' }),
   schema: z
     .object({
       title: z.string(),
+      titleEn: z.string().optional(),
       description: z.string(),
+      descriptionEn: z.string().optional(),
       date: z.coerce.date(),
       updated: z.coerce.date().optional(),
       kind: z.enum(['interactive', 'essay', 'notebook']).default('essay'),
@@ -36,7 +38,6 @@ const stories = defineCollection({
       history: z.boolean().default(false),
     })
     .superRefine((data, ctx) => {
-      // notebook 是研究线上的编号笔记，必须挂在某条线上并有编号
       if (data.kind === 'notebook') {
         if (!data.thread) {
           ctx.addIssue({
@@ -57,14 +58,16 @@ const stories = defineCollection({
 });
 
 /**
- * projects — 软件与开源项目展示。
+ * projects — 软件与开源项目展示（对外路由 /projects）。
  * demo 字段指向 public/demos/ 下的自包含演示包，喂给 InteractiveDemo 组件。
  */
 const projects = defineCollection({
   loader: glob({ pattern: '**/*.mdx', base: './src/content/projects' }),
   schema: z.object({
     name: z.string(),
+    nameEn: z.string().optional(),
     tagline: z.string(),
+    taglineEn: z.string().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']),
     order: z.number().default(99),
     stack: z.array(z.string()).default([]),
@@ -77,7 +80,8 @@ const projects = defineCollection({
     screenshots: z.array(z.object({ src: z.string(), alt: z.string() })).default([]),
     demo: z.object({ src: z.string(), height: z.string().optional() }).optional(),
     featured: z.boolean().default(false),
+    draft: z.boolean().default(false),
   }),
 });
 
-export const collections = { stories, projects };
+export const collections = { articles, projects };

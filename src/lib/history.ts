@@ -1,5 +1,5 @@
 /**
- * 版本历史即媒介（Upwelling/Patchwork）：把一篇故事的 git 提交史变成可读的成长时间线。
+ * 版本历史即媒介（Upwelling/Patchwork）：把一篇文章的 git 提交史变成可读的成长时间线。
  * 只在构建期（.astro frontmatter）调用——execSync 永远不会进客户端 bundle。
  * 提交信息约定（.claude/skills/publish/SKILL.md）：
  *   首次发布  publish: <slug> — <一句话意图>
@@ -16,13 +16,26 @@ export interface CommitInfo {
   kind: 'publish' | 'revise' | 'other';
 }
 
+function historyCandidates(filePath: string): string[] {
+  const normalized = filePath.replace(/\\/g, '/');
+  const legacy = normalized.replace(/\/content\/articles\//, '/content/stories/');
+  return legacy === normalized ? [normalized] : [normalized, legacy];
+}
+
+function readLog(filePath: string): string {
+  return execSync(`git log --follow --format=%h%x09%cI%x09%s -- ${JSON.stringify(filePath)}`, {
+    encoding: 'utf8',
+  });
+}
+
 export function getFileHistory(filePath?: string): CommitInfo[] {
   if (!filePath) return [];
   try {
-    const out = execSync(
-      `git log --follow --format=%h%x09%cI%x09%s -- ${JSON.stringify(filePath)}`,
-      { encoding: 'utf8' }
-    );
+    let out = '';
+    for (const candidate of historyCandidates(filePath)) {
+      out = readLog(candidate);
+      if (out.trim()) break;
+    }
     return out
       .split('\n')
       .filter(Boolean)

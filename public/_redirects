@@ -1,9 +1,9 @@
-# Legacy Hugo URLs → new Astro routes
-/posts/pkm-method/ /stories/pkm-method 301
-/posts/pkm-method /stories/pkm-method 301
-/posts/heptabase-method/ /stories/heptabase-method 301
-/posts/heptabase-method /stories/heptabase-method 301
+# Legacy Hugo URLs → Articles
+/posts/pkm-method/ /articles/pkm-method 301
+/posts/pkm-method /articles/pkm-method 301
+/posts/heptabase-method/ /articles/heptabase-method 301
+/posts/heptabase-method /articles/heptabase-method 301
 /posts/welcome/ / 301
 /posts/welcome / 301
-/posts/ /stories 301
-/posts /stories 301
+/posts/ /articles 301
+/posts /articles 301

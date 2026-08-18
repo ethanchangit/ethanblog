@@ -1,0 +1,204 @@
+---
+import Base from '@/layouts/Base.astro';
+import { formatSeq, sourceTypeLabel } from '@/lib/format';
+import { profile, site } from '@/data/profile';
+import { getThread } from '@/data/threads';
+import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
+import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
+import Toc from '@/components/shell/Toc.astro';
+import PageHistory from '@/components/shell/PageHistory.astro';
+import I18n from '@/components/shell/I18n.astro';
+import Bi from '@/components/shell/Bi.astro';
+import DateText from '@/components/shell/DateText.astro';
+import { getFileHistory } from '@/lib/history';
+import { copy } from '@/lib/i18n';
+import { articleHref } from '@/lib/routes';
+import type { CollectionEntry } from 'astro:content';
+
+interface TocHeading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+/** notebook 前后篇导航的精简条目 */
+interface NoteNav {
+  id: string;
+  title: string;
+  titleEn?: string;
+  seq: number;
+}
+
+interface Props {
+  article: CollectionEntry<'articles'>;
+  headings?: TocHeading[];
+  headingsEn?: TocHeading[];
+  prev?: NoteNav;
+  next?: NoteNav;
+}
+
+const { article, headings = [], headingsEn = [], prev, next } = Astro.props;
+const { title, titleEn, description, descriptionEn, date, updated, kind, tags, thread, seq, source } =
+  article.data;
+const slug = article.id;
+
+const commits = article.data.history ? getFileHistory(article.filePath) : [];
+
+const sourceLabel = source ? sourceTypeLabel[source.type] : undefined;
+const sourceOrigin = source?.origin;
+const sourceDate = source?.date;
+
+const isNotebook = kind === 'notebook';
+const threadInfo = getThread(thread);
+const threadTitle = threadInfo?.title ?? thread;
+const threadTitleEn = threadInfo?.titleEn ?? threadTitle;
+
+const citeAuthor = profile.chineseName
+  ? `${profile.chineseName} (${profile.name})`
+  : profile.name;
+const y = date.getUTCFullYear();
+const m = date.getUTCMonth() + 1;
+const monthEn = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' }).format(date);
+const siteHost = new URL(site.url).host;
+const pageUrl = `${site.url}${articleHref(slug)}`;
+const displayTitleEn = titleEn ?? title;
+const citationZh = `${citeAuthor}. 「${title}」. ${siteHost}, ${y}年${m}月. ${pageUrl}.`;
+const citationEn = `${citeAuthor}. "${displayTitleEn}." ${siteHost}, ${monthEn} ${y}. ${pageUrl}.`;
+
+const mailtoHref = `mailto:${profile.email}?subject=${encodeURIComponent('关于《' + title + '》')}`;
+---
+
+<Base title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
+  <ReadingProgress client:load slug={slug} />
+
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 xl:relative">
+    <header class="mb-12">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          {
+            isNotebook && (
+              <span class="flex flex-wrap items-baseline gap-2 text-xs">
+                <a href={`/threads/${thread}`} class="ui-link">
+                  <I18n k="threadLabel" />
+                  <Bi zh={threadTitle ?? ''} en={threadTitleEn} />
+                </a>
+                <span class="text-ink-500">
+                  · <I18n k="noteHash" />
+                  {formatSeq(seq ?? 0)}
+                </span>
+              </span>
+            )
+          }
+          <time datetime={date.toISOString()} class="ui-meta">
+            <DateText date={date} />
+          </time>
+          {
+            updated && (
+              <span class="ui-meta">
+                <I18n k="updatedPrefix" />{' '}
+                <DateText date={updated} />
+              </span>
+            )
+          }
+          {
+            source && (
+              <span class="ui-meta" data-source-line>
+                <I18n k="sourcePrefix" />
+                {sourceLabel ? <Bi zh={sourceLabel.zh} en={sourceLabel.en} /> : source.type}
+                {sourceOrigin ? ` · ${sourceOrigin}` : ''}
+                {sourceDate ? (
+                  <>
+                    {' · '}
+                    <DateText date={sourceDate} />
+                  </>
+                ) : null}
+              </span>
+            )
+          }
+        </div>
+        <BookmarkButton client:load slug={slug} />
+      </div>
+      <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
+        <Bi zh={title} en={titleEn} />
+      </h1>
+      {
+        isNotebook ? (
+          <p class="mt-4 text-lg leading-relaxed text-ink-400">
+            <Bi zh={description} en={descriptionEn} />
+          </p>
+        ) : (
+          <div class="mt-6">
+            <p class="ui-section-label"><I18n k="abstract" /></p>
+            <p class="text-lg leading-relaxed text-ink-400">
+              <Bi zh={description} en={descriptionEn} />
+            </p>
+          </div>
+        )
+      }
+      {
+        tags.length > 0 && (
+          <ul class="mt-5 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <li class="ui-tag">#{tag}</li>
+            ))}
+          </ul>
+        )
+      }
+    </header>
+
+    {!isNotebook && <Toc headings={headings} headingsEn={headingsEn} />}
+
+    <div class="prose-site">
+      <slot />
+    </div>
+
+    <footer class="mt-16 space-y-8 pt-8">
+      <section>
+        <p class="ui-section-label"><I18n k="recruitHeading" /></p>
+        <p class="text-sm leading-relaxed text-ink-400">
+          <I18n k="recruitBody" />
+          <a href={mailtoHref} class="text-ink-200 underline decoration-ink-500 underline-offset-2 transition-colors hover:text-ink-100 hover:decoration-ink-300">
+            {profile.email}
+          </a>
+        </p>
+      </section>
+
+      {
+        !isNotebook && (
+          <section>
+            <p class="ui-section-label"><I18n k="citeHeading" /></p>
+            <p class="font-mono text-xs leading-relaxed text-ink-400">
+              <span class="i18n-zh">{citationZh}</span>
+              <span class="i18n-en" aria-hidden="true">{citationEn}</span>
+            </p>
+          </section>
+        )
+      }
+
+      {commits.length > 0 && <PageHistory commits={commits} />}
+
+      {
+        isNotebook && (prev || next) && (
+          <nav class="flex items-baseline justify-between gap-4 text-sm" aria-label={copy['zh-CN'].prevNextAria} data-i18n-aria="prevNextAria">
+            <span>
+              {prev && (
+                <a href={articleHref(prev.id)} class="ui-link">
+                  ← <I18n k="noteHash" />
+                  {formatSeq(prev.seq)} <Bi zh={prev.title} en={prev.titleEn} />
+                </a>
+              )}
+            </span>
+            <span class="text-right">
+              {next && (
+                <a href={articleHref(next.id)} class="ui-link">
+                  <I18n k="noteHash" />
+                  {formatSeq(next.seq)} <Bi zh={next.title} en={next.titleEn} /> →
+                </a>
+              )}
+            </span>
+          </nav>
+        )
+      }
+    </footer>
+  </article>
+</Base>

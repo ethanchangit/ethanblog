@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
  * validate-story —— 内容校验闸门（npm run validate:content）。
- * 检查 src/content/stories/**\/*.mdx 中 astro check（schema 校验）查不到的创作规约：
- * 注水指令、组件用法纪律、溯源字段、反应式散文的声明顺序等。
+ * 检查 src/content/articles 与 src/content/projects 中 astro check（schema）
+ * 查不到的创作规约：双语硬门、注水指令、组件用法、溯源、Var/Calc 顺序等。
  * 规则清单与 docs/MEDIUM.md / .claude/skills/publish/SKILL.md 保持同步。
  *
  * 分级：error 挡 CI（exit 1）；warning 只提醒。draft: true 的文件是工作台，
- * 其全部 error 降级为 warning。
+ * 其全部 error 降级为 warning（含双语缺失）。
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const STORIES_DIR = join(ROOT, 'src/content/stories');
+const ARTICLES_DIR = join(ROOT, 'src/content/articles');
+const PROJECTS_DIR = join(ROOT, 'src/content/projects');
 
 // 组件清单 —— 与 src/components/media/index.ts barrel 保持同步
 const SVELTE_ISLANDS = [
@@ -119,42 +120,67 @@ function stripStrings(s) {
     .replace(/'(?:\\.|[^'\\])*'/g, "''");
 }
 
+function fmField(frontmatter, key) {
+  const m = new RegExp(`^${key}:\\s*(?:"([^"]*)"|'([^']*)'|(\\S+))`, 'm').exec(frontmatter);
+  return (m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim();
+}
+
+function englishAfterSplit(bodyText) {
+  const m = /<div\s+data-lang-split\b[^>]*>(?:\s*<\/div>)?/.exec(bodyText);
+  if (!m) return '';
+  return bodyText.slice(m.index + m[0].length).trim();
+}
+
 const results = [];
 
-for (const file of collectMdx(STORIES_DIR)) {
+function validateFile(file, collection) {
   const rel = relative(ROOT, file);
   const raw = readFileSync(file, 'utf8');
   const { frontmatter, bodyText } = splitDoc(raw);
+  // 英文副本（<div data-lang-split> 之后）不计入「一篇至多一个」类规约
+  const primaryBody = bodyText.split(/<div\s+data-lang-split\b/)[0];
   const errors = [];
   const warnings = [];
 
   const isDraft = /^draft:\s*true/m.test(frontmatter);
   const kindMatch = /^kind:\s*(\S+)/m.exec(frontmatter);
-  const kind = kindMatch ? kindMatch[1].replace(/['"]/g, '') : 'essay';
+  const kind = kindMatch ? kindMatch[1].replace(/['"]/g, '') : collection === 'project' ? 'project' : 'essay';
+
+  // --- 双语硬门（定稿必须中英齐全；草稿跳过） ---
+  if (collection === 'article') {
+    if (!fmField(frontmatter, 'titleEn')) errors.push('定稿必须有 titleEn');
+    if (!fmField(frontmatter, 'descriptionEn')) errors.push('定稿必须有 descriptionEn');
+  } else {
+    if (!fmField(frontmatter, 'taglineEn')) errors.push('定稿必须有 taglineEn');
+  }
+  if (!englishAfterSplit(bodyText)) {
+    errors.push('定稿必须有英文正文：在 <div data-lang-split></div> 之后写 EN 副本');
+  }
 
   // --- frontmatter 规约 ---
 
-  const desc = /^description:\s*["']?(.+?)["']?\s*$/m.exec(frontmatter)?.[1] ?? '';
-  const descLen = Array.from(desc).length;
-  if (descLen > 100) errors.push(`description ${descLen} 字（>100）：摘要块和 RSS 都会溢出，请压到 80 字内`);
-  else if (descLen > 80) warnings.push(`description ${descLen} 字（>80）：建议压到 80 字内`);
+  if (collection === 'article') {
+    const desc = /^description:\s*["']?(.+?)["']?\s*$/m.exec(frontmatter)?.[1] ?? '';
+    const descLen = Array.from(desc).length;
+    if (descLen > 100) errors.push(`description ${descLen} 字（>100）：摘要块和 RSS 都会溢出，请压到 80 字内`);
+    else if (descLen > 80) warnings.push(`description ${descLen} 字（>80）：建议压到 80 字内`);
 
-  if (kind === 'notebook') {
-    if (!/^thread:\s*\S+/m.test(frontmatter)) errors.push('notebook 必须指定 thread（所属研究线）');
-    if (!/^seq:\s*\d+/m.test(frontmatter)) errors.push('notebook 必须指定 seq（线内编号）');
-    const thread = /^thread:\s*["']?([\w-]+)/m.exec(frontmatter)?.[1];
-    if (thread && !rel.split(sep).join('/').includes(`notes/${thread}/`)) {
-      errors.push(`notebook 落盘路径应为 notes/${thread}/<NN>-<slug>.mdx`);
+    if (kind === 'notebook') {
+      if (!/^thread:\s*\S+/m.test(frontmatter)) errors.push('notebook 必须指定 thread（所属研究线）');
+      if (!/^seq:\s*\d+/m.test(frontmatter)) errors.push('notebook 必须指定 seq（线内编号）');
+      const thread = /^thread:\s*["']?([\w-]+)/m.exec(frontmatter)?.[1];
+      if (thread && !rel.split(sep).join('/').includes(`notes/${thread}/`)) {
+        errors.push(`notebook 落盘路径应为 notes/${thread}/<NN>-<slug>.mdx`);
+      }
+    } else if (!/^source:/m.test(frontmatter)) {
+      warnings.push('定稿档建议填 source 溯源块（type/origin/date），页眉会渲染溯源行');
     }
-  } else if (!/^source:/m.test(frontmatter)) {
-    // 定稿档建议声明溯源（原始素材来自哪次对话/哪份笔记/哪篇草稿）
-    warnings.push('定稿档建议填 source 溯源块（type/origin/date），页眉会渲染溯源行');
-  }
-  if (/^source:/m.test(frontmatter)) {
-    const sourceType = /^\s+type:\s*["']?(\w+)/m.exec(frontmatter)?.[1];
-    if (!sourceType) errors.push('source 块缺少 type（chat | notes | blog | mixed）');
-    else if (!SOURCE_TYPES.has(sourceType))
-      errors.push(`source.type "${sourceType}" 非法，应为 chat | notes | blog | mixed`);
+    if (/^source:/m.test(frontmatter)) {
+      const sourceType = /^\s+type:\s*["']?(\w+)/m.exec(frontmatter)?.[1];
+      if (!sourceType) errors.push('source 块缺少 type（chat | notes | blog | mixed）');
+      else if (!SOURCE_TYPES.has(sourceType))
+        errors.push(`source.type "${sourceType}" 非法，应为 chat | notes | blog | mixed`);
+    }
   }
 
   // --- 正文组件规约 ---
@@ -184,9 +210,9 @@ for (const file of collectMdx(STORIES_DIR)) {
     }
   }
 
-  const gardens = findCalls(bodyText, 'RuleGarden');
+  const gardens = findCalls(primaryBody, 'RuleGarden');
   if (gardens.length > 1) {
-    errors.push(`一篇故事至多一个 RuleGarden（现在 ${gardens.length} 个）`);
+    errors.push(`一篇文章至多一个 RuleGarden（现在 ${gardens.length} 个）`);
   }
   for (const { line, call } of gardens) {
     const ruleCount = (call.match(/when:/g) ?? []).length;
@@ -233,7 +259,7 @@ for (const file of collectMdx(STORIES_DIR)) {
   }
 
   // SideNote 密度：相邻两条间距 <30 行提醒（每屏至多一条的粗略代理）
-  const sideNotes = findCalls(bodyText, 'SideNote');
+  const sideNotes = findCalls(primaryBody, 'SideNote');
   for (let k = 1; k < sideNotes.length; k++) {
     if (sideNotes[k].line - sideNotes[k - 1].line < 30) {
       warnings.push(`第 ${sideNotes[k].line} 行：两条 SideNote 相距不足 30 行——旁注纪律是每屏至多一条`);
@@ -249,6 +275,9 @@ for (const file of collectMdx(STORIES_DIR)) {
     results.push({ rel, errors: finalErrors, warnings: finalWarnings });
   }
 }
+
+for (const file of collectMdx(ARTICLES_DIR)) validateFile(file, 'article');
+for (const file of collectMdx(PROJECTS_DIR)) validateFile(file, 'project');
 
 let errorCount = 0;
 for (const { rel, errors, warnings } of results) {

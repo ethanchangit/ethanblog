@@ -1,6 +1,8 @@
 ---
 title: "我的软件创建之路"
+titleEn: "The path of the software I made"
 description: "从创客计划到 Trace：五款软件依次解决复习、阅读查词、笔记结构、上下文整理与 agent 阅读学习。"
+descriptionEn: "From Maker Plan to Trace: five apps, each grown from the last — review, lookup-while-reading, note structure, context, and agent-assisted learning."
 date: 2026-07-04
 kind: essay
 tags: ["软件开发", "个人项目", "知识管理"]
@@ -75,3 +77,73 @@ draft: false
 2. 它是一个 agent 辅助的 flashcard 软件，当你阅读了好奇的内容，你会将你想要学习与记忆的内容进行 highlight，然后 agent 会为你的 highlight 生成 flashcards；
 
 3. 因为我想阅读英文内容，直接学习原文，所以我又给它引入了 Aletheia 中做过的生词卡片能力，它能结合 context 查询生词的语境义，并且允许收藏生成单词卡片复习。
+
+<div data-lang-split></div>
+
+In time order: five pieces of software. Each grew out of the last, and each pointed at the next problem.
+
+## Maker Plan
+
+### Motive
+
+The first project was Maker Plan — an app for writing and reviewing flashcards. Popular review apps were either noisy and messy, or badly built. “Messy” meant a cluttered UI, with review buried behind a second-level door. You often had to pick a deck before starting the day’s review. The editor was awkward, too: not powerful, not finished.
+
+### Design
+
+The editor I wanted:
+
+- Cloze on Q&A cards
+- Image-hint clozes
+- Stronger table clozes (not the first priority)
+
+Masked-text cloze merges different hint blocks into one review item, then hides the others on each recall. In short: “hide one, test all” and “merge different clozes” — missing from many editors. I wanted a small, quiet app that did this well.
+
+The second need was flexible bulk import. Once a single card worked, I wanted to import a lot at once, write cards the way I write notes, and file them into the content.
+
+## Aletheia
+
+### Motive
+
+The second project is [Aletheia](/projects/aletheia), “to bring to light.” Lookup while reading English. A lamp on the confusion of reading.
+
+### Design
+
+Two cores:
+
+1. Lookup should not invade. Quiet, no riot of highlight colors that steal attention from the text. And AI in context: not a traditional dictionary with five to ten senses you have to match yourself — a real tax on reading. We send the surrounding context to an LLM agent and get the sense that fits.
+
+2. Lookup without review is weak, so we built a small review module, reusing the swipe animations (left, right, up, down) from the first project.
+
+## Networks
+
+### Motive
+
+The third project is [Networks](/projects/network), a notes tool. I wanted a Heptabase where every card was stronger: folder and document at once.
+
+### Design
+
+Five or six card types were planned: Excalidraw, Whiteboard, ordinary cards, and more. The work spread too far and collapsed. I only had the capacity to do a single card-plus-folder mechanism well, and the real difficulty was much larger.
+
+## Robert
+
+### Relation to the last project
+
+The fourth project is a notes app first named [Robert](/projects/robert) — a butler’s name. I wanted a personal context manager. The structure follows Networks: a note can have several parent cards; each note is both a folder and a document. You store in it, and you navigate with it.
+
+### Design
+
+Several parents is too flexible. Matching them by hand is like finding one folder, except now you need several — a lot of resistance. So we introduced a robert agent: an async confirmation loop. Each evening the agent takes some of your context, explores structure against what it knows. You already have a “programming notes” card; today you wrote five notes on programming; the agent asks whether those five should become children of “programming notes.”
+
+## Trace
+
+### Motive
+
+The fifth piece of software is [Trace](/projects/deeptalk) — an agent reading-chat with a learning loop. (The project file lives under Trace.)
+
+### Design
+
+1. An AI chat that can open sub-threads, keep context clean, and go deeper wherever you are curious;
+
+2. Agent-assisted flashcards: highlight what you want to remember, and the agent turns the highlight into cards;
+
+3. Because I want to read English in the original, it also inherits Aletheia’s vocabulary cards: in-context sense, save, review.

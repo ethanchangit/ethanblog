@@ -31,17 +31,17 @@ npm run deploy           # 构建并手动部署到 Cloudflare Pages
 ```
 src/
   styles/global.css        设计 token（@theme）+ 基础样式 + prose + .media-frame
-  content.config.ts        stories / projects 两个内容集合的 schema（stories 含 notebook 档 + thread/seq）
+  content.config.ts        articles / projects 两个内容集合的 schema（articles 含 notebook 档 + thread/seq）
   data/profile.ts          个人资料单一数据源（姓名/bio/skills/now/社交）
   data/threads.ts          研究线单一数据源（notebook 挂线的唯一真相）
-  lib/                     viz/registry.ts、rules/、reactive/、history.ts、motion.ts、format.ts、user.ts
-  layouts/                 Base / Story / Project
+  lib/                     viz/registry.ts、rules/、reactive/、history.ts、motion.ts、format.ts、user.ts、routes.ts
+  layouts/                 Base / Article / Project
   components/shell/        Nav / Footer / Card / SectionHeading / PageHistory
-  components/home/         Hero / NowPanel / SkillsGraph / FeaturedGrid
+  components/home/         Hero / NowPanel / SkillsGraph
   components/media/        可选交互组件（见其 README.md）
-  pages/                   index / stories / threads / projects / about / lab / 404 / rss.xml.ts / api/*
-  content/stories/*.mdx    故事（kind: interactive | essay | notebook；可选 source 溯源 + history 版本史）
-  content/stories/notes/   编号研究笔记（<thread>/<NN>-<slug>.mdx）
+  pages/                   index / articles / threads / projects / about / lab / 404 / rss.xml.ts / api/*（auth 可选）
+  content/articles/*.mdx   文章（kind: interactive | essay | notebook；可选 source 溯源 + history 版本史）
+  content/articles/notes/  编号研究笔记（<thread>/<NN>-<slug>.mdx）
   content/projects/*.mdx   项目（结构化 frontmatter：repo/downloads/screenshots/demo）
 plugins/
   remark-source-view.mjs   构建期为 MDX 交互组件注入「⌥ 源码」disclosure
@@ -55,29 +55,32 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 
 ## 内容创作
 
-**触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 内容创作，**按 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 的可执行清单逐步执行**，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 story 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
+**触发约定**：用户消息首行以 `/publish`（或 `发布：`）开头 = 内容创作，**按 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 的可执行清单逐步执行**，创建或更新 `src/content/` 下的 MDX；以 `/infra`（或 `基建：`）开头 = 网站基建，改组件/样式/API，不碰 article 正文。路由表见 [AGENTS.md](AGENTS.md#任务路由)。
 
 **先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——创作规范：从"对话/笔记/文章"到本站 MDX 的转换流水线（输入类型专则、档位判定、组件决策表、两档发布制、溯源、页面接口）。调研笔记见 [docs/research/](docs/research/)。
 
-**写一篇故事**：在 `src/content/stories/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。
+**写一篇文章**：在 `src/content/articles/` 建 `<slug>.mdx`。frontmatter 必填 title/description/date；定稿还必须有 `titleEn`/`descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本。`kind: interactive`（含交互组件）、`essay`（纯文字）或 `notebook`（编号研究笔记，须填 thread/seq，放 `notes/<thread>/` 子目录）。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。页面路由是 `/articles/<slug>`。
 
 **添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，frontmatter 见 `content.config.ts`。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
 
 **更新主页状态**：改 `src/data/profile.ts` 的 `now` 和 `nowUpdated`。
 
-**组件 QA**：每个交互组件在 `/lab` 页面都有最小示例；新组件先在 /lab 点亮再进故事。
+**组件 QA**：每个交互组件在 `/lab` 页面都有最小示例；新组件先在 /lab 点亮再进文章。
 
 ## 部署流程
 
+生产只走 **GitHub Actions 手动部署**（`.github/workflows/deploy.yml` 仅 `workflow_dispatch`，推 `main` 不会发版）。
+
 1. 本地验证：`npm run check && npm run build`
-2. 提交并推送到 main → GitHub Actions 自动部署（`.github/workflows/deploy.yml`：test job 跑验证四连 → deploy job 跑 `scripts/ensure-d1.sh`（校验/创建 D1 与 SESSION KV + 应用远程迁移）→ wrangler pages deploy）
-3. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+2. 合并进 `main` 后，在 GitHub → Actions → **Deploy to Cloudflare Pages** → **Run workflow**（或 `gh workflow run "Deploy to Cloudflare Pages" --ref main`）
+3. 流水线：test job 跑验证四连 → deploy job 跑 `scripts/ensure-d1.sh`（校验/创建 D1 与 SESSION KV + 应用远程迁移）→ `wrangler pages deploy dist --project-name=ethanblog`
+4. 需要的 Secrets：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
    - token 必须具备 **Account 级 Cloudflare Pages:Edit + D1:Edit + Workers KV Storage:Edit** 三项权限（现用 token 名 `ethanblog-ci`，2026-07-09 创建）。权限不足会在 ensure-d1.sh 处报 `Authentication error [code: 10000]`——2026-07 曾因旧 token 只有 Pages 权限导致部署中断一个月
-4. 手动部署：`npm run deploy`
+5. 本机直推 Cloudflare（不经 CI）：`npm run deploy`
 
-## 账户体系（已实现，生产已配置）
+## 账户体系（可选；生产仍绑定 OAuth / D1，导航不再露出登录）
 
-- API 路由：`src/pages/api/{auth,me,bookmarks,progress}.ts`（`export const prerender = false`）
+- API 路由：`src/pages/api/{auth,me,bookmarks,progress}.ts`（`export const prerender = false`）——静态博客可不依赖；登录后文章页的收藏/进度仍走这些接口
 - D1：`wrangler.toml` 绑定 `DB` → `migrations/0001_init.sql`；迁移脚本 `./scripts/migrate-d1.sh`
 - Auth：better-auth + GitHub/Google OAuth → `src/lib/auth.ts` + `src/lib/auth-client.ts`
 - 用户态：一律经 `src/lib/user.ts`（服务端 `getUser()` / 客户端 `fetchUser()`），组件不自建全局状态

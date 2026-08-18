@@ -1,0 +1,61 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import I18n from '@/components/shell/I18n.astro';
+import { getCollection } from 'astro:content';
+import { formatDate } from '@/lib/format';
+import { getThread } from '@/data/threads';
+import { copy } from '@/lib/i18n';
+import { articleHref } from '@/lib/routes';
+
+const articles = (await getCollection('articles', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<Base
+  title={copy['zh-CN'].articlesTitle}
+  titleEn={copy.en.articlesTitle}
+  description={copy['zh-CN'].articlesDesc}
+  descriptionEn={copy.en.articlesDesc}
+>
+  <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <p class="ui-eyebrow">Articles</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+        <I18n k="articlesTitle" />
+      </h1>
+    </header>
+    <div class="flex flex-col">
+      {
+        articles.map((entry) => {
+          const dateZh = formatDate(entry.data.date, 'zh-CN');
+          const dateEn = formatDate(entry.data.date, 'en');
+          const threadTitle = getThread(entry.data.thread)?.title ?? entry.data.thread;
+          const threadTitleEn = getThread(entry.data.thread)?.titleEn ?? threadTitle;
+          const seq = String(entry.data.seq ?? 0).padStart(2, '0');
+          return (
+            <Card
+              href={articleHref(entry.id)}
+              title={entry.data.title}
+              titleEn={entry.data.titleEn}
+              description={entry.data.description}
+              descriptionEn={entry.data.descriptionEn}
+              meta={
+                entry.data.kind === 'notebook'
+                  ? `${threadTitle} · #${seq} · ${dateZh}`
+                  : dateZh
+              }
+              metaEn={
+                entry.data.kind === 'notebook'
+                  ? `${threadTitleEn} · #${seq} · ${dateEn}`
+                  : dateEn
+              }
+              tags={entry.data.tags}
+            />
+          );
+        })
+      }
+    </div>
+  </section>
+</Base>

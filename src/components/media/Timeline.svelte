@@ -1,20 +1,26 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { reducedMotion } from '@/lib/motion';
+  import BiText from '@/components/shell/BiText.svelte';
 
   interface Item {
     date: string;
+    dateEn?: string;
     title: string;
     body?: string;
+    bodyEn?: string;
     icon?: string;
+    /** 有值时整行渲染为 SSR `<a>`，无 JS 也可点。 */
+    href?: string;
   }
 
   interface Props {
     items: Item[];
     caption?: string;
+    captionEn?: string;
   }
 
-  const { items, caption }: Props = $props();
+  const { items, caption, captionEn }: Props = $props();
 
   let root = $state<HTMLElement | null>(null);
   let animated = $state(false);
@@ -41,28 +47,48 @@
   });
 </script>
 
+{#snippet row(item: Item, i: number)}
+  <div class="ui-meta w-8 shrink-0 pt-0.5 tabular-nums">
+    {item.icon ?? String(i + 1).padStart(2, '0')}
+  </div>
+  <div>
+    <p class="ui-meta"><BiText zh={item.date} en={item.dateEn} /></p>
+    <h4
+      class="mt-0.5 font-semibold {item.href
+        ? 'text-ink-200 transition-colors group-hover:text-ink-100'
+        : 'text-ink-100'}"
+    >
+      {item.title}
+    </h4>
+    {#if item.body}
+      <p class="mt-1 text-sm leading-relaxed text-ink-400">
+        <BiText zh={item.body} en={item.bodyEn} />
+      </p>
+    {/if}
+  </div>
+{/snippet}
+
 <figure class="media-frame not-prose" bind:this={root}>
   <ol class="relative m-0 list-none p-0">
     {#each items as item, i (i)}
       <li
         data-tl-item={i}
-        class="relative flex gap-4 py-4 transition-all duration-700"
+        class="relative py-4 transition-all duration-700"
         style={animated && !visible[i] ? 'opacity: 0; transform: translateY(16px)' : ''}
       >
-        <div class="ui-meta w-8 shrink-0 pt-0.5 tabular-nums">
-          {item.icon ?? String(i + 1).padStart(2, '0')}
-        </div>
-        <div>
-          <p class="ui-meta">{item.date}</p>
-          <h4 class="mt-0.5 font-semibold text-ink-100">{item.title}</h4>
-          {#if item.body}
-            <p class="mt-1 text-sm leading-relaxed text-ink-400">{item.body}</p>
-          {/if}
-        </div>
+        {#if item.href}
+          <a href={item.href} class="group flex gap-4 text-inherit no-underline">
+            {@render row(item, i)}
+          </a>
+        {:else}
+          <div class="flex gap-4">
+            {@render row(item, i)}
+          </div>
+        {/if}
       </li>
     {/each}
   </ol>
   {#if caption}
-    <figcaption class="media-caption">{caption}</figcaption>
+    <figcaption class="media-caption"><BiText zh={caption} en={captionEn} /></figcaption>
   {/if}
 </figure>

@@ -39,7 +39,7 @@ Realtalk 可见性原则——程序印在物体上。构建期 remark 插件（
 | `ParamSlider` | Svelte | 滑块驱动 canvas 可视化（network/bars/curve，可通过 `src/lib/viz/registry.ts` 扩展） |
 | `ScrollScene` | Svelte | GSAP 滚动剧场：场景文字 + 可视化随滚动演进 |
 | `BeforeAfterSlider` | Svelte | 前后对比拖拽（图片），键盘可访问 |
-| `Timeline` | Svelte | 垂直时间线，滚动渐入 |
+| `Timeline` | Svelte | 垂直时间线，滚动渐入；条目可选 `href`（SSR `<a>`） |
 | `StatCounter` | Svelte | 数字滚动计数面板 |
 | `AudioClip` | Svelte | 自绘波形音频播放器（峰值用 `scripts/audio-peaks.mjs` 预计算） |
 | `InteractiveDemo` | Svelte | 沙箱 iframe 承载自包含软件演示（`public/demos/<name>/index.html`）；可选 `poster`/`posterVideo`/`posterAlt` 提供未加载态预览（视频先行、点击升级；reduced-motion 或无 JS 时退回图片） |

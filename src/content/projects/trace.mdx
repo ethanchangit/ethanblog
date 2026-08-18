@@ -1,6 +1,7 @@
 ---
 name: "Trace"
 tagline: "带学习能力的 agent 阅读聊天器"
+taglineEn: "An agent reading-chat with a learning loop"
 status: wip
 order: 50
 stack: ["AI", "LLM", "知识管理"]
@@ -22,4 +23,28 @@ stack: ["AI", "LLM", "知识管理"]
 
 因为我想阅读英文内容、直接学习原文，所以引入了 Aletheia 中做过的生词卡片能力：它能结合 context 查询生词的语境义，并且允许收藏生成单词卡片复习。
 
+Aletheia 是实验室；Trace 把那条 highlight → 结构化 → 卡片流水线，打磨成专注阅读场景的独立产品。
+
 Trace 把前面几个项目的脉络收拢在一起：创客计划的复习交互、Aletheia 的语境查词、以及 agent 驱动的阅读与学习流程。
+
+<div data-lang-split></div>
+
+My fifth project. An agent you read and chat with, but with a learning loop built in.
+
+## Three core abilities
+
+**1. Sub-thread chat**
+
+It is an AI chat app that can open a new branch mid-conversation, keep context clean, and let you go deeper wherever curiosity pulls.
+
+**2. Highlight → flashcard**
+
+It is also an agent-assisted flashcard app. Highlight what you want to learn; the agent turns those highlights into cards.
+
+**3. In-context vocabulary cards**
+
+I want to read English in the original, so Trace inherits Aletheia’s vocabulary cards: look up a word in context, save it, and review it later.
+
+Aletheia is the lab; Trace takes that highlight → structure → card pipeline and shapes it for reading.
+
+Trace also gathers the earlier line of work: Maker Plan’s review gestures, Aletheia’s in-context lookup, and an agent-driven loop of reading and learning.
