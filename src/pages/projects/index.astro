@@ -1,11 +1,9 @@
 ---
 import Base from '@/layouts/Base.astro';
 import Timeline from '@/components/media/Timeline.svelte';
-import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
 import { getCollection } from 'astro:content';
-import { statusLabel } from '@/lib/format';
 import { lineageEdges, lineageTimeline } from '@/data/projects-lineage';
 import { copy } from '@/lib/i18n';
 import { projectHref } from '@/lib/routes';
@@ -63,29 +61,6 @@ const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
           ))
         }
       </ul>
-
-      <h2 id="archive"><I18n k="projectsArchiveH2" /></h2>
-
-      <p><I18n k="projectsArchiveP" /></p>
-    </div>
-
-    <div class="flex flex-col">
-      {
-        projects.map((p) => {
-          const badge = statusLabel[p.data.status];
-          return (
-            <Card
-              href={projectHref(p.id)}
-              title={p.data.name}
-              titleEn={p.data.nameEn}
-              description={p.data.tagline}
-              descriptionEn={p.data.taglineEn}
-              meta={badge.text}
-              metaEn={badge.textEn}
-            />
-          );
-        })
-      }
     </div>
   </article>
 </Base>
