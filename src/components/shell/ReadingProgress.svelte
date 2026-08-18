@@ -88,4 +88,4 @@
   });
 </script>
 
-<!-- Progress sync is side-effect only; the visual bar lives in Article.astro -->
+<!-- Progress sync is side-effect only; the visual bar lives in Doc.astro -->

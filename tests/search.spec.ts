@@ -1,8 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const PKM = '我的 PKM 实践：从笔记到知识网络';
-const JOURNEY = '我的软件创建之路';
-const NOTE = '媒介引擎动工：这条研究线为什么存在';
+const PLACEHOLDER = '占位 2026-05';
 
 test.describe('站点搜索', () => {
   test('导航最右侧是搜索图标，点击进入 /search', async ({ page }) => {
@@ -22,11 +21,10 @@ test.describe('站点搜索', () => {
     await expect(page.getByTestId('site-search')).toBeVisible();
   });
 
-  test('无查询时列出已发布文章与笔记，不含草稿', async ({ page }) => {
+  test('无查询时列出已发布文章，不含草稿', async ({ page }) => {
     await page.goto('/search');
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
-    await expect(page.getByRole('heading', { name: JOURNEY })).toBeVisible();
-    await expect(page.getByRole('heading', { name: NOTE })).toBeVisible();
+    await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeVisible();
     await expect(page.getByRole('heading', { name: '页面即房间：一篇你读着读着就动手改写了的文章' })).toHaveCount(0);
   });
 
@@ -35,14 +33,14 @@ test.describe('站点搜索', () => {
     await page.getByTestId('site-search').fill('PKM');
 
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
-    await expect(page.getByRole('heading', { name: JOURNEY })).toBeHidden();
+    await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeHidden();
   });
 
   test('GET ?q= 过滤结果并回填输入框', async ({ page }) => {
     await page.goto('/search?q=Obsidian');
     await expect(page.getByTestId('site-search')).toHaveValue('Obsidian');
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
-    await expect(page.getByRole('heading', { name: JOURNEY })).toBeHidden();
+    await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeHidden();
   });
 
   test('无匹配时显示空状态', async ({ page }) => {

@@ -27,7 +27,7 @@
 | 岛屿 UI | Svelte 5（runes） | 每页多个小岛屿时打包体积远小于 React |
 | 滚动叙事 | GSAP 3 + ScrollTrigger | 仅在少数故事需要时使用 |
 | 样式 | Tailwind CSS v4 `@theme` 设计 token | 极简双主题（白 / `#191919`），禁止裸色值 |
-| 内容 | MDX + `articles` / `projects` 两个集合 | 散文为主，交互组件按需嵌入 |
+| 内容 | MDX 同一形态；`slot`（article / project）决定索引 | 散文为主，交互组件按需嵌入 |
 | 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
 | 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | 域名、secrets 延续 |
 | 语言 | 单语言（中文为主） | 控制复杂度，不引入 i18n 框架 |
@@ -39,7 +39,7 @@
 内容层    src/content/{articles,projects}/*.mdx  + src/data/profile.ts（个人资料单一数据源）
 组件层    src/components/media/                   可嵌入 MDX 的可选交互组件
 可视化    src/lib/viz/registry.ts                 canvas 绘制注册表
-外壳层    layouts/{Base,Article,Project}          + components/{shell,home}
+外壳层    layouts/{Base,Doc}                      + components/{shell,home}
 质保层    /lab 页面                               每个组件的常驻最小示例
 接缝层    src/lib/user.ts                         用户态入口（/api/me，未登录时 null）
 ```
@@ -54,7 +54,7 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 - [x] Hugo + Blowfish 整体迁移到 Astro 5（删 submodule，无损迁移全部文章与项目，旧 URL 301）
 - [x] 交互组件库（Phase 1）：ParamSlider / ScrollScene / InteractiveDemo / BeforeAfterSlider / Timeline / StatCounter / AudioClip / VideoEmbed / CodePlayground(stub) / MediaFrame
 - [x] 首个演示包 `public/demos/knowledge-garden/`
-- [x] 旗舰故事 how-this-site-works、主页、/lab、RSS
+- [x] 旗舰故事、主页、/lab、RSS
 - [x] CI 重写（Node 22 + astro check + wrangler-action@v3）
 - [x] 验证体系：Playwright、全站路由爬取、reduced-motion、双端截图
 
@@ -77,19 +77,19 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 - [x] **更多演示包**：`public/demos/robert/`、`public/demos/network/`
 - [x] **ImageGallery**：图片网格 + Lightbox
 - [x] **验证体系补全**：Playwright 全量测试 + CI test job
-- [x] **内容机制**：两档发布制（notebook / 定稿）、论文式页眉与文末、`SideNote`、`RuleGarden`、创作规范 `docs/MEDIUM.md`、`/publish` skill、`validate:content`
+- [x] **内容机制**：论文式页眉与文末、`SideNote`、`RuleGarden`、创作规范 `docs/MEDIUM.md`、`/publish` skill、`validate:content`（notebook / 研究线 / 页眉溯源 / PageHistory 已从读者面撤下）
 - [ ] **声音档位扩展**：播客/语音笔记流（AudioClip 已就绪，等内容）
 
 ## 六·五、Phase 4 —— 反应式文档与溯源（分批蓝图）
 
 源自 Bret Victor 与 Ink & Switch 调研（见 `docs/research/`）。从"可交互"到"可拨动假设、可溯源"。
 
-**Batch 1 ✅（已完成）—— 反应式散文 + 溯源 + 版本史**
+**Batch 1 ✅（已完成，后经简化）—— 反应式散文**
 - [x] `Var` + `Calc` 反应式散文
 - [x] `VerdictTable` 裁决表
 - [x] `Mention` + `MentionTarget` 双向高亮
-- [x] `PageHistory` git 提交史
 - [x] 人机双声视觉基础（正文 ink vs `Calc` accent）
+- ~~页眉溯源 `source` / `PageHistory` git 提交史~~（已从文章 chrome 移除）
 
 **Batch 2 —— 对话媒介与双声部**（可选，按需）
 - [ ] `Transcript` 对话组件

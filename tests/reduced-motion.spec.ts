@@ -62,7 +62,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('article page renders with reduced motion', async ({ page }) => {
-    await page.goto('/articles/how-this-site-works');
+    await page.goto('/articles/pkm-method');
     await expect(page.getByRole('article')).toBeVisible();
     await expect(page.locator('h1').first()).toBeVisible();
   });

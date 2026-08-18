@@ -1,15 +1,11 @@
 ---
+slot: article
 title: "引用预览：一条推文和一支视频"
 titleEn: "Embed preview: a post and a video"
 description: "同一页里嵌一条 X 帖子和一支 YouTube 视频，核对 TweetEmbed 与 VideoEmbed 的排版。"
 descriptionEn: "A post from X and a YouTube video on one page, to check TweetEmbed and VideoEmbed together."
 date: 2026-08-18
-kind: interactive
 tags: ["媒介"]
-source:
-  type: mixed
-  origin: "核对 TweetEmbed 与 VideoEmbed 的同页排版"
-  date: 2026-08-18
 ---
 
 import { TweetEmbed, VideoEmbed } from '@/components/media';
@@ -20,7 +16,6 @@ import { TweetEmbed, VideoEmbed } from '@/components/media';
 
 <TweetEmbed
   url="https://x.com/gkxspace/status/2089292652940333288"
-  caption="余温 @gkxspace，2026 年 8 月 17 日。"
 />
 
 再是一支 YouTube 视频，用官方播放器：
@@ -40,7 +35,6 @@ First, a post from X, using our own card so the full text stays on the page:
 
 <TweetEmbed
   url="https://x.com/gkxspace/status/2089292652940333288"
-  caption="余温 @gkxspace, 17 Aug 2026."
 />
 
 Then a YouTube video, using the official player:

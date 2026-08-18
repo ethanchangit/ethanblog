@@ -3,15 +3,24 @@ import Base from '@/layouts/Base.astro';
 import Timeline from '@/components/media/Timeline.svelte';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
-import { getCollection } from 'astro:content';
-import { lineageEdges, lineageTimeline } from '@/data/projects-lineage';
+import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
+import { docsBySlot } from '@/lib/docs';
 import { copy } from '@/lib/i18n';
 import { projectHref } from '@/lib/routes';
 
-const projects = (await getCollection('projects', ({ data }) => !data.draft)).sort(
-  (a, b) => a.data.order - b.data.order
+const projects = (await docsBySlot('project')).sort(
+  (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
 const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
+
+const timelineItems = projects.map((project) => ({
+  title: project.data.title,
+  titleEn: project.data.titleEn,
+  body: project.data.description,
+  bodyEn: project.data.descriptionEn,
+  href: projectHref(project.id),
+  icon: lineageIcons[project.id],
+}));
 ---
 
 <Base
@@ -39,9 +48,9 @@ const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
 
       <Timeline
         client:visible
-        items={[...lineageTimeline]}
-        caption="按叙事顺序排列，不等于立项先后。有些项目并行酝酿，但能力继承的方向是清晰的。"
-        captionEn="Narrative order, not founding order. Some projects were brewing in parallel; the direction of inheritance is still clear."
+        items={timelineItems}
+        caption="按各项目已有的顺序排列。有些项目并行酝酿，但能力继承的方向是清晰的。"
+        captionEn="Listed in each project's existing order. Some were brewing in parallel; the direction of inheritance is still clear."
       />
 
       <p><I18n k="projectsEdgesIntro" /></p>
@@ -51,10 +60,10 @@ const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
           lineageEdges.map((edge) => (
             <li>
               <a href={projectHref(edge.from)}>
-                {bySlug[edge.from]?.data.name ?? edge.from}
+                {bySlug[edge.from]?.data.title ?? edge.from}
               </a>
               {' → '}
-              <a href={projectHref(edge.to)}>{bySlug[edge.to]?.data.name ?? edge.to}</a>
+              <a href={projectHref(edge.to)}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
               {'：'}
               <Bi zh={edge.carries} en={edge.carriesEn} />
             </li>

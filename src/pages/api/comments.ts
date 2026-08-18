@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { getCollection } from 'astro:content';
 import { getSession } from '@/lib/auth';
+import { docsBySlot } from '@/lib/docs';
 import { articleHref } from '@/lib/routes';
 import {
   COMMENT_LIST_LIMIT,
@@ -17,7 +17,7 @@ export const prerender = false;
 
 async function knownArticle(slug: string): Promise<boolean> {
   if (!isCommentSlug(slug)) return false;
-  const hits = await getCollection('articles', (entry) => !entry.data.draft && entry.id === slug);
+  const hits = (await docsBySlot('article')).filter((entry) => entry.id === slug);
   return hits.length > 0;
 }
 

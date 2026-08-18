@@ -17,16 +17,15 @@
 6. **动效尊重 `prefers-reduced-motion`**（用 `@/lib/motion` 的 `reducedMotion()`），GSAP / three.js 只在 onMount/$effect 里创建并在销毁时 kill / dispose
 7. **视觉极简**：不使用装饰性边框、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。**TweetEmbed 例外**：边框与圆角只为对齐 X 帖子的阅读结构，不含关注 / 互动 / 回复入口。
 
-## 可见性：拆开看
+## 可见性：拆开看（保留、永不注入）
 
 构建期 remark 插件（`plugins/remark-source-view.mjs`）仍在仓库里，
-**默认不向读者注入「⌥ 源码」**。需要自我解释时把插件 `ENABLED` 打开，并在 frontmatter 写 `sourceView: true`。
+但 **articles schema 已去掉 `sourceView`，插件默认永不注入**。
+读者读文章时看不到「⌥ 源码」。需要自我解释时再改插件开关，不要在 frontmatter 里写这个字段。
 
 白名单与本目录的 `index.ts` barrel 保持同步
 （MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget 这类纯排版、
 标记与行内组件除外——行内组件在 MDX 里是 `mdxJsxTextElement`，本就不会被插件命中）。
-
-单处关闭：给组件加 `noSource` 属性（构建期会被摘除，不会泄漏到渲染输出）。
 
 ## 目录
 
@@ -185,8 +184,3 @@ YouTube 不在进页时自动挂 `youtube.com/embed` iframe。封面点击后才
 | `Mention` | `target` | `string` | 对应 `MentionTarget` 的 id（须在同页） |
 | `MentionTarget` | `id` | `string` | 页内唯一 id |
 | `MentionTarget` | `block` | `boolean` | 块级容器，默认 true；行内包词语时写 false |
-
-> 页面接口 `PageHistory`（frontmatter `history: true` 时文末的「这一页如何长成」）
-> 由 `src/components/shell/PageHistory.astro` + `src/lib/history.ts` 实现，
-> 是 Story 布局的自动接口而非媒介组件，不在此 barrel 中——详见
-> [docs/MEDIUM.md §6](../../../docs/MEDIUM.md)。

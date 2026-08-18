@@ -2,14 +2,14 @@
 /**
  * validate-story —— 内容校验闸门（npm run validate:content）。
  * 检查 src/content/articles 与 src/content/projects 中 astro check（schema）
- * 查不到的创作规约：双语硬门、注水指令、组件用法、溯源、Var/Calc 顺序等。
+ * 查不到的创作规约：双语硬门、注水指令、组件用法、Var/Calc 顺序等。
  * 规则清单与 docs/MEDIUM.md / .claude/skills/publish/SKILL.md 保持同步。
  *
  * 分级：error 挡 CI（exit 1）；warning 只提醒。draft: true 的文件是工作台，
  * 其全部 error 降级为 warning（含双语缺失）。
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const ARTICLES_DIR = join(ROOT, 'src/content/articles');
@@ -43,7 +43,6 @@ const ASTRO_ONLY = [
 ];
 // Calc 表达式里的函数白名单（与 src/lib/reactive/eval.ts 同步）
 const EVAL_FUNCTIONS = new Set(['min', 'max', 'round', 'floor', 'ceil', 'abs', 'sqrt', 'clamp']);
-const SOURCE_TYPES = new Set(['chat', 'notes', 'blog', 'mixed']);
 
 /** 递归收集 .mdx 文件 */
 function collectMdx(dir) {
@@ -134,7 +133,7 @@ function englishAfterSplit(bodyText) {
 
 const results = [];
 
-function validateFile(file, collection) {
+function validateFile(file) {
   const rel = relative(ROOT, file);
   const raw = readFileSync(file, 'utf8');
   const { frontmatter, bodyText } = splitDoc(raw);
@@ -144,44 +143,28 @@ function validateFile(file, collection) {
   const warnings = [];
 
   const isDraft = /^draft:\s*true/m.test(frontmatter);
-  const kindMatch = /^kind:\s*(\S+)/m.exec(frontmatter);
-  const kind = kindMatch ? kindMatch[1].replace(/['"]/g, '') : collection === 'project' ? 'project' : 'essay';
+  const slot = fmField(frontmatter, 'slot');
+
+  if (slot !== 'article' && slot !== 'project') {
+    errors.push('必须有 slot: article 或 slot: project（决定出现在 /articles 还是 /projects；不要写进 topical tags）');
+  }
 
   // --- 双语硬门（定稿必须中英齐全；草稿跳过） ---
-  if (collection === 'article') {
-    if (!fmField(frontmatter, 'titleEn')) errors.push('定稿必须有 titleEn');
-    if (!fmField(frontmatter, 'descriptionEn')) errors.push('定稿必须有 descriptionEn');
-  } else {
-    if (!fmField(frontmatter, 'taglineEn')) errors.push('定稿必须有 taglineEn');
+  if (slot === 'article' && !fmField(frontmatter, 'titleEn')) {
+    errors.push('定稿必须有 titleEn');
   }
+  if (!fmField(frontmatter, 'descriptionEn')) errors.push('定稿必须有 descriptionEn');
   if (!englishAfterSplit(bodyText)) {
     errors.push('定稿必须有英文正文：在 <div data-lang-split></div> 之后写 EN 副本');
   }
 
   // --- frontmatter 规约 ---
 
-  if (collection === 'article') {
+  if (slot === 'article') {
     const desc = /^description:\s*["']?(.+?)["']?\s*$/m.exec(frontmatter)?.[1] ?? '';
     const descLen = Array.from(desc).length;
     if (descLen > 100) errors.push(`description ${descLen} 字（>100）：摘要块和 RSS 都会溢出，请压到 80 字内`);
     else if (descLen > 80) warnings.push(`description ${descLen} 字（>80）：建议压到 80 字内`);
-
-    if (kind === 'notebook') {
-      if (!/^thread:\s*\S+/m.test(frontmatter)) errors.push('notebook 必须指定 thread（所属研究线）');
-      if (!/^seq:\s*\d+/m.test(frontmatter)) errors.push('notebook 必须指定 seq（线内编号）');
-      const thread = /^thread:\s*["']?([\w-]+)/m.exec(frontmatter)?.[1];
-      if (thread && !rel.split(sep).join('/').includes(`notes/${thread}/`)) {
-        errors.push(`notebook 落盘路径应为 notes/${thread}/<NN>-<slug>.mdx`);
-      }
-    } else if (!/^source:/m.test(frontmatter)) {
-      warnings.push('定稿档建议填 source 溯源块（type/origin/date），页眉会渲染溯源行');
-    }
-    if (/^source:/m.test(frontmatter)) {
-      const sourceType = /^\s+type:\s*["']?(\w+)/m.exec(frontmatter)?.[1];
-      if (!sourceType) errors.push('source 块缺少 type（chat | notes | blog | mixed）');
-      else if (!SOURCE_TYPES.has(sourceType))
-        errors.push(`source.type "${sourceType}" 非法，应为 chat | notes | blog | mixed`);
-    }
   }
 
   // --- 正文组件规约 ---
@@ -277,8 +260,8 @@ function validateFile(file, collection) {
   }
 }
 
-for (const file of collectMdx(ARTICLES_DIR)) validateFile(file, 'article');
-for (const file of collectMdx(PROJECTS_DIR)) validateFile(file, 'project');
+for (const file of collectMdx(ARTICLES_DIR)) validateFile(file);
+for (const file of collectMdx(PROJECTS_DIR)) validateFile(file);
 
 let errorCount = 0;
 for (const { rel, errors, warnings } of results) {

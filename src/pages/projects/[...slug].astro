@@ -1,16 +1,20 @@
 ---
-import Project from '@/layouts/Project.astro';
-import { getCollection, render } from 'astro:content';
+import Doc from '@/layouts/Doc.astro';
+import { docsBySlot } from '@/lib/docs';
+import { render } from 'astro:content';
 
 export async function getStaticPaths() {
-  const projects = await getCollection('projects');
+  const projects = await docsBySlot('project');
   return projects.map((project) => ({ params: { slug: project.id }, props: { project } }));
 }
 
 const { project } = Astro.props;
-const { Content } = await render(project);
+const { Content, headings, remarkPluginFrontmatter } = await render(project);
+const split = remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
+const zhHeadings = typeof split === 'number' ? headings.slice(0, split) : headings;
+const enHeadings = typeof split === 'number' ? headings.slice(split) : [];
 ---
 
-<Project project={project}>
+<Doc doc={project} headings={zhHeadings} headingsEn={enHeadings}>
   <Content />
-</Project>
+</Doc>

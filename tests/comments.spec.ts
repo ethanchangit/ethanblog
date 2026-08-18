@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const FINAL = '/articles/how-this-site-works/';
-const NOTE = '/articles/notes/web-as-medium/01-medium-engine-groundwork/';
+const FINAL = '/articles/pkm-method/';
 
 test.describe('文章留言', () => {
   test('定稿页文末有留言区，不再出现邮件 CTA 与引用块', async ({ page }) => {
@@ -10,7 +9,7 @@ test.describe('文章留言', () => {
 
     const comments = page.locator('#comments');
     await expect(comments).toBeVisible();
-    await expect(comments.getByText('留言', { exact: true })).toBeVisible();
+    await expect(comments.getByRole('heading', { name: '留言', exact: true })).toBeVisible();
     await expect(comments.getByText('还没有人留言。')).toBeVisible();
     await expect(comments.locator('input[name="name"]')).toBeVisible();
     await expect(comments.locator('textarea[name="body"]')).toBeVisible();
@@ -31,14 +30,5 @@ test.describe('文章留言', () => {
     const footer = page.locator('article footer');
     await expect(footer.getByText('请这样引用')).toHaveCount(0);
     await expect(footer.locator('a[href^="mailto:"]')).toHaveCount(0);
-  });
-
-  test('notebook 页同样有留言区，无引用块、无 mailto', async ({ page }) => {
-    const response = await page.goto(NOTE);
-    expect(response?.status()).toBe(200);
-
-    await expect(page.locator('#comments')).toBeVisible();
-    await expect(page.getByText('请这样引用')).toHaveCount(0);
-    await expect(page.locator('article footer a[href^="mailto:"]')).toHaveCount(0);
   });
 });
