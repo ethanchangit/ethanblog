@@ -36,9 +36,20 @@ export function toggleTheme(): Theme {
   return next;
 }
 
+let started = false;
+
 export function initTheme() {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   applyTheme(resolveTheme(getStoredTheme(), prefersDark));
+
+  if (started) return;
+  started = true;
+
+  document.addEventListener('astro:after-swap', () => {
+    applyTheme(
+      resolveTheme(getStoredTheme(), window.matchMedia('(prefers-color-scheme: dark)').matches),
+    );
+  });
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
     if (!getStoredTheme()) {

@@ -1,9 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { readLang, subscribeLang, t, type Lang } from '@/lib/i18n';
   import { initTheme, toggleTheme } from '@/lib/theme';
+
+  let lang = $state<Lang>('zh-CN');
 
   onMount(() => {
     initTheme();
+    lang = readLang();
+    return subscribeLang((next) => {
+      lang = next;
+    });
   });
 
   function handleToggle() {
@@ -13,9 +20,9 @@
 
 <button
   type="button"
-  class="theme-toggle flex items-center gap-1.5 px-2 py-1.5 text-sm text-ink-400 transition-colors hover:text-ink-100"
-  aria-label="切换浅色/深色模式"
-  title="切换主题"
+  class="theme-toggle inline-flex items-center justify-center transition-colors hover:text-ink-100"
+  aria-label={t(lang, 'themeAria')}
+  title={t(lang, 'themeTitle')}
   onclick={handleToggle}
 >
   <span class="theme-icon theme-icon--light" aria-hidden="true">
@@ -29,28 +36,22 @@
       <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
     </svg>
   </span>
-  <span class="theme-label theme-label--light hidden sm:inline-flex">深色</span>
-  <span class="theme-label theme-label--dark hidden sm:inline-flex">浅色</span>
 </button>
 
 <style>
-  .theme-icon,
-  .theme-label {
+  .theme-icon {
     display: inline-flex;
   }
 
-  .theme-icon--dark,
-  .theme-label--dark {
+  .theme-icon--dark {
     display: none;
   }
 
-  :global([data-theme='dark']) .theme-icon--light,
-  :global([data-theme='dark']) .theme-label--light {
+  :global([data-theme='dark']) .theme-icon--light {
     display: none;
   }
 
-  :global([data-theme='dark']) .theme-icon--dark,
-  :global([data-theme='dark']) .theme-label--dark {
+  :global([data-theme='dark']) .theme-icon--dark {
     display: inline-flex;
   }
 </style>
