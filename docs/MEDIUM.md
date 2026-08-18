@@ -36,7 +36,7 @@ history: false          # 修订史成为论据时才开（见 §6）
 
 **按 [.claude/skills/publish/SKILL.md](../.claude/skills/publish/SKILL.md) 的十步清单逐步执行**——那是本文流水线的可执行形态。速查：
 
-- **落盘路径**：`kind: notebook` → `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1）；其他 story → `src/content/stories/<slug>.mdx`；项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`；新开研究线 → 在 [`src/data/threads.ts`](../src/data/threads.ts) 登记。
+- **落盘路径**：`kind: notebook` → `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`（`seq` = 该 thread 现有最大编号 + 1）；其他 article → `src/content/articles/<slug>.mdx`；项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`；新开研究线 → 在 [`src/data/threads.ts`](../src/data/threads.ts) 登记。对外路由 `/articles/<slug>`、`/projects/<slug>`。
 - **提交前验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
 
 无前缀但意图明显是创作时，agent 仍应走流水线，但**优先建议用户下次使用 `/publish`**。
@@ -116,7 +116,7 @@ history: false          # 修订史成为论据时才开（见 §6）
 **研究线（thread）**：长期追问的问题，登记在 [`src/data/threads.ts`](../src/data/threads.ts)。
 notebook 必须挂线（`thread` + `seq` 必填，schema 强制）；定稿也可挂线。
 新开一条线的条件：这个问题会持续产出至少 3 条笔记。开线 = 在 threads.ts 加一个对象，
-文件放 `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`。
+文件放 `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`。
 
 ## 4. 转换流水线（The Pipeline）
 
@@ -251,7 +251,7 @@ PageHistory 是这条原则的时间维度：**空间上拆组件**（源码 dis
 - notebook 用 findings 式坦率：记录失败与被砍的设计，价值不低于成功。
 - 机器声组件（`Calc`、AI 补充的 `SideNote`/`VerdictTable`）的 caption 也用创作者语气写——
   声音的区分靠视觉（accent 色），不靠文风突变。
-- 范本：[/stories/how-this-site-works](../src/content/stories/how-this-site-works.mdx)（调性）
+- 范本：[/articles/how-this-site-works](../src/content/articles/how-this-site-works.mdx)（调性）
   与 `notes/web-as-medium/` 下的编号笔记（notebook 文体）。
 - 转化对话输入时**保留创作者的用词与判断**；agent 补的是结构和媒介，不是观点。
 
@@ -266,18 +266,33 @@ npm run validate:content && npm run check && npm run build && npm run test
 ```
 
 `validate:content`（`scripts/validate-story.mjs`）查的是 schema 查不到的创作规约：
-注水指令、Astro 组件误加指令、RuleGarden 数量与规则数、SideNote 密度、
-Var/Calc 声明顺序与重名、barrel 导入、溯源字段合法性。error 挡提交；
-draft 文件的 error 自动降级为 warning（草稿是工作台）。
+**定稿双语硬门**（`titleEn`/`descriptionEn`，项目用 `taglineEn`；正文必须有
+`<div data-lang-split></div>` 及之后的英文副本）、注水指令、Astro 组件误加指令、
+RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名、barrel 导入、
+溯源字段合法性。error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工作台）。
+
+### 图片落盘
+
+内容配图放 `public/media/<collection>/<slug>/`，MDX 里写 `/media/<collection>/<slug>/…`。
+不要用外部图床。Lab 共用夹具可以留在 `public/media/` 根下（如 `compare-before.svg`）。
+
+### 页面架构
+
+固定页（手写 Astro）：`/articles`、`/projects`、`/about`。详情页是 MDX 集合
+`articles` 与 `projects`。两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
+`/projects` 可以在列表上方写传承导语与时间线，不要把项目长文堆在索引上。
+对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
 
 ## 11. 附录：模板
 
-**notebook 笔记**（放 `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`）：
+**notebook 笔记**（放 `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`）：
 
 ```yaml
 ---
 title: "……"
+titleEn: "……"
 description: "……（≤80 字摘要）"
+descriptionEn: "……"
 date: 2026-07-03
 kind: notebook
 thread: web-as-medium
@@ -291,12 +306,14 @@ source:
 ---
 ```
 
-**定稿互动故事**：
+**定稿互动文章**：
 
 ```yaml
 ---
 title: "……"
+titleEn: "……"
 description: "……（≤80 字摘要）"
+descriptionEn: "……"
 date: 2026-07-03
 kind: interactive   # 纯文字定稿用 essay
 thread: web-as-medium   # 可选
@@ -309,6 +326,8 @@ source:
 history: false    # 定稿经历有意义的修订后改 true，文末自动长出版本史
 ---
 ```
+
+正文中英之间插一行 `<div data-lang-split></div>`。图片放 `public/media/articles/<slug>/`。
 
 **新研究线登记**（`src/data/threads.ts` 追加）：
 

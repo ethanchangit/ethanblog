@@ -7,7 +7,7 @@ const SCREENSHOT_DIR = path.join('tests', 'screenshots');
 const PAGES = [
   { route: '/', name: 'home' },
   { route: '/lab', name: 'lab' },
-  { route: '/stories/how-this-site-works', name: 'story-how-this-site-works' },
+  { route: '/articles/how-this-site-works', name: 'article-how-this-site-works' },
 ] as const;
 
 const VIEWPORTS = [

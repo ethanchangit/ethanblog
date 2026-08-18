@@ -1,0 +1,37 @@
+---
+import Article from '@/layouts/Article.astro';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles', ({ data }) => !data.draft);
+  return articles.map((article) => ({ params: { slug: article.id }, props: { article } }));
+}
+
+const { article } = Astro.props;
+const { Content, headings, remarkPluginFrontmatter } = await render(article);
+const split = remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
+const zhHeadings = typeof split === 'number' ? headings.slice(0, split) : headings;
+const enHeadings = typeof split === 'number' ? headings.slice(split) : [];
+
+let prev: { id: string; title: string; titleEn?: string; seq: number } | undefined;
+let next: { id: string; title: string; titleEn?: string; seq: number } | undefined;
+if (article.data.kind === 'notebook' && article.data.thread) {
+  const siblings = (
+    await getCollection(
+      'articles',
+      ({ data }) => !data.draft && data.kind === 'notebook' && data.thread === article.data.thread
+    )
+  ).sort((a, b) => (a.data.seq ?? 0) - (b.data.seq ?? 0));
+  const i = siblings.findIndex((entry) => entry.id === article.id);
+  const toNav = (entry: CollectionEntry<'articles'> | undefined) =>
+    entry
+      ? { id: entry.id, title: entry.data.title, titleEn: entry.data.titleEn, seq: entry.data.seq ?? 0 }
+      : undefined;
+  prev = toNav(siblings[i - 1]);
+  next = toNav(siblings[i + 1]);
+}
+---
+
+<Article article={article} headings={zhHeadings} headingsEn={enHeadings} prev={prev} next={next}>
+  <Content />
+</Article>

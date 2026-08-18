@@ -1,5 +1,5 @@
 ---
-description: "用户消息以 /publish 或 发布： 开头，或要求把对话/博客草稿转化为 story 页面时适用。执行 MEDIUM.md §0 与转化流水线，只改 src/content/ 与 threads.ts。"
+description: "用户消息以 /publish 或 发布： 开头，或要求把对话/博客草稿转化为 article 页面时适用。执行 MEDIUM.md §0 与转化流水线，只改 src/content/ 与 threads.ts。"
 globs:
   - src/content/**
 alwaysApply: false
@@ -11,13 +11,13 @@ alwaysApply: false
 
 ## 收到 `/publish` 后
 
-1. **只动内容层**：`src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时）。
+1. **只动内容层**：`src/content/articles/`、`src/content/projects/`、`src/data/threads.ts`（开线时）。
 2. **禁止基建**：不新建/改组件、布局、样式、API、测试；除非用户写明 `allow-new-component: true`。
 3. **解析 YAML 头**（`---` 上方，均可省略）：`kind` / `thread` / `slug` / `draft`（默认 `true`）/ `allow-new-component`。
 4. **执行 MEDIUM.md §4 六步**：`---` 下方为原始素材（blog、对话、bullet 等）。
 5. **落盘**：
-   - `notebook` → `src/content/stories/notes/<thread>/<NN>-<slug>.mdx`
-   - 其他 story → `src/content/stories/<slug>.mdx`
+   - `notebook` → `src/content/articles/notes/<thread>/<NN>-<slug>.mdx`
+   - 其他 article → `src/content/articles/<slug>.mdx`
    - 项目 → `src/content/projects/<slug>.mdx`
 6. **验证**：`npm run check && npm run build`（含交互时加 `npm run test`）。
 7. **汇报**：slug、kind、draft 状态、预览路径。

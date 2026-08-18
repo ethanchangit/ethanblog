@@ -1,11 +1,11 @@
 /** Static routes derived from src/content — kept in sync with the site map. */
 export const STATIC_ROUTES = [
   '/',
-  '/stories',
-  '/stories/how-this-site-works',
-  '/stories/pkm-method',
-  '/stories/heptabase-method',
-  '/stories/notes/web-as-medium/01-medium-engine-groundwork',
+  '/articles',
+  '/articles/how-this-site-works',
+  '/articles/pkm-method',
+  '/articles/heptabase-method',
+  '/articles/notes/web-as-medium/01-medium-engine-groundwork',
   '/threads',
   '/threads/web-as-medium',
   '/projects',
@@ -24,7 +24,7 @@ export const STATIC_ROUTES = [
 
 export const KEY_PAGES_FOR_LINK_CHECK = [
   '/',
-  '/stories',
+  '/articles',
   '/threads',
   '/projects',
   '/about',

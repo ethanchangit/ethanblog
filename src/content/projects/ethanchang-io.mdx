@@ -1,6 +1,7 @@
 ---
 name: "ethanchang.io"
 tagline: "你正在体验的这个超媒体容器"
+taglineEn: "The hypermedia container you are in"
 status: active
 order: 60
 stack: ["Astro", "Svelte", "GSAP", "Tailwind", "Cloudflare"]
@@ -9,7 +10,7 @@ repo: "https://github.com/ethanchangit/ethanblog"
 homepage: "https://ethanchang.io"
 ---
 
-这个网站本身就是一件作品——一个把文字、图像、音频、视频和**软件级交互**组织在一起的超媒体容器。
+这个网站本身就是一件作品——不是列表里的又一张卡片，而是展示所有实验的容器：把文字、演示、规则玩具和**软件级交互**组织在同一套媒介引擎里。
 
 它不是博客：文章只是它承载的媒介档位之一。它更像一个可以持续加功能的软件产品。
 
@@ -21,4 +22,20 @@ homepage: "https://ethanchang.io"
 - **样式**：Tailwind CSS v4 设计 token
 - **部署**：Cloudflare Pages，未来将由 Workers + D1 承载账户与个性化能力
 
-想知道它是怎么工作的？读一读[这个网站是如何工作的](/stories/how-this-site-works)——那篇故事本身就是全部媒介组件的现场演示。
+想知道它是怎么工作的？读一读[这个网站是如何工作的](/articles/how-this-site-works)——那篇故事本身就是全部媒介组件的现场演示。
+
+<div data-lang-split></div>
+
+This site is a work of its own — not another card in a list, but the container that shows the experiments: prose, demos, rule toys, and **software-grade interaction** in one media engine.
+
+It is not a blog. An article is only one of the media levels it can carry. It is closer to a software product that keeps gaining features.
+
+## Architecture
+
+- **Framework**: Astro 5 (islands + MDX collections)
+- **Interactive islands**: Svelte 5 (runes)
+- **Scroll narrative**: GSAP ScrollTrigger
+- **Style**: Tailwind CSS v4 design tokens
+- **Deploy**: Cloudflare Pages; accounts and personalization will later sit on Workers + D1
+
+Want the mechanism? Read [How this site works](/articles/how-this-site-works) — that story is a live demo of every media component.

@@ -1,6 +1,8 @@
 ---
 title: "媒介引擎动工：这条研究线为什么存在"
+titleEn: "Starting the media engine: why this thread exists"
 description: "调研了 Ink & Switch 十年的研究与 Realtalk 的思想之后，我们决定把这个网站建成一台媒介引擎。这是研究线的第一条编号笔记——它自己就运行在它所描述的机制之上。"
+descriptionEn: "After surveying a decade of Ink & Switch and the ideas in Realtalk, we decided to build this site as a media engine. This is note #01 of the thread — running on the mechanism it describes."
 date: 2026-07-03
 kind: notebook
 thread: web-as-medium
@@ -95,3 +97,89 @@ Realtalk 的可见性原则说：程序印在物体上。本站的翻译是—�
 
 旗舰实验已经在路上：一篇用 RuleGarden 写成的"活文章"，读者读着读着就变成了作者。
 如果你也在想"网页还能是什么"这个问题——页面底部有邮箱，来聊。
+
+<div data-lang-split></div>
+
+This thread asks one question: **can a web page respond to a person the way a room does?**
+Not flashier motion, not higher conversion — the content itself answering to where you are, what you do, how long you stay — and the rules that govern those answers, readable and editable.
+
+## Research first
+
+Ink & Switch spent a decade along local-first, malleable software, programmable ink, and universal documents.
+They publish in two gears: polished essays for the outside, numbered lab notebooks for the process —
+**the process is the output**. The note you are reading is the first run of that two-gear system on this site:
+numbered, hung on a thread, sent and not silently rewritten; errata go in the next note.
+
+<SideNote label="Marginalia">
+  This sidenote hanging in the margin is one of the new mechanisms — borrowed from Ink & Switch’s layout language,
+  zero JS, hanging in the right margin on a wide screen, collapsing to an inset on a narrow one.
+</SideNote>
+
+Bret Victor’s Realtalk/Dynamicland made another point sharp: computation should be **visible and live**,
+behavior governed by declarative rules (Claim / When / Wish), laid out on a table,
+anyone able to pick them up, read them, change them, compose them. The full research file lives in
+`docs/research/ink-and-switch.md`, twelve thousand words. One judgment here:
+**a web page cannot inherit Realtalk’s body and place, but it can inherit the software soul — live, visible, editable, composable.**
+
+## The page as a room
+
+Realtalk’s spatiality looks untranslatable — we do not have that table. There is an honest counterpart:
+**the page is a room, the viewport a desktop, scrolling is walking.** “When this text enters view” and Dynamicland’s
+“when there is an object above me” are isomorphic spatial predicates.
+
+Don’t take it on faith. This page already houses a few named objects:
+<RuleTarget name="note-intro-en" label="this sentence">this sentence with a dashed underline</RuleTarget>,
+and the color block below —
+
+<RuleTarget name="note-box-en" label="the block below" block>
+  <div class="h-16 w-full rounded-lg bg-surface-800"></div>
+</RuleTarget>
+
+The rules that govern them are lying here, running. Try toggling, rewriting, adding:
+
+<RuleGarden
+  title="The rules of this note"
+  rules={[
+    { id: 'n1-r1-en', when: { kind: 'enters-view', target: 'note-box-en' }, wish: { kind: 'tint', target: 'note-box-en', tone: 'accent' } },
+    { id: 'n1-r2-en', when: { kind: 'hover', target: 'note-intro-en' }, wish: { kind: 'highlight', target: 'note-box-en' } },
+    { id: 'n1-r3-en', when: { kind: 'click', target: 'note-intro-en' }, wish: { kind: 'count', target: 'note-intro-en' } },
+  ]}
+  caption="RuleGarden: a web toy of Claim/When/Wish. Slots are dropdowns, not free text — that trade-off is in note #02."
+/>
+
+## Take it apart
+
+Realtalk’s visibility principle: the program is printed on the object. Our translation — under every media component
+an “⌥ Source” appears, the actual MDX call, injected at build time, zero author work. Scroll up: there is one under RuleGarden; the slider below has one too:
+
+<ParamSlider
+  client:visible
+  label="Number of objects in the room"
+  paramKey="count"
+  min={10}
+  max={200}
+  initial={60}
+  viz="network"
+  caption="A component that already existed in July 2026. New mechanisms are not picky — every media component gets “take it apart.”"
+/>
+
+Source is not an appendix. It is part of the medium: **there should be no wall between reader and disassembler.**
+
+## What this batch built
+
+The first mechanisms of the thread, all with zero new npm dependencies:
+
+- **Two-gear publishing**: `kind: notebook` + threads (`/threads`); five lines of frontmatter to ship a note
+- **Essay-style page interface**: byline, abstract, contents, citation, a “write me” mail at the end
+- **SideNote** and **InteractiveDemo’s poster gear** (video first, click to upgrade)
+- **“Take it apart”**: a remark plugin injects component source at build time
+- **RuleGarden + RuleTarget**: the fifth media level — rules you can rewrite
+- **A constitution in `docs/MEDIUM.md`**: any agent that reads it can turn a conversation or an essay into this medium
+
+Cut: fork-to-sandbox, scroll-highlight on the TOC, rule chains, rule persistence.
+Why they were cut lives in the next note, *Design trade-offs* — #02, to be published after review.
+
+## Next
+
+The flagship experiment is already on the way: a “live essay” written in RuleGarden, where the reader becomes an author by reading.
+If you are also asking what else a web page can be — there is an email at the bottom of the page. Write.

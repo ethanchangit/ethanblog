@@ -27,7 +27,7 @@
 | 岛屿 UI | Svelte 5（runes） | 每页多个小岛屿时打包体积远小于 React |
 | 滚动叙事 | GSAP 3 + ScrollTrigger | 仅在少数故事需要时使用 |
 | 样式 | Tailwind CSS v4 `@theme` 设计 token | 极简双主题（白 / `#191919`），禁止裸色值 |
-| 内容 | MDX + `stories` / `projects` 两个集合 | 散文为主，交互组件按需嵌入 |
+| 内容 | MDX + `articles` / `projects` 两个集合 | 散文为主，交互组件按需嵌入 |
 | 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
 | 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | 域名、secrets 延续 |
 | 语言 | 单语言（中文为主） | 控制复杂度，不引入 i18n 框架 |
@@ -36,10 +36,10 @@
 ## 三、站点架构
 
 ```
-内容层    src/content/{stories,projects}/*.mdx   + src/data/profile.ts（个人资料单一数据源）
+内容层    src/content/{articles,projects}/*.mdx  + src/data/profile.ts（个人资料单一数据源）
 组件层    src/components/media/                   可嵌入 MDX 的可选交互组件
 可视化    src/lib/viz/registry.ts                 canvas 绘制注册表
-外壳层    layouts/{Base,Story,Project}            + components/{shell,home}
+外壳层    layouts/{Base,Article,Project}          + components/{shell,home}
 质保层    /lab 页面                               每个组件的常驻最小示例
 接缝层    src/lib/user.ts                         用户态入口（/api/me，未登录时 null）
 ```

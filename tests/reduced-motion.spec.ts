@@ -59,8 +59,8 @@ test.describe('prefers-reduced-motion', () => {
     await expect(section.locator('dd').nth(1)).toContainText('1200');
   });
 
-  test('story page renders with reduced motion', async ({ page }) => {
-    await page.goto('/stories/how-this-site-works');
+  test('article page renders with reduced motion', async ({ page }) => {
+    await page.goto('/articles/how-this-site-works');
     await expect(page.getByRole('article')).toBeVisible();
     await expect(page.locator('h1').first()).toBeVisible();
   });

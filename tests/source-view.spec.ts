@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('source-view（拆开看）', () => {
-  test('story page injects source disclosures for media components', async ({ page }) => {
-    await page.goto('/stories/how-this-site-works/');
+  test('article page injects source disclosures for media components', async ({ page }) => {
+    await page.goto('/articles/how-this-site-works/');
 
     const disclosures = page.locator('details.source-view');
     await expect(disclosures.first()).toBeAttached();
@@ -10,7 +10,7 @@ test.describe('source-view（拆开看）', () => {
   });
 
   test('expanding a disclosure reveals the MDX source', async ({ page }) => {
-    await page.goto('/stories/how-this-site-works/');
+    await page.goto('/articles/how-this-site-works/');
 
     const first = page.locator('details.source-view').first();
     await first.scrollIntoViewIfNeeded();
@@ -21,7 +21,7 @@ test.describe('source-view（拆开看）', () => {
   });
 
   test('disclosure code block is highlighted by shiki', async ({ page }) => {
-    await page.goto('/stories/how-this-site-works/');
+    await page.goto('/articles/how-this-site-works/');
 
     const first = page.locator('details.source-view').first();
     await expect(first.locator('.astro-code').first()).toBeAttached();

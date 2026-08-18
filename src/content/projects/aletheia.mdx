@@ -1,12 +1,13 @@
 ---
 name: "Aletheia"
 tagline: "英文阅读时的语境查词与复习"
+taglineEn: "In-context lookup and review while reading English"
 status: wip
 order: 20
 stack: ["AI", "LLM", "iOS"]
 ---
 
-Aletheia，意思是「照亮」——像灯一样点亮阅读时的困惑和迷茫。这是我做的第二个项目，核心是在英文阅读时进行查词。
+Aletheia，意思是「照亮」——像灯一样点亮阅读时的困惑和迷茫。希腊语词根也常被译作「去蔽」。这是我做的第二个项目，核心是在英文阅读时进行查词；它也是我对「研究与分析工具」的早期实验——在长文里划词、高亮，把生词摘出来生成可复习的卡片。
 
 ## 非侵略性的查词
 
@@ -17,3 +18,21 @@ Aletheia，意思是「照亮」——像灯一样点亮阅读时的困惑和迷
 ## 查词后的复习
 
 查词后如果不复习，效率很低。因此又做了一个简单的复习模块，复习交互直接引用了第一个项目（创客计划）中使用的左滑、右滑、上滑、下滑等手势，实现了复用。
+
+这条 **highlight → 结构化 → 卡片** 流水线没有留在草稿里，而是在 [Trace](/projects/trace) 中被收敛成独立产品。Aletheia 是实验室，Trace 是产品。
+
+<div data-lang-split></div>
+
+Aletheia means “to bring to light” — a lamp held up to the confusion of reading. The Greek root is often rendered as “unconcealment.” It is my second project: looking up words while reading English, and an early experiment in tools for research and analysis — select, highlight, and pull unfamiliar words into cards you can review.
+
+## Lookup that does not invade
+
+The lookup interaction is quiet. It does not wreck the page with five or six highlight colors that steal attention. A traditional dictionary may offer five to ten senses; you have to match them yourself, which is a real tax on reading.
+
+We send the surrounding context to an AI agent and get back the sense that actually fits — lookup in context, not a dump from a dictionary.
+
+## Review after lookup
+
+Lookup without review is cheap. So there is a small review module, reusing the swipe gestures (left, right, up, down) from the first project, Maker Plan.
+
+That **highlight → structure → card** pipeline did not stay a draft. It was tightened into a product of its own in [Trace](/projects/trace). Aletheia is the lab; Trace is the product.

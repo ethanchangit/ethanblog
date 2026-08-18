@@ -9,7 +9,7 @@
 
 | 触发词 | 模式 | 必读 | 允许改动 |
 |---|---|---|---|
-| `/publish`、`发布：` | 内容创作 | [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md)（可执行清单）+ [docs/MEDIUM.md](docs/MEDIUM.md)（创作规范） | `src/content/stories/`、`src/content/projects/`、`src/data/threads.ts`（开线时） |
+| `/publish`、`发布：` | 内容创作 | [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md)（可执行清单）+ [docs/MEDIUM.md](docs/MEDIUM.md)（创作规范） | `src/content/articles/`、`src/content/projects/`、`src/data/threads.ts`（开线时） |
 | `/infra`、`基建：` | 网站基建 | 本文 + [media/README.md](src/components/media/README.md) | `src/components/`、`src/lib/`、`src/pages/`、`plugins/` 等 |
 
 **`/publish`（内容创作）硬性约束**：

@@ -1,6 +1,8 @@
 ---
 name: "创客计划"
+nameEn: "Maker Plan"
 tagline: "极简、易用的复习卡片编写与复习软件"
+taglineEn: "A small, quiet app for writing and reviewing flashcards"
 status: wip
 order: 10
 stack: ["Swift", "知识管理"]
@@ -22,3 +24,21 @@ featured: true
 **批量导入**：做好单一输入后，能够一次性导入大量 flashcard，像写笔记一样编写复习卡片，并将它们合适地归类到内容中。
 
 我想把它做成一个极简、易用的小软件。
+
+<div data-lang-split></div>
+
+My first software project. The motive was blunt: popular review apps are either noisy and messy, or the features are badly built.
+
+“Messy” means the UI is cluttered, and review is not a first-class citizen — it is buried behind a second-level door. You often have to pick a deck before you can start the day’s review, which is resistance and noise. The card editor is awkward too: not powerful enough, not finished enough.
+
+## What I wanted to get right
+
+The **card editor** should support:
+
+- Cloze deletions on Q&A cards
+- Image-hint clozes
+- Masked-text clozes: merge different hint blocks into one review item, hide the others each time you recall — “hide one, test all” and “merge different clozes.” Many editors never ship this
+
+**Bulk import**: after a single card works, import a lot of flashcards at once, write them the way you write notes, and file them where they belong.
+
+I wanted a small, quiet, easy-to-use app.

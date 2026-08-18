@@ -1,26 +1,53 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Projects 超媒体长页', () => {
-  test('/projects 是叙事长页而非卡片网格', async ({ page }) => {
+test.describe('Projects 集合页', () => {
+  test('/projects 是导语 + 时间线，不是项目长文', async ({ page }) => {
     await page.goto('/projects');
 
-    await expect(page.getByRole('heading', { name: '作品是一条线' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '项目是一条线' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '时间线：从卡片到容器' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Aletheia → Trace：阅读时学词' })).toBeVisible();
+    await expect(page.locator('[data-tl-item]').first()).toBeVisible();
 
     // 旧版卡片网格不应存在
     await expect(page.locator('.grid.gap-4.sm\\:grid-cols-2')).toHaveCount(0);
 
-    // 内嵌可体验演示
-    await expect(page.getByText('Network · 键盘笔记')).toBeVisible();
-    await expect(page.getByText('Robert · 语音笔记')).toBeVisible();
+    // 单项目长文与内嵌演示已迁到档案页
+    await expect(page.getByRole('heading', { name: 'Aletheia → Trace：阅读时学词' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Network：卡片与键盘' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Robert：语音与块' })).toHaveCount(0);
+    await expect(page.getByText('Network · 键盘笔记')).toHaveCount(0);
+    await expect(page.getByText('Robert · 语音笔记')).toHaveCount(0);
   });
 
-  test('文末保留项目档案链接', async ({ page }) => {
+  test('文末档案列表与文章索引共用 Card 行', async ({ page }) => {
     await page.goto('/projects');
     await expect(page.getByRole('heading', { name: '项目档案' })).toBeVisible();
-    // 档案区在「项目档案」标题之后的列表；用 ul 定位，避开正文内联链接
-    await expect(page.locator('ul a[href="/projects/trace"]').last()).toBeVisible();
-    await expect(page.locator('ul a[href="/projects/chunk"]').last()).toBeVisible();
+    await expect(page.locator('a.group.flex-col[href="/projects/trace"]')).toBeVisible();
+    await expect(page.locator('a.group.flex-col[href="/projects/chunk"]')).toBeVisible();
+  });
+
+  test('时间线节点链到对应项目页', async ({ page }) => {
+    await page.goto('/projects');
+    const links: [string, string][] = [
+      ['0', '/projects/network'],
+      ['1', '/projects/robert'],
+      ['2', '/projects/aletheia'],
+      ['3', '/projects/trace'],
+      ['4', '/projects/chunk'],
+      ['5', '/projects/ethanchang-io'],
+    ];
+    for (const [idx, href] of links) {
+      await expect(page.locator(`[data-tl-item="${idx}"] a[href="${href}"]`)).toBeVisible();
+    }
+  });
+
+  test('演示与长文在独立档案页', async ({ page }) => {
+    await page.goto('/projects/network');
+    await expect(page.getByText('Networks · 早期原型切片', { exact: true })).toBeVisible();
+    await expect(page.getByText('双手永远放在键盘上')).toBeVisible();
+
+    await page.goto('/projects/robert');
+    await expect(page.getByText('Robert · 交互原型', { exact: true })).toBeVisible();
+    await expect(page.getByText('把语音放在第一入口')).toBeVisible();
   });
 });
