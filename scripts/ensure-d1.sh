@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ensure remote Cloudflare bindings exist before Pages deploy.
-# - D1 database ethanblog (auth / bookmarks / progress)
+# - D1 database ethanblog (auth / bookmarks / progress / comments)
 # - KV namespace SESSION (Astro adapter session storage)
 set -euo pipefail
 

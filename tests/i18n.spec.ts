@@ -97,6 +97,11 @@ test.describe('Language（中/EN）', () => {
     const card = page.locator('a[href="/articles/software-creation-journey"]');
     await expect(card.locator('.ui-meta .i18n-zh')).toHaveText('2026 年 7 月 4 日', inner);
     await expect(card.locator('.ui-meta .i18n-en')).toHaveText('July 4, 2026');
+
+    await page.goto('/articles/pkm-method');
+    const published = page.locator('.article-lede time.ui-meta');
+    await expect(published.locator('.i18n-zh')).toHaveText('2026 年 3 月 1 日', inner);
+    await expect(published.locator('.i18n-en')).toHaveText('March 1, 2026');
   });
 
   test('文章正文随语言切换，缺英文时回退中文', async ({ page }) => {

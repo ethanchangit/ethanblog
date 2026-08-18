@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
+const ARTICLE = '/articles/software-creation-journey/';
+
 function selectedTag(url: string): string | null {
   return new URL(url).searchParams.get('tag');
 }
@@ -41,6 +43,19 @@ test.describe('Tags（内容集合过滤）', () => {
     await page.getByRole('link', { name: '全部' }).click();
     await expect.poll(() => selectedGroup(page.url())).toBeNull();
     await expect(tagCloudLink(page, '知识管理')).toBeVisible();
+  });
+
+  test('文章页眉标签可点，在 /tags 就地筛出该标签文档', async ({ page }) => {
+    await page.goto(ARTICLE);
+    const header = page.locator('article header');
+    await expect(header.getByRole('link', { name: '#软件开发' })).toBeVisible();
+
+    await header.getByRole('link', { name: '#软件开发' }).click();
+    await expect.poll(() => selectedTag(page.url())).toBe('软件开发');
+    await expect(page).toHaveURL(/\/tags\/?/);
+    await expect(page.getByRole('link', { name: '全部' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '#软件开发' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '我的软件创建之路' })).toBeVisible();
   });
 
   test('从 /tags 点标签不离开本页，只更新下方文档', async ({ page }) => {

@@ -13,8 +13,8 @@ const split = remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
 const zhHeadings = typeof split === 'number' ? headings.slice(0, split) : headings;
 const enHeadings = typeof split === 'number' ? headings.slice(split) : [];
 
-let prev: { id: string; title: string; titleEn?: string; seq: number } | undefined;
-let next: { id: string; title: string; titleEn?: string; seq: number } | undefined;
+let prev: { id: string; title: string; titleEn?: string } | undefined;
+let next: { id: string; title: string; titleEn?: string } | undefined;
 if (article.data.kind === 'notebook' && article.data.thread) {
   const siblings = (
     await getCollection(
@@ -25,7 +25,7 @@ if (article.data.kind === 'notebook' && article.data.thread) {
   const i = siblings.findIndex((entry) => entry.id === article.id);
   const toNav = (entry: CollectionEntry<'articles'> | undefined) =>
     entry
-      ? { id: entry.id, title: entry.data.title, titleEn: entry.data.titleEn, seq: entry.data.seq ?? 0 }
+      ? { id: entry.id, title: entry.data.title, titleEn: entry.data.titleEn }
       : undefined;
   prev = toNav(siblings[i - 1]);
   next = toNav(siblings[i + 1]);
