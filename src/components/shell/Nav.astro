@@ -15,13 +15,18 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
 {/*
-  移动端：整行半透明渐隐 + backdrop 模糊，正文向上时逐渐变糊；链接随时可点。
-  桌面端（md+）：文档流随页滚走，不显示 veil。
+  移动端：整行渐进模糊 + 半透明渐隐；桌面端文档流随页滚走。
 */}
 <header
   class="site-nav pointer-events-none fixed inset-x-0 top-0 z-50 md:pointer-events-auto md:relative md:inset-auto md:z-auto"
 >
-  <div class="site-nav-veil" aria-hidden="true"></div>
+  <div class="site-nav-veil" aria-hidden="true">
+    <div class="site-nav-veil-blur site-nav-veil-blur--1"></div>
+    <div class="site-nav-veil-blur site-nav-veil-blur--2"></div>
+    <div class="site-nav-veil-blur site-nav-veil-blur--3"></div>
+    <div class="site-nav-veil-blur site-nav-veil-blur--4"></div>
+    <div class="site-nav-veil-tint"></div>
+  </div>
   <nav class="relative mx-auto flex h-14 max-w-5xl items-center justify-end px-4 sm:px-6">
     <ul class="pointer-events-auto flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
       {
