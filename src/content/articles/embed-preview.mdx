@@ -16,38 +16,38 @@ import { TweetEmbed, VideoEmbed } from '@/components/media';
 
 这页只做一件事：把两种外部引用放在同一篇文章的阅读流里，看它们和正文排版怎么相处。
 
-先是一条 X 上的原帖。整块可以点进原文：
+先是一条 X 上的原帖，用官方 embed 卡片：
 
 <TweetEmbed
   url="https://x.com/gkxspace/status/2089292652940333288"
   caption="余温 @gkxspace，2026 年 8 月 17 日。"
 />
 
-再是一支 YouTube 视频。默认只显示封面，点击才加载播放器：
+再是一支 YouTube 视频，用官方播放器：
 
 <VideoEmbed
   provider="youtube"
   id="H35nVgNGyo8"
   title="对话前DeepMind曹原：AI for Science爆发，一个新时代到来了"
-  caption="硅谷101。点击封面播放。"
+  caption="硅谷101。"
 />
 
 <div data-lang-split></div>
 
 This page does one thing: put two external citations in the same reading flow, and see how they sit with the prose.
 
-First, a post from X. The whole block links to the original:
+First, a post from X, using the official embed card:
 
 <TweetEmbed
   url="https://x.com/gkxspace/status/2089292652940333288"
   caption="余温 @gkxspace, 17 Aug 2026."
 />
 
-Then a YouTube video. Poster first; the player loads on click:
+Then a YouTube video, using the official player:
 
 <VideoEmbed
   provider="youtube"
   id="H35nVgNGyo8"
   title="A conversation with Cao Yuan, formerly of DeepMind: AI for Science is breaking out"
-  caption="The Valley 101. Click the poster to play."
+  caption="The Valley 101."
 />

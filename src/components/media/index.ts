@@ -14,7 +14,7 @@ export { default as InteractiveDemo } from './InteractiveDemo.svelte';
 export { default as ImageGallery } from './ImageGallery.svelte';
 export { default as Scene3D } from './Scene3D.svelte';
 export { default as VideoEmbed } from './VideoEmbed.astro';
-// TweetEmbed：零 JS 推文引用，作者只给 url，构建期渲染正文
+// TweetEmbed：官方 X widget；作者只给 url
 export { default as TweetEmbed } from './TweetEmbed.astro';
 export { default as CodePlayground } from './CodePlayground.astro';
 export { default as MediaFrame } from './MediaFrame.astro';

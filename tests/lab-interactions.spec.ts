@@ -112,29 +112,23 @@ test('AudioClip renders waveform canvas', async ({ page }) => {
   await expect(section.locator('canvas')).toBeVisible();
 });
 
-test('VideoEmbed shows clickable facade', async ({ page }) => {
+test('VideoEmbed renders an official YouTube iframe', async ({ page }) => {
   const section = page.getByTestId('video-embed');
   await section.scrollIntoViewIfNeeded();
 
-  await expect(section.getByText('Me at the zoo（示例视频）')).toBeVisible();
-  await expect(section.locator('button, a').first()).toBeVisible();
+  const frame = section.locator('iframe');
+  await expect(frame).toBeVisible();
+  await expect(frame).toHaveAttribute('src', /youtube\.com\/embed\/jNQXAC9IVRw/);
+  await expect(frame).toHaveAttribute('title', 'Me at the zoo（示例视频）');
 });
 
-test('TweetEmbed renders a long Chinese post with video poster', async ({ page }) => {
+test('TweetEmbed renders the official X blockquote', async ({ page }) => {
   const section = page.getByTestId('tweet-embed-gkx');
   await section.scrollIntoViewIfNeeded();
 
-  await expect(section.getByText('余温')).toBeVisible();
-  await expect(section.getByText('@gkxspace')).toBeVisible();
-  await expect(section.getByText(/Dethink 居然把 Claude Code/)).toBeVisible();
-  await expect(section.getByRole('link', { name: '在 X 上查看 @gkxspace 的帖子' })).toHaveAttribute(
-    'href',
-    'https://x.com/gkxspace/status/2089292652940333288',
-  );
-  await expect(section.locator('img').first()).toHaveAttribute(
-    'src',
-    /amplify_video_thumb/,
-  );
+  const quote = section.locator('blockquote.twitter-tweet');
+  await expect(quote).toBeAttached();
+  await expect(quote.locator('a[href*="status/2089292652940333288"]')).toHaveCount(1);
 });
 
 test('CodePlayground renders code block', async ({ page }) => {

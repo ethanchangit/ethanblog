@@ -1,10 +1,9 @@
 ---
 /**
- * 推文引用：作者只给 url，构建期渲染完整正文。整块点进原帖。
- * 零 JS，无官方 widget、无点赞转发。失败时仍保留可点击的原文入口。
+ * 官方 X 嵌入：blockquote.twitter-tweet + widgets.js。
+ * 作者只给 url；无 JS 时降级为帖子正文和原文链接。
  */
-import DateText from '@/components/shell/DateText.astro';
-import I18n from '@/components/shell/I18n.astro';
+import { formatDate } from '@/lib/format';
 import { loadTweet, parseTweetUrl } from '@/lib/tweet';
 
 interface Props {
@@ -20,96 +19,51 @@ if (!parsed) {
 const tweet = await loadTweet(parsed);
 const created = tweet.createdAt ? new Date(tweet.createdAt) : undefined;
 const dateOk = created && !Number.isNaN(created.valueOf());
-const handle = tweet.screenName ? `@${tweet.screenName}` : '';
-const ariaLabel = tweet.screenName
-  ? `在 X 上查看 @${tweet.screenName} 的帖子`
-  : '在 X 上查看这条帖子';
+const permalink = `https://twitter.com/${tweet.screenName || parsed.screenName || 'i'}/status/${parsed.id}`;
+const byline = [tweet.name, tweet.screenName ? `@${tweet.screenName}` : ''].filter(Boolean).join(' ');
 ---
 
 <figure class="media-frame not-prose">
-  <a
-    href={tweet.url}
-    class="group block text-inherit no-underline"
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label={ariaLabel}
-  >
-    <p class="ui-meta">
-      {
-        tweet.name && (
-          <span class="font-medium text-ink-200 transition-colors group-hover:text-ink-100">
-            {tweet.name}
-          </span>
-        )
-      }
-      {
-        handle && (
-          <>
-            {tweet.name ? ' ' : ''}
-            <span>{handle}</span>
-          </>
-        )
-      }
-      {
-        created && dateOk && (
-          <>
-            {' · '}
-            <DateText date={created} />
-          </>
-        )
-      }
-      <span class="text-ink-400">
-        {' · '}
-        <I18n k="tweetView" />
-      </span>
-    </p>
-    {
-      tweet.text ? (
-        <p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-300 sm:text-base">
-          {tweet.text}
-        </p>
-      ) : (
-        <p class="mt-2 text-sm leading-relaxed text-ink-400">
-          <I18n k="tweetUnavailable" />
-        </p>
-      )
-    }
-    {
-      tweet.quoted && (
-        <p class="mt-3 text-sm leading-relaxed text-ink-400">
-          <span class="ui-meta">
-            {tweet.quoted.name} @{tweet.quoted.screenName}
-          </span>
-          <span class="mt-1 block whitespace-pre-wrap">{tweet.quoted.text}</span>
-        </p>
-      )
-    }
-    {
-      tweet.photos.length > 0 && (
-        <span class="mt-3 block space-y-3">
-          {tweet.photos.map((photo) => (
-            <span class="relative block">
-              <img
-                src={photo.src}
-                alt={photo.alt}
-                loading="lazy"
-                decoding="async"
-                class="block h-auto w-full"
-              />
-              {photo.video && (
-                <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <span class="flex h-12 w-12 items-center justify-center text-ink-200">
-                    <svg width="22" height="22" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-                      <path d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z" />
-                    </svg>
-                  </span>
-                </span>
-              )}
-            </span>
-          ))}
-        </span>
-      )
-    }
-  </a>
+  <blockquote class="twitter-tweet" data-dnt="true" data-conversation="none">
+    {tweet.text ? <p>{tweet.text}</p> : null}
+    {byline ? <>{'\u2014'} {byline}{' '}</> : null}
+    <a href={permalink}>{dateOk && created ? formatDate(created, 'en') : permalink}</a>
+  </blockquote>
   {caption && <figcaption class="media-caption">{caption}</figcaption>}
 </figure>
+
+<script is:inline async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<script>
+  // @ts-nocheck
+  function currentTheme() {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
+
+  function applyTweetTheme(theme) {
+    document.querySelectorAll('blockquote.twitter-tweet').forEach((el) => {
+      el.setAttribute('data-theme', theme);
+    });
+  }
+
+  function loadTwitterWidgets() {
+    applyTweetTheme(currentTheme());
+    window.twttr?.widgets?.load();
+  }
+
+  loadTwitterWidgets();
+  document.addEventListener('astro:page-load', loadTwitterWidgets);
+
+  if (!window.__tweetEmbedThemeBound) {
+    window.__tweetEmbedThemeBound = true;
+    new MutationObserver(() => {
+      const theme = currentTheme();
+      document.querySelectorAll('iframe[src*="platform.twitter.com/embed/Tweet.html"]').forEach((frame) => {
+        const src = new URL(frame.src);
+        if (src.searchParams.get('theme') === theme) return;
+        src.searchParams.set('theme', theme);
+        frame.src = src.toString();
+      });
+      applyTweetTheme(theme);
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+</script>
