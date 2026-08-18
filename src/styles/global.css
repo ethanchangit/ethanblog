@@ -115,24 +115,35 @@
   }
 
   /*
-   * Floating site nav: soft fade + blur so sticky links stay readable
-   * without carving a solid header band out of the page layout.
+   * Floating site nav: soft fade + blur local to the link cluster,
+   * so sticky links stay readable without a full-width header band.
    */
+  .site-nav-cluster {
+    position: relative;
+    isolation: isolate;
+  }
+
   .site-nav-veil {
     position: absolute;
-    inset: 0 0 auto;
-    height: 4.5rem;
+    /* Bleed past the links so the soft edge sits outside the text. */
+    inset: -0.65rem -0.85rem -1.25rem;
+    z-index: -1;
     pointer-events: none;
-    background: linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--theme-surface-950) 72%, transparent) 0%,
-      color-mix(in srgb, var(--theme-surface-950) 28%, transparent) 55%,
+    background: radial-gradient(
+      120% 100% at 70% 0%,
+      color-mix(in srgb, var(--theme-surface-950) 78%, transparent) 0%,
+      color-mix(in srgb, var(--theme-surface-950) 32%, transparent) 55%,
       transparent 100%
     );
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    -webkit-mask-image: radial-gradient(
+      120% 110% at 70% 0%,
+      #000 0%,
+      #000 42%,
+      transparent 78%
+    );
+    mask-image: radial-gradient(120% 110% at 70% 0%, #000 0%, #000 42%, transparent 78%);
   }
 
   @media (prefers-reduced-motion: reduce) {

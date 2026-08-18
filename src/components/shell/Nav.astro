@@ -15,34 +15,36 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
 {/*
-  悬浮导航：fixed 脱离文档流，不与正文拆成上下两块布局。
-  整层 pointer-events-none，仅链接可点，避免挡住下方内容点击。
+  悬浮导航：fixed 脱离文档流，页面保持单层滚动面。
+  外层不接收点击；模糊过渡只包住右上角链接簇，避免整条 header 色带。
 */}
 <header class="site-nav pointer-events-none fixed inset-x-0 top-0 z-50">
-  <div class="site-nav-veil" aria-hidden="true"></div>
-  <nav class="relative mx-auto flex h-14 max-w-5xl items-center justify-end gap-2 px-4 sm:gap-4 sm:px-6">
-    <ul class="pointer-events-auto flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
-      {
-        links.map((link) => (
-          <li class="shrink-0">
-            <a
-              href={link.href}
-              aria-current={isActive(link.href) ? 'page' : undefined}
-              class:list={[
-                'px-1.5 py-1.5 text-xs transition-colors sm:px-2 sm:text-sm',
-                isActive(link.href)
-                  ? 'text-ink-100'
-                  : 'text-ink-400 hover:text-ink-100',
-              ]}
-            >
-              <I18n k={link.key} />
-            </a>
-          </li>
-        ))
-      }
-      <li class="shrink-0">
-        <LangToggle client:load />
-      </li>
-    </ul>
+  <nav class="mx-auto flex h-14 max-w-5xl items-center justify-end px-4 sm:px-6">
+    <div class="site-nav-cluster pointer-events-auto relative">
+      <div class="site-nav-veil" aria-hidden="true"></div>
+      <ul class="relative flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
+        {
+          links.map((link) => (
+            <li class="shrink-0">
+              <a
+                href={link.href}
+                aria-current={isActive(link.href) ? 'page' : undefined}
+                class:list={[
+                  'px-1.5 py-1.5 text-xs transition-colors sm:px-2 sm:text-sm',
+                  isActive(link.href)
+                    ? 'text-ink-100'
+                    : 'text-ink-400 hover:text-ink-100',
+                ]}
+              >
+                <I18n k={link.key} />
+              </a>
+            </li>
+          ))
+        }
+        <li class="shrink-0">
+          <LangToggle client:load />
+        </li>
+      </ul>
+    </div>
   </nav>
 </header>
