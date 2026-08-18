@@ -14,7 +14,7 @@ const path = Astro.url.pathname;
 const isActive = (href: string) => path === href || path.startsWith(href + '/');
 ---
 
-<header class="sticky top-0 z-50 bg-surface-950">
+<header class="sticky top-0 z-50">
   <nav class="mx-auto flex h-14 max-w-5xl items-center justify-end gap-2 px-4 sm:gap-4 sm:px-6">
     <ul class="flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
       {
