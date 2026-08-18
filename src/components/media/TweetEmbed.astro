@@ -88,13 +88,24 @@ const ariaLabel = tweet.screenName
       tweet.photos.length > 0 && (
         <span class="mt-3 block space-y-3">
           {tweet.photos.map((photo) => (
-            <img
-              src={photo.src}
-              alt={photo.alt}
-              loading="lazy"
-              decoding="async"
-              class="block h-auto w-full"
-            />
+            <span class="relative block">
+              <img
+                src={photo.src}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+                class="block h-auto w-full"
+              />
+              {photo.video && (
+                <span class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <span class="flex h-12 w-12 items-center justify-center text-ink-200">
+                    <svg width="22" height="22" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+                      <path d="M3 1.5v11a1 1 0 0 0 1.54.84l8-5.5a1 1 0 0 0 0-1.68l-8-5.5A1 1 0 0 0 3 1.5z" />
+                    </svg>
+                  </span>
+                </span>
+              )}
+            </span>
           ))}
         </span>
       )

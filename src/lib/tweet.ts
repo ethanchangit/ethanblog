@@ -8,6 +8,8 @@
 export interface TweetPhoto {
   src: string;
   alt: string;
+  /** 视频封面，点击仍去原帖，不在站内播放。 */
+  video?: boolean;
 }
 
 export interface TweetQuote {
@@ -101,6 +103,7 @@ interface SyndicationTweet {
   photos?: SyndicationPhoto[];
   mediaDetails?: SyndicationPhoto[];
   quoted_tweet?: SyndicationTweet;
+  video?: { poster?: string };
 }
 
 /** react-tweet 同源的无鉴权 token，只用于构建期 syndication 请求。 */
@@ -109,13 +112,26 @@ function syndicationToken(id: string): string {
 }
 
 function photosFrom(raw: SyndicationTweet): TweetPhoto[] {
-  const list = (raw.photos ?? raw.mediaDetails ?? []).filter(
-    (item) => item.type !== 'video' && item.type !== 'animated_gif' && item.media_url_https,
-  );
-  return list.map((item) => ({
-    src: item.media_url_https as string,
-    alt: item.ext_alt_text ?? '',
-  }));
+  const seen = new Set<string>();
+  const out: TweetPhoto[] = [];
+  const push = (src: string | undefined, alt: string, video = false) => {
+    if (!src || seen.has(src)) return;
+    seen.add(src);
+    out.push({ src, alt, ...(video ? { video: true } : {}) });
+  };
+
+  for (const item of raw.photos ?? []) {
+    push(item.media_url_https, item.ext_alt_text ?? '', item.type === 'video' || item.type === 'animated_gif');
+  }
+  for (const item of raw.mediaDetails ?? []) {
+    push(
+      item.media_url_https,
+      item.ext_alt_text ?? '',
+      item.type === 'video' || item.type === 'animated_gif',
+    );
+  }
+  push(raw.video?.poster, '', true);
+  return out;
 }
 
 function quoteFrom(raw: SyndicationTweet | undefined): TweetQuote | undefined {

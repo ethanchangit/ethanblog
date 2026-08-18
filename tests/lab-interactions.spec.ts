@@ -120,14 +120,20 @@ test('VideoEmbed shows clickable facade', async ({ page }) => {
   await expect(section.locator('button, a').first()).toBeVisible();
 });
 
-test('TweetEmbed renders cached tweet text and original link', async ({ page }) => {
-  const section = page.getByTestId('tweet-embed');
+test('TweetEmbed renders a long Chinese post with video poster', async ({ page }) => {
+  const section = page.getByTestId('tweet-embed-gkx');
   await section.scrollIntoViewIfNeeded();
 
-  await expect(section.getByText('just setting up my twttr')).toBeVisible();
-  await expect(section.getByRole('link', { name: '在 X 上查看 @jack 的帖子' })).toHaveAttribute(
+  await expect(section.getByText('余温')).toBeVisible();
+  await expect(section.getByText('@gkxspace')).toBeVisible();
+  await expect(section.getByText(/Dethink 居然把 Claude Code/)).toBeVisible();
+  await expect(section.getByRole('link', { name: '在 X 上查看 @gkxspace 的帖子' })).toHaveAttribute(
     'href',
-    'https://x.com/jack/status/20',
+    'https://x.com/gkxspace/status/2089292652940333288',
+  );
+  await expect(section.locator('img').first()).toHaveAttribute(
+    'src',
+    /amplify_video_thumb/,
   );
 });
 
