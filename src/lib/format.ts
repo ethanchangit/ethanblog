@@ -1,9 +1,17 @@
 export function formatDate(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
-  return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'zh-CN', {
+  const locale = lang === 'en' ? 'en-US' : 'zh-CN';
+  const dtf = new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(date);
+  });
+  if (lang === 'en') return dtf.format(date);
+
+  // 数字与年/月/日之间留空格：2026 年 3 月 1 日
+  const parts = Object.fromEntries(
+    dtf.formatToParts(date).map((p) => [p.type, p.value]),
+  );
+  return `${parts.year} 年 ${parts.month} 月 ${parts.day} 日`;
 }
 
 /** 研究线笔记编号：两位补零（1 → "01"）。 */

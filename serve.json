@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/articles",
+      "type": 301
+    }
+  ]
+}

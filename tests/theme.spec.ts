@@ -23,8 +23,11 @@ test.describe('Theme（浅色/深色）', () => {
     await page.evaluate(() => localStorage.removeItem('theme'));
     await page.reload();
 
-    const toggle = page.locator('footer').getByRole('button', { name: '切换浅色/深色模式' });
-    const island = page.locator('footer astro-island');
+    const footer = page.getByRole('contentinfo');
+    const toggle = footer.getByRole('button', { name: '切换浅色/深色模式' });
+    const island = footer.locator('astro-island').filter({
+      has: page.getByRole('button', { name: '切换浅色/深色模式' }),
+    });
     await toggle.scrollIntoViewIfNeeded();
     await expect(island).not.toHaveAttribute('ssr');
     await toggle.click();
@@ -40,14 +43,33 @@ test.describe('Theme（浅色/深色）', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
 
+  test('页脚钉在视口底，滚动后仍可点', async ({ page }) => {
+    await page.goto('/articles/pkm-method');
+    const footer = page.getByRole('contentinfo');
+    await expect(footer).toBeInViewport();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(footer).toBeInViewport();
+    await expect(footer.getByRole('button', { name: '切换浅色/深色模式' })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect(footer).toBeInViewport();
+    const rss = footer.getByRole('link', { name: 'RSS' });
+    await expect(rss).toBeVisible();
+    await expect(rss).not.toContainText('RSS');
+    await expect(footer.getByRole('link', { name: 'GitHub' })).not.toContainText('GitHub');
+  });
+
   test('主题按钮在页脚、只有图标、没有「深色/浅色」文字', async ({ page }) => {
     await page.goto('/');
-    const toggle = page.locator('footer').getByRole('button', { name: '切换浅色/深色模式' });
+    const footer = page.getByRole('contentinfo');
+    const toggle = footer.getByRole('button', { name: '切换浅色/深色模式' });
     await toggle.scrollIntoViewIfNeeded();
     await expect(toggle).toBeVisible();
     await expect(toggle).not.toContainText('深色');
     await expect(toggle).not.toContainText('浅色');
+    await expect(page.getByRole('button', { name: '切换浅色/深色模式' })).toHaveCount(1);
     await expect(page.locator('header').getByRole('button', { name: '切换浅色/深色模式' })).toHaveCount(0);
+    await expect(footer).not.toContainText('©');
+    await expect(footer).not.toContainText('ethanchang.io');
   });
 
   test('/projects 直达时使用夜间画布', async ({ page }) => {

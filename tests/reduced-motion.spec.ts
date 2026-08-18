@@ -5,9 +5,11 @@ test.describe('prefers-reduced-motion', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
   });
 
-  test('home page renders primary content', async ({ page }) => {
+  test('articles listing is the default route', async ({ page }) => {
     await page.goto('/');
+    await expect(page).toHaveURL(/\/articles\/?$/);
     await expect(page.locator('header nav')).toBeVisible();
+    await expect(page.locator('h1')).toHaveText('文章', { useInnerText: true });
     await expect(page.locator('main')).toBeVisible();
   });
 

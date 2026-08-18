@@ -1,6 +1,7 @@
 ---
 import Base from '@/layouts/Base.astro';
 import I18n from '@/components/shell/I18n.astro';
+import { ARTICLES_PATH } from '@/lib/routes';
 ---
 
 <Base title="404" titleEn="404">
@@ -9,7 +10,7 @@ import I18n from '@/components/shell/I18n.astro';
     <h1 class="mt-4 text-xl font-semibold text-ink-100"><I18n k="notFoundTitle" /></h1>
     <p class="mt-2 text-ink-500"><I18n k="notFoundBody" /></p>
     <a
-      href="/"
+      href={ARTICLES_PATH}
       class="mt-8 text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-300"
     >
       <I18n k="backHome" />
