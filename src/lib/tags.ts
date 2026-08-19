@@ -1,16 +1,18 @@
 import { formatDate } from '@/lib/format';
-import { docHref, docsBySlot, type DocEntry } from '@/lib/docs';
+import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
 
 export type PublishedArticle = DocEntry;
 
 export const ARTICLES_PER_PAGE = 7;
 
 export async function publishedArticles(): Promise<PublishedArticle[]> {
-  return (await docsBySlot('article')).sort((a, b) => {
-    const byDate = (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0);
-    if (byDate !== 0) return byDate;
-    return a.id.localeCompare(b.id);
-  });
+  return (await docsBySlot('article'))
+    .filter(isIndexed)
+    .sort((a, b) => {
+      const byDate = (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0);
+      if (byDate !== 0) return byDate;
+      return a.id.localeCompare(b.id);
+    });
 }
 
 export function articleYear(date: Date): number {

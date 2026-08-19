@@ -17,6 +17,7 @@ alwaysApply: false
 4. **执行 MEDIUM.md §4 流水线**：`---` 下方为原始素材（blog、对话、bullet 等）。
 5. **落盘**：
    - 文章 → `src/content/articles/<slug>.mdx`（`slot: article`）
+   - 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）
    - 项目 → `src/content/projects/<slug>.mdx`（`slot: project`）
 6. **验证**：`npm run check && npm run build`（含交互时加 `npm run test`）。
 7. **汇报**：slug、draft 状态、预览路径。

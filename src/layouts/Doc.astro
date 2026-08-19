@@ -13,8 +13,9 @@ import Bi from '@/components/shell/Bi.astro';
 import DateText from '@/components/shell/DateText.astro';
 import TagList from '@/components/shell/TagList.astro';
 import CopyUrl from '@/components/shell/CopyUrl.svelte';
+import SeriesNav from '@/components/shell/SeriesNav.astro';
 import { site } from '@/data/profile';
-import type { DocEntry } from '@/lib/docs';
+import { seriesContext, type DocEntry } from '@/lib/docs';
 
 interface TocHeading {
   depth: number;
@@ -47,6 +48,7 @@ const {
 const isArticle = slot === 'article';
 const slug = doc.id;
 const canonicalUrl = new URL(Astro.url.pathname, site.url).href;
+const series = isArticle ? await seriesContext(doc) : null;
 
 let initialComments: ArticleComment[] = [];
 if (isArticle) {
@@ -97,6 +99,7 @@ if (isArticle) {
       <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
         <Bi zh={title} en={titleEn} />
       </h1>
+      {series && <SeriesNav series={series} part="parent" />}
     </header>
 
     <CopyUrl client:visible url={canonicalUrl} />
@@ -121,6 +124,8 @@ if (isArticle) {
             )
           )}
         </header>
+
+        {series && <SeriesNav series={series} part="chapters" />}
 
         {
           screenshots.length > 0 && (
@@ -188,6 +193,7 @@ if (isArticle) {
                 </a>
               )
             }
+            {series && <SeriesNav series={series} part="pager" />}
             {isArticle && <ArticleComments client:visible slug={slug} comments={initialComments} />}
           </footer>
         </div>

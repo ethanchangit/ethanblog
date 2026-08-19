@@ -5,6 +5,8 @@ import { glob } from 'astro/loaders';
  * 文章与项目共用同一份 MDX 形态。
  * `slot` 决定出现在哪份索引（/articles 还是 /projects），不是 topical `tags`。
  * 文件夹 `articles/`、`projects/` 只是落盘方便；路由与列表按 slot 过滤。
+ * 系列子文落在 `articles/<hub>/<n>.mdx`（id 含 `/`），默认不进索引；总览是旁边那份 `<hub>.mdx`。
+ * `listed: false` 可把顶层文章也藏起来；`listed: true` 可把子文强行放进索引。
  * 项目可选用 repo / demo / screenshots 等额外键；文章省略即可。
  */
 const docSchema = z
@@ -18,6 +20,7 @@ const docSchema = z
     updated: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),
     stack: z.array(z.string()).default([]),

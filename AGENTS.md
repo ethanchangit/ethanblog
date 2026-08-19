@@ -17,6 +17,7 @@
 - **禁止**新建或修改组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
 - 新页面默认 `draft: true`
 - 定稿必须有 `slot`（`article` / `project`）、`titleEn` / `descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本
+- 系列子文放 `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`）；子文默认不进 `/articles`
 - 完整操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
 
 **`/infra`（网站基建）硬性约束**：
