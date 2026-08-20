@@ -60,10 +60,8 @@
   <div>
     <h4
       class="font-semibold text-ink-100 {item.href
-        ? 'underline underline-offset-4 transition-colors group-hover:decoration-ink-500'
+        ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500 group-aria-[current=page]:decoration-ink-500'
         : ''}"
-      class:decoration-ink-500={item.href === currentHref}
-      class:decoration-transparent={item.href != null && item.href !== currentHref}
     >
       <BiText zh={item.title} en={item.titleEn} />
     </h4>

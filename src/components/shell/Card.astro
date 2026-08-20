@@ -22,10 +22,7 @@ const { href, title, titleEn, description, descriptionEn, meta, metaEn, badge, t
   class="group flex h-full flex-col py-4 transition-colors"
 >
   <div class="flex items-start justify-between gap-3">
-    <h3 class:list={[
-      'text-lg font-semibold text-ink-100 underline underline-offset-4 transition-colors',
-      current ? 'decoration-ink-500' : 'decoration-transparent group-hover:decoration-ink-500',
-    ]}>
+    <h3 class="text-lg font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500 group-aria-[current=page]:decoration-ink-500">
       <Bi zh={title} en={titleEn} />
     </h3>
     {

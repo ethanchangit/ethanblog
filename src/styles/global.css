@@ -1033,6 +1033,11 @@
     display: block;
   }
 
+  /* persist 左栏后，当前项只靠 aria-current，避免 SSR class 卡住 */
+  .reading-index a[aria-current='page'] :is(h3, h4) {
+    text-decoration-color: var(--color-ink-500);
+  }
+
   @media (min-width: 768px) {
     .reading-index {
       display: block;
