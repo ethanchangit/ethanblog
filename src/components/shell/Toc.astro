@@ -1,18 +1,12 @@
 ---
 /**
- * 目录（T2）——始终挂在居中栏左侧留白，不进正文。
- * 宽随 gutter 收缩，标签 ellipsis；gutter 消失时（<56rem）隐藏。
- * 不在 <article> 内。挂在 .article-body-row（与 Abstract 同行）左侧。
- * 只收 depth 2-3；不足 3 条时整体不渲染。
- * 无 JS 时靠 :target 标明当前条；有 JS 时按滚动位置写 aria-current。
+ * 目录 —— 只收 depth 2-3；不足 3 条时不渲染。
+ * 分栏阅读时放在第三栏（.reading-rail）；窄屏随第三栏一起隐藏。
+ * 无 JS 时靠 :target 标明当前条；有 JS 时按阅读栏滚动位置写 aria-current。
  */
 import Bi from '@/components/shell/Bi.astro';
-
-interface TocHeading {
-  depth: number;
-  slug: string;
-  text: string;
-}
+import type { TocHeading } from '@/lib/toc';
+import { tocEntries } from '@/lib/toc';
 
 interface Props {
   headings: TocHeading[];
@@ -20,14 +14,13 @@ interface Props {
 }
 
 const { headings, headingsEn = [] } = Astro.props as Props;
-const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
-const enItems = headingsEn.filter((h) => h.depth === 2 || h.depth === 3);
+const items = tocEntries(headings);
+const enItems = tocEntries(headingsEn);
 
 function attr(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-/** 无 JS 时 :target 命中对应标题，把该条略加强。有滚动监听后由 [data-toc-ready] 接管。 */
 const activeCss = [...items, ...enItems]
   .map((h) => {
     const id = attr(h.slug);
@@ -44,48 +37,50 @@ const activeCss = [...items, ...enItems]
           set:html={`<style>${activeCss}{color:var(--color-ink-200);text-decoration-color:var(--color-ink-500)}</style>`}
         />
       )}
-      <div class="sticky top-20">
-        <ul>
-          {items.map((h, i) => {
-            const en = enItems[i];
-            return (
-              <li>
-                {en ? (
-                  <>
-                    <span class="i18n-zh-only">
-                      <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
-                        <span class="toc-label">{h.text}</span>
-                      </a>
-                    </span>
-                    <span class="i18n-en-only">
-                      <a href={'#' + en.slug} data-depth={en.depth} title={en.text}>
-                        <span class="toc-label">{en.text}</span>
-                      </a>
-                    </span>
-                  </>
-                ) : (
-                  <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
-                    <span class="toc-label">
-                      <Bi zh={h.text} />
-                    </span>
-                  </a>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <ul>
+        {items.map((h, i) => {
+          const en = enItems[i];
+          return (
+            <li>
+              {en ? (
+                <>
+                  <span class="i18n-zh-only">
+                    <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
+                      <span class="toc-label">{h.text}</span>
+                    </a>
+                  </span>
+                  <span class="i18n-en-only">
+                    <a href={'#' + en.slug} data-depth={en.depth} title={en.text}>
+                      <span class="toc-label">{en.text}</span>
+                    </a>
+                  </span>
+                </>
+              ) : (
+                <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
+                  <span class="toc-label">
+                    <Bi zh={h.text} />
+                  </span>
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   )
 }
 
 <script>
   const TOC_SEL = 'nav.toc a[href^="#"]';
-  /** 与 .prose-site h2/h3 的 scroll-margin-top: 5rem 对齐，略放 slack。 */
-  const MARKER = 88;
+  const WINDOW_MARKER = 88;
+  const PANE_MARKER = 32;
 
   let headings: HTMLElement[] = [];
   let ticking = false;
+
+  function pane(): HTMLElement | null {
+    return document.querySelector<HTMLElement>('[data-reading-pane]');
+  }
 
   function tocLinks(): HTMLAnchorElement[] {
     return [...document.querySelectorAll<HTMLAnchorElement>(TOC_SEL)];
@@ -109,9 +104,12 @@ const activeCss = [...items, ...enItems]
   function pickFromLayout() {
     const visible = headings.filter((h) => h.getClientRects().length > 0);
     if (!visible.length) return;
+    const root = pane();
+    const marker = root ? PANE_MARKER : WINDOW_MARKER;
+    const origin = root ? root.getBoundingClientRect().top : 0;
     let current = visible[0].id;
     for (const h of visible) {
-      if (h.getBoundingClientRect().top <= MARKER) current = h.id;
+      if (h.getBoundingClientRect().top - origin <= marker) current = h.id;
       else break;
     }
     setCurrent(current);
@@ -126,8 +124,25 @@ const activeCss = [...items, ...enItems]
     });
   }
 
+  function onClick(event: MouseEvent) {
+    const a = (event.target as HTMLElement | null)?.closest?.<HTMLAnchorElement>(TOC_SEL);
+    if (!a) return;
+    const id = hashId(a);
+    const el = document.getElementById(id);
+    const root = pane();
+    if (!el) return;
+    if (root) {
+      event.preventDefault();
+      el.scrollIntoView({ block: 'start' });
+      history.replaceState(null, '', `#${id}`);
+      setCurrent(id);
+    }
+  }
+
   function teardown() {
     window.removeEventListener('scroll', onScroll);
+    pane()?.removeEventListener('scroll', onScroll);
+    document.removeEventListener('click', onClick);
     document.documentElement.removeAttribute('data-toc-ready');
     headings = [];
     setCurrent(null);
@@ -144,7 +159,10 @@ const activeCss = [...items, ...enItems]
 
     document.documentElement.setAttribute('data-toc-ready', '');
     pickFromLayout();
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const root = pane();
+    if (root) root.addEventListener('scroll', onScroll, { passive: true });
+    else window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('click', onClick);
   }
 
   document.addEventListener('astro:page-load', setup);

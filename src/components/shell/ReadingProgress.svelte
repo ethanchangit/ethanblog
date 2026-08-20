@@ -14,19 +14,33 @@
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function scrollPercent(): number {
+  function scrollRoot(): { top: number; max: number; node: Element | Window } {
+    const pane = document.querySelector('[data-reading-pane]');
+    if (pane) {
+      return { top: pane.scrollTop, max: pane.scrollHeight - pane.clientHeight, node: pane };
+    }
     const doc = document.documentElement;
-    const scrollTop = doc.scrollTop || document.body.scrollTop;
-    const scrollHeight = doc.scrollHeight - doc.clientHeight;
-    if (scrollHeight <= 0) return 100;
-    return (scrollTop / scrollHeight) * 100;
+    return {
+      top: doc.scrollTop || document.body.scrollTop,
+      max: doc.scrollHeight - doc.clientHeight,
+      node: window,
+    };
+  }
+
+  function scrollPercent(): number {
+    const { top, max } = scrollRoot();
+    if (max <= 0) return 100;
+    return (top / max) * 100;
   }
 
   function restoreScroll(percent: number) {
-    const doc = document.documentElement;
-    const scrollHeight = doc.scrollHeight - doc.clientHeight;
-    const top = (percent / 100) * scrollHeight;
-    window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'instant' });
+    const { max, node } = scrollRoot();
+    const top = (percent / 100) * max;
+    if (node === window) {
+      window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'instant' });
+    } else {
+      (node as Element).scrollTo({ top, behavior: reducedMotion ? 'auto' : 'instant' });
+    }
   }
 
   $effect(() => {
@@ -79,11 +93,13 @@
     }
 
     window.addEventListener('scroll', onScroll, { passive: true });
+    document.querySelector('[data-reading-pane]')?.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
       window.removeEventListener('scroll', onScroll);
+      document.querySelector('[data-reading-pane]')?.removeEventListener('scroll', onScroll);
     };
   });
 </script>

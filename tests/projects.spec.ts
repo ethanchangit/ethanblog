@@ -70,12 +70,14 @@ test.describe('Projects 集合页', () => {
     await expect(page.getByText('活跃开发')).toHaveCount(0);
   });
 
-  test('项目页是单栏文章，没有右侧技术栈组件', async ({ page }) => {
+  test('项目页是文章栏 + 左栏索引，没有右侧技术栈组件', async ({ page }) => {
     await page.goto('/projects/robert');
     await expect(page.getByRole('heading', { name: '技术栈' })).toHaveCount(0);
-    await expect(page.locator('aside')).toHaveCount(0);
+    await expect(page.locator('article.article-page aside')).toHaveCount(0);
     await expect(page.locator('article .grid.lg\\:grid-cols-\\[1fr_240px\\]')).toHaveCount(0);
     await expect(page.locator('article.article-page > header .ui-tag-list .ui-tag').first()).toBeVisible();
+    await expect(page.locator('[data-reading-index]')).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { name: '项目是一条线' })).toBeVisible();
   });
 
   test('项目页标题下可复制规范 URL，且在导语之上', async ({ page }) => {

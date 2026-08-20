@@ -2,6 +2,7 @@
 import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { articlesPageHref } from '@/lib/routes';
+import { seriesParentId } from '@/lib/docs';
 import {
   articleCardProps,
   groupArticlesByYear,
@@ -11,12 +12,14 @@ import {
 
 interface Props {
   page: number;
+  currentId?: string;
 }
 
-const { page } = Astro.props;
+const { page, currentId } = Astro.props;
 const all = await publishedArticles();
 const paged = paginateArticles(all, page);
 const groups = groupArticlesByYear(paged.items);
+const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefined;
 ---
 
 <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
@@ -42,6 +45,7 @@ const groups = groupArticlesByYear(paged.items);
                 meta={card.meta}
                 metaEn={card.metaEn}
                 tags={card.tags}
+                current={entry.id === activeId}
               />
             );
           })}

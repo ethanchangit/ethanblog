@@ -15,6 +15,7 @@ interface Props {
   description?: string;
   descriptionEn?: string;
   ogImage?: string;
+  split?: boolean;
 }
 
 const {
@@ -23,6 +24,7 @@ const {
   description = site.description,
   descriptionEn = site.descriptionEn ?? site.description,
   ogImage = '/og-default.svg',
+  split = false,
 } = Astro.props;
 const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — 博客`;
 const pageTitleEn = (titleEn ?? title)
@@ -34,6 +36,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
 <!doctype html>
 <html
   lang={site.lang}
+  class:list={[split && 'reading-split']}
   data-title-zh={pageTitleZh}
   data-title-en={pageTitleEn}
   data-desc-zh={description}
@@ -98,7 +101,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
     <meta name="theme-color" id="theme-color" content="#ffffff" />
     <ClientRouter />
   </head>
-  <body class="flex min-h-screen flex-col">
+  <body class:list={['flex min-h-screen flex-col', split && 'h-dvh overflow-hidden']}>
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:px-3 focus:py-2 focus:text-ink-100"
@@ -106,7 +109,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
       <I18n k="skipToContent" />
     </a>
     <Nav />
-    <main id="main" class="flex-1 pb-10">
+    <main id="main" class:list={['flex-1 pb-10', split && 'flex min-h-0 flex-col overflow-hidden']}>
       <slot />
     </main>
     <Footer />

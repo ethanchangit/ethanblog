@@ -101,7 +101,7 @@ test.describe('Article 论文化接口（T2）', () => {
     expect(copied).toMatch(/^https:\/\/ethanchang\.io\/articles\/pkm-method\/?$/);
   });
 
-  test('1440×900 下悬挂目录标签可见、H3 有缩进、可点锚点', async ({ page }) => {
+  test('1440×900 下第三栏目录可见、H3 有缩进、可点锚点', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(FINAL);
 
@@ -111,6 +111,7 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(toc.locator('.toc-title')).toHaveCount(0);
     await expect(toc.getByText('目录', { exact: true })).toHaveCount(0);
     await expect(toc.getByText('Contents', { exact: true })).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail]')).toBeVisible();
 
     const firstLabel = toc.locator('a .toc-label').first();
     await expect(firstLabel).toBeVisible();
@@ -129,13 +130,16 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(toc.locator('a').first()).toHaveAttribute('aria-current', 'true');
   });
 
-  test('390×844 下悬挂目录隐藏、不进正文、无横向溢出', async ({ page }) => {
+  test('390×844 下目录与左栏隐藏、正文在、无横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(FINAL);
 
     await expect(page.locator('details.toc-mobile')).toHaveCount(0);
     await expect(page.locator('nav.toc')).toBeHidden();
+    await expect(page.locator('[data-reading-index]')).toBeHidden();
+    await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.article-body-row > details')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '← 文章' })).toBeVisible();
 
     const stacked = await page.evaluate(() => {
       const row = document.querySelector('.article-body-row');
@@ -155,7 +159,7 @@ test.describe('Article 论文化接口（T2）', () => {
     expect(fits).toBe(true);
   });
 
-  test('1024×800 下目录仍在左侧留白，不进正文，标签可截断', async ({ page }) => {
+  test('1024×800 下目录在正文右侧第三栏，不进正文，标签可截断', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 800 });
     await page.goto(FINAL);
 
@@ -175,6 +179,7 @@ test.describe('Article 论文化接口（T2）', () => {
         tocRight: t.right,
         tocLeft: t.left,
         articleLeft: a.left,
+        articleRight: a.right,
         tocWidth: t.width,
         ellipsis: linkStyle?.textOverflow ?? '',
         nowrap: linkStyle?.whiteSpace ?? '',
@@ -182,8 +187,7 @@ test.describe('Article 论文化接口（T2）', () => {
     });
 
     expect(geometry).not.toBeNull();
-    expect(geometry!.tocLeft).toBeGreaterThanOrEqual(0);
-    expect(geometry!.tocRight).toBeLessThanOrEqual(geometry!.articleLeft + 1);
+    expect(geometry!.tocLeft).toBeGreaterThanOrEqual(geometry!.articleRight - 1);
     expect(geometry!.tocWidth).toBeGreaterThan(40);
     expect(geometry!.ellipsis).toBe('ellipsis');
     expect(geometry!.nowrap).toBe('nowrap');

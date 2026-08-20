@@ -106,6 +106,11 @@
     @apply bg-surface-950 text-ink-300 font-sans antialiased;
   }
 
+  html.reading-split {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
   /* Light: blue highlight + ink text. Dark: same tokens invert (ink-100 is light). */
   ::selection {
     @apply bg-primary-600/60 text-ink-100;
@@ -748,6 +753,12 @@
       margin: 0 -21rem 1rem 1rem;
       padding: 0;
     }
+
+    .reading-shell .sidenote {
+      float: none;
+      width: auto;
+      margin: 1.5rem 0;
+    }
   }
 
   /* RuleGarden 规则效果与目标标记（T6） */
@@ -973,58 +984,75 @@
     scroll-margin-top: 5rem;
   }
 
-  /*
-   * 目录与摘要同一行：.article-body-row 的顶 = Abstract 顶。
-   * nav.toc 绝对定位在该行里（top:0 / bottom:0），right:100% 探进左侧留白。
-   * 不占正文宽度，也不跟 H1 同行；窄 gutter 用 ellipsis，gutter 没了才隐藏。
-   *
-   * 宽 = min(14rem, 50vw - 24rem)：24rem 是 max-w-3xl 的一半。配合
-   * margin-right: 0.5rem，流体宽度时左缘约 1rem。56rem 时宽约 4rem；
-   * 再窄就没有可读的左栏，直接隐藏。xl 起恢复 14rem 栏 + 2rem 缝。
-   */
-  .article-body-row:has(> nav.toc) > nav.toc {
-    display: none;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 100%;
-    margin-right: 0.5rem;
-    width: min(14rem, calc(50vw - 24rem));
+  .reading-doc .prose-site :is(h2, h3, h4) {
+    scroll-margin-top: 1.5rem;
   }
 
-  @media (min-width: 56rem) {
-    .article-body-row:has(> nav.toc) > nav.toc {
+  /*
+   * 分栏阅读：md+ 左栏是完整索引页，中栏正文；lg+ 且有合集/目录时出第三栏。
+   * 窄屏只显示正文，用返回链回索引。栏间发丝线是结构分隔，不是卡片 chrome。
+   */
+  .reading-shell {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    width: 100%;
+  }
+
+  .reading-index {
+    display: none;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border-right: 1px solid var(--color-surface-700);
+  }
+
+  .reading-doc {
+    min-width: 0;
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .reading-back {
+    margin: 0;
+    padding: 1rem 1rem 0;
+  }
+
+  .reading-rail {
+    display: none;
+    width: 12.5rem;
+    flex-shrink: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--color-surface-700);
+    padding: 1.5rem 1rem 2.5rem;
+  }
+
+  .reading-chapters-inline {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .reading-index {
+      display: block;
+      flex: 0 0 42%;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .reading-rail {
       display: block;
     }
-  }
 
-  @media (min-width: 80rem) {
-    .article-body-row:has(> nav.toc) > nav.toc {
-      margin-right: 2rem;
-      width: 14rem;
+    .reading-chapters-inline {
+      display: none;
     }
   }
 
   /*
-   * 悬挂目录：Notion 式层级靠缩进 / 字号 / 深浅，不靠刻度、色条或 pill。
-   * 左对齐；H3 在 H2 下再缩一档。
-   * pointer-events 只开在 sticky 簇上，避免整列左页边误触。
+   * 第三栏目录：层级靠缩进 / 字号 / 深浅。
    */
-  .toc {
-    pointer-events: none;
-  }
-  .toc .sticky {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    min-width: 0;
-    max-height: calc(100vh - 6rem);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    pointer-events: auto;
-  }
-
   .toc ul {
     margin: 0;
     padding: 0;
@@ -1073,6 +1101,15 @@
   .toc a.is-active {
     color: var(--color-ink-200);
     text-decoration-color: var(--color-ink-500);
+  }
+
+  .reading-series + .toc {
+    margin-top: 1.5rem;
+  }
+
+  .reading-series a[aria-current='page'] {
+    color: var(--color-ink-100);
+    text-decoration-color: var(--color-ink-400);
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,72 @@
+---
+import Timeline from '@/components/media/Timeline.svelte';
+import I18n from '@/components/shell/I18n.astro';
+import Bi from '@/components/shell/Bi.astro';
+import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
+import { docsBySlot } from '@/lib/docs';
+import { projectHref } from '@/lib/routes';
+
+interface Props {
+  currentId?: string;
+}
+
+const { currentId } = Astro.props;
+const projects = (await docsBySlot('project')).sort(
+  (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
+);
+const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
+
+const timelineItems = projects.map((project) => ({
+  title: project.data.title,
+  titleEn: project.data.titleEn,
+  body: project.data.description,
+  bodyEn: project.data.descriptionEn,
+  href: projectHref(project.id),
+  icon: lineageIcons[project.id],
+}));
+---
+
+<article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+  <header class="mb-10">
+    <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+      <I18n k="projectsH1" />
+    </h1>
+    <p class="mt-4 text-lg leading-relaxed text-ink-400">
+      <I18n k="projectsLead" />
+    </p>
+  </header>
+
+  <div class="prose-site">
+    <h2 id="lineage"><I18n k="projectsLineageH2" /></h2>
+
+    <p>
+      <I18n k="projectsLineageP" />
+    </p>
+
+    <Timeline
+      client:visible
+      items={timelineItems}
+      currentHref={currentId ? projectHref(currentId) : undefined}
+      caption="按各项目已有的顺序排列。有些项目并行酝酿，但能力继承的方向是清晰的。"
+      captionEn="Listed in each project's existing order. Some were brewing in parallel; the direction of inheritance is still clear."
+    />
+
+    <p><I18n k="projectsEdgesIntro" /></p>
+
+    <ul>
+      {
+        lineageEdges.map((edge) => (
+          <li>
+            <a href={projectHref(edge.from)}>
+              {bySlug[edge.from]?.data.title ?? edge.from}
+            </a>
+            {' → '}
+            <a href={projectHref(edge.to)}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
+            {'：'}
+            <Bi zh={edge.carries} en={edge.carriesEn} />
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</article>

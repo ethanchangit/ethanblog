@@ -107,12 +107,12 @@ test.describe('Language（中/EN）', () => {
   test('文章正文随语言切换，缺英文时回退中文', async ({ page }) => {
     await page.addInitScript(() => localStorage.removeItem('lang'));
     await page.goto('/articles/pkm-method');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('我的 PKM 实践：从笔记到知识网络', inner);
+    await expect(page.locator('.article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络', inner);
     await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', '目录');
     await expect(page.locator('.article-dek-label, .toc-title')).toHaveCount(0);
 
     await chooseLang(page, 'English');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    await expect(page.locator('.article-lede h1')).toHaveText(
       'My PKM practice: from notes to a knowledge network',
       inner
     );
