@@ -38,12 +38,14 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ### 5. 定落盘路径
 - 文章 → `src/content/articles/<slug>.mdx`
+- 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）
 - 项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`
 
 ### 6. 写 frontmatter
 - `description` ≤80 字，可检验的陈述句（渲染成摘要块 + RSS，别写悬念句）
 - **定稿必须双语**：`titleEn` + `descriptionEn`（文章必填 `titleEn`；项目可省略若标题已是英文），正文用 `<div data-lang-split></div>` 切开中英；草稿可暂缺（`validate:content` 对 draft 降级）
 - **`slot`**：`article` 或 `project`，决定出现在 `/articles` 还是 `/projects`。不要写进 topical `tags`。
+- 系列子文靠目录嵌套（`<hub>/<n>.mdx`），不必写 `listed: false`；顶层文章要藏起来才写 `listed: false`。
 - `draft: true`
 - 模板见 [MEDIUM.md §11](../../../docs/MEDIUM.md)
 

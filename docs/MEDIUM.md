@@ -245,6 +245,8 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
 `/projects` 可以在列表上方写传承导语与时间线，不要把项目长文堆在索引上。
 对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
+系列教程把总览放 `articles/<hub>.mdx`（进 `/articles`），子页放 `articles/<hub>/<n>.mdx`
+（路由 `/articles/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。`listed: false` 可把顶层文章也藏起来。
 
 ## 11. 附录：模板
 
@@ -288,6 +290,24 @@ demo:
 
 `slot` 是「哪份索引收录我」的标记，不要写进 topical `tags`（否则会污染 `/tags`）。
 项目可多写 `repo` / `homepage` / `downloads` / `screenshots` / `demo`；文章省略即可。
+
+**系列子文**（总览进 `/articles`，第 1、2、3… 页不进列表）放 `src/content/articles/<hub>/<n>.mdx`：
+
+```yaml
+---
+slot: article
+title: "…… · 第 1 页"
+titleEn: "… · Part 1"
+description: "……"
+descriptionEn: "……"
+date: 2026-08-19
+order: 1          # 篇目顺序；总览页自动列出
+draft: true
+---
+```
+
+总览是旁边那份 `src/content/articles/<hub>.mdx`（不要用 `index.mdx`）。子文 id 含 `/`，默认不进索引；不必写 `listed: false`。若要把一篇顶层文章藏起来，写 `listed: false`。
+
 
 **新媒介组件准入**：满足 media/README 六条契约 → 在 `/lab` 加带 `data-testid` 的最小示例
 → 补 lab-interactions / reduced-motion 两类测试 → 更新 README 目录表与本文 §5 决策表

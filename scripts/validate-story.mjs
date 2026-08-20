@@ -133,6 +133,13 @@ function englishAfterSplit(bodyText) {
 
 const results = [];
 
+function articleIdFromPath(file) {
+  return relative(ARTICLES_DIR, file).replaceAll('\\', '/').replace(/\.mdx$/, '');
+}
+
+const articleFiles = collectMdx(ARTICLES_DIR);
+const articleIds = new Set(articleFiles.map(articleIdFromPath));
+
 function validateFile(file) {
   const rel = relative(ROOT, file);
   const raw = readFileSync(file, 'utf8');
@@ -165,6 +172,17 @@ function validateFile(file) {
     const descLen = Array.from(desc).length;
     if (descLen > 100) errors.push(`description ${descLen} 字（>100）：摘要块和 RSS 都会溢出，请压到 80 字内`);
     else if (descLen > 80) warnings.push(`description ${descLen} 字（>80）：建议压到 80 字内`);
+
+    const id = articleIdFromPath(file);
+    const slash = id.lastIndexOf('/');
+    if (slash !== -1) {
+      const parent = id.slice(0, slash);
+      if (!articleIds.has(parent)) {
+        errors.push(
+          `子文需要同系列总览 ${parent}.mdx（总览进 /articles，子文默认不进索引）`,
+        );
+      }
+    }
   }
 
   // --- 正文组件规约 ---
@@ -260,7 +278,7 @@ function validateFile(file) {
   }
 }
 
-for (const file of collectMdx(ARTICLES_DIR)) validateFile(file);
+for (const file of articleFiles) validateFile(file);
 for (const file of collectMdx(PROJECTS_DIR)) validateFile(file);
 
 let errorCount = 0;

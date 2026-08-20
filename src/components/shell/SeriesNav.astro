@@ -1,0 +1,73 @@
+---
+import Bi from '@/components/shell/Bi.astro';
+import I18n from '@/components/shell/I18n.astro';
+import { docHref, type SeriesContext } from '@/lib/docs';
+
+interface Props {
+  series: SeriesContext;
+  part: 'parent' | 'chapters' | 'pager';
+}
+
+const { series, part } = Astro.props;
+const { hub, chapters, prev, next, isHub, isChapter } = series;
+---
+
+{
+  part === 'chapters' && isHub && (
+    <nav class="mt-8 mb-10" aria-label="系列导航" data-i18n-aria="seriesNavAria" data-series="hub">
+      <p class="ui-meta">
+        <I18n k="seriesChapters" />
+      </p>
+      <ol class="mt-3 flex flex-col gap-2">
+        {chapters.map((chapter, index) => (
+          <li>
+            <a
+              href={docHref(chapter)}
+              class="text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-100"
+            >
+              <span class="ui-meta">{index + 1}</span>
+              {' '}
+              <Bi zh={chapter.data.title} en={chapter.data.titleEn} />
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+{
+  part === 'parent' && isChapter && hub && (
+    <p class="mt-3" data-series="parent">
+      <a href={docHref(hub)} class="ui-link-subtle">
+        <Bi zh={hub.data.title} en={hub.data.titleEn} />
+      </a>
+    </p>
+  )
+}
+
+{
+  part === 'pager' && isChapter && (prev || next) && (
+    <nav
+      class="flex items-baseline justify-between gap-4"
+      aria-label="系列导航"
+      data-i18n-aria="seriesNavAria"
+      data-series="pager"
+    >
+      <span>
+        {prev ? (
+          <a href={docHref(prev)} class="ui-link-subtle" data-series-prev>
+            <I18n k="seriesPrev" />
+          </a>
+        ) : null}
+      </span>
+      <span class="text-right">
+        {next ? (
+          <a href={docHref(next)} class="ui-link-subtle" data-series-next>
+            <I18n k="seriesNext" />
+          </a>
+        ) : null}
+      </span>
+    </nav>
+  )
+}
