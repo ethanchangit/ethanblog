@@ -11,7 +11,7 @@
     "validate:content": "node scripts/validate-story.mjs",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=ethanblog",
+    "deploy": "npm run build && wrangler deploy -c workers/guestbook/wrangler.toml && wrangler pages deploy dist --project-name=ethanblog",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
   },
   "dependencies": {

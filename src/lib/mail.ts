@@ -1,18 +1,19 @@
-import { EmailMessage } from 'cloudflare:email';
-import { FEEDBACK_FROM, FEEDBACK_SUBJECT_TAG, FEEDBACK_TO } from '@/lib/comments';
+import { FEEDBACK_SUBJECT_TAG } from './comments';
 
-export function feedbackSubject(name: string, slug: string): string {
-  return `${FEEDBACK_SUBJECT_TAG} ${oneLine(name)} · ${oneLine(slug)}`;
-}
-
-export function feedbackText(input: {
+export type FeedbackPayload = {
   slug: string;
   title: string;
   url: string;
   name: string;
   email: string;
   body: string;
-}): string {
+};
+
+export function feedbackSubject(name: string, slug: string): string {
+  return `${FEEDBACK_SUBJECT_TAG} ${oneLine(name)} · ${oneLine(slug)}`;
+}
+
+export function feedbackText(input: FeedbackPayload): string {
   return [
     `文章：${input.title}`,
     `slug：${input.slug}`,
@@ -25,37 +26,37 @@ export function feedbackText(input: {
   ].join('\n');
 }
 
-/** Classic Email Routing send: `env.EMAIL.send(new EmailMessage(from, to, rawMime))`. */
+/**
+ * Pages → guestbook Worker over the GUESTBOOK service binding.
+ * The Worker owns Email Routing (`EmailMessage`); this side only POSTs JSON.
+ */
 export async function sendFeedbackEmail(
-  env: { EMAIL?: SendEmail },
-  payload: {
-    slug: string;
-    title: string;
-    url: string;
-    name: string;
-    email: string;
-    body: string;
-  },
+  env: { GUESTBOOK?: Fetcher },
+  payload: FeedbackPayload,
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  if (!env.EMAIL) {
+  if (!env.GUESTBOOK) {
     return { ok: false, error: 'Email is not configured', status: 503 };
   }
 
-  const from = FEEDBACK_FROM;
-  const to = FEEDBACK_TO;
-  const replyTo = payload.email || undefined;
-  const raw = buildRawEmail({
-    from,
-    to,
-    replyTo,
-    subject: feedbackSubject(payload.name, payload.slug),
-    text: feedbackText(payload),
-  });
-
+  let res: Response;
   try {
-    await env.EMAIL.send(new EmailMessage(from, to, raw));
+    res = await env.GUESTBOOK.fetch(
+      new Request('https://ethanblog-guestbook/send', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+    );
   } catch {
     return { ok: false, error: 'Send failed', status: 502 };
+  }
+
+  if (res.status === 503) {
+    return { ok: false, error: 'Email is not configured', status: 503 };
+  }
+  if (!res.ok) {
+    const status = res.status >= 400 && res.status < 600 ? res.status : 502;
+    return { ok: false, error: 'Send failed', status };
   }
   return { ok: true };
 }

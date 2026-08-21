@@ -12,17 +12,19 @@
  * - GOOGLE_CLIENT_ID         — Google OAuth client ID
  * - GOOGLE_CLIENT_SECRET     — Google OAuth client secret
  *
- * Guestbook mail uses wrangler.toml `[[send_email]]` named EMAIL
- * (classic Email Routing `EmailMessage`, destination locked to hey@ethanchang.io).
- * No Resend / Mailchannels HTTP / third-party API key. Dashboard: enable Email
- * Routing on ethanchang.io and verify hey@ethanchang.io as a destination.
+ * Guestbook mail: Pages `[[services]]` binding GUESTBOOK → workers/guestbook.
+ * That Worker holds `[[send_email]]` named EMAIL (classic Email Routing
+ * `EmailMessage`, destination locked to hey@ethanchang.io). Pages config
+ * cannot contain send_email. No Resend / Mailchannels HTTP / third-party API key.
+ * Dashboard: enable Email Routing on ethanchang.io and verify hey@ethanchang.io.
  *
+ * Local `astro dev` has no GUESTBOOK binding — POST /api/comments returns 503.
  * Local dev: copy `.dev.vars.example` → `.dev.vars`.
  * Remote upload: copy → `.env.production`, then `npm run setup:cloudflare`.
  */
 type Env = {
   DB: D1Database;
-  EMAIL: SendEmail;
+  GUESTBOOK?: Fetcher;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL?: string;
   GITHUB_CLIENT_ID: string;
