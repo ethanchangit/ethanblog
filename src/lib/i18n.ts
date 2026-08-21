@@ -1,8 +1,17 @@
 /**
  * Chrome-level bilingual layer (zh-CN / en).
  * MDX article/project bodies are not translated here — only shell UI.
- * Preference lives in localStorage; SSR / empty-storage default is English.
+ *
+ * Shareable Chinese URLs live under `/zh`. That prefix wins over localStorage.
+ * Unprefixed URLs still honor localStorage (default English).
  */
+
+import {
+  isLocalizablePath,
+  isZhPath,
+  localeHrefForLang,
+  localizeHref,
+} from '@/lib/locale';
 
 export type Lang = 'zh-CN' | 'en';
 
@@ -321,11 +330,16 @@ export function getStoredLang(): Lang | null {
   return value === 'en' || value === 'zh-CN' ? value : null;
 }
 
+export function langFromEnvironment(): Lang {
+  if (typeof location !== 'undefined' && isZhPath(location.pathname)) return 'zh-CN';
+  return resolveLang(getStoredLang());
+}
+
 export function readLang(): Lang {
   if (typeof document === 'undefined') return DEFAULT_LANG;
   const attr = document.documentElement.dataset.lang || document.documentElement.lang;
   if (attr === 'en' || attr === 'zh-CN') return attr;
-  return resolveLang(getStoredLang());
+  return langFromEnvironment();
 }
 
 function syncChrome(lang: Lang) {
@@ -358,18 +372,44 @@ function syncDocumentMeta(lang: Lang) {
   if (meta && desc) meta.setAttribute('content', desc);
 }
 
+function syncLocalizedLinks(lang: Lang) {
+  if (typeof document === 'undefined') return;
+  const locale = lang === 'zh-CN' ? 'zh' : 'en';
+  document.querySelectorAll('a[href^="/"]').forEach((el) => {
+    const href = el.getAttribute('href');
+    if (!href || href.startsWith('//')) return;
+    try {
+      const url = new URL(href, document.baseURI);
+      if (!isLocalizablePath(url.pathname)) return;
+      const next = localizeHref(href, locale);
+      if (next !== href) el.setAttribute('href', next);
+    } catch {
+      /* ignore malformed hrefs */
+    }
+  });
+}
+
 export function applyLang(lang: Lang) {
   if (typeof document === 'undefined') return;
   document.documentElement.lang = lang;
   document.documentElement.dataset.lang = lang;
   syncChrome(lang);
   syncDocumentMeta(lang);
+  syncLocalizedLinks(lang);
   document.dispatchEvent(new CustomEvent<Lang>(LANG_EVENT, { detail: lang }));
+}
+
+function samePathname(a: string, b: string): boolean {
+  return (a.replace(/\/+$/, '') || '/') === (b.replace(/\/+$/, '') || '/');
 }
 
 export function setLang(lang: Lang) {
   localStorage.setItem(LANG_STORAGE_KEY, lang);
   applyLang(lang);
+  if (typeof location === 'undefined') return;
+  const nextPath = localeHrefForLang(location.pathname, lang);
+  if (samePathname(nextPath, location.pathname)) return;
+  location.assign(nextPath + location.search + location.hash);
 }
 
 export function toggleLang(): Lang {
@@ -381,11 +421,11 @@ export function toggleLang(): Lang {
 let started = false;
 
 export function initLang() {
-  applyLang(resolveLang(getStoredLang()));
+  applyLang(langFromEnvironment());
   if (started) return;
   started = true;
   document.addEventListener('astro:after-swap', () => {
-    applyLang(resolveLang(getStoredLang()));
+    applyLang(langFromEnvironment());
   });
 }
 

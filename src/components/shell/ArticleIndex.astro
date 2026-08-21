@@ -18,6 +18,7 @@ interface Props {
 }
 
 const { page, currentId } = Astro.props;
+const lp = Astro.locals.localePath;
 const all = await publishedArticles();
 const paged = paginateArticles(all, page);
 const groups = groupArticlesByYear(paged.items);
@@ -28,7 +29,7 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
   <header class="mb-10">
     <div class="reading-index-heading">
       <ReadingIndexSwitch active="articles" />
-      <ReadingExpand href={HOME_PATH} />
+      <ReadingExpand href={lp(HOME_PATH)} />
     </div>
   </header>
   {
@@ -40,7 +41,7 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
             const card = articleCardProps(entry);
             return (
               <Card
-                href={card.href}
+                href={lp(card.href)}
                 title={card.title}
                 titleEn={card.titleEn}
                 description={card.description}
@@ -64,13 +65,13 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
         data-i18n-aria="articlesPagerAria"
       >
         {paged.hasPrev && (
-          <a href={articlesPageHref(paged.page - 1)} class="ui-link-subtle self-start">
+          <a href={lp(articlesPageHref(paged.page - 1))} class="ui-link-subtle self-start">
             {'<- '}
             <I18n k="articlesNewer" />
           </a>
         )}
         {paged.hasNext && (
-          <a href={articlesPageHref(paged.page + 1)} class="ui-link-subtle self-end">
+          <a href={lp(articlesPageHref(paged.page + 1))} class="ui-link-subtle self-end">
             <I18n k="articlesEarlier" />
             {' ->'}
           </a>

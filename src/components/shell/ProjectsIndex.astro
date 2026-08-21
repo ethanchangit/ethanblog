@@ -13,6 +13,7 @@ interface Props {
 }
 
 const { currentId } = Astro.props;
+const lp = Astro.locals.localePath;
 const projects = (await docsBySlot('project')).sort(
   (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
@@ -23,7 +24,7 @@ const timelineItems = projects.map((project) => ({
   titleEn: project.data.titleEn,
   body: project.data.description,
   bodyEn: project.data.descriptionEn,
-  href: projectHref(project.id),
+  href: lp(projectHref(project.id)),
   icon: lineageIcons[project.id],
 }));
 ---
@@ -32,7 +33,7 @@ const timelineItems = projects.map((project) => ({
   <header class="mb-10">
     <div class="reading-index-heading">
       <ReadingIndexSwitch active="projects" />
-      <ReadingExpand href={HOME_PATH} />
+      <ReadingExpand href={lp(HOME_PATH)} />
     </div>
     <p class="mt-4 text-lg leading-relaxed text-ink-400">
       <I18n k="projectsLead" />
@@ -49,7 +50,7 @@ const timelineItems = projects.map((project) => ({
     <Timeline
       client:visible
       items={timelineItems}
-      currentHref={currentId ? projectHref(currentId) : undefined}
+      currentHref={currentId ? lp(projectHref(currentId)) : undefined}
       caption="按各项目已有的顺序排列。有些项目并行酝酿，但能力继承的方向是清晰的。"
       captionEn="Listed in each project's existing order. Some were brewing in parallel; the direction of inheritance is still clear."
     />
@@ -60,11 +61,11 @@ const timelineItems = projects.map((project) => ({
       {
         lineageEdges.map((edge) => (
           <li>
-            <a href={projectHref(edge.from)}>
+            <a href={lp(projectHref(edge.from))}>
               {bySlug[edge.from]?.data.title ?? edge.from}
             </a>
             {' → '}
-            <a href={projectHref(edge.to)}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
+            <a href={lp(projectHref(edge.to))}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
             {'：'}
             <Bi zh={edge.carries} en={edge.carriesEn} />
           </li>

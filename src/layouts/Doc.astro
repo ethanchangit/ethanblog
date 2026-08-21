@@ -14,6 +14,7 @@ import CopyUrl from '@/components/shell/CopyUrl.svelte';
 import SeriesNav from '@/components/shell/SeriesNav.astro';
 import { site } from '@/data/profile';
 import { seriesContext, type DocEntry } from '@/lib/docs';
+import { localizeHref } from '@/lib/locale';
 
 interface Props {
   doc: DocEntry;
@@ -37,7 +38,11 @@ const {
 } = doc.data;
 const isArticle = slot === 'article';
 const slug = doc.id;
-const canonicalUrl = new URL(Astro.url.pathname, site.url).href;
+const canonicalUrl = new URL(
+  Astro.locals.localePath?.(Astro.url.pathname) ??
+    localizeHref(Astro.url.pathname, Astro.locals.locale),
+  site.url,
+).href;
 const series = isArticle ? await seriesContext(doc) : null;
 
 let initialComments: ArticleComment[] = [];

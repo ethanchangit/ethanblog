@@ -25,6 +25,13 @@ export const STATIC_ROUTES = [
   '/tags',
   '/tags/PKM',
   '/lab',
+  '/zh',
+  '/zh/now',
+  '/zh/articles',
+  '/zh/articles/pkm-method',
+  '/zh/projects',
+  '/zh/search',
+  '/zh/tags',
 ] as const;
 
 export const KEY_PAGES_FOR_LINK_CHECK = [
@@ -35,4 +42,5 @@ export const KEY_PAGES_FOR_LINK_CHECK = [
   '/search',
   '/tags',
   '/lab',
+  '/zh',
 ] as const;

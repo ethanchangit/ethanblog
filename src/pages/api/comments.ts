@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getSession } from '@/lib/auth';
 import { docsBySlot } from '@/lib/docs';
 import { articleHref } from '@/lib/routes';
+import { localeFromPath, localizeHref } from '@/lib/locale';
 import {
   COMMENT_LIST_LIMIT,
   isCommentNameTooLong,
@@ -131,7 +132,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 };
 
 function redirectToArticle(request: Request, slug: string): Response {
-  const dest = new URL(articleHref(slug), request.url);
+  const referer = request.headers.get('referer');
+  let locale: string | undefined;
+  if (referer) {
+    try {
+      locale = localeFromPath(new URL(referer).pathname);
+    } catch {
+      locale = undefined;
+    }
+  }
+  const dest = new URL(localizeHref(articleHref(slug), locale), request.url);
   dest.hash = 'comments';
   return Response.redirect(dest, 303);
 }

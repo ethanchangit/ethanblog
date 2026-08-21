@@ -14,7 +14,7 @@ const { tags, class: className } = Astro.props;
     <ul class:list={['ui-tag-list', className ?? 'mt-5']}>
       {tags.map((tag) => (
         <li>
-          <a href={tagHref(tag)} class="ui-tag-link">
+          <a href={Astro.locals.localePath(tagHref(tag))} class="ui-tag-link">
             {tag}
           </a>
         </li>

@@ -4,6 +4,11 @@
       "source": "/about",
       "destination": "/",
       "type": 301
+    },
+    {
+      "source": "/zh/about",
+      "destination": "/zh",
+      "type": 301
     }
   ]
 }

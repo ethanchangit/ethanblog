@@ -11,6 +11,7 @@ import { publishedArticles } from '@/lib/tags';
 const articles = await publishedArticles();
 const cards = articles.map(searchCardProps);
 const q = Astro.url.searchParams.get('q') ?? '';
+const lp = Astro.locals.localePath;
 ---
 
 <Base
@@ -24,7 +25,7 @@ const q = Astro.url.searchParams.get('q') ?? '';
       <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
         <I18n k="searchTitle" />
       </h1>
-      <form class="mt-8" action={SEARCH_PATH} method="get" role="search">
+      <form class="mt-8" action={lp(SEARCH_PATH)} method="get" role="search">
         <SearchFilter query={q} />
         <button type="submit" class="sr-only"><I18n k="navSearch" /></button>
       </form>
@@ -34,7 +35,7 @@ const q = Astro.url.searchParams.get('q') ?? '';
         cards.map((card) => (
           <div data-search-item data-search-hay={card.haystack} hidden={!matchesQuery(card.haystack, q)}>
             <Card
-              href={card.href}
+              href={lp(card.href)}
               title={card.title}
               titleEn={card.titleEn}
               description={card.description}
