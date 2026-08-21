@@ -27,9 +27,28 @@
   let root = $state<HTMLElement | null>(null);
   let animated = $state(false);
   let visible = $state<boolean[]>(items.map(() => false));
+  let current = $state(currentHref);
+
+  function pathOf(href: string | undefined): string {
+    if (!href) return '';
+    try {
+      return new URL(href, location.origin).pathname.replace(/\/+$/, '') || '/';
+    } catch {
+      return href.replace(/\/+$/, '') || '/';
+    }
+  }
+
+  function syncCurrent() {
+    current = pathOf(location.pathname);
+  }
 
   onMount(() => {
-    if (reducedMotion() || !root) return;
+    syncCurrent();
+    document.addEventListener('astro:page-load', syncCurrent);
+
+    if (reducedMotion() || !root) {
+      return () => document.removeEventListener('astro:page-load', syncCurrent);
+    }
     animated = true;
     const nodes = Array.from(root.querySelectorAll('[data-tl-item]'));
     const io = new IntersectionObserver(
@@ -42,10 +61,13 @@
           }
         }
       },
-      { threshold: 0.4 }
+      { threshold: 0.4 },
     );
     nodes.forEach((n) => io.observe(n));
-    return () => io.disconnect();
+    return () => {
+      document.removeEventListener('astro:page-load', syncCurrent);
+      io.disconnect();
+    };
   });
 </script>
 
@@ -88,7 +110,7 @@
         {#if item.href}
           <a
             href={item.href}
-            aria-current={item.href === currentHref ? 'page' : undefined}
+            aria-current={pathOf(item.href) === current ? 'page' : undefined}
             class="group flex items-center gap-4 text-inherit no-underline"
           >
             {@render row(item, i)}

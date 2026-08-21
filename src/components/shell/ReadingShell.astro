@@ -3,16 +3,16 @@ import Base from '@/layouts/Base.astro';
 import ArticleIndex from '@/components/shell/ArticleIndex.astro';
 import ProjectsIndex from '@/components/shell/ProjectsIndex.astro';
 import I18n from '@/components/shell/I18n.astro';
-import { ARTICLES_PATH, PROJECTS_PATH } from '@/lib/routes';
+import { articleHref, ARTICLES_PATH, HOME_PATH, projectHref, PROJECTS_PATH } from '@/lib/routes';
 import type { CopyKey } from '@/lib/i18n';
 
 interface Props {
-  kind: 'article' | 'project';
-  title: string;
+  kind: 'article' | 'project' | 'home';
+  title?: string;
   titleEn?: string;
   description: string;
   descriptionEn?: string;
-  currentId: string;
+  currentId?: string;
   showRail?: boolean;
 }
 
@@ -25,29 +25,40 @@ const {
   currentId,
   showRail = false,
 } = Astro.props;
-const persistKey = kind === 'article' ? 'reading-index-articles' : 'reading-index-projects';
-const indexHref = kind === 'article' ? ARTICLES_PATH : PROJECTS_PATH;
-const backKey: CopyKey = kind === 'article' ? 'backToArticles' : 'backToProjects';
+const persistKey = kind === 'project' ? 'reading-index-projects' : 'reading-index-articles';
+const indexHref = kind === 'project' ? PROJECTS_PATH : ARTICLES_PATH;
+const docSrc =
+  kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? '');
+const backKey: CopyKey = kind === 'project' ? 'backToProjects' : 'backToArticles';
 ---
 
 <Base split title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
   <div class="reading-shell" data-reading-shell={kind}>
-    <aside class="reading-index" data-reading-index transition:persist={persistKey}>
+    <aside
+      class="reading-index"
+      data-reading-index
+      data-reading-index-src={indexHref}
+      transition:persist={persistKey}
+    >
       {
-        kind === 'article' ? (
-          <ArticleIndex page={1} currentId={currentId} />
-        ) : (
+        kind === 'project' ? (
           <ProjectsIndex currentId={currentId} />
+        ) : (
+          <ArticleIndex page={1} currentId={currentId} />
         )
       }
     </aside>
 
-    <div class="reading-doc" data-reading-pane data-reading-doc>
-      <p class="reading-back md:hidden">
-        <a href={indexHref} class="ui-link-subtle">
-          <I18n k={backKey} />
-        </a>
-      </p>
+    <div class="reading-doc" data-reading-pane data-reading-doc data-reading-doc-src={docSrc}>
+      {
+        kind !== 'home' && (
+          <p class="reading-back">
+            <a href={indexHref} class="ui-link-subtle">
+              <I18n k={backKey} />
+            </a>
+          </p>
+        )
+      }
       <slot />
     </div>
 
@@ -62,25 +73,8 @@ const backKey: CopyKey = kind === 'article' ? 'backToArticles' : 'backToProjects
 </Base>
 
 <script>
-  function markCurrent() {
-    const root = document.querySelector('[data-reading-index]');
-    if (!root) return;
-    const path = window.location.pathname.replace(/\/+$/, '') || '/';
-    for (const a of root.querySelectorAll<HTMLAnchorElement>('a[href]')) {
-      const href = a.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('?')) continue;
-      let target: string;
-      try {
-        target = new URL(href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
-      } catch {
-        continue;
-      }
-      if (target === '/articles' || target === '/projects') continue;
-      const match = path === target || path.startsWith(`${target}/`);
-      if (match) a.setAttribute('aria-current', 'page');
-      else a.removeAttribute('aria-current');
-    }
-  }
-
-  document.addEventListener('astro:page-load', markCurrent);
+  import { initReadingIndexSwap } from '@/lib/reading-index-swap';
+  import { initReadingSeriesPane } from '@/lib/reading-series-pane';
+  initReadingIndexSwap();
+  initReadingSeriesPane();
 </script>

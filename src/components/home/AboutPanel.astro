@@ -1,0 +1,58 @@
+---
+import I18n from '@/components/shell/I18n.astro';
+import { profile, skills } from '@/data/profile';
+import { domainKey } from '@/lib/i18n';
+
+const domains = [...new Set(skills.map((s) => s.domain))];
+---
+
+<article class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-about-panel>
+  <header class="mb-10">
+    <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+      {profile.name} · {profile.chineseName}
+    </h1>
+  </header>
+
+  <div class="prose-site">
+    <p><I18n k="aboutLead" /></p>
+
+    <h2><I18n k="aboutDoing" /></h2>
+    <ul>
+      <li><I18n k="aboutIos" /></li>
+      <li><I18n k="aboutAi" /></li>
+      <li><I18n k="aboutPkm" /></li>
+    </ul>
+  </div>
+
+  <section class="mt-12">
+    <h2 class="mb-6 text-xl font-semibold text-ink-100"><I18n k="aboutStack" /></h2>
+    <div class="grid gap-8 sm:grid-cols-2">
+      {
+        domains.map((domain) => {
+          const key = domainKey(domain);
+          return (
+            <div>
+              <h3 class="ui-section-label">{key ? <I18n k={key} /> : domain}</h3>
+              <ul class="flex flex-wrap gap-x-3 gap-y-1">
+                {skills
+                  .filter((s) => s.domain === domain)
+                  .map((s) => (
+                    <li class="text-sm text-ink-300">
+                      {s.nameEn ? (
+                        <>
+                          <span class="i18n-zh" aria-hidden="true">{s.name}</span>
+                          <span class="i18n-en">{s.nameEn}</span>
+                        </>
+                      ) : (
+                        s.name
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          );
+        })
+      }
+    </div>
+  </section>
+</article>

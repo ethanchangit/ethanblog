@@ -166,7 +166,7 @@ Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 - **收录位置** = `slot`：`article` → `/articles`，`project` → `/projects`。不要写进 topical `tags`。
 - **摘要** = description：≤80 字，写成可检验的陈述句，不写悬念句。
 - **日期**：`date` 为首发；有修订时再写 `updated`（页眉会显示「更新于」）。
-- **目录**：h2/h3 ≥ 3 时自动出现，无需手工维护——因此**标题层级要写实**。
+- **目录**：有 h2/h3 时自动浮在阅读区右侧，无需手工维护——因此**标题层级要写实**。无标题则不出现。
 - **标签**：`tags` 渲染在摘要下方。
 - **SideNote 纪律**：每屏至多一条；只放"删掉不影响论证，读到会心一笑"的内容。
 
@@ -239,7 +239,7 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 
 ### 页面架构
 
-固定页（手写 Astro）：`/articles`、`/projects`、`/about`。详情页是同一套 MDX 文档形态，
+固定页（手写 Astro）：`/`（身份/原 About）、`/now`、`/articles`、`/projects`。详情页是同一套 MDX 文档形态，
 用 frontmatter `slot: article | project` 决定出现在哪份索引（不是 topical `tags`）。
 落盘仍可分 `articles/` 与 `projects/` 两个文件夹，只是方便；列表与路由按 `slot` 过滤。
 两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；

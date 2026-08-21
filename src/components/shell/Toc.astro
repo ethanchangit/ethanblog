@@ -1,7 +1,7 @@
 ---
 /**
- * 目录 —— 只收 depth 2-3；不足 3 条时不渲染。
- * 分栏阅读时放在第三栏（.reading-rail）；窄屏随第三栏一起隐藏。
+ * 目录 —— 只收 depth 2-3；没有条目时不渲染。
+ * 分栏阅读时浮在阅读区右侧（.reading-rail）；窄屏随 rail 一起隐藏。
  * 无 JS 时靠 :target 标明当前条；有 JS 时按阅读栏滚动位置写 aria-current。
  */
 import Bi from '@/components/shell/Bi.astro';
@@ -30,7 +30,7 @@ const activeCss = [...items, ...enItems]
 ---
 
 {
-  items.length >= 3 && (
+  items.length > 0 && (
     <nav class="toc" aria-label="Table of contents" data-i18n-aria="tocAria">
       {activeCss && (
         <Fragment

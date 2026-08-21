@@ -18,7 +18,7 @@ function tagCloudLink(page: Page, tag: string) {
 test.describe('Tags（内容集合过滤）', () => {
   test('导航有标签入口，/tags 默认全部标签加分组切换', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('header nav a[href="/tags"]');
+    const nav = page.locator('header.site-nav a[href="/tags"]');
     await expect(nav).toHaveText('Tags', { useInnerText: true });
 
     await nav.click();
@@ -92,7 +92,7 @@ test.describe('Tags（内容集合过滤）', () => {
     await page.goto('/tags');
     await expect(page.getByTestId('tag-filter')).toHaveCount(0);
     await expect(page.getByRole('searchbox')).toHaveCount(0);
-    await expect(page.locator('header nav a[href="/search"]')).toBeVisible();
+    await expect(page.locator('header.site-nav a[href="/search"]')).toBeVisible();
   });
 
   test('旧 /tags/{tag} 地址重定向到查询参数', async ({ page }) => {

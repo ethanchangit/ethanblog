@@ -5,11 +5,13 @@ test.describe('prefers-reduced-motion', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
   });
 
-  test('articles listing is the default route', async ({ page }) => {
+  test('home is the about page', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveURL(/\/articles\/?$/);
-    await expect(page.locator('header nav')).toBeVisible();
-    await expect(page.locator('h1')).toHaveText('Articles', { useInnerText: true });
+    expect(new URL(page.url()).pathname).toBe('/');
+    await expect(page.locator('header.site-nav')).toBeVisible();
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
+      useInnerText: true,
+    });
     await expect(page.locator('main')).toBeVisible();
   });
 

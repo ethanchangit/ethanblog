@@ -9,11 +9,36 @@ test.describe('Route crawling', () => {
     });
   }
 
-  test('/ redirects to /articles', async ({ page }) => {
+  test('/ is the about/home page', async ({ page }) => {
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveURL(/\/articles\/?$/);
-    await expect(page.locator('h1')).toHaveText('Articles', { useInnerText: true });
+    expect(new URL(page.url()).pathname).toBe('/');
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
+      useInnerText: true,
+    });
+    await expect(page.locator('[data-reading-index]')).toBeVisible();
+    await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
+  });
+
+  test('/about redirects to /', async ({ page }) => {
+    const response = await page.goto('/about');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/');
+    expect(response?.request().redirectedFrom()).toBeTruthy();
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
+      useInnerText: true,
+    });
+  });
+
+  test('/now renders the living status', async ({ page }) => {
+    const response = await page.goto('/now');
+    expect(response?.status()).toBe(200);
+    const lede = page.locator('article > header.mb-10');
+    await expect(lede.locator('h1')).toHaveText('Now', { useInnerText: true });
+    await expect(lede.locator('p.ui-meta')).toHaveText('Updated August 21, 2026', {
+      useInnerText: true,
+    });
+    await expect(page.getByText('Writing the blog, refining notes and project pages')).toBeVisible();
   });
 
   test('/404 page renders', async ({ page }) => {

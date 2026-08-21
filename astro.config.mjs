@@ -13,9 +13,9 @@ export default defineConfig({
   output: 'static',
   adapter: cloudflare({ imageService: 'compile' }),
   redirects: {
-    '/': {
+    '/about': {
       status: 301,
-      destination: '/articles',
+      destination: '/',
     },
     '/articles/1': {
       status: 301,

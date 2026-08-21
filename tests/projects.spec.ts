@@ -4,7 +4,7 @@ test.describe('Projects 集合页', () => {
   test('/projects 是导语 + 时间线，不是项目长文', async ({ page }) => {
     await page.goto('/projects');
 
-    await expect(page.getByRole('heading', { name: 'Projects are a lineage' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
     await expect(page.locator('.ui-eyebrow')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Timeline: from cards to a container' })).toBeVisible();
     await expect(page.locator('[data-tl-item]').first()).toBeVisible();
@@ -77,7 +77,7 @@ test.describe('Projects 集合页', () => {
     await expect(page.locator('article .grid.lg\\:grid-cols-\\[1fr_240px\\]')).toHaveCount(0);
     await expect(page.locator('article.article-page > header .ui-tag-list .ui-tag').first()).toBeVisible();
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.locator('[data-reading-index]').getByRole('heading', { name: 'Projects are a lineage' })).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
   });
 
   test('项目页标题下可复制规范 URL，且在导语之上', async ({ page }) => {

@@ -1,0 +1,32 @@
+---
+import I18n from '@/components/shell/I18n.astro';
+import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
+import { ARTICLES_PATH, PROJECTS_PATH } from '@/lib/routes';
+
+interface Props {
+  active: 'articles' | 'projects';
+}
+
+const { active } = Astro.props;
+
+const items: { id: 'articles' | 'projects'; href: string; key: CopyKey }[] = [
+  { id: 'articles', href: ARTICLES_PATH, key: 'navArticles' },
+  { id: 'projects', href: PROJECTS_PATH, key: 'navProjects' },
+];
+const current = items.find((item) => item.id === active)!;
+const other = items.find((item) => item.id !== active)!;
+---
+
+<nav
+  class="reading-index-switch"
+  data-reading-index-switch
+  aria-label={copy[DEFAULT_LANG].indexSwitchAria}
+  data-i18n-aria="indexSwitchAria"
+>
+  <h1 class="reading-index-switch-title" aria-current="page">
+    <I18n k={current.key} />
+  </h1>
+  <a href={other.href} class="reading-index-switch-alt">
+    <I18n k={other.key} />
+  </a>
+</nav>

@@ -2,9 +2,11 @@
 import Timeline from '@/components/media/Timeline.svelte';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
+import ReadingExpand from '@/components/shell/ReadingExpand.astro';
+import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
 import { docsBySlot } from '@/lib/docs';
-import { projectHref } from '@/lib/routes';
+import { HOME_PATH, projectHref } from '@/lib/routes';
 
 interface Props {
   currentId?: string;
@@ -26,11 +28,12 @@ const timelineItems = projects.map((project) => ({
 }));
 ---
 
-<article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+<article class="mx-auto max-w-3xl px-4 pt-8 pb-14 sm:px-6" data-reading-index-body>
   <header class="mb-10">
-    <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
-      <I18n k="projectsH1" />
-    </h1>
+    <div class="reading-index-heading">
+      <ReadingIndexSwitch active="projects" />
+      <ReadingExpand href={HOME_PATH} />
+    </div>
     <p class="mt-4 text-lg leading-relaxed text-ink-400">
       <I18n k="projectsLead" />
     </p>

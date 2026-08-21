@@ -1,7 +1,9 @@
 ---
 import Bi from '@/components/shell/Bi.astro';
+import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { docHref, type SeriesContext } from '@/lib/docs';
+import { articleCardProps } from '@/lib/tags';
 
 interface Props {
   series: SeriesContext;
@@ -32,8 +34,9 @@ const { currentId, hub, chapters, prev, next, isHub, isChapter } = series;
           <li>
             <a
               href={docHref(chapter)}
+              data-series-chapter
               aria-current={chapter.id === currentId ? 'page' : undefined}
-              class="text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-100"
+              class="text-ink-200 underline-offset-4 transition-colors hover:text-ink-100"
             >
               <span class="ui-meta">{index + 1}</span>
               {' '}
@@ -48,24 +51,27 @@ const { currentId, hub, chapters, prev, next, isHub, isChapter } = series;
 
 {
   part === 'chapters' && isHub && (
-    <nav class="mt-8 mb-10" aria-label="系列导航" data-i18n-aria="seriesNavAria" data-series="hub-inline">
-      <p class="ui-meta">
+    <nav class="mt-12" aria-label="系列导航" data-i18n-aria="seriesNavAria" data-series="hub-inline">
+      <h2 class="ui-meta">
         <I18n k="seriesChapters" />
-      </p>
-      <ol class="mt-3 flex flex-col gap-2">
-        {chapters.map((chapter, index) => (
-          <li>
-            <a
-              href={docHref(chapter)}
-              class="text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-100"
-            >
-              <span class="ui-meta">{index + 1}</span>
-              {' '}
-              <Bi zh={chapter.data.title} en={chapter.data.titleEn} />
-            </a>
-          </li>
-        ))}
-      </ol>
+      </h2>
+      <div class="mt-3 flex flex-col">
+        {chapters.map((chapter) => {
+          const card = articleCardProps(chapter);
+          return (
+            <Card
+              href={card.href}
+              title={card.title}
+              titleEn={card.titleEn}
+              description={card.description}
+              descriptionEn={card.descriptionEn}
+              meta={card.meta}
+              metaEn={card.metaEn}
+              tags={card.tags}
+            />
+          );
+        })}
+      </div>
     </nav>
   )
 }

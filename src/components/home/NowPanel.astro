@@ -1,25 +1,22 @@
 ---
 import I18n from '@/components/shell/I18n.astro';
-import { now, nowUpdated } from '@/data/profile';
+import { now } from '@/data/profile';
 import { nowVerbKey } from '@/lib/i18n';
 ---
 
-<div>
-  <p class="ui-meta mb-4"><I18n k="nowUpdated" /> {nowUpdated}</p>
-  <dl class="grid gap-6 sm:grid-cols-3">
-    {
-      now.map((item) => {
-        const verbKey = nowVerbKey(item.verb);
-        return (
-          <div>
-            <dt class="ui-meta mb-1">{verbKey ? <I18n k={verbKey} /> : item.verb}</dt>
-            <dd class="text-sm leading-relaxed text-ink-300">
-              <span class="i18n-zh" aria-hidden="true">{item.text}</span>
-              <span class="i18n-en">{item.textEn}</span>
-            </dd>
-          </div>
-        );
-      })
-    }
-  </dl>
-</div>
+<dl class="space-y-8">
+  {
+    now.map((item) => {
+      const verbKey = nowVerbKey(item.verb);
+      return (
+        <div>
+          <dt class="ui-meta mb-1">{verbKey ? <I18n k={verbKey} /> : item.verb}</dt>
+          <dd class="text-base leading-relaxed text-ink-300">
+            <span class="i18n-zh" aria-hidden="true">{item.text}</span>
+            <span class="i18n-en">{item.textEn}</span>
+          </dd>
+        </div>
+      );
+    })
+  }
+</dl>

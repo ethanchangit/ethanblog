@@ -1,6 +1,7 @@
 /**
  * 站点与个人资料的单一数据源。
- * 主页、关于页、导航、RSS 都从这里读取 —— 改这里即可全站生效。
+ * 首页（身份）、/now、导航、RSS 都从这里读取 —— 改这里即可全站生效。
+ * 更新 Now 页：只改 nowIntro / now / nowUpdated（不要另写一份 MDX）。
  */
 
 export const site = {
@@ -53,10 +54,16 @@ export interface NowItem {
   textEn: string;
 }
 
+/** 给一年没见的朋友的那几句：这一章在做什么，不是简历。 */
+export const nowIntro =
+  '眼下主要在写这个博客，把笔记和项目页打磨成我真正愿意给人看的样子。一边用 Heptabase 做深度学习的长期实践，一边在想语音输入能不能把「记下来」这件事的摩擦力降下去。';
+export const nowIntroEn =
+  "Right now I'm writing this blog, and making the notes and project pages something I'd actually want people to read. I'm also in a long practice of deep learning with Heptabase, and wondering whether voice input can take the friction out of capturing notes.";
+
 export const now: NowItem[] = [
   { verb: '正在做', text: '写博客，打磨笔记与项目页', textEn: 'Writing the blog, refining notes and project pages' },
   { verb: '正在读', text: 'Heptabase 深度学习工作流的长期实践笔记', textEn: 'Long-form notes on a Heptabase deep-learning workflow' },
   { verb: '正在想', text: '语音优先的笔记输入如何降低记录的摩擦力', textEn: 'How voice-first capture can lower the friction of taking notes' },
 ];
 
-export const nowUpdated = '2026-08-10';
+export const nowUpdated = '2026-08-21';

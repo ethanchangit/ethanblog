@@ -1,8 +1,8 @@
 {
   "redirects": [
     {
-      "source": "/",
-      "destination": "/articles",
+      "source": "/about",
+      "destination": "/",
       "type": 301
     }
   ]
