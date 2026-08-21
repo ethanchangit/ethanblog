@@ -113,21 +113,22 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(toc.getByText('Contents', { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-reading-rail]')).toBeVisible();
 
-    const firstLabel = toc.locator('a .toc-label').first();
+    const firstLabel = toc.locator('a .toc-label').filter({ visible: true }).first();
     await expect(firstLabel).toBeVisible();
     await expect(firstLabel).toHaveCSS('opacity', '1');
 
-    const h3 = toc.locator('a[data-depth="3"]').first();
+    const h3 = toc.locator('a[data-depth="3"]').filter({ visible: true }).first();
     await expect(h3).toBeVisible();
     const indent = await h3.evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft));
     expect(indent).toBeGreaterThanOrEqual(12);
 
-    await toc.locator('a').first().focus();
-    await expect(toc.locator('a').first()).toBeFocused();
+    const firstLink = toc.locator('a').filter({ visible: true }).first();
+    await firstLink.focus();
+    await expect(firstLink).toBeFocused();
 
-    await toc.locator('a').first().click();
+    await firstLink.click();
     await expect(page).toHaveURL(/#.+/);
-    await expect(toc.locator('a').first()).toHaveAttribute('aria-current', 'true');
+    await expect(firstLink).toHaveAttribute('aria-current', 'true');
   });
 
   test('390×844 下目录与左栏隐藏、正文在、无横向溢出', async ({ page }) => {

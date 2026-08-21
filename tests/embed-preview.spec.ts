@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('article can embed a tweet and a YouTube video together', async ({ page }) => {
   await page.goto('/articles/embed-preview');
 
-  const tweet = page.locator('[data-tweet-embed]').first();
+  const tweet = page.locator('[data-tweet-embed]').filter({ visible: true });
   await expect(tweet).toBeVisible();
   await expect(tweet).not.toHaveAttribute('href');
   await expect(tweet.locator('[data-tweet-permalink]')).toHaveAttribute(
@@ -21,12 +21,12 @@ test('article can embed a tweet and a YouTube video together', async ({ page }) 
     'href',
     'https://x.com/gkxspace/status/2089292652940333288',
   );
-  await expect(page.getByText('这个组合确实有点牛逼').first()).toBeVisible();
+  await expect(page.getByText('这个组合确实有点牛逼').filter({ visible: true })).toBeVisible();
   await expect(page.getByText(/显示更多|Show more|条回复/)).toHaveCount(0);
   await expect(page.locator('blockquote.twitter-tweet')).toHaveCount(0);
   await expect(page.locator('script[src*="widgets.js"]')).toHaveCount(0);
 
-  const video = page.locator('[data-video-embed]').first();
+  const video = page.locator('[data-video-embed]').filter({ visible: true });
   const facade = video.locator('[data-video-facade]');
   await expect(facade).toBeVisible();
   await expect(facade).toHaveAttribute('href', 'https://www.youtube.com/watch?v=H35nVgNGyo8');
