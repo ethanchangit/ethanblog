@@ -3,11 +3,20 @@ import Base from '@/layouts/Base.astro';
 import ArticleIndex from '@/components/shell/ArticleIndex.astro';
 import ProjectsIndex from '@/components/shell/ProjectsIndex.astro';
 import I18n from '@/components/shell/I18n.astro';
-import { articleHref, ARTICLES_PATH, HOME_PATH, projectHref, PROJECTS_PATH } from '@/lib/routes';
+import {
+  articleHref,
+  articlesPageHref,
+  ARTICLES_PATH,
+  HOME_PATH,
+  projectHref,
+  PROJECTS_PATH,
+} from '@/lib/routes';
 import type { CopyKey } from '@/lib/i18n';
 
 interface Props {
-  kind: 'article' | 'project' | 'home';
+  kind: 'article' | 'project' | 'home' | 'index';
+  indexList?: 'articles' | 'projects';
+  indexPage?: number;
   title?: string;
   titleEn?: string;
   description: string;
@@ -18,6 +27,8 @@ interface Props {
 
 const {
   kind,
+  indexList,
+  indexPage = 1,
   title,
   titleEn,
   description,
@@ -26,12 +37,22 @@ const {
   showRail = false,
 } = Astro.props;
 const lp = Astro.locals.localePath;
-const persistKey = kind === 'project' ? 'reading-index-projects' : 'reading-index-articles';
-const indexHref = lp(kind === 'project' ? PROJECTS_PATH : ARTICLES_PATH);
-const docSrc = lp(
-  kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? ''),
+const listKind: 'articles' | 'projects' =
+  indexList ?? (kind === 'project' ? 'projects' : 'articles');
+const persistKey = listKind === 'projects' ? 'reading-index-projects' : 'reading-index-articles';
+const indexHref = lp(
+  listKind === 'projects'
+    ? PROJECTS_PATH
+    : kind === 'index'
+      ? articlesPageHref(indexPage)
+      : ARTICLES_PATH,
 );
-const backKey: CopyKey = kind === 'project' ? 'backToProjects' : 'backToArticles';
+const docSrc =
+  kind === 'index'
+    ? ''
+    : lp(kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? ''));
+const backKey: CopyKey = kind === 'project' || listKind === 'projects' ? 'backToProjects' : 'backToArticles';
+const showProjects = listKind === 'projects';
 ---
 
 <Base split title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
@@ -43,17 +64,24 @@ const backKey: CopyKey = kind === 'project' ? 'backToProjects' : 'backToArticles
       transition:persist={persistKey}
     >
       {
-        kind === 'project' ? (
+        showProjects ? (
           <ProjectsIndex currentId={currentId} />
         ) : (
-          <ArticleIndex page={1} currentId={currentId} />
+          <ArticleIndex page={kind === 'index' ? indexPage : 1} currentId={currentId} />
         )
       }
     </aside>
 
-    <div class="reading-doc" data-reading-pane data-reading-doc data-reading-doc-src={docSrc}>
+    <div
+      class="reading-doc"
+      data-reading-pane
+      data-reading-doc
+      data-reading-doc-src={docSrc}
+      inert={kind === 'index'}
+      aria-hidden={kind === 'index' ? 'true' : undefined}
+    >
       {
-        kind !== 'home' && (
+        kind !== 'home' && kind !== 'index' && (
           <p class="reading-back">
             <a href={indexHref} class="ui-link-subtle">
               <I18n k={backKey} />

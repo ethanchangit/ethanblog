@@ -26,6 +26,29 @@ test('article can embed a tweet and a YouTube video together', async ({ page }) 
   await expect(page.locator('blockquote.twitter-tweet')).toHaveCount(0);
   await expect(page.locator('script[src*="widgets.js"]')).toHaveCount(0);
 
+  const handle = tweet.locator('a.tweet-embed__handle').first();
+  const permalink = tweet.locator('a.tweet-embed__permalink');
+  const tokenColor = (token: string) =>
+    tweet.evaluate((el, name) => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(${name})`;
+      el.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }, token);
+  const [handleColor, permalinkColor, ink500, ink100, primary] = await Promise.all([
+    handle.evaluate((el) => getComputedStyle(el).color),
+    permalink.evaluate((el) => getComputedStyle(el).color),
+    tokenColor('--color-ink-500'),
+    tokenColor('--color-ink-100'),
+    tokenColor('--color-primary-600'),
+  ]);
+  expect(handleColor).toBe(ink500);
+  expect(permalinkColor).toBe(ink100);
+  expect(handleColor).not.toBe(primary);
+  expect(permalinkColor).not.toBe(primary);
+
   const video = page.locator('[data-video-embed]').filter({ visible: true });
   const facade = video.locator('[data-video-facade]');
   await expect(facade).toBeVisible();

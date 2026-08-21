@@ -2,18 +2,20 @@
 import { copy, DEFAULT_LANG } from '@/lib/i18n';
 
 interface Props {
-  href: string;
+  expandHref: string;
+  collapseHref: string;
 }
 
-const { href } = Astro.props;
+const { expandHref, collapseHref } = Astro.props;
 ---
 
+{/* 同一槽位两链：分栏展开、索引收起。有 JS 时拦 click 在壳内做布局动画；无 JS 仍是真链接。 */}
 <a
-  href={href}
+  href={expandHref}
   class="reading-expand"
-  data-reading-close
-  aria-label={copy[DEFAULT_LANG].closeReading}
-  data-i18n-aria="closeReading"
+  data-reading-expand
+  aria-label={copy[DEFAULT_LANG].expandReading}
+  data-i18n-aria="expandReading"
 >
   <svg
     width="16"
@@ -30,5 +32,29 @@ const { href } = Astro.props;
     <path d="M21 3l-7 7"></path>
     <path d="M3 21l7-7"></path>
     <path d="M9 21H3v-6"></path>
+  </svg>
+</a>
+<a
+  href={collapseHref}
+  class="reading-expand"
+  data-reading-collapse
+  aria-label={copy[DEFAULT_LANG].collapseReading}
+  data-i18n-aria="collapseReading"
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M4 14h6v6"></path>
+    <path d="m14 10 7-7"></path>
+    <path d="M14 4v6h6"></path>
+    <path d="m3 21 7-7"></path>
   </svg>
 </a>

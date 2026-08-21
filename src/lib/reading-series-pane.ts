@@ -4,9 +4,11 @@
  * 与左栏索引拦截一样，不能靠 `astro:before-preparation` 的 preventDefault
  *（Astro 会当成失败并整页跳走）。捕获阶段拦 click，fetch 子页，
  * 把 `.article-shell` 注入 `[data-reading-rail]`。
+ * 总览第三栏只放当前文目录或已打开的子文，不放篇目导航；
+ * 没有目录时，打开子文才创建第三栏，收起后拿掉。
  * 无 JS / 窄屏时链接仍是普通导航。URL 保持总览。
  *
- * 关闭子文用 `data-reading-child-close`，不要跟正文的 `data-reading-close` 混用。
+ * 关闭子文用 `data-reading-child-close`，不要跟左栏的 `data-reading-expand` 混用。
  */
 import { applyLang, readLang, t } from '@/lib/i18n';
 import { pagePath } from '@/lib/locale';
@@ -54,8 +56,7 @@ function seriesPaneActive(): boolean {
   return (
     document.documentElement.classList.contains('reading-split') &&
     window.matchMedia(RAIL_MQ).matches &&
-    isHubView() &&
-    !!railEl()
+    isHubView()
   );
 }
 
@@ -90,7 +91,7 @@ function railEl(): HTMLElement | null {
 function markOpenChapter(chapterPath: string | null) {
   const hub = hubPath();
   const links = document.querySelectorAll<HTMLAnchorElement>(
-    '[data-reading-rail] [data-series="hub"] a[href], [data-reading-doc] [data-series="hub-inline"] a[href]',
+    '[data-reading-doc] [data-series="hub-inline"] a[href]',
   );
   for (const a of links) {
     const href = a.getAttribute('href');
@@ -142,15 +143,25 @@ function placeChildClose(pane: HTMLElement) {
   pane.insertBefore(button, pane.firstChild);
 }
 
+function ensureRail(): HTMLElement | null {
+  const existing = railEl();
+  if (existing) return existing;
+  const shell = document.querySelector('[data-reading-shell]');
+  if (!(shell instanceof HTMLElement)) return null;
+  const rail = document.createElement('aside');
+  rail.className = 'reading-rail';
+  rail.setAttribute('data-reading-rail', '');
+  rail.setAttribute('data-reading-rail-ephemeral', '');
+  shell.appendChild(rail);
+  return rail;
+}
+
 function ensureChildScaffold(rail: HTMLElement) {
-  if (!rail.querySelector('[data-reading-child]')) {
-    const child = document.createElement('div');
-    child.className = 'reading-child-doc';
-    child.setAttribute('data-reading-child', '');
-    const series = rail.querySelector('[data-series="hub"]');
-    if (series?.nextSibling) rail.insertBefore(child, series.nextSibling);
-    else rail.appendChild(child);
-  }
+  if (rail.querySelector('[data-reading-child]')) return;
+  const child = document.createElement('div');
+  child.className = 'reading-child-doc';
+  child.setAttribute('data-reading-child', '');
+  rail.appendChild(child);
 }
 
 function closeChild() {
@@ -158,11 +169,13 @@ function closeChild() {
   inflight = null;
   const rail = railEl();
   if (!rail?.hasAttribute('data-reading-child-open')) return;
+  const ephemeral = rail.hasAttribute('data-reading-rail-ephemeral');
   rail.removeAttribute('data-reading-child-open');
   rail.removeAttribute('data-reading-child-src');
   rail.removeAttribute('aria-busy');
   rail.querySelector('[data-reading-child]')?.remove();
   markOpenChapter(null);
+  if (ephemeral) rail.remove();
 }
 
 function extractArticleShell(doc: Document): Element | null {
@@ -172,11 +185,7 @@ function extractArticleShell(doc: Document): Element | null {
 }
 
 async function openChild(href: string) {
-  const rail = railEl();
-  if (!rail) {
-    location.href = href;
-    return;
-  }
+  const existingRail = railEl();
 
   let dest: URL;
   try {
@@ -186,12 +195,12 @@ async function openChild(href: string) {
     return;
   }
   const destPath = pagePath(dest.pathname);
-  if (rail.getAttribute('data-reading-child-src') === destPath) return;
+  if (existingRail?.getAttribute('data-reading-child-src') === destPath) return;
 
   inflight?.abort();
   inflight = new AbortController();
   const myGen = ++generation;
-  rail.setAttribute('aria-busy', 'true');
+  existingRail?.setAttribute('aria-busy', 'true');
 
   try {
     const res = await fetch(dest.href, {
@@ -205,6 +214,8 @@ async function openChild(href: string) {
     if (!source) throw new Error('no article');
     source.querySelectorAll('script').forEach((el) => el.remove());
     adoptHeadAssets(doc);
+    const rail = ensureRail();
+    if (!rail) throw new Error('no rail');
     ensureChildScaffold(rail);
     const pane = rail.querySelector('[data-reading-child]');
     if (!(pane instanceof HTMLElement)) throw new Error('no pane');
@@ -221,7 +232,7 @@ async function openChild(href: string) {
     if (error instanceof DOMException && error.name === 'AbortError') return;
     location.href = href;
   } finally {
-    if (myGen === generation) rail.removeAttribute('aria-busy');
+    if (myGen === generation) railEl()?.removeAttribute('aria-busy');
   }
 }
 
@@ -230,9 +241,8 @@ function interceptTarget(link: HTMLAnchorElement): 'open' | 'close' | null {
   if (inIndex) return null;
 
   const inInline = !!link.closest('[data-reading-doc] [data-series="hub-inline"]');
-  const inRailSeries = !!link.closest('[data-reading-rail] [data-series="hub"]');
   const inChild = !!link.closest('[data-reading-child]');
-  if (!inInline && !inRailSeries && !inChild) return null;
+  if (!inInline && !inChild) return null;
 
   let url: URL;
   try {

@@ -2,78 +2,39 @@
 import Bi from '@/components/shell/Bi.astro';
 import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
+import DocList from '@/components/media/DocList.astro';
 import { docHref, type SeriesContext } from '@/lib/docs';
 import { articleCardProps } from '@/lib/tags';
 
 interface Props {
   series: SeriesContext;
-  part: 'parent' | 'chapters' | 'pager' | 'rail';
+  part: 'parent' | 'chapters' | 'pager';
 }
 
 const { series, part } = Astro.props;
-const { currentId, hub, chapters, prev, next, isHub, isChapter } = series;
+const { hub, chapters, prev, next, isHub, isChapter } = series;
 const lp = Astro.locals.localePath;
 ---
 
 {
-  part === 'rail' && chapters.length > 0 && hub && (
-    <nav class="reading-series" aria-label="系列导航" data-i18n-aria="seriesNavAria" data-series="hub">
-      <p>
-        <a
-          href={lp(docHref(hub))}
-          aria-current={isHub ? 'page' : undefined}
-          class="text-sm font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors hover:decoration-ink-500"
-        >
-          <Bi zh={hub.data.title} en={hub.data.titleEn} />
-        </a>
-      </p>
-      <p class="ui-meta mt-4">
-        <I18n k="seriesChapters" />
-      </p>
-      <ol class="mt-3 flex flex-col gap-2">
-        {chapters.map((chapter, index) => (
-          <li>
-            <a
-              href={lp(docHref(chapter))}
-              data-series-chapter
-              aria-current={chapter.id === currentId ? 'page' : undefined}
-              class="text-ink-200 underline-offset-4 transition-colors hover:text-ink-100"
-            >
-              <span class="ui-meta">{index + 1}</span>
-              {' '}
-              <Bi zh={chapter.data.title} en={chapter.data.titleEn} />
-            </a>
-          </li>
-        ))}
-      </ol>
-    </nav>
-  )
-}
-
-{
   part === 'chapters' && isHub && (
-    <nav class="mt-12" aria-label="系列导航" data-i18n-aria="seriesNavAria" data-series="hub-inline">
-      <h2 class="ui-meta">
-        <I18n k="seriesChapters" />
-      </h2>
-      <div class="mt-3 flex flex-col">
-        {chapters.map((chapter) => {
-          const card = articleCardProps(chapter);
-          return (
-            <Card
-              href={lp(card.href)}
-              title={card.title}
-              titleEn={card.titleEn}
-              description={card.description}
-              descriptionEn={card.descriptionEn}
-              meta={card.meta}
-              metaEn={card.metaEn}
-              tags={card.tags}
-            />
-          );
-        })}
-      </div>
-    </nav>
+    <DocList pane="series">
+      {chapters.map((chapter) => {
+        const card = articleCardProps(chapter);
+        return (
+          <Card
+            href={lp(card.href)}
+            title={card.title}
+            titleEn={card.titleEn}
+            description={card.description}
+            descriptionEn={card.descriptionEn}
+            meta={card.meta}
+            metaEn={card.metaEn}
+            tags={card.tags}
+          />
+        );
+      })}
+    </DocList>
   )
 }
 

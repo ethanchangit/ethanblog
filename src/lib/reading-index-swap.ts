@@ -11,18 +11,26 @@
  * `overflow: auto` 的左栏；当前项若靠近列表底部，看起来就像左栏被刷新到底。
  * ClientRouter persist 后还会 `activeElement.focus()`，同样会滚左栏。
  *
- * 关闭（展开图标 / Escape）回到 `/`：左栏索引仍在，中栏是 About，列表无选中项。
- * 无 JS / 窄屏时链接仍是普通导航。单栏索引点进分栏仍走整页；进分栏后才只换栏。
+ * Escape / 字标 EthanChang 回到 `/`：左栏索引仍在，中栏是 About，列表无选中项。
+ * 不能把回首页交给 ClientRouter：旧的 `/`→`/articles` 301 会被浏览器缓存，
+ * 点字标就会停在文章列表，而不是分栏首页。
+ * 左栏展开（data-reading-expand）：壳内把左栏拉成主视图，pushState 到
+ * `/articles` 或 `/projects`，不整页跳走。收起（data-reading-collapse）与字标
+ * 同一条 goHome：中栏 About、左栏缩回，URL → `/` 或 `/zh`。
+ * 无 JS / 窄屏 / 不在阅读壳里时链接仍是普通导航。
  */
-import { applyLang, readLang } from '@/lib/i18n';
+import { profile, site } from '@/data/profile';
+import { applyLang, copy, readLang } from '@/lib/i18n';
 import { localeFromPath, localeHrefForLang, pagePath } from '@/lib/locale';
-import { ARTICLES_PATH, HOME_PATH, PROJECTS_PATH } from '@/lib/routes';
+import { reducedMotion } from '@/lib/motion';
+import { ARTICLES_PATH, BLOGS_PATH, HOME_PATH, PROJECTS_PATH } from '@/lib/routes';
 
-export type IndexKind = 'articles' | 'projects';
+export type IndexKind = 'articles' | 'projects' | 'blogs';
 
 const PERSIST = {
   articles: 'reading-index-articles',
   projects: 'reading-index-projects',
+  blogs: 'reading-index-blogs',
 } as const;
 
 const SPLIT_MQ = '(min-width: 768px)';
@@ -35,6 +43,123 @@ function canonicalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, '') || '/';
 }
 
+function currentLang(): 'zh-CN' | 'en' {
+  return localeFromPath(location.pathname) === 'zh' ? 'zh-CN' : 'en';
+}
+
+function isHomePath(pathname: string): boolean {
+  return pagePath(pathname) === HOME_PATH;
+}
+
+function isHomeNavigation(url: URL): boolean {
+  return url.origin === location.origin && isHomePath(url.pathname) && !url.hash;
+}
+
+function homeHref(): string {
+  return new URL(localeHrefForLang(HOME_PATH, currentLang()), location.origin).href;
+}
+
+/** 绕开已被缓存的 `/` → `/articles` 301。 */
+function homeFallbackHref(): string {
+  return `${homeHref()}?`;
+}
+
+function alreadyOnHome(): boolean {
+  return isHomePath(location.pathname) && !!document.querySelector('[data-about-panel]');
+}
+
+function shellEl(): HTMLElement | null {
+  const shell = document.querySelector('[data-reading-shell]');
+  return shell instanceof HTMLElement ? shell : null;
+}
+
+function isIndexLayout(): boolean {
+  return shellEl()?.getAttribute('data-reading-shell') === 'index';
+}
+
+function pushReadingUrl(href: string, extra: Record<string, unknown>) {
+  const prevState = history.state && typeof history.state === 'object' ? history.state : {};
+  const prevIndex = typeof prevState.index === 'number' ? prevState.index : 0;
+  history.pushState({ ...prevState, index: prevIndex + 1, ...extra }, '', href);
+}
+
+function applyCanonical(href: string) {
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) return;
+  try {
+    canonical.setAttribute('href', new URL(href, location.origin).href);
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyIndexPageMeta(kind: IndexKind) {
+  const titleKey = kind === 'projects' ? 'projectsTitle' : kind === 'blogs' ? 'blogsTitle' : 'articlesTitle';
+  const descKey = kind === 'projects' ? 'projectsDesc' : kind === 'blogs' ? 'blogsDesc' : 'articlesDesc';
+  document.documentElement.setAttribute('data-title-zh', `${copy['zh-CN'][titleKey]} · ${site.title}`);
+  document.documentElement.setAttribute('data-title-en', `${copy.en[titleKey]} · ${site.title}`);
+  document.documentElement.setAttribute('data-desc-zh', copy['zh-CN'][descKey]);
+  document.documentElement.setAttribute('data-desc-en', copy.en[descKey]);
+}
+
+function applyHomePageMeta() {
+  document.documentElement.setAttribute('data-title-zh', `${site.title} — ${copy['zh-CN'].siteBlog}`);
+  document.documentElement.setAttribute('data-title-en', `${site.title} — ${copy.en.siteBlog}`);
+  document.documentElement.setAttribute('data-desc-zh', profile.bio);
+  document.documentElement.setAttribute('data-desc-en', profile.bioEn);
+}
+
+function syncExpandedChrome(shell: HTMLElement) {
+  const expanded = shell.getAttribute('data-reading-shell') === 'index';
+  if (expanded) {
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      (active.closest('[data-reading-doc]') || active.closest('[data-reading-rail]'))
+    ) {
+      active.blur();
+    }
+  }
+  for (const sel of ['[data-reading-doc]', '[data-reading-rail]'] as const) {
+    const el = shell.querySelector(sel);
+    if (!(el instanceof HTMLElement)) continue;
+    el.inert = expanded;
+    if (expanded) el.setAttribute('aria-hidden', 'true');
+    else el.removeAttribute('aria-hidden');
+  }
+}
+
+function setReadingLayout(shell: HTMLElement, kind: 'article' | 'project' | 'home' | 'index') {
+  if (!reducedMotion()) {
+    void shell.offsetWidth;
+  }
+  shell.setAttribute('data-reading-shell', kind);
+  syncExpandedChrome(shell);
+}
+
+async function fetchHomeParsed(signal: AbortSignal): Promise<Document> {
+  for (const href of [homeHref(), homeFallbackHref()]) {
+    const res = await fetch(href, {
+      signal,
+      cache: 'no-store',
+      headers: { Accept: 'text/html' },
+    });
+    if (!res.ok) continue;
+    let landed = HOME_PATH;
+    try {
+      landed = canonicalizePath(new URL(res.url).pathname);
+    } catch {
+      continue;
+    }
+    if (pagePath(landed) !== HOME_PATH) continue;
+    const parsed = new DOMParser().parseFromString(neutralizeIslands(await res.text()), 'text/html');
+    if (parsed.querySelector('[data-about-panel]') && parsed.querySelector('[data-reading-doc]')) {
+      return parsed;
+    }
+  }
+  throw new Error('no home');
+}
+
 export function indexKindFromPath(pathname: string): IndexKind | null {
   const p = pagePath(pathname);
   if (p === ARTICLES_PATH) return 'articles';
@@ -42,6 +167,7 @@ export function indexKindFromPath(pathname: string): IndexKind | null {
     return 'articles';
   }
   if (p === PROJECTS_PATH) return 'projects';
+  if (p === BLOGS_PATH) return 'blogs';
   return null;
 }
 
@@ -117,7 +243,7 @@ export function markCurrent() {
   for (const a of root.querySelectorAll<HTMLAnchorElement>('a[href]')) {
     const href = a.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('?')) continue;
-    if (a.hasAttribute('data-reading-close')) continue;
+    if (a.hasAttribute('data-reading-expand') || a.hasAttribute('data-reading-collapse')) continue;
     let target: string;
     try {
       target = canonicalizePath(new URL(href, window.location.origin).pathname);
@@ -143,7 +269,8 @@ function syncIndexKindFromAside() {
     return;
   }
   const persist = aside.getAttribute('data-astro-transition-persist');
-  const kind: IndexKind = persist === PERSIST.projects ? 'projects' : 'articles';
+  const kind: IndexKind =
+    persist === PERSIST.projects ? 'projects' : persist === PERSIST.blogs ? 'blogs' : 'articles';
   syncIndexNav(kind);
 }
 
@@ -213,11 +340,11 @@ function shownDocSrc(docPane: HTMLElement): string {
   return docPane.getAttribute('data-reading-doc-src') ?? canonicalizePath(location.pathname);
 }
 
-async function swapReadingIndex(href: string, kind: IndexKind) {
+async function swapReadingIndex(href: string, kind: IndexKind): Promise<boolean> {
   const aside = document.querySelector('[data-reading-index]');
   if (!(aside instanceof HTMLElement)) {
     location.href = href;
-    return;
+    return false;
   }
 
   let dest: URL;
@@ -225,10 +352,10 @@ async function swapReadingIndex(href: string, kind: IndexKind) {
     dest = new URL(href, location.href);
   } catch {
     location.href = href;
-    return;
+    return false;
   }
   const destPath = canonicalizePath(dest.pathname);
-  if (aside.getAttribute('data-reading-index-src') === destPath) return;
+  if (aside.getAttribute('data-reading-index-src') === destPath) return true;
 
   inflight?.abort();
   inflight = new AbortController();
@@ -254,22 +381,28 @@ async function swapReadingIndex(href: string, kind: IndexKind) {
     aside.setAttribute('data-reading-index-src', destPath);
     aside.scrollTop = 0;
     syncIndexNav(kind);
+    if (isIndexLayout()) {
+      applyDocMeta(doc);
+      applyIndexPageMeta(kind);
+      pushReadingUrl(dest.href, { readingLayout: 'index', readingIndex: destPath });
+    }
     markCurrent();
-    syncCloseHref();
     applyLang(readLang());
+    return true;
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') return;
+    if (error instanceof DOMException && error.name === 'AbortError') return false;
     location.href = href;
+    return false;
   } finally {
     if (myGen === generation) aside.removeAttribute('aria-busy');
   }
 }
 
-async function swapReadingDoc(href: string, kind: 'article' | 'project') {
+async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home') {
   const shell = document.querySelector('[data-reading-shell]');
   const docPane = document.querySelector('[data-reading-doc]');
   if (!(shell instanceof HTMLElement) || !(docPane instanceof HTMLElement)) {
-    location.href = href;
+    location.href = kind === 'home' ? homeFallbackHref() : href;
     return;
   }
 
@@ -277,11 +410,33 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project') {
   try {
     dest = new URL(href, location.href);
   } catch {
-    location.href = href;
+    location.href = kind === 'home' ? homeFallbackHref() : href;
     return;
   }
-  const destPath = canonicalizePath(dest.pathname);
-  if (shownDocSrc(docPane) === destPath && sameDocPath(destPath)) return;
+  const destPath =
+    kind === 'home' ? canonicalizePath(new URL(homeHref()).pathname) : canonicalizePath(dest.pathname);
+  if (shownDocSrc(docPane) === destPath && sameDocPath(destPath) && !isIndexLayout()) return;
+
+  if (kind === 'home' && docPane.querySelector('[data-about-panel]')) {
+    const restoreIndexScroll = preserveIndexScroll(indexEl());
+    inflight?.abort();
+    inflight = null;
+    generation += 1;
+    shell.querySelector('[data-reading-rail]')?.remove();
+    docPane.setAttribute('data-reading-doc-src', destPath);
+    docPane.scrollTop = 0;
+    applyHomePageMeta();
+    applyCanonical(homeHref());
+    setReadingLayout(shell, 'home');
+    pushReadingUrl(homeHref(), { readingDoc: destPath });
+    blurIndexFocus();
+    markCurrent();
+    applyLang(readLang());
+    restoreIndexScroll();
+    document.dispatchEvent(new Event('astro:page-load'));
+    restoreIndexScroll();
+    return;
+  }
 
   const aside = indexEl();
   const restoreIndexScroll = preserveIndexScroll(aside);
@@ -293,13 +448,17 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project') {
   docPane.setAttribute('aria-busy', 'true');
 
   try {
-    const res = await fetch(dest.href, {
-      signal: inflight.signal,
-      headers: { Accept: 'text/html' },
-    });
-    if (!res.ok) throw new Error('bad status');
-    const html = await res.text();
-    const parsed = new DOMParser().parseFromString(neutralizeIslands(html), 'text/html');
+    let parsed: Document;
+    if (kind === 'home') {
+      parsed = await fetchHomeParsed(inflight.signal);
+    } else {
+      const res = await fetch(dest.href, {
+        signal: inflight.signal,
+        headers: { Accept: 'text/html' },
+      });
+      if (!res.ok) throw new Error('bad status');
+      parsed = new DOMParser().parseFromString(neutralizeIslands(await res.text()), 'text/html');
+    }
     const source = parsed.querySelector('[data-reading-doc]');
     if (!source) throw new Error('no doc');
     source.querySelectorAll('script').forEach((el) => el.remove());
@@ -309,25 +468,71 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project') {
     docPane.setAttribute('data-reading-doc-src', destPath);
     docPane.scrollTop = 0;
     applyRail(shell, parsed);
-    shell.setAttribute('data-reading-shell', kind);
+    setReadingLayout(shell, kind);
     applyDocMeta(parsed);
-    const prevState = history.state && typeof history.state === 'object' ? history.state : {};
-    const prevIndex = typeof prevState.index === 'number' ? prevState.index : 0;
-    history.pushState({ ...prevState, index: prevIndex + 1, readingDoc: destPath }, '', dest.href);
+    pushReadingUrl(kind === 'home' ? homeHref() : dest.href, { readingDoc: destPath });
     blurIndexFocus();
     markCurrent();
-    syncCloseHref();
     applyLang(readLang());
     restoreIndexScroll();
     document.dispatchEvent(new Event('astro:page-load'));
     restoreIndexScroll();
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return;
-    location.href = href;
+    location.href = kind === 'home' ? homeFallbackHref() : href;
   } finally {
     if (myGen === generation) docPane.removeAttribute('aria-busy');
     restoreIndexScroll();
   }
+}
+
+async function expandReadingIndex(href: string) {
+  const shell = shellEl();
+  if (!shell || !splitIndexVisible()) {
+    location.assign(href);
+    return;
+  }
+
+  let dest: URL;
+  try {
+    dest = new URL(href, location.href);
+  } catch {
+    location.assign(href);
+    return;
+  }
+  const kind = indexKindFromPath(dest.pathname);
+  if (!kind || kind === 'blogs') {
+    location.assign(href);
+    return;
+  }
+  const destPath = canonicalizePath(dest.pathname);
+  inflight?.abort();
+  inflight = null;
+  generation += 1;
+  const aside = indexEl();
+  if (aside && aside.getAttribute('data-reading-index-src') !== destPath) {
+    const ok = await swapReadingIndex(dest.href, kind);
+    if (!ok) return;
+  }
+  if (isIndexLayout() && pagePath(location.pathname) === pagePath(destPath)) return;
+
+  applyIndexPageMeta(kind);
+  applyCanonical(dest.href);
+  setReadingLayout(shell, 'index');
+  pushReadingUrl(dest.href, { readingLayout: 'index', readingIndex: destPath });
+  blurIndexFocus();
+  markCurrent();
+  applyLang(readLang());
+  document.dispatchEvent(new Event('astro:page-load'));
+}
+
+async function goHome(href: string) {
+  if (splitIndexVisible()) {
+    if (alreadyOnHome() && !isIndexLayout()) return;
+    await swapReadingDoc(href, 'home');
+    return;
+  }
+  location.assign(homeFallbackHref());
 }
 
 function onMouseDown(event: MouseEvent) {
@@ -340,7 +545,7 @@ function onMouseDown(event: MouseEvent) {
   if (!(link instanceof HTMLAnchorElement)) return;
   if (link.hasAttribute('download')) return;
   if (link.target && link.target !== '_self') return;
-  if (link.hasAttribute('data-reading-close')) return;
+  if (link.hasAttribute('data-reading-expand') || link.hasAttribute('data-reading-collapse')) return;
   if (!link.closest('[data-reading-index]')) return;
 
   let url: URL;
@@ -361,19 +566,12 @@ function onMouseDown(event: MouseEvent) {
 function onClick(event: MouseEvent) {
   if (event.button !== 0) return;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-  if (!splitIndexVisible()) return;
 
   const el = event.target instanceof Element ? event.target : null;
   const link = el?.closest('a');
   if (!(link instanceof HTMLAnchorElement)) return;
   if (link.hasAttribute('download')) return;
   if (link.target && link.target !== '_self') return;
-
-  if (link.hasAttribute('data-reading-close')) return;
-
-  const inIndex = !!link.closest('[data-reading-index]');
-  const inSwitch = !!link.closest('[data-reading-index-switch]');
-  if (!inIndex && !inSwitch) return;
 
   let url: URL;
   try {
@@ -382,6 +580,36 @@ function onClick(event: MouseEvent) {
     return;
   }
   if (url.origin !== location.origin) return;
+
+  if (isHomeNavigation(url)) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    void goHome(url.href);
+    return;
+  }
+
+  if (link.hasAttribute('data-reading-expand')) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    void expandReadingIndex(url.href);
+    return;
+  }
+
+  if (link.hasAttribute('data-reading-collapse')) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    void goHome(url.href);
+    return;
+  }
+
+  if (!splitIndexVisible()) return;
+
+  const inIndex = !!link.closest('[data-reading-index]');
+  const inSwitch = !!link.closest('[data-reading-index-switch]');
+  if (!inIndex && !inSwitch) return;
 
   const indexKind = indexKindFromPath(url.pathname);
   if (indexKind) {
@@ -406,16 +634,6 @@ function onClick(event: MouseEvent) {
   void swapReadingDoc(url.href, docKind);
 }
 
-export function readingCloseHref(): string {
-  return localeHrefForLang(HOME_PATH, localeFromPath(location.pathname) === 'zh' ? 'zh-CN' : 'en');
-}
-
-function syncCloseHref() {
-  const link = document.querySelector<HTMLAnchorElement>('a[data-reading-close]');
-  if (!link) return;
-  link.setAttribute('href', readingCloseHref());
-}
-
 function overlayBlocksEscape(): boolean {
   if (document.querySelector('[role="dialog"][aria-modal="true"]')) return true;
   if (document.querySelector('[role="listbox"]')) return true;
@@ -436,15 +654,17 @@ function onKeydown(event: KeyboardEvent) {
   if (pagePath(location.pathname) === HOME_PATH) return;
   if (typingTarget(event.target)) return;
   if (overlayBlocksEscape()) return;
-  const link = document.querySelector<HTMLAnchorElement>('a[data-reading-close]');
-  if (!link) return;
   event.preventDefault();
-  link.click();
+  void goHome(homeHref());
 }
 
 function onPageLoad() {
+  if (isHomePath(location.pathname) && location.search === '?' && !location.hash) {
+    history.replaceState(history.state, '', homeHref());
+  }
   markCurrent();
-  syncCloseHref();
+  const shell = shellEl();
+  if (shell) syncExpandedChrome(shell);
   if (document.documentElement.classList.contains('reading-split')) {
     syncIndexKindFromAside();
   } else {

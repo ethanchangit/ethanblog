@@ -3,7 +3,7 @@ import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
-import { articlesPageHref, HOME_PATH } from '@/lib/routes';
+import { articlesPageHref, ARTICLES_PATH, HOME_PATH } from '@/lib/routes';
 import { seriesParentId } from '@/lib/docs';
 import {
   articleCardProps,
@@ -25,13 +25,11 @@ const groups = groupArticlesByYear(paged.items);
 const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefined;
 ---
 
-<section class="mx-auto max-w-3xl px-4 pt-8 pb-14 sm:px-6" data-reading-index-body>
-  <header class="mb-10">
-    <div class="reading-index-heading">
-      <ReadingIndexSwitch active="articles" />
-      <ReadingExpand href={lp(HOME_PATH)} />
-    </div>
-  </header>
+<section class="mx-auto max-w-3xl px-4 pb-14 sm:px-6" data-reading-index-body>
+  <div class="reading-index-heading mb-10">
+    <ReadingIndexSwitch active="articles" />
+    <ReadingExpand expandHref={lp(ARTICLES_PATH)} collapseHref={lp(HOME_PATH)} />
+  </div>
   {
     groups.map((group, index) => (
       <section class:list={[index > 0 && 'mt-10']}>

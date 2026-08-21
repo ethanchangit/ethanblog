@@ -6,7 +6,7 @@ import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
 import { docsBySlot } from '@/lib/docs';
-import { HOME_PATH, projectHref } from '@/lib/routes';
+import { HOME_PATH, PROJECTS_PATH, projectHref } from '@/lib/routes';
 
 interface Props {
   currentId?: string;
@@ -29,12 +29,12 @@ const timelineItems = projects.map((project) => ({
 }));
 ---
 
-<article class="mx-auto max-w-3xl px-4 pt-8 pb-14 sm:px-6" data-reading-index-body>
+<article class="mx-auto max-w-3xl px-4 pb-14 sm:px-6" data-reading-index-body>
+  <div class="reading-index-heading">
+    <ReadingIndexSwitch active="projects" />
+    <ReadingExpand expandHref={lp(PROJECTS_PATH)} collapseHref={lp(HOME_PATH)} />
+  </div>
   <header class="mb-10">
-    <div class="reading-index-heading">
-      <ReadingIndexSwitch active="projects" />
-      <ReadingExpand href={lp(HOME_PATH)} />
-    </div>
     <p class="mt-4 text-lg leading-relaxed text-ink-400">
       <I18n k="projectsLead" />
     </p>

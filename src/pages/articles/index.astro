@@ -1,14 +1,13 @@
 ---
-import Base from '@/layouts/Base.astro';
-import ArticleIndex from '@/components/shell/ArticleIndex.astro';
+import ReadingShell from '@/components/shell/ReadingShell.astro';
 import { copy } from '@/lib/i18n';
 ---
 
-<Base
+<ReadingShell
+  kind="index"
+  indexList="articles"
   title={copy['zh-CN'].articlesTitle}
   titleEn={copy.en.articlesTitle}
   description={copy['zh-CN'].articlesDesc}
   descriptionEn={copy.en.articlesDesc}
->
-  <ArticleIndex page={1} />
-</Base>
+/>

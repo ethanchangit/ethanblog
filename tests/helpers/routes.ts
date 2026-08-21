@@ -28,6 +28,8 @@ export const STATIC_ROUTES = [
   '/zh',
   '/zh/now',
   '/zh/articles',
+  '/zh/articles/2',
+  '/zh/articles/embed-preview',
   '/zh/articles/pkm-method',
   '/zh/projects',
   '/zh/search',
