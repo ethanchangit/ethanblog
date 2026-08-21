@@ -82,17 +82,6 @@ const showProjects = listKind === 'projects';
       )
     }
 
-    <div
-      class="reading-doc"
-      data-reading-pane
-      data-reading-doc
-      data-reading-doc-src={docSrc}
-      inert={kind === 'index'}
-      aria-hidden={kind === 'index' ? 'true' : undefined}
-    >
-      <slot />
-    </div>
-
     {
       showRail && (
         <aside class="reading-rail" data-reading-rail>
@@ -113,6 +102,17 @@ const showProjects = listKind === 'projects';
         </aside>
       )
     }
+
+    <div
+      class="reading-doc"
+      data-reading-pane
+      data-reading-doc
+      data-reading-doc-src={docSrc}
+      inert={kind === 'index'}
+      aria-hidden={kind === 'index' ? 'true' : undefined}
+    >
+      <slot />
+    </div>
   </div>
 </Base>
 
@@ -121,4 +121,15 @@ const showProjects = listKind === 'projects';
   import { initReadingSeriesPane } from '@/lib/reading-series-pane';
   initReadingIndexSwap();
   initReadingSeriesPane();
+
+  function syncReadingTocFold() {
+    const desktop = window.matchMedia('(min-width: 1024px)').matches;
+    document.querySelectorAll<HTMLDetailsElement>('[data-reading-toc-fold]').forEach((el) => {
+      el.open = desktop;
+    });
+  }
+
+  const tocMq = window.matchMedia('(min-width: 1024px)');
+  tocMq.addEventListener('change', syncReadingTocFold);
+  document.addEventListener('astro:after-swap', syncReadingTocFold);
 </script>

@@ -131,7 +131,7 @@ const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
       <I18n k="skipToContent" />
     </a>
     <Nav />
-    <main id="main" class:list={['site-main flex-1', split && 'flex min-h-0 flex-col md:overflow-hidden']}>
+    <main id="main" class:list={['site-main flex-1', split && 'md:flex md:min-h-0 md:flex-col md:overflow-hidden']}>
       <slot />
     </main>
     <Footer />

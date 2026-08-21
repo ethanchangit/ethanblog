@@ -72,9 +72,9 @@ test.describe('手机阅读', () => {
     expect(maxH).toBe('none');
     const canScroll = await page.evaluate(() => {
       const before = window.scrollY;
-      window.scrollTo(0, 400);
+      window.scrollTo({ top: 400, behavior: 'instant' });
       const moved = window.scrollY > before;
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, behavior: 'instant' });
       return moved || document.documentElement.scrollHeight > window.innerHeight + 40;
     });
     expect(canScroll).toBe(true);
@@ -101,9 +101,10 @@ test.describe('手机阅读', () => {
     await expect(fold).toBeVisible();
     await expect(fold.locator('nav.toc')).toBeHidden();
     await fold.locator('summary').click();
-    await expect(fold.locator('nav.toc a').first()).toBeVisible();
-    await fold.locator('nav.toc a').nth(3).click();
-    expect(await page.evaluate(() => window.scrollY > 40)).toBe(true);
+    await expect(fold).toHaveAttribute('open', '');
+    await expect(fold.locator('nav.toc a').filter({ visible: true }).first()).toBeVisible();
+    await fold.locator('nav.toc a').filter({ visible: true }).nth(3).click();
+    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
   });
 
   test('留言发送键不掉出视口宽，热区够点', async ({ page }) => {
@@ -122,10 +123,10 @@ test.describe('手机阅读', () => {
   test('embed 页推文与视频不撑出页面', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/articles/embed-preview');
-    await expect(page.locator('[data-tweet-embed]').first()).toBeVisible();
-    await expect(page.locator('[data-video-embed]').first()).toBeVisible();
+    await expect(page.locator('[data-tweet-embed]').filter({ visible: true })).toBeVisible();
+    await expect(page.locator('[data-video-embed]').filter({ visible: true })).toBeVisible();
     await expectNoPageOverflow(page);
-    const tweet = await page.locator('[data-tweet-embed]').first().boundingBox();
+    const tweet = await page.locator('[data-tweet-embed]').filter({ visible: true }).boundingBox();
     expect(tweet).toBeTruthy();
     expect(tweet!.width).toBeLessThanOrEqual(375);
   });
@@ -138,7 +139,7 @@ test.describe('手机阅读', () => {
     expect(html).not.toBe('hidden');
     await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
     const scrolled = await page.evaluate(() => {
-      window.scrollTo(0, 200);
+      window.scrollTo({ top: 200, behavior: 'instant' });
       return window.scrollY > 0;
     });
     expect(scrolled).toBe(true);
@@ -158,7 +159,7 @@ test.describe('手机阅读', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     const tags = page.locator('header.site-nav a[href="/tags"]');
-    await expect(tags).toHaveText('Tags');
+    await expect(tags).toHaveText('Tags', { useInnerText: true });
     const zhHidden = await tags.locator('.i18n-zh').evaluate((el) => getComputedStyle(el).display);
     expect(zhHidden).toBe('none');
   });

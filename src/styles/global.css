@@ -1189,9 +1189,9 @@
   .reading-toc-summary {
     cursor: pointer;
     list-style: none;
+    display: block;
     min-height: 2.75rem;
-    display: flex;
-    align-items: center;
+    padding-block: 0.85rem;
     font-size: 0.75rem;
     line-height: 1rem;
     color: var(--color-ink-500);
@@ -1603,6 +1603,10 @@
   .site-main {
     padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
     padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .site-footer {
+    background-color: var(--color-surface-950);
   }
 
   .site-footer-inner {

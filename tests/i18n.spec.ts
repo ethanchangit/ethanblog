@@ -167,7 +167,7 @@ test.describe('Language（中/EN）', () => {
     await expect(page.getByText('你的笔记系统不是存储信息的仓库')).toBeVisible();
     await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', '目录');
     await expect(page.getByText('摘要', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('目录', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('目录', { exact: true })).not.toBeVisible();
   });
 
   test('地球图标打开两项菜单，Escape 关闭', async ({ page }) => {
