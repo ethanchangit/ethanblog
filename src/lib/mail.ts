@@ -1,17 +1,12 @@
-import {
-  FEEDBACK_SUBJECT_TAG,
-  FEEDBACK_TO,
-} from '@/lib/comments';
+import { EmailMessage } from 'cloudflare:email';
+import { FEEDBACK_FROM, FEEDBACK_SUBJECT_TAG, FEEDBACK_TO } from '@/lib/comments';
 
-/** Site-owned From. Visitor address is Reply-To only, never SMTP From. */
-export const FEEDBACK_FROM_DEFAULT = 'ethanchang.io <noreply@ethanchang.io>';
-
-export function feedbackSubject(articleTitle: string): string {
-  const title = articleTitle.replace(/\s+/g, ' ').trim() || 'untitled';
-  return `${FEEDBACK_SUBJECT_TAG} 留言 · ${title}`;
+export function feedbackSubject(name: string, slug: string): string {
+  return `${FEEDBACK_SUBJECT_TAG} ${oneLine(name)} · ${oneLine(slug)}`;
 }
 
 export function feedbackText(input: {
+  slug: string;
   title: string;
   url: string;
   name: string;
@@ -20,6 +15,7 @@ export function feedbackText(input: {
 }): string {
   return [
     `文章：${input.title}`,
+    `slug：${input.slug}`,
     `链接：${input.url}`,
     '',
     `来自：${input.name}`,
@@ -29,9 +25,11 @@ export function feedbackText(input: {
   ].join('\n');
 }
 
+/** Classic Email Routing send: `env.EMAIL.send(new EmailMessage(from, to, rawMime))`. */
 export async function sendFeedbackEmail(
-  env: { RESEND_API_KEY?: string; RESEND_FROM?: string },
+  env: { EMAIL?: SendEmail },
   payload: {
+    slug: string;
     title: string;
     url: string;
     name: string;
@@ -39,36 +37,59 @@ export async function sendFeedbackEmail(
     body: string;
   },
 ): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const key = env.RESEND_API_KEY?.trim();
-  if (!key) {
+  if (!env.EMAIL) {
     return { ok: false, error: 'Email is not configured', status: 503 };
   }
 
-  const from = env.RESEND_FROM?.trim() || FEEDBACK_FROM_DEFAULT;
+  const from = FEEDBACK_FROM;
+  const to = FEEDBACK_TO;
   const replyTo = payload.email || undefined;
+  const raw = buildRawEmail({
+    from,
+    to,
+    replyTo,
+    subject: feedbackSubject(payload.name, payload.slug),
+    text: feedbackText(payload),
+  });
 
-  let res: Response;
   try {
-    res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [FEEDBACK_TO],
-        subject: feedbackSubject(payload.title),
-        text: feedbackText(payload),
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
-    });
+    await env.EMAIL.send(new EmailMessage(from, to, raw));
   } catch {
     return { ok: false, error: 'Send failed', status: 502 };
   }
-
-  if (!res.ok) {
-    return { ok: false, error: 'Send failed', status: 502 };
-  }
   return { ok: true };
+}
+
+export function buildRawEmail(input: {
+  from: string;
+  to: string;
+  replyTo?: string;
+  subject: string;
+  text: string;
+}): string {
+  const headers = [
+    `From: ${oneLine(input.from)}`,
+    `To: ${oneLine(input.to)}`,
+    input.replyTo ? `Reply-To: ${oneLine(input.replyTo)}` : null,
+    `Subject: ${encodeUtf8Header(input.subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: 8bit',
+  ].filter((line): line is string => line != null);
+
+  const body = input.text.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+  return `${headers.join('\r\n')}\r\n\r\n${body}`;
+}
+
+function oneLine(value: string): string {
+  return value.replace(/[\r\n\u0000]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function encodeUtf8Header(value: string): string {
+  const safe = oneLine(value);
+  if (/^[\x20-\x7E]*$/.test(safe)) return safe;
+  const bytes = new TextEncoder().encode(safe);
+  let bin = '';
+  for (const byte of bytes) bin += String.fromCharCode(byte);
+  return `=?UTF-8?B?${btoa(bin)}?=`;
 }

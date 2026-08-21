@@ -23,8 +23,7 @@ GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# Article feedback → HEY (Hey+blog@ethanchang.io). Without the key the form still
-# renders; POST /api/comments returns 503 instead of sending.
-# Verify ethanchang.io in Resend (or set RESEND_FROM to a verified sender).
-RESEND_API_KEY=
-# RESEND_FROM=ethanchang.io <noreply@ethanchang.io>
+# Guestbook mail does not use an API key. wrangler.toml [[send_email]] named EMAIL
+# sends via Email Routing (EmailMessage) to hey@ethanchang.io. Local `astro dev`
+# has no binding — POST /api/comments returns 503. Enable Email Routing and
+# verify hey@ethanchang.io as a destination before production deploy.

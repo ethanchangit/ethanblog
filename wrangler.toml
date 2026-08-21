@@ -14,3 +14,9 @@ migrations_dir = "migrations"
 [[kv_namespaces]]
 binding = "SESSION"
 id = "5b6b6d1c5e4347289c28c34954be8cfe"
+
+# Guestbook: classic Email Routing send binding (EmailMessage), locked to Ethan.
+# Free: sending to a verified Email Routing destination. Not the paid Email Sending API.
+[[send_email]]
+name = "EMAIL"
+destination_address = "hey@ethanchang.io"
