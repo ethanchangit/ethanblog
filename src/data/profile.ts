@@ -9,7 +9,7 @@ export const site = {
   description: 'Ethan Chang 的个人博客 —— 文章、笔记与项目。',
   descriptionEn: "Ethan Chang's blog — articles, notes, and projects.",
   url: 'https://ethanchang.io',
-  lang: 'zh-CN',
+  lang: 'en',
 } as const;
 
 export const profile = {

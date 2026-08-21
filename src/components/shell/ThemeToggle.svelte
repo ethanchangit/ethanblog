@@ -3,7 +3,7 @@
   import { readLang, subscribeLang, t, type Lang } from '@/lib/i18n';
   import { initTheme, toggleTheme } from '@/lib/theme';
 
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   onMount(() => {
     initTheme();

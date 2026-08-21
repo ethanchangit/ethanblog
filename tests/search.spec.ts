@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const PKM = '我的 PKM 实践：从笔记到知识网络';
-const PLACEHOLDER = '占位 2026-05';
+const PKM = 'My PKM practice: from notes to a knowledge network';
+const PLACEHOLDER = 'Placeholder 2026-05';
 
 test.describe('站点搜索', () => {
   test('导航最右侧是搜索图标，点击进入 /search', async ({ page }) => {
@@ -9,15 +9,15 @@ test.describe('站点搜索', () => {
     const nav = page.locator('header nav');
     const search = nav.locator('a[href="/search"]');
     await expect(search).toBeVisible();
-    await expect(search).toHaveAttribute('aria-label', '搜索');
-    await expect(search).not.toContainText('搜索');
+    await expect(search).toHaveAttribute('aria-label', 'Search');
+    await expect(search).not.toContainText('Search');
 
     const items = nav.locator('ul > li');
     await expect(items.last().locator('a[href="/search"]')).toHaveCount(1);
 
     await search.click();
     await expect(page).toHaveURL(/\/search\/?$/);
-    await expect(page.getByRole('heading', { name: '搜索', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
     await expect(page.getByTestId('site-search')).toBeVisible();
   });
 
@@ -45,7 +45,7 @@ test.describe('站点搜索', () => {
 
   test('无匹配时显示空状态', async ({ page }) => {
     await page.goto('/search?q=zzz-no-such-article');
-    await expect(page.getByText('没有匹配的文章。')).toBeVisible();
+    await expect(page.getByText('No matching articles.')).toBeVisible();
     await expect(page.getByRole('heading', { name: PKM })).toBeHidden();
   });
 });

@@ -1,6 +1,6 @@
 ---
 import I18n from '@/components/shell/I18n.astro';
-import { copy } from '@/lib/i18n';
+import { copy, DEFAULT_LANG } from '@/lib/i18n';
 
 interface Props {
   query?: string;
@@ -16,7 +16,7 @@ const { query = '' } = Astro.props;
     type="search"
     name="q"
     value={query}
-    placeholder={copy['zh-CN'].searchPlaceholder}
+    placeholder={copy[DEFAULT_LANG].searchPlaceholder}
     autocomplete="off"
     data-i18n-placeholder="searchPlaceholder"
     data-testid="site-search"

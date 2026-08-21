@@ -571,43 +571,47 @@
     border: 0;
   }
 
-  /* Bilingual chrome: English copy is in the DOM, hidden until html[data-lang='en']. */
-  .i18n-en {
+  /* Bilingual chrome: Chinese copy is in the DOM, hidden until html[data-lang='zh-CN']. */
+  .i18n-zh {
     display: none;
   }
-  html[data-lang='en'] .i18n-zh {
-    display: none;
-  }
-  html[data-lang='en'] .i18n-en {
+  html[data-lang='zh-CN'] .i18n-zh {
     display: inline;
+  }
+  html[data-lang='zh-CN'] .i18n-en {
+    display: none;
   }
 
   /* MDX body wrappers: display:contents so prose styles still hit headings/paragraphs. */
   .i18n-zh-block {
-    display: contents;
+    display: none;
   }
   .i18n-en-block {
-    display: none;
-  }
-  html[data-lang='en'] .i18n-zh-block:has(+ .i18n-en-block) {
-    display: none;
-  }
-  html[data-lang='en'] .i18n-en-block {
     display: contents;
+  }
+  /* No English replica: keep the Chinese body visible in English mode. */
+  .i18n-zh-block:not(:has(+ .i18n-en-block)) {
+    display: contents;
+  }
+  html[data-lang='zh-CN'] .i18n-zh-block {
+    display: contents;
+  }
+  html[data-lang='zh-CN'] .i18n-en-block {
+    display: none;
   }
 
   /* Paired sections (TOC, etc.): hide the inactive language as a unit. */
   .i18n-zh-only {
-    display: contents;
+    display: none;
   }
   .i18n-en-only {
-    display: none;
-  }
-  html[data-lang='en'] .i18n-zh-only {
-    display: none;
-  }
-  html[data-lang='en'] .i18n-en-only {
     display: contents;
+  }
+  html[data-lang='zh-CN'] .i18n-zh-only {
+    display: contents;
+  }
+  html[data-lang='zh-CN'] .i18n-en-only {
+    display: none;
   }
 }
 

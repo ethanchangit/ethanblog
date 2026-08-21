@@ -8,7 +8,7 @@
 </script>
 
 {#if en}
-  <span class="i18n-zh">{zh}</span><span class="i18n-en" aria-hidden="true">{en}</span>
+  <span class="i18n-zh" aria-hidden="true">{zh}</span><span class="i18n-en">{en}</span>
 {:else}
   {zh}
 {/if}

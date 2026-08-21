@@ -103,7 +103,7 @@
         </label>
       {/each}
       <p class="text-[11px] text-ink-600">
-        <span class="i18n-zh">{t('zh-CN', 'paramHint')}</span><span class="i18n-en" aria-hidden="true">{t('en', 'paramHint')}</span>
+        <span class="i18n-zh" aria-hidden="true">{t('zh-CN', 'paramHint')}</span><span class="i18n-en">{t('en', 'paramHint')}</span>
       </p>
     </div>
     <div bind:this={box} class="relative" style="height: {height}px">

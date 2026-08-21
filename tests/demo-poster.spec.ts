@@ -9,7 +9,7 @@ test.describe('InteractiveDemo poster 档', () => {
     const posterImg = section.locator('img[src*="posters"]');
     await expect(posterImg).toBeVisible();
 
-    await section.getByRole('button', { name: '▶ 启动演示' }).click();
+    await section.getByRole('button', { name: '▶ Start demo' }).click();
     const iframe = section.locator('iframe');
     await expect(iframe).toHaveAttribute('src', /\/demos\/knowledge-garden\//);
   });
@@ -20,7 +20,7 @@ test.describe('InteractiveDemo poster 档', () => {
     await section.scrollIntoViewIfNeeded();
 
     await expect(section.locator('img')).toHaveCount(0);
-    await expect(section.getByRole('button', { name: '▶ 启动演示' })).toBeVisible();
+    await expect(section.getByRole('button', { name: '▶ Start demo' })).toBeVisible();
   });
 
   test('reduced-motion 下不自动播放 posterVideo', async ({ page }) => {

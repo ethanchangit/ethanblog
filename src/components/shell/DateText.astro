@@ -8,6 +8,6 @@ interface Props {
 const { date } = Astro.props;
 ---
 
-<span class="i18n-zh">{formatDate(date, 'zh-CN')}</span><span class="i18n-en" aria-hidden="true"
+<span class="i18n-zh" aria-hidden="true">{formatDate(date, 'zh-CN')}</span><span class="i18n-en"
   >{formatDate(date, 'en')}</span
 >

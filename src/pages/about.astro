@@ -42,8 +42,8 @@ const domains = [...new Set(skills.map((s) => s.domain))];
                       <li class="text-sm text-ink-300">
                         {s.nameEn ? (
                           <>
-                            <span class="i18n-zh">{s.name}</span>
-                            <span class="i18n-en" aria-hidden="true">{s.nameEn}</span>
+                            <span class="i18n-zh" aria-hidden="true">{s.name}</span>
+                            <span class="i18n-en">{s.nameEn}</span>
                           </>
                         ) : (
                           s.name

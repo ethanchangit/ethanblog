@@ -9,13 +9,13 @@ test.describe('prefers-reduced-motion', () => {
     await page.goto('/');
     await expect(page).toHaveURL(/\/articles\/?$/);
     await expect(page.locator('header nav')).toBeVisible();
-    await expect(page.locator('h1')).toHaveText('文章', { useInnerText: true });
+    await expect(page.locator('h1')).toHaveText('Articles', { useInnerText: true });
     await expect(page.locator('main')).toBeVisible();
   });
 
   test('lab page renders all component sections', async ({ page }) => {
     await page.goto('/lab');
-    await expect(page.getByRole('heading', { name: '组件试验场' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Component lab' })).toBeVisible();
 
     for (const testId of [
       'param-slider',

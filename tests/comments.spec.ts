@@ -9,20 +9,20 @@ test.describe('文章留言', () => {
 
     const comments = page.locator('#comments');
     await expect(comments).toBeVisible();
-    await expect(comments.getByRole('heading', { name: '留言', exact: true })).toBeVisible();
-    await expect(comments.getByText('还没有人留言。')).toBeVisible();
+    await expect(comments.getByRole('heading', { name: 'Comments', exact: true })).toBeVisible();
+    await expect(comments.getByText('No comments yet.')).toBeVisible();
     await expect(comments.locator('input[name="name"]')).toBeVisible();
     await expect(comments.locator('textarea[name="body"]')).toBeVisible();
-    await expect(comments.getByRole('button', { name: '发送' })).toBeVisible();
+    await expect(comments.getByRole('button', { name: 'Send' })).toBeVisible();
     const vis = comments.locator('input[name="visibility"]');
     await expect(vis).toHaveAttribute('value', 'private');
     await expect(vis).not.toBeChecked();
-    await expect(comments.getByText('公开', { exact: true })).toBeVisible();
-    await expect(comments.getByText('私密', { exact: true })).toBeHidden();
+    await expect(comments.getByText('Public', { exact: true })).toBeVisible();
+    await expect(comments.getByText('Private', { exact: true })).toBeHidden();
     await comments.locator('.comment-vis').click();
     await expect(vis).toBeChecked();
-    await expect(comments.getByText('私密', { exact: true })).toBeVisible();
-    await expect(comments.getByText('公开', { exact: true })).toBeHidden();
+    await expect(comments.getByText('Private', { exact: true })).toBeVisible();
+    await expect(comments.getByText('Public', { exact: true })).toBeHidden();
     await expect(comments.locator('form')).toHaveAttribute('action', '/api/comments');
     await expect(comments.getByRole('button', { name: '写下' })).toHaveCount(0);
     await expect(comments.getByText('一两句话即可。')).toHaveCount(0);

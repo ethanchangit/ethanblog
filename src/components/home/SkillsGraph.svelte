@@ -18,7 +18,7 @@
 
   const domains = [...new Set(skills.map((s) => s.domain))];
   let selected = $state<Skill | null>(null);
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   onMount(() => {
     lang = readLang();
@@ -53,8 +53,8 @@
                 class="text-sm text-ink-400 underline-offset-4 transition-colors hover:text-ink-100"
               >
                 {#if s.nameEn}
-                  <span class="i18n-zh">{s.name}</span>
-                  <span class="i18n-en" aria-hidden="true">{s.nameEn}</span>
+                  <span class="i18n-zh" aria-hidden="true">{s.name}</span>
+                  <span class="i18n-en">{s.nameEn}</span>
                 {:else}
                   {s.name}
                 {/if}
@@ -71,8 +71,8 @@
       <p class="ui-meta">{labelDomain(selected.domain)}</p>
       <h4 class="mt-1 font-semibold text-ink-100">
         {#if selected.nameEn}
-          <span class="i18n-zh">{selected.name}</span>
-          <span class="i18n-en" aria-hidden="true">{selected.nameEn}</span>
+          <span class="i18n-zh" aria-hidden="true">{selected.name}</span>
+          <span class="i18n-en">{selected.nameEn}</span>
         {:else}
           {selected.name}
         {/if}

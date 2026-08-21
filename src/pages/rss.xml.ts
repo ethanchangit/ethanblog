@@ -10,20 +10,20 @@ export async function GET(context: APIContext) {
 
   return rss({
     title: site.title,
-    description: site.description,
+    description: site.descriptionEn ?? site.description,
     site: context.site ?? site.url,
     items: articles.flatMap((entry) => {
       const pubDate = entry.data.date;
       if (!pubDate) return [];
       return [
         {
-          title: entry.data.title,
-          description: entry.data.description,
+          title: entry.data.titleEn ?? entry.data.title,
+          description: entry.data.descriptionEn ?? entry.data.description,
           pubDate,
           link: docHref(entry),
         },
       ];
     }),
-    customData: `<language>zh-cn</language>`,
+    customData: `<language>en</language>`,
   });
 }

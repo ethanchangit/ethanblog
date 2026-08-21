@@ -3,9 +3,9 @@ import { test, expect } from '@playwright/test';
 const HUB = '/articles/series-demo';
 const PART1 = '/articles/series-demo/1';
 const PART2 = '/articles/series-demo/2';
-const HUB_TITLE = '系列演示：一篇教程';
-const PART1_TITLE = '系列演示 · 第 1 页';
-const PART2_TITLE = '系列演示 · 第 2 页';
+const HUB_TITLE = 'Series demo: a tutorial';
+const PART1_TITLE = 'Series demo · Part 1';
+const PART2_TITLE = 'Series demo · Part 2';
 
 test.describe('系列子文', () => {
   test('总览在文章列表，子页不在', async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe('系列子文', () => {
   test('总览列出篇目，子页可翻上一篇/下一篇', async ({ page }) => {
     await page.goto(HUB);
     const hubNav = page.locator('[data-series="hub"]');
-    await expect(hubNav.getByText('篇目')).toBeVisible();
+    await expect(hubNav.getByText('Chapters')).toBeVisible();
     await expect(hubNav.locator(`a[href="${PART1}"]`)).toBeVisible();
     await expect(hubNav.locator(`a[href="${PART2}"]`)).toBeVisible();
 

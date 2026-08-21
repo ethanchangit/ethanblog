@@ -1,11 +1,12 @@
 /**
  * Chrome-level bilingual layer (zh-CN / en).
  * MDX article/project bodies are not translated here — only shell UI.
- * Preference lives in localStorage; SSR default is Chinese, matching the site today.
+ * Preference lives in localStorage; SSR / empty-storage default is English.
  */
 
 export type Lang = 'zh-CN' | 'en';
 
+export const DEFAULT_LANG: Lang = 'en';
 export const LANG_STORAGE_KEY = 'lang';
 export const LANG_EVENT = 'ethan:lang';
 
@@ -305,7 +306,7 @@ export function nowVerbKey(verb: string): CopyKey | null {
 }
 
 export function resolveLang(stored: string | null): Lang {
-  return stored === 'en' ? 'en' : 'zh-CN';
+  return stored === 'zh-CN' ? 'zh-CN' : DEFAULT_LANG;
 }
 
 export function getStoredLang(): Lang | null {
@@ -315,8 +316,9 @@ export function getStoredLang(): Lang | null {
 }
 
 export function readLang(): Lang {
-  if (typeof document === 'undefined') return 'zh-CN';
-  if (document.documentElement.lang === 'en') return 'en';
+  if (typeof document === 'undefined') return DEFAULT_LANG;
+  const attr = document.documentElement.dataset.lang || document.documentElement.lang;
+  if (attr === 'en' || attr === 'zh-CN') return attr;
   return resolveLang(getStoredLang());
 }
 

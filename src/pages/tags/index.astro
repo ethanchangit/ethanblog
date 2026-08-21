@@ -5,7 +5,7 @@ import Bi from '@/components/shell/Bi.astro';
 import I18n from '@/components/shell/I18n.astro';
 import TagFilter from '@/components/shell/TagFilter.svelte';
 import { ALL_GROUP, groupedTags } from '@/data/tag-groups';
-import { copy } from '@/lib/i18n';
+import { copy, DEFAULT_LANG } from '@/lib/i18n';
 import { tagHref, tagsPageHref } from '@/lib/routes';
 import { articleCardProps, publishedArticles, uniqueTags } from '@/lib/tags';
 
@@ -38,7 +38,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
       <nav
         class="tag-index-domains"
         data-tag-group-tabs
-        aria-label={copy['zh-CN'].tagsDomainsAria}
+        aria-label={copy[DEFAULT_LANG].tagsDomainsAria}
         data-i18n-aria="tagsDomainsAria"
       >
         <a
@@ -64,7 +64,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
       <ul
         class="tag-index-list"
         data-tag-list
-        aria-label={copy['zh-CN'].tagsListAria}
+        aria-label={copy[DEFAULT_LANG].tagsListAria}
         data-i18n-aria="tagsListAria"
       >
         {

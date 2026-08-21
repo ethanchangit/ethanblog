@@ -98,7 +98,7 @@ test('InteractiveDemo loads iframe after launch', async ({ page }) => {
   const section = page.getByTestId('interactive-demo');
   await section.scrollIntoViewIfNeeded();
 
-  await section.getByRole('button', { name: /启动演示/ }).click();
+  await section.getByRole('button', { name: /Start demo/ }).click();
   const iframe = section.locator('iframe');
   await expect(iframe).toBeVisible();
   await expect(iframe).toHaveAttribute('src', '/demos/knowledge-garden/');
@@ -120,14 +120,14 @@ test('VideoEmbed is a YouTube facade until clicked', async ({ page }) => {
   await expect(facade).toBeVisible();
   await expect(facade).toHaveAttribute('href', 'https://www.youtube.com/watch?v=jNQXAC9IVRw');
   await expect(section.locator('iframe')).toHaveCount(0);
-  await expect(section.getByRole('link', { name: /在 YouTube 观看/ })).toBeVisible();
+  await expect(section.getByRole('link', { name: /Watch on YouTube/ })).toBeVisible();
 
   await facade.click();
   const frame = section.locator('iframe');
   await expect(frame).toBeVisible();
   await expect(frame).toHaveAttribute('src', /youtube\.com\/embed\/jNQXAC9IVRw/);
   await expect(frame).toHaveAttribute('title', 'Me at the zoo（示例视频）');
-  await expect(section.getByRole('link', { name: /在 YouTube 观看/ })).toBeVisible();
+  await expect(section.getByRole('link', { name: /Watch on YouTube/ })).toBeVisible();
 });
 
 test('TweetEmbed renders a self-drawn card with the original permalink', async ({ page }) => {

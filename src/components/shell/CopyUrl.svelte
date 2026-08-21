@@ -8,7 +8,7 @@
   }
 
   let { url }: Props = $props();
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
   let copied = $state(false);
   let revertTimer: ReturnType<typeof setTimeout> | undefined;
 

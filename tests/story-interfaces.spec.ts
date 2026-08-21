@@ -64,7 +64,7 @@ test.describe('Article 论文化接口（T2）', () => {
   test('标题下可复制规范 URL，且在摘要之上', async ({ page }) => {
     await page.goto(FINAL);
 
-    const copy = page.getByRole('button', { name: '复制本页链接' });
+    const copy = page.getByRole('button', { name: 'Copy page URL' });
     const island = page.locator('astro-island').filter({ has: copy });
     await expect(copy).toBeVisible();
     await expect(island).not.toHaveAttribute('ssr');
@@ -91,7 +91,7 @@ test.describe('Article 论文化接口（T2）', () => {
     });
 
     await copy.click();
-    await expect(page.getByRole('button', { name: '已复制' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
 
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedUrl?: string }).__copiedUrl,
@@ -107,27 +107,28 @@ test.describe('Article 论文化接口（T2）', () => {
 
     const toc = page.locator('nav.toc');
     await expect(toc).toBeVisible();
-    await expect(toc).toHaveAttribute('aria-label', '目录');
+    await expect(toc).toHaveAttribute('aria-label', 'Table of contents');
     await expect(toc.locator('.toc-title')).toHaveCount(0);
     await expect(toc.getByText('目录', { exact: true })).toHaveCount(0);
     await expect(toc.getByText('Contents', { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-reading-rail]')).toBeVisible();
 
-    const firstLabel = toc.locator('a .toc-label').first();
+    const firstLabel = toc.locator('a .toc-label').filter({ visible: true }).first();
     await expect(firstLabel).toBeVisible();
     await expect(firstLabel).toHaveCSS('opacity', '1');
 
-    const h3 = toc.locator('a[data-depth="3"]').first();
+    const h3 = toc.locator('a[data-depth="3"]').filter({ visible: true }).first();
     await expect(h3).toBeVisible();
     const indent = await h3.evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft));
     expect(indent).toBeGreaterThanOrEqual(12);
 
-    await toc.locator('a').first().focus();
-    await expect(toc.locator('a').first()).toBeFocused();
+    const firstLink = toc.locator('a').filter({ visible: true }).first();
+    await firstLink.focus();
+    await expect(firstLink).toBeFocused();
 
-    await toc.locator('a').first().click();
+    await firstLink.click();
     await expect(page).toHaveURL(/#.+/);
-    await expect(toc.locator('a').first()).toHaveAttribute('aria-current', 'true');
+    await expect(firstLink).toHaveAttribute('aria-current', 'true');
   });
 
   test('390×844 下目录与左栏隐藏、正文在、无横向溢出', async ({ page }) => {
@@ -139,7 +140,7 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.article-body-row > details')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: '← 文章' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
 
     const stacked = await page.evaluate(() => {
       const row = document.querySelector('.article-body-row');
