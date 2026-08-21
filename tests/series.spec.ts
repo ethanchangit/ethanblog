@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const HUB = '/articles/series-demo';
 const PART1 = '/articles/series-demo/1';
 const PART2 = '/articles/series-demo/2';
-const HUB_TITLE = 'Series demo: a tutorial';
+const HUB_TITLE = 'A demo of a series of content';
 const PART1_TITLE = 'Series demo · Part 1';
 const PART2_TITLE = 'Series demo · Part 2';
 
