@@ -1,6 +1,8 @@
 # About is Home
 /about / 301
 /about/ / 301
+/zh/about /zh 301
+/zh/about/ /zh 301
 
 # Legacy Hugo URLs → Articles
 /posts/pkm-method/ /articles/pkm-method 301
@@ -13,3 +15,5 @@
 /posts /articles 301
 /articles/1 /articles 301
 /articles/1/ /articles 301
+/zh/articles/1 /zh/articles 301
+/zh/articles/1/ /zh/articles 301

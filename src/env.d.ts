@@ -28,7 +28,11 @@ type Env = {
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
 
 declare namespace App {
-  interface Locals extends Runtime {}
+  interface Locals extends Runtime {
+    locale: 'en' | 'zh';
+    lang: 'zh-CN' | 'en';
+    localePath: (href: string) => string;
+  }
 }
 
 /** <video>/<source> 运行时需要这个属性；Astro 的 VideoHTMLAttributes 尚未收录。 */

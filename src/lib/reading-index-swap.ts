@@ -15,6 +15,7 @@
  * 无 JS / 窄屏时链接仍是普通导航。单栏索引点进分栏仍走整页；进分栏后才只换栏。
  */
 import { applyLang, readLang } from '@/lib/i18n';
+import { localeFromPath, localeHrefForLang, pagePath } from '@/lib/locale';
 import { ARTICLES_PATH, HOME_PATH, PROJECTS_PATH } from '@/lib/routes';
 
 export type IndexKind = 'articles' | 'projects';
@@ -35,7 +36,7 @@ function canonicalizePath(pathname: string): string {
 }
 
 export function indexKindFromPath(pathname: string): IndexKind | null {
-  const p = pathname.replace(/\/+$/, '') || '/';
+  const p = pagePath(pathname);
   if (p === ARTICLES_PATH) return 'articles';
   if (p.startsWith(`${ARTICLES_PATH}/`) && /^\d+$/.test(p.slice(ARTICLES_PATH.length + 1))) {
     return 'articles';
@@ -45,7 +46,7 @@ export function indexKindFromPath(pathname: string): IndexKind | null {
 }
 
 export function docKindFromPath(pathname: string): 'article' | 'project' | null {
-  const p = canonicalizePath(pathname);
+  const p = pagePath(pathname);
   if (p.startsWith(`${ARTICLES_PATH}/`)) {
     const rest = p.slice(ARTICLES_PATH.length + 1);
     if (!rest || /^\d+$/.test(rest)) return null;
@@ -123,9 +124,9 @@ export function markCurrent() {
     } catch {
       continue;
     }
-    if (target === HOME_PATH) continue;
+    if (pagePath(target) === HOME_PATH) continue;
     if (indexKindFromPath(target)) continue;
-    const match = path === target || path.startsWith(`${target}/`);
+    const match = pagePath(path) === pagePath(target) || pagePath(path).startsWith(`${pagePath(target)}/`);
     if (match) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
@@ -173,7 +174,7 @@ function blurIndexFocus() {
 }
 
 function sameDocPath(pathname: string): boolean {
-  return canonicalizePath(pathname) === canonicalizePath(location.pathname);
+  return pagePath(pathname) === pagePath(location.pathname);
 }
 
 function applyDocMeta(fromDoc: Document) {
@@ -406,7 +407,7 @@ function onClick(event: MouseEvent) {
 }
 
 export function readingCloseHref(): string {
-  return HOME_PATH;
+  return localeHrefForLang(HOME_PATH, localeFromPath(location.pathname) === 'zh' ? 'zh-CN' : 'en');
 }
 
 function syncCloseHref() {
@@ -432,7 +433,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape') return;
   if (event.defaultPrevented || event.repeat || event.isComposing) return;
   if (!splitIndexVisible()) return;
-  if (canonicalizePath(location.pathname) === HOME_PATH) return;
+  if (pagePath(location.pathname) === HOME_PATH) return;
   if (typingTarget(event.target)) return;
   if (overlayBlocksEscape()) return;
   const link = document.querySelector<HTMLAnchorElement>('a[data-reading-close]');

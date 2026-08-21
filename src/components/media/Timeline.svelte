@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { pagePath } from '@/lib/locale';
   import { reducedMotion } from '@/lib/motion';
   import BiText from '@/components/shell/BiText.svelte';
 
@@ -32,14 +33,14 @@
   function pathOf(href: string | undefined): string {
     if (!href) return '';
     try {
-      return new URL(href, location.origin).pathname.replace(/\/+$/, '') || '/';
+      return pagePath(new URL(href, location.origin).pathname);
     } catch {
-      return href.replace(/\/+$/, '') || '/';
+      return pagePath(href);
     }
   }
 
   function syncCurrent() {
-    current = pathOf(location.pathname);
+    current = pagePath(location.pathname);
   }
 
   onMount(() => {

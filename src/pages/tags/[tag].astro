@@ -10,7 +10,7 @@ export async function getStaticPaths() {
 }
 
 const tag = Astro.params.tag ?? '';
-const dest = `${TAGS_PATH}?tag=${encodeURIComponent(tag)}`;
+const dest = Astro.locals.localePath(`${TAGS_PATH}?tag=${encodeURIComponent(tag)}`);
 ---
 
 <!doctype html>

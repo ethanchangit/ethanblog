@@ -25,10 +25,12 @@ const {
   currentId,
   showRail = false,
 } = Astro.props;
+const lp = Astro.locals.localePath;
 const persistKey = kind === 'project' ? 'reading-index-projects' : 'reading-index-articles';
-const indexHref = kind === 'project' ? PROJECTS_PATH : ARTICLES_PATH;
-const docSrc =
-  kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? '');
+const indexHref = lp(kind === 'project' ? PROJECTS_PATH : ARTICLES_PATH);
+const docSrc = lp(
+  kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? ''),
+);
 const backKey: CopyKey = kind === 'project' ? 'backToProjects' : 'backToArticles';
 ---
 

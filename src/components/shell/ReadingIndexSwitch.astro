@@ -10,8 +10,8 @@ interface Props {
 const { active } = Astro.props;
 
 const items: { id: 'articles' | 'projects'; href: string; key: CopyKey }[] = [
-  { id: 'articles', href: ARTICLES_PATH, key: 'navArticles' },
-  { id: 'projects', href: PROJECTS_PATH, key: 'navProjects' },
+  { id: 'articles', href: Astro.locals.localePath(ARTICLES_PATH), key: 'navArticles' },
+  { id: 'projects', href: Astro.locals.localePath(PROJECTS_PATH), key: 'navProjects' },
 ];
 const current = items.find((item) => item.id === active)!;
 const other = items.find((item) => item.id !== active)!;

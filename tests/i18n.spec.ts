@@ -1,5 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
+function pagePathOf(url: URL): string {
+  return url.pathname.replace(/\/+$/, '') || '/';
+}
+
 const inner = { useInnerText: true } as const;
 
 const langAriaZh = '选择语言';
@@ -23,8 +27,14 @@ async function openLangMenu(page: Page) {
 
 async function chooseLang(page: Page, option: '简体中文' | 'English') {
   const footer = await openLangMenu(page);
-  await footer.getByRole('option', { name: option }).click();
-  await expect(footer.getByRole('listbox')).toHaveCount(0);
+  const wantZh = option === '简体中文';
+  await Promise.all([
+    page.waitForURL((url) => {
+      const zh = pagePathOf(url) === '/zh' || pagePathOf(url).startsWith('/zh/');
+      return wantZh ? zh : !zh;
+    }),
+    footer.getByRole('option', { name: option }).click(),
+  ]);
 }
 
 test.describe('Language（中/EN）', () => {
@@ -33,8 +43,9 @@ test.describe('Language（中/EN）', () => {
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('html')).toHaveAttribute('data-lang', 'en');
-    const home = page.locator('header.site-nav a[href="/"]');
+    const home = page.locator('header.site-nav a[data-i18n-aria="navHome"]');
     await expect(home).toHaveText('EthanChang', inner);
+    await expect(home).toHaveAttribute('href', '/');
     await expect(home).toHaveAttribute('aria-label', 'Home');
     await expect(page.locator('header.site-nav ul a[href="/"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
@@ -52,31 +63,36 @@ test.describe('Language（中/EN）', () => {
     await expect(toggle).not.toContainText('EN');
 
     await chooseLang(page, '简体中文');
+    await expect(page).toHaveURL((url) => url.pathname === '/zh');
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
     await expect(page.locator('html')).toHaveAttribute('data-lang', 'zh-CN');
     await expect(home).toHaveText('EthanChang', inner);
+    await expect(home).toHaveAttribute('href', '/zh');
     await expect(home).toHaveAttribute('aria-label', '首页');
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
-    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('标签', inner);
-    await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('现在', inner);
-    await expect(page.locator('header.site-nav a[href="/search"]')).toHaveAttribute('aria-label', '搜索');
-    expect(new URL(page.url()).pathname).toBe('/');
+    await expect(page.locator('header.site-nav a[href="/zh/tags"]')).toHaveText('标签', inner);
+    await expect(page.locator('header.site-nav a[href="/zh/now"]')).toHaveText('现在', inner);
+    await expect(page.locator('header.site-nav a[href="/zh/search"]')).toHaveAttribute('aria-label', '搜索');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
 
     await page.reload();
+    await expect(page).toHaveURL((url) => url.pathname === '/zh');
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
 
     await chooseLang(page, 'English');
+    await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', inner);
     await expect(home).toHaveAttribute('aria-label', 'Home');
+    await expect(home).toHaveAttribute('href', '/');
   });
 
   test('字标 EthanChang 指向首页', async ({ page }) => {
     await page.goto('/now');
-    const home = page.locator('header.site-nav a[href="/"]');
+    const home = page.locator('header.site-nav a[data-i18n-aria="navHome"]');
     await expect(home).toHaveText('EthanChang', inner);
+    await expect(home).toHaveAttribute('href', '/');
     await expect(page.locator('header.site-nav ul a[href="/"]')).toHaveCount(0);
     await home.click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
@@ -89,8 +105,9 @@ test.describe('Language（中/EN）', () => {
     await expect(page.getByRole('heading', { name: 'What I do' })).toBeVisible();
 
     await chooseLang(page, '简体中文');
+    await expect(page).toHaveURL((url) => url.pathname === '/zh');
     await expect(page.getByRole('heading', { name: '我在做什么' })).toBeVisible();
-    await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('现在', inner);
+    await expect(page.locator('header.site-nav a[href="/zh/now"]')).toHaveText('现在', inner);
   });
 
   test('切换语言会改掉 Now 页可见文案', async ({ page }) => {
@@ -102,6 +119,7 @@ test.describe('Language（中/EN）', () => {
     await expect(page.getByText('Writing the blog, refining notes and project pages')).toBeVisible();
 
     await chooseLang(page, '简体中文');
+    await expect(page).toHaveURL((url) => url.pathname === '/zh/now');
     await expect(page.locator('h1')).toHaveText('现在', inner);
     await expect(lede.locator('p.ui-meta')).toHaveText('更新于 2026 年 8 月 21 日', inner);
     await expect(page.getByText('写博客，打磨笔记与项目页')).toBeVisible();
@@ -132,6 +150,7 @@ test.describe('Language（中/EN）', () => {
     await expect(page.locator('.article-dek-label, .toc-title')).toHaveCount(0);
 
     await chooseLang(page, '简体中文');
+    await expect(page).toHaveURL((url) => url.pathname === '/zh/articles/pkm-method');
     await expect(page.locator('.article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络', inner);
     await expect(page.getByText('你的笔记系统不是存储信息的仓库')).toBeVisible();
     await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', '目录');
@@ -153,5 +172,44 @@ test.describe('Language（中/EN）', () => {
     await page.keyboard.press('Escape');
     await expect(footer.getByRole('listbox')).toHaveCount(0);
     await expect(footer.getByRole('button', { name: langAriaEn })).toBeFocused();
+  });
+
+  test('/zh 不依赖 localStorage 也能打开中文站', async ({ page, request }) => {
+    const res = await request.get('/zh');
+    expect(res.status()).toBe(200);
+    const html = await res.text();
+    expect(html).toMatch(/<html[^>]*lang="zh-CN"/);
+    expect(html).toContain('hreflang="zh-CN"');
+    expect(html).toContain('href="/zh/now"');
+
+    await page.addInitScript(() => localStorage.setItem('lang', 'en'));
+    await page.goto('/zh');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
+    await expect(page.locator('header.site-nav a[href="/zh/now"]')).toHaveText('现在', inner);
+    await expect(page.getByRole('heading', { name: '我在做什么' })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe('/zh');
+  });
+
+  test('/zh 子路径也是中文，切回英文会去掉前缀', async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem('lang'));
+    await page.goto('/zh/now');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('h1')).toHaveText('现在', inner);
+    await expect(page.locator('header.site-nav a[data-i18n-aria="navHome"]')).toHaveAttribute(
+      'href',
+      '/zh',
+    );
+
+    await page.goto('/zh/articles/pkm-method');
+    await expect(page.locator('.article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络', inner);
+
+    await chooseLang(page, 'English');
+    await expect(page).toHaveURL((url) => url.pathname === '/articles/pkm-method');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('.article-lede h1')).toHaveText(
+      'My PKM practice: from notes to a knowledge network',
+      inner,
+    );
   });
 });

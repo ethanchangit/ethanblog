@@ -9,6 +9,7 @@
  * 关闭子文用 `data-reading-child-close`，不要跟正文的 `data-reading-close` 混用。
  */
 import { applyLang, readLang, t } from '@/lib/i18n';
+import { pagePath } from '@/lib/locale';
 
 const RAIL_MQ = '(min-width: 1024px)';
 
@@ -16,10 +17,6 @@ let started = false;
 let inflight: AbortController | null = null;
 let generation = 0;
 let mq: MediaQueryList | null = null;
-
-function canonicalizePath(pathname: string): string {
-  return pathname.replace(/\/+$/, '') || '/';
-}
 
 function neutralizeIslands(html: string): string {
   return html.replace(/<\/?astro-island\b/gi, (tag) =>
@@ -63,12 +60,13 @@ function seriesPaneActive(): boolean {
 }
 
 function hubPath(): string {
-  return canonicalizePath(location.pathname);
+  return pagePath(location.pathname);
 }
 
 function isChapterOfHub(pathname: string, hub: string): boolean {
-  const path = canonicalizePath(pathname);
-  return path.startsWith(`${hub}/`) && path.length > hub.length + 1;
+  const path = pagePath(pathname);
+  const parent = pagePath(hub);
+  return path.startsWith(`${parent}/`) && path.length > parent.length + 1;
 }
 
 function overlayBlocksEscape(): boolean {
@@ -99,7 +97,7 @@ function markOpenChapter(chapterPath: string | null) {
     if (!href || href.startsWith('#') || href.startsWith('?')) continue;
     let target: string;
     try {
-      target = canonicalizePath(new URL(href, location.origin).pathname);
+      target = pagePath(new URL(href, location.origin).pathname);
     } catch {
       continue;
     }
@@ -187,7 +185,7 @@ async function openChild(href: string) {
     location.href = href;
     return;
   }
-  const destPath = canonicalizePath(dest.pathname);
+  const destPath = pagePath(dest.pathname);
   if (rail.getAttribute('data-reading-child-src') === destPath) return;
 
   inflight?.abort();
@@ -245,7 +243,7 @@ function interceptTarget(link: HTMLAnchorElement): 'open' | 'close' | null {
   if (url.origin !== location.origin) return null;
 
   const hub = hubPath();
-  const path = canonicalizePath(url.pathname);
+  const path = pagePath(url.pathname);
   if (path === hub) return 'close';
   if (isChapterOfHub(path, hub)) return 'open';
   return null;

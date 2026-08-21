@@ -8,6 +8,7 @@ import Nav from '@/components/shell/Nav.astro';
 import Footer from '@/components/shell/Footer.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
+import { isZhPath, stripLocalePrefix, withLocalePrefix } from '@/lib/locale';
 
 interface Props {
   title?: string;
@@ -30,13 +31,23 @@ const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — 博
 const pageTitleEn = (titleEn ?? title)
   ? `${titleEn ?? title} · ${site.title}`
   : `${site.title} — Blog`;
-const canonical = new URL(Astro.url.pathname, site.url);
+const lang =
+  Astro.locals.lang ??
+  (Astro.currentLocale === 'zh' || isZhPath(Astro.url.pathname) ? 'zh-CN' : 'en');
+const locale = Astro.locals.locale ?? (lang === 'zh-CN' ? 'zh' : 'en');
+const pageTitle = lang === 'en' ? pageTitleEn : pageTitleZh;
+const pageDescription = lang === 'en' ? descriptionEn : description;
+const canonicalPath = withLocalePrefix(stripLocalePrefix(Astro.url.pathname), locale);
+const canonical = new URL(canonicalPath, site.url);
+const unprefixedPath = stripLocalePrefix(canonicalPath);
+const enUrl = new URL(unprefixedPath, site.url);
+const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
 ---
 
 <!doctype html>
 <html
-  lang={site.lang}
-  data-lang={site.lang}
+  lang={lang}
+  data-lang={lang}
   class:list={[split && 'reading-split']}
   data-title-zh={pageTitleZh}
   data-title-en={pageTitleEn}
@@ -55,7 +66,14 @@ const canonical = new URL(Astro.url.pathname, site.url);
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme =
             stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-          var lang = localStorage.getItem('lang') === 'zh-CN' ? 'zh-CN' : 'en';
+          var path = location.pathname;
+          var fromUrl = path === '/zh' || path.indexOf('/zh/') === 0;
+          var lang = fromUrl ? 'zh-CN' : localStorage.getItem('lang') === 'zh-CN' ? 'zh-CN' : 'en';
+          if (fromUrl) {
+            try {
+              localStorage.setItem('lang', 'zh-CN');
+            } catch (err) {}
+          }
           root.dataset.theme = theme;
           root.lang = lang;
           root.dataset.lang = lang;
@@ -85,14 +103,17 @@ const canonical = new URL(Astro.url.pathname, site.url);
       }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{pageTitleEn}</title>
-    <meta name="description" content={descriptionEn} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription} />
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={enUrl} />
+    <link rel="alternate" hreflang="zh-CN" href={zhUrl} />
+    <link rel="alternate" hreflang="x-default" href={enUrl} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     <meta name="generator" content={Astro.generator} />
-    <meta property="og:title" content={pageTitleEn} />
-    <meta property="og:description" content={descriptionEn} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL(ogImage, site.url)} />

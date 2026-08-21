@@ -20,6 +20,20 @@ test.describe('Route crawling', () => {
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 
+  test('/zh is the Chinese home page', async ({ page }) => {
+    const response = await page.goto('/zh');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/zh');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
+      useInnerText: true,
+    });
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', {
+      useInnerText: true,
+    });
+    await expect(page.locator('[data-reading-index]')).toBeVisible();
+  });
+
   test('/about redirects to /', async ({ page }) => {
     const response = await page.goto('/about');
     expect(response?.status()).toBe(200);

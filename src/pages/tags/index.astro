@@ -17,6 +17,7 @@ const counts = Object.fromEntries(
   tags.map((tag) => [tag, articles.filter((entry) => entry.data.tags.includes(tag)).length])
 );
 const cards = articles.filter((entry) => entry.data.tags.length > 0).map(articleCardProps);
+const lp = Astro.locals.localePath;
 ---
 
 <Base
@@ -42,7 +43,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
         data-i18n-aria="tagsDomainsAria"
       >
         <a
-          href={tagsPageHref()}
+          href={lp(tagsPageHref())}
           class="ui-tag-link"
           data-tag-group-select={ALL_GROUP}
           aria-current="true"
@@ -52,7 +53,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
         {
           groups.map((group) => (
             <a
-              href={tagsPageHref({ group: group.slug })}
+              href={lp(tagsPageHref({ group: group.slug }))}
               class="ui-tag-link"
               data-tag-group-select={group.slug}
             >
@@ -70,7 +71,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
         {
           items.map(({ tag, group }) => (
             <li data-tag-item data-tag-name={tag.toLowerCase()} data-tag-group={group}>
-              <a href={tagHref(tag)} class="ui-tag-link text-sm" data-tag-select={tag}>
+              <a href={lp(tagHref(tag))} class="ui-tag-link text-sm" data-tag-select={tag}>
                 {tag}
               </a>
               <span class="ui-meta tabular-nums">{counts[tag]}</span>
@@ -89,7 +90,7 @@ const cards = articles.filter((entry) => entry.data.tags.length > 0).map(article
           cards.map((card) => (
             <div data-doc-item data-doc-tags={card.tags.join('\n')} hidden>
               <Card
-                href={card.href}
+                href={lp(card.href)}
                 title={card.title}
                 titleEn={card.titleEn}
                 description={card.description}

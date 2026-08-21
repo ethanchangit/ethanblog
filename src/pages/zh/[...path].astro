@@ -1,0 +1,14 @@
+---
+import { zhRestPaths } from '@/lib/zh-routes';
+
+export async function getStaticPaths() {
+  const paths = await zhRestPaths();
+  return paths.map((path) => ({ params: { path } }));
+}
+
+const rest = Astro.params.path;
+if (!rest) {
+  return Astro.rewrite('/');
+}
+return Astro.rewrite(`/${rest}`);
+---
