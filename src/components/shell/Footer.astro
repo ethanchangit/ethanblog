@@ -19,19 +19,19 @@ const iconPaths: Record<(typeof links)[number]['icon'], string[]> = {
 };
 ---
 
-<footer class="pointer-events-none fixed inset-x-0 bottom-0 z-50">
-  <div class="flex h-10 items-center justify-between px-4 text-sm text-ink-500 sm:px-6">
-    <div class="footer-toggles pointer-events-auto flex shrink-0 items-center gap-4 bg-surface-950">
+<footer class="site-footer pointer-events-none fixed inset-x-0 bottom-0 z-50">
+  <div class="site-footer-inner flex items-center justify-between px-4 text-sm text-ink-500 sm:px-6">
+    <div class="footer-toggles pointer-events-auto flex shrink-0 items-center gap-1 bg-surface-950 md:gap-4">
       <LangToggle client:visible />
       <ThemeToggle client:visible />
     </div>
-    <ul class="pointer-events-auto flex items-center gap-3 bg-surface-950 sm:gap-4">
+    <ul class="pointer-events-auto flex items-center gap-1 bg-surface-950 sm:gap-4">
       {
         links.map((s) => (
           <li>
             <a
               href={s.url}
-              class="inline-flex h-4 w-4 items-center justify-center transition-colors hover:text-ink-100"
+              class="footer-hit inline-flex items-center justify-center transition-colors hover:text-ink-100"
               aria-label={s.label}
               title={s.label}
               target={s.url.startsWith('http') ? '_blank' : undefined}

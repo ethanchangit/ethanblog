@@ -20,7 +20,7 @@
 
 <button
   type="button"
-  class="theme-toggle inline-flex h-4 w-4 items-center justify-center transition-colors hover:text-ink-100"
+  class="theme-toggle footer-hit inline-flex items-center justify-center transition-colors hover:text-ink-100"
   aria-label={t(lang, 'themeAria')}
   title={t(lang, 'themeTitle')}
   onclick={handleToggle}

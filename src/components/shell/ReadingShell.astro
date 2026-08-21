@@ -72,6 +72,16 @@ const showProjects = listKind === 'projects';
       }
     </aside>
 
+    {
+      kind !== 'home' && kind !== 'index' && (
+        <p class="reading-back">
+          <a href={indexHref} class="ui-link-subtle">
+            <I18n k={backKey} />
+          </a>
+        </p>
+      )
+    }
+
     <div
       class="reading-doc"
       data-reading-pane
@@ -80,22 +90,26 @@ const showProjects = listKind === 'projects';
       inert={kind === 'index'}
       aria-hidden={kind === 'index' ? 'true' : undefined}
     >
-      {
-        kind !== 'home' && kind !== 'index' && (
-          <p class="reading-back">
-            <a href={indexHref} class="ui-link-subtle">
-              <I18n k={backKey} />
-            </a>
-          </p>
-        )
-      }
       <slot />
     </div>
 
     {
       showRail && (
         <aside class="reading-rail" data-reading-rail>
-          <slot name="rail" />
+          <details class="reading-toc-fold" open data-reading-toc-fold>
+            <script is:inline>
+              {
+                const fold = document.currentScript?.parentElement;
+                if (fold && window.matchMedia('(max-width: 1023px)').matches) {
+                  fold.removeAttribute('open');
+                }
+              }
+            </script>
+            <summary class="reading-toc-summary">
+              <I18n k="toc" />
+            </summary>
+            <slot name="rail" />
+          </details>
         </aside>
       )
     }

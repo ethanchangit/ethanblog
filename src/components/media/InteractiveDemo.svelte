@@ -66,9 +66,9 @@
 </script>
 
 <figure class="media-frame not-prose" bind:this={root}>
-  <div class="flex items-center justify-between py-2">
-    <p class="font-mono text-xs text-ink-400">{title}</p>
-    <div class="flex items-center gap-3 font-mono text-xs">
+  <div class="flex min-w-0 items-center justify-between gap-3 py-2">
+    <p class="min-w-0 truncate font-mono text-xs text-ink-400">{title}</p>
+    <div class="flex shrink-0 items-center gap-3 font-mono text-xs">
       {#if loaded}
         <button
           class="text-ink-500 transition-colors hover:text-ink-200"

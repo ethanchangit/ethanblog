@@ -16,8 +16,11 @@
 
   function scrollRoot(): { top: number; max: number; node: Element | Window } {
     const pane = document.querySelector('[data-reading-pane]');
-    if (pane) {
-      return { top: pane.scrollTop, max: pane.scrollHeight - pane.clientHeight, node: pane };
+    if (pane instanceof HTMLElement) {
+      const y = getComputedStyle(pane).overflowY;
+      if (y === 'auto' || y === 'scroll' || y === 'overlay') {
+        return { top: pane.scrollTop, max: pane.scrollHeight - pane.clientHeight, node: pane };
+      }
     }
     const doc = document.documentElement;
     return {
