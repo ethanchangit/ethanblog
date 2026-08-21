@@ -469,9 +469,11 @@
 
   .comment-field--body {
     display: block;
-    min-height: 4.125rem;
+    min-height: 0;
     resize: none;
-    overflow-y: auto;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    field-sizing: content;
   }
 
   .comment-send {
@@ -973,8 +975,10 @@
   .reading-index {
     display: none;
     min-width: 0;
-    overflow: auto;
+    overflow-x: clip;
+    overflow-y: auto;
     overscroll-behavior: contain;
+    overscroll-behavior-x: none;
     overflow-anchor: none;
     border-right: 1px solid var(--color-surface-700);
   }
@@ -1011,8 +1015,10 @@
   .reading-doc {
     min-width: 0;
     flex: 1;
-    overflow: auto;
+    overflow-x: clip;
+    overflow-y: auto;
     overscroll-behavior: contain;
+    overscroll-behavior-x: none;
   }
 
   .reading-back {
@@ -1112,8 +1118,10 @@
   .reading-rail {
     display: none;
     min-width: 0;
-    overflow: auto;
+    overflow-x: clip;
+    overflow-y: auto;
     overscroll-behavior: contain;
+    overscroll-behavior-x: none;
     padding: 1.5rem 1rem 2.5rem;
   }
 
@@ -1379,8 +1387,10 @@
 
     .reading-rail[data-reading-child-open] .reading-child-doc {
       flex: 1 1 auto;
-      overflow: auto;
+      overflow-x: clip;
+      overflow-y: auto;
       overscroll-behavior: contain;
+      overscroll-behavior-x: none;
     }
   }
 
@@ -1412,7 +1422,10 @@
   }
 
   .toc-label {
+    display: block;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .toc a[data-depth='3'] {

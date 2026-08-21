@@ -173,6 +173,36 @@ async function expectNoPageOverflow(page: Page) {
   );
 }
 
+async function expectPanesDoNotMicroScroll(page: Page) {
+  const panes = await page.evaluate(() =>
+    ['[data-reading-index]', '[data-reading-doc]', '[data-reading-rail]']
+      .map((sel) => {
+        const el = document.querySelector(sel);
+        if (!(el instanceof HTMLElement) || getComputedStyle(el).display === 'none') return null;
+        const x = getComputedStyle(el).overflowX;
+        return {
+          sel,
+          overflowX: x,
+          dx: el.scrollWidth - el.clientWidth,
+          nudged: (() => {
+            const before = el.scrollLeft;
+            el.scrollLeft = before + 24;
+            const moved = el.scrollLeft !== before;
+            el.scrollLeft = before;
+            return moved;
+          })(),
+        };
+      })
+      .filter((pane): pane is NonNullable<typeof pane> => pane != null),
+  );
+  expect(panes.length).toBeGreaterThan(0);
+  for (const pane of panes) {
+    expect(pane.overflowX, pane.sel).toMatch(/^(hidden|clip)$/);
+    expect(pane.dx, pane.sel).toBeLessThanOrEqual(1);
+    expect(pane.nudged, pane.sel).toBe(false);
+  }
+}
+
 function expectCenteredArticleGutters(pos: Pick<ReadingPanePos, 'articleLeft' | 'articleRight' | 'docLeft' | 'docRight'>) {
   const left = pos.articleLeft - pos.docLeft;
   const right = pos.docRight - pos.articleRight;
@@ -504,6 +534,15 @@ test.describe('分栏阅读', () => {
     expect(pos!.indexRight).toBeLessThanOrEqual(pos!.docLeft + 1);
     expect(pos!.railWidth).toBeNull();
     await expectNoPageOverflow(page);
+  });
+
+  test('三栏只竖滚，触控板左右微移不动', async ({ page }) => {
+    for (const width of [768, 1280, 1512] as const) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/articles/pkm-method');
+      await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
+      await expectPanesDoNotMicroScroll(page);
+    }
   });
 
   test('合集正文列出篇目，点开会进第三栏；子页不进左栏索引', async ({ page }) => {
