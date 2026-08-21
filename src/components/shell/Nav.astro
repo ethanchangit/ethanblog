@@ -1,13 +1,11 @@
 ---
 import I18n from '@/components/shell/I18n.astro';
 import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
-import { ARTICLES_PATH, PROJECTS_PATH, SEARCH_PATH, TAGS_PATH } from '@/lib/routes';
+import { NOW_PATH, SEARCH_PATH, TAGS_PATH } from '@/lib/routes';
 
 const links: { href: string; key: CopyKey }[] = [
-  { href: ARTICLES_PATH, key: 'navArticles' },
-  { href: PROJECTS_PATH, key: 'navProjects' },
   { href: TAGS_PATH, key: 'navTags' },
-  { href: '/about', key: 'navAbout' },
+  { href: NOW_PATH, key: 'navNow' },
 ];
 
 const path = Astro.url.pathname;

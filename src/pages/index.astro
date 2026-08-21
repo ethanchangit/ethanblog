@@ -1,0 +1,9 @@
+---
+import ReadingShell from '@/components/shell/ReadingShell.astro';
+import AboutPanel from '@/components/home/AboutPanel.astro';
+import { profile } from '@/data/profile';
+---
+
+<ReadingShell kind="home" description={profile.bio} descriptionEn={profile.bioEn}>
+  <AboutPanel />
+</ReadingShell>

@@ -6,7 +6,7 @@ const PLACEHOLDER = 'Placeholder 2026-05';
 test.describe('站点搜索', () => {
   test('导航最右侧是搜索图标，点击进入 /search', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('header nav');
+    const nav = page.locator('header.site-nav');
     const search = nav.locator('a[href="/search"]');
     await expect(search).toBeVisible();
     await expect(search).toHaveAttribute('aria-label', 'Search');

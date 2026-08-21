@@ -15,9 +15,17 @@ test.describe('文章列表分页', () => {
     await expect(page.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
     await expect(page.locator('a[href="/articles/series-demo/2"]')).toHaveCount(0);
 
-    const earlier = page.getByRole('link', { name: 'Earlier' });
+    const pager = page.locator('nav[data-i18n-aria="articlesPagerAria"]');
+    const earlier = pager.getByRole('link', { name: 'Earlier' });
     await expect(earlier).toHaveAttribute('href', '/articles/2');
+    await expect(earlier).toContainText('->');
     await expect(page.getByRole('link', { name: 'Newer' })).toHaveCount(0);
+
+    const navBox = await pager.boundingBox();
+    const earlierBox = await earlier.boundingBox();
+    expect(navBox).toBeTruthy();
+    expect(earlierBox).toBeTruthy();
+    expect(earlierBox!.x).toBeGreaterThan(navBox!.x + navBox!.width / 2);
   });
 
   test('文章索引不收录项目', async ({ page }) => {
@@ -38,9 +46,17 @@ test.describe('文章列表分页', () => {
     await expect(page.locator('a[href="/articles/pkm-method"]')).toHaveCount(0);
     await expect(page.locator('a[href="/articles/series-demo"]')).toHaveCount(0);
 
-    const newer = page.getByRole('link', { name: 'Newer' });
+    const pager = page.locator('nav[data-i18n-aria="articlesPagerAria"]');
+    const newer = pager.getByRole('link', { name: 'Newer' });
     await expect(newer).toHaveAttribute('href', '/articles');
+    await expect(newer).toContainText('<-');
     await expect(page.getByRole('link', { name: 'Earlier' })).toHaveCount(0);
+
+    const navBox = await pager.boundingBox();
+    const newerBox = await newer.boundingBox();
+    expect(navBox).toBeTruthy();
+    expect(newerBox).toBeTruthy();
+    expect(newerBox!.x + newerBox!.width).toBeLessThan(navBox!.x + navBox!.width / 2);
   });
 });
 

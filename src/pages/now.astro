@@ -1,0 +1,38 @@
+---
+import Base from '@/layouts/Base.astro';
+import DateText from '@/components/shell/DateText.astro';
+import I18n from '@/components/shell/I18n.astro';
+import NowPanel from '@/components/home/NowPanel.astro';
+import { nowIntro, nowIntroEn, nowUpdated } from '@/data/profile';
+import { copy } from '@/lib/i18n';
+
+const [year, month, day] = nowUpdated.split('-').map(Number);
+const updated = new Date(year, month - 1, day);
+---
+
+<Base
+  title={copy['zh-CN'].navNow}
+  titleEn={copy.en.navNow}
+  description={nowIntro}
+  descriptionEn={nowIntroEn}
+>
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+    <header class="mb-10">
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+        <I18n k="navNow" />
+      </h1>
+      <p class="ui-meta mt-3"><I18n k="nowUpdated" /> <DateText date={updated} /></p>
+    </header>
+
+    <div class="prose-site">
+      <p>
+        <span class="i18n-zh" aria-hidden="true">{nowIntro}</span>
+        <span class="i18n-en">{nowIntroEn}</span>
+      </p>
+    </div>
+
+    <div class="mt-12">
+      <NowPanel />
+    </div>
+  </article>
+</Base>

@@ -38,7 +38,7 @@ src/
   components/shell/        Nav / Footer / Card / SectionHeading
   components/home/         Hero / NowPanel / SkillsGraph
   components/media/        可选交互组件（见其 README.md）
-  pages/                   index / articles / projects / about / lab / 404 / rss.xml.ts / api/*（auth 可选）
+  pages/                   index（身份） / now / articles / projects / lab / 404 / rss.xml.ts / api/*（auth 可选）
   content/articles/*.mdx   文章（slot: article）
   content/projects/*.mdx   项目（slot: project；可选 repo/downloads/screenshots/demo）
 plugins/
@@ -61,7 +61,7 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 
 **添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，同一套字段加 `slot: project`；`repo`/`demo`/`screenshots` 等可选。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
 
-**更新主页状态**：改 `src/data/profile.ts` 的 `now` 和 `nowUpdated`。
+**更新 Now 页**：改 `src/data/profile.ts` 的 `nowIntro` / `nowIntroEn`、`now` 和 `nowUpdated`。首页身份文案也在同一文件（`profile` / `skills`）。
 
 **组件 QA**：每个交互组件在 `/lab` 页面都有最小示例；新组件先在 /lab 点亮再进文章。
 

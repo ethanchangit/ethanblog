@@ -82,10 +82,10 @@ test.describe('Theme（浅色/深色）', () => {
   test('客户端导航到 /projects 保持夜间画布', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.addInitScript(() => localStorage.setItem('theme', 'dark'));
-    await page.goto('/');
+    await page.goto('/articles');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-    await page.getByRole('navigation').getByRole('link', { name: 'Projects' }).click();
+    await page.locator('[data-reading-index-switch]').getByRole('link', { name: 'Projects' }).click();
     await expect(page).toHaveURL(/\/projects\/?$/);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');

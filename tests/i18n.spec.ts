@@ -33,15 +33,17 @@ test.describe('Language（中/EN）', () => {
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('html')).toHaveAttribute('data-lang', 'en');
-    const home = page.locator('header nav a[href="/"]');
+    const home = page.locator('header.site-nav a[href="/"]');
     await expect(home).toHaveText('EthanChang', inner);
     await expect(home).toHaveAttribute('aria-label', 'Home');
-    await expect(page.locator('header nav ul a[href="/"]')).toHaveCount(0);
-    await expect(page.locator('header nav a[href="/articles"]')).toHaveText('Articles', inner);
-    await expect(page.locator('header nav a[href="/projects"]')).toHaveText('Projects', inner);
-    await expect(page.locator('header nav a[href="/tags"]')).toHaveText('Tags', inner);
-    await expect(page.locator('header nav a[href="/about"]')).toHaveText('About', inner);
-    await expect(page.locator('header nav a[href="/search"]')).toHaveAttribute('aria-label', 'Search');
+    await expect(page.locator('header.site-nav ul a[href="/"]')).toHaveCount(0);
+    await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
+    await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', inner);
+    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('Tags', inner);
+    await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('Now', inner);
+    await expect(page.locator('header.site-nav a[href="/about"]')).toHaveCount(0);
+    await expect(page.locator('header.site-nav a[href="/search"]')).toHaveAttribute('aria-label', 'Search');
     await expect(page.locator('header').getByRole('button', { name: langButtonName })).toHaveCount(0);
 
     const toggle = page.getByRole('contentinfo').getByRole('button', { name: langAriaEn });
@@ -54,41 +56,55 @@ test.describe('Language（中/EN）', () => {
     await expect(page.locator('html')).toHaveAttribute('data-lang', 'zh-CN');
     await expect(home).toHaveText('EthanChang', inner);
     await expect(home).toHaveAttribute('aria-label', '首页');
-    await expect(page.locator('header nav a[href="/articles"]')).toHaveText('文章', inner);
-    await expect(page.locator('header nav a[href="/projects"]')).toHaveText('项目', inner);
-    await expect(page.locator('header nav a[href="/tags"]')).toHaveText('标签', inner);
-    await expect(page.locator('header nav a[href="/about"]')).toHaveText('关于', inner);
-    await expect(page.locator('header nav a[href="/search"]')).toHaveAttribute('aria-label', '搜索');
-    await expect(page).toHaveURL(/\/articles\/?$/);
-    await expect(page.locator('h1')).toHaveText('文章', inner);
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
+    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('标签', inner);
+    await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('现在', inner);
+    await expect(page.locator('header.site-nav a[href="/search"]')).toHaveAttribute('aria-label', '搜索');
+    expect(new URL(page.url()).pathname).toBe('/');
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
 
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-    await expect(page.locator('header nav a[href="/articles"]')).toHaveText('文章', inner);
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
 
     await chooseLang(page, 'English');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('header nav a[href="/articles"]')).toHaveText('Articles', inner);
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', inner);
     await expect(home).toHaveAttribute('aria-label', 'Home');
   });
 
   test('字标 EthanChang 指向首页', async ({ page }) => {
-    await page.goto('/about');
-    const home = page.locator('header nav a[href="/"]');
+    await page.goto('/now');
+    const home = page.locator('header.site-nav a[href="/"]');
     await expect(home).toHaveText('EthanChang', inner);
-    await expect(page.locator('header nav ul a[href="/"]')).toHaveCount(0);
+    await expect(page.locator('header.site-nav ul a[href="/"]')).toHaveCount(0);
     await home.click();
-    await expect(page).toHaveURL(/\/articles\/?$/);
+    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
   });
 
-  test('切换语言会改掉关于页可见文案', async ({ page }) => {
+  test('切换语言会改掉首页可见文案', async ({ page }) => {
     await page.addInitScript(() => localStorage.removeItem('lang'));
-    await page.goto('/about');
+    await page.goto('/');
     await expect(page.getByRole('heading', { name: 'What I do' })).toBeVisible();
 
     await chooseLang(page, '简体中文');
     await expect(page.getByRole('heading', { name: '我在做什么' })).toBeVisible();
-    await expect(page.locator('header nav a[href="/about"]')).toHaveText('关于', inner);
+    await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('现在', inner);
+  });
+
+  test('切换语言会改掉 Now 页可见文案', async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem('lang'));
+    await page.goto('/now');
+    const lede = page.locator('article > header.mb-10');
+    await expect(page.locator('h1')).toHaveText('Now', inner);
+    await expect(lede.locator('p.ui-meta')).toHaveText('Updated August 21, 2026', inner);
+    await expect(page.getByText('Writing the blog, refining notes and project pages')).toBeVisible();
+
+    await chooseLang(page, '简体中文');
+    await expect(page.locator('h1')).toHaveText('现在', inner);
+    await expect(lede.locator('p.ui-meta')).toHaveText('更新于 2026 年 8 月 21 日', inner);
+    await expect(page.getByText('写博客，打磨笔记与项目页')).toBeVisible();
   });
 
   test('中文日期数字与年/月/日之间有空格，英文不变', async ({ page }) => {
