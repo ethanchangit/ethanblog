@@ -52,6 +52,10 @@ test.describe('Route crawling', () => {
     await expect(lede.locator('p.ui-meta')).toHaveText('Updated August 21, 2026', {
       useInnerText: true,
     });
+    await expect(page.getByText("This is a Now page: what I'm doing lately.")).toBeVisible();
+    await expect(
+      page.locator('.prose-site a[href="https://nownownow.com/about"]').filter({ visible: true }),
+    ).toHaveText('nownownow.com');
     await expect(page.getByText('Writing the blog, refining notes and project pages')).toBeVisible();
   });
 
