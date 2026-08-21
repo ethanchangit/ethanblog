@@ -11,9 +11,14 @@
  * - GITHUB_CLIENT_SECRET     — GitHub OAuth App client secret
  * - GOOGLE_CLIENT_ID         — Google OAuth client ID
  * - GOOGLE_CLIENT_SECRET     — Google OAuth client secret
+ * - RESEND_API_KEY           — article feedback mail (without it the form still renders; POST returns 503)
+ * - RESEND_FROM              — optional From, must be a verified Resend domain
+ *                              (default: ethanchang.io <noreply@ethanchang.io>)
  *
  * Local dev: copy `.dev.vars.example` → `.dev.vars`.
  * Remote upload: copy → `.env.production`, then `npm run setup:cloudflare`.
+ * Feedback mail is not in the setup:cloudflare required list — upload RESEND_API_KEY
+ * with `wrangler pages secret bulk` or the Pages dashboard when ready.
  */
 type Env = {
   DB: D1Database;
@@ -23,6 +28,8 @@ type Env = {
   GITHUB_CLIENT_SECRET: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM?: string;
 };
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

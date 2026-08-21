@@ -2,10 +2,6 @@
 import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
 import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
 import ArticleComments from '@/components/shell/ArticleComments.svelte';
-import { getSession } from '@/lib/auth';
-import { listComments } from '@/lib/db';
-import type { ArticleComment } from '@/lib/comments';
-import { isSiteOwner } from '@/lib/user';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
 import DateText from '@/components/shell/DateText.astro';
@@ -44,28 +40,6 @@ const canonicalUrl = new URL(
   site.url,
 ).href;
 const series = isArticle ? await seriesContext(doc) : null;
-
-let initialComments: ArticleComment[] = [];
-if (isArticle) {
-  try {
-    const env = Astro.locals.runtime?.env;
-    const db = env?.DB;
-    if (db) {
-      let includePrivate = false;
-      if (env) {
-        try {
-          const session = await getSession(Astro.request, env);
-          includePrivate = isSiteOwner(session?.user);
-        } catch {
-          includePrivate = false;
-        }
-      }
-      initialComments = await listComments(db, slug, { includePrivate });
-    }
-  } catch {
-    initialComments = [];
-  }
-}
 ---
 
 {isArticle && <ReadingProgress client:load slug={slug} />}
@@ -179,7 +153,7 @@ if (isArticle) {
             )
           }
           {series && <SeriesNav series={series} part="pager" />}
-          {isArticle && <ArticleComments client:visible slug={slug} comments={initialComments} />}
+          {isArticle && <ArticleComments client:visible slug={slug} />}
         </footer>
       </div>
     </article>
