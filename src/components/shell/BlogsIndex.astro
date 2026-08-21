@@ -1,0 +1,23 @@
+---
+import I18n from '@/components/shell/I18n.astro';
+import ReadingExpand from '@/components/shell/ReadingExpand.astro';
+import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
+import { BLOGS_PATH, HOME_PATH } from '@/lib/routes';
+import { getEntry, render } from 'astro:content';
+
+const lp = Astro.locals.localePath;
+const page = await getEntry('pages', 'blogs');
+if (!page) throw new Error('缺少 src/content/pages/blogs.mdx');
+const { Content } = await render(page);
+---
+
+<section class="mx-auto max-w-3xl px-4 pb-14 sm:px-6" data-reading-index-body>
+  <div class="reading-index-heading mb-10">
+    <ReadingIndexSwitch active="blogs" />
+    <ReadingExpand expandHref={lp(BLOGS_PATH)} collapseHref={lp(HOME_PATH)} />
+  </div>
+  <p class="mb-8 text-lg leading-relaxed text-ink-400">
+    <I18n k="blogsLead" />
+  </p>
+  <Content />
+</section>

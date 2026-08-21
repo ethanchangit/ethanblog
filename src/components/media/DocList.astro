@@ -1,0 +1,31 @@
+---
+import I18n from '@/components/shell/I18n.astro';
+import { copy, DEFAULT_LANG } from '@/lib/i18n';
+
+interface Props {
+  /** 系列总览第三栏：标成 hub-inline，点击在侧栏打开子文。 */
+  pane?: 'series';
+}
+
+const { pane } = Astro.props;
+const series = pane === 'series';
+---
+
+<nav
+  class:list={['not-prose', series && 'mt-12']}
+  data-doc-list
+  data-series={series ? 'hub-inline' : undefined}
+  aria-label={series ? copy[DEFAULT_LANG].seriesNavAria : copy[DEFAULT_LANG].docListAria}
+  data-i18n-aria={series ? 'seriesNavAria' : 'docListAria'}
+>
+  {
+    series && (
+      <h2 class="ui-meta">
+        <I18n k="seriesChapters" />
+      </h2>
+    )
+  }
+  <div class:list={[series && 'mt-3', 'flex flex-col']}>
+    <slot />
+  </div>
+</nav>

@@ -139,6 +139,7 @@ draft: true             # 默认 true
 | 引用一条推文 | `TweetEmbed`（自绘卡片，全文展开） | 只需要转述一句话、不必出示原帖时 |
 | 一组图片证据 | `ImageGallery` | 单图（用普通 img + MediaFrame） |
 | **正文词语与某个媒介块互相印证** | **`Mention` + `MentionTarget`（双向高亮）** | 词语与媒介块紧邻出现时 |
+| **合集文里引用另一篇已有文章/项目** | **`DocList` + `DocRef`** | 只是提一句、不必出示那一行卡片时 |
 | 行为与因果、系统如何响应 | `RuleGarden` + 正文散布 `RuleTarget` | 因果链只有一步且无需读者试 |
 | 离题但增味的补充 | `SideNote` | 内容其实属于正文时 |
 | 任意内容需要统一外框 | `MediaFrame` | — |
@@ -153,6 +154,12 @@ draft: true             # 默认 true
 - 键盘可聚焦（组件自带 `tabindex`），点击/Enter 会把目标滚进视野。
 - 同一个目标可以被多处 Mention；一篇文章的 Mention 不要超过 5 处（下划线太多会稀释信号）。
 
+**DocRef 专则**：
+- `of` 写 `articles/<id>` 或 `projects/<id>`（系列子文是 `articles/<hub>/1`）。构建期查不到就报错。
+- 卡片长得和 `/articles` 索引行一样（`Card.astro`）；包在 `<DocList>` 里。系列总览若要第三栏打开子文，写 `<DocList pane="series">`。
+- 文件夹系列（`articles/<hub>/<n>.mdx`）总览仍会自动列出篇目，不必再手写一遍。
+- `/blogs` 的名单只改 `src/content/pages/blogs.mdx` 里的 `DocRef`，不会自动收录整个 `articles/`。
+
 **RuleGarden 专则**（第五档，用它时页面就是房间）：
 - 目标元素用 `<RuleTarget name label>` 散布在**正文里**，不要挤在组件框内——空间感来自散布。
 - 初始规则 2-4 条，覆盖至少两种谓词；规则句必须通顺（它同时是降级散文）。
@@ -163,7 +170,7 @@ draft: true             # 默认 true
 
 Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 
-- **收录位置** = `slot`：`article` → `/articles`，`project` → `/projects`。不要写进 topical `tags`。
+- **收录位置** = `slot`：`article` → `/articles`，`project` → `/projects`。不要写进 topical `tags`。`/blogs` 靠 MDX 里的 `DocRef` 引用，不另开 slot。
 - **摘要** = description：≤80 字，写成可检验的陈述句，不写悬念句。
 - **日期**：`date` 为首发；有修订时再写 `updated`（页眉会显示「更新于」）。
 - **目录**：有 h2/h3 时自动浮在阅读区右侧，无需手工维护——因此**标题层级要写实**。无标题则不出现。
@@ -239,11 +246,12 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 
 ### 页面架构
 
-固定页（手写 Astro）：`/`（身份/原 About）、`/now`、`/articles`、`/projects`。详情页是同一套 MDX 文档形态，
+固定页（手写 Astro）：`/`（身份/原 About）、`/now`、`/articles`、`/projects`、`/blogs`。详情页是同一套 MDX 文档形态，
 用 frontmatter `slot: article | project` 决定出现在哪份索引（不是 topical `tags`）。
 落盘仍可分 `articles/` 与 `projects/` 两个文件夹，只是方便；列表与路由按 `slot` 过滤。
 两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
 `/projects` 可以在列表上方写传承导语与时间线，不要把项目长文堆在索引上。
+`/blogs` 不是第三个 slot，而是 `src/content/pages/blogs.mdx` 里用 `<DocRef of="articles/…" />` 手工引用已有文档。
 对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
 系列教程把总览放 `articles/<hub>.mdx`（进 `/articles`），子页放 `articles/<hub>/<n>.mdx`
 （路由 `/articles/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。`listed: false` 可把顶层文章也藏起来。
@@ -308,6 +316,18 @@ draft: true
 
 总览是旁边那份 `src/content/articles/<hub>.mdx`（不要用 `index.mdx`）。子文 id 含 `/`，默认不进索引；不必写 `listed: false`。若要把一篇顶层文章藏起来，写 `listed: false`。
 
+自定义合集（不必靠文件夹）在 MDX 里写：
+
+```mdx
+import { DocList, DocRef } from '@/components/media';
+
+<DocList>
+  <DocRef of="articles/pkm-method" />
+  <DocRef of="projects/aletheia" />
+</DocList>
+```
+
+`/blogs` 的名单改 `src/content/pages/blogs.mdx`，同一套语法。
 
 **新媒介组件准入**：满足 media/README 六条契约 → 在 `/lab` 加带 `data-testid` 的最小示例
 → 补 lab-interactions / reduced-motion 两类测试 → 更新 README 目录表与本文 §5 决策表

@@ -4,7 +4,8 @@ import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
 import { ARTICLES_PATH, PROJECTS_PATH } from '@/lib/routes';
 
 interface Props {
-  active: 'articles' | 'projects';
+  /** `/blogs` 仍可用此组件当页标题；切换项只有文章 / 项目。 */
+  active: 'articles' | 'projects' | 'blogs';
 }
 
 const { active } = Astro.props;
@@ -13,8 +14,8 @@ const items: { id: 'articles' | 'projects'; href: string; key: CopyKey }[] = [
   { id: 'articles', href: Astro.locals.localePath(ARTICLES_PATH), key: 'navArticles' },
   { id: 'projects', href: Astro.locals.localePath(PROJECTS_PATH), key: 'navProjects' },
 ];
-const current = items.find((item) => item.id === active)!;
-const other = items.find((item) => item.id !== active)!;
+const currentKey: CopyKey =
+  active === 'blogs' ? 'navBlogs' : items.find((item) => item.id === active)!.key;
 ---
 
 <nav
@@ -24,9 +25,15 @@ const other = items.find((item) => item.id !== active)!;
   data-i18n-aria="indexSwitchAria"
 >
   <h1 class="reading-index-switch-title" aria-current="page">
-    <I18n k={current.key} />
+    <I18n k={currentKey} />
   </h1>
-  <a href={other.href} class="reading-index-switch-alt">
-    <I18n k={other.key} />
-  </a>
+  {
+    items
+      .filter((item) => item.id !== active)
+      .map((item) => (
+        <a href={item.href} class="reading-index-switch-alt">
+          <I18n k={item.key} />
+        </a>
+      ))
+  }
 </nav>

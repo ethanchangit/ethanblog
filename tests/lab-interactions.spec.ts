@@ -157,3 +157,12 @@ test('CodePlayground renders code block', async ({ page }) => {
   await expect(section.getByText('hello.js')).toBeVisible();
   await expect(section.locator('pre, code').first()).toContainText('medium');
 });
+
+test('DocRef renders article and project cards', async ({ page }) => {
+  const section = page.getByTestId('doc-ref');
+  await section.scrollIntoViewIfNeeded();
+
+  await expect(section.locator('a[href="/articles/series-demo/1"] h3')).toBeVisible();
+  await expect(section.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
+  await expect(section.locator('a[href="/projects/aletheia"] h3')).toBeVisible();
+});

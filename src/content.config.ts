@@ -5,6 +5,7 @@ import { glob } from 'astro/loaders';
  * 文章与项目共用同一份 MDX 形态。
  * `slot` 决定出现在哪份索引（/articles 还是 /projects），不是 topical `tags`。
  * 文件夹 `articles/`、`projects/` 只是落盘方便；路由与列表按 slot 过滤。
+ * `/blogs` 是手工引用列表（`src/content/pages/blogs.mdx` 里的 `<DocRef of="…" />`），不是第三个 slot。
  * 系列子文落在 `articles/<hub>/<n>.mdx`（id 含 `/`），默认不进索引；总览是旁边那份 `<hub>.mdx`。
  * `listed: false` 可把顶层文章也藏起来；`listed: true` 可把子文强行放进索引。
  * 项目可选用 repo / demo / screenshots 等额外键；文章省略即可。
@@ -54,4 +55,14 @@ const projects = defineCollection({
   schema: docSchema,
 });
 
-export const collections = { articles, projects };
+const pages = defineCollection({
+  loader: glob({ pattern: '**/*.mdx', base: './src/content/pages' }),
+  schema: z.object({
+    title: z.string(),
+    titleEn: z.string(),
+    description: z.string(),
+    descriptionEn: z.string().optional(),
+  }),
+});
+
+export const collections = { articles, projects, pages };

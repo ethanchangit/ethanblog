@@ -24,7 +24,7 @@
 读者读文章时看不到「⌥ 源码」。需要自我解释时再改插件开关，不要在 frontmatter 里写这个字段。
 
 白名单与本目录的 `index.ts` barrel 保持同步
-（MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget 这类纯排版、
+（MediaFrame / SideNote / RuleTarget / Var / Calc / Mention / MentionTarget / DocList / DocRef 这类纯排版、
 标记与行内组件除外——行内组件在 MDX 里是 `mdxJsxTextElement`，本就不会被插件命中）。
 
 ## 目录
@@ -51,6 +51,8 @@
 | `VerdictTable` | Astro | 零 JS 裁决表：多方案 × 多维度评分矩阵（✓/—/✗ + 备注 + 条形图），窄屏横滚 |
 | `Mention` | Astro | 正文词语，与同 id 的 `MentionTarget` 双向高亮；点击/Enter 滚动到目标（零 JS 降级为普通文本） |
 | `MentionTarget` | Astro | `Mention` 的落点容器（可包住任何媒介块，含已套 MediaFrame 的组件） |
+| `DocRef` | Astro | 引用一篇已有文章或项目，渲染成与索引相同的一行卡片（零 JS） |
+| `DocList` | Astro | `DocRef` 的列表容器；`pane="series"` 时供分栏第三栏打开子文 |
 
 ## MDX 用法示例
 
@@ -184,3 +186,21 @@ YouTube 不在进页时自动挂 `youtube.com/embed` iframe。封面点击后才
 | `Mention` | `target` | `string` | 对应 `MentionTarget` 的 id（须在同页） |
 | `MentionTarget` | `id` | `string` | 页内唯一 id |
 | `MentionTarget` | `block` | `boolean` | 块级容器，默认 true；行内包词语时写 false |
+
+### DocRef / DocList props
+
+| 组件 | Prop | 类型 | 说明 |
+|---|---|---|---|
+| `DocRef` | `of` | `string` | `articles/<id>` 或 `projects/<id>`（系列子文如 `articles/series-demo/1`） |
+| `DocList` | `pane` | `'series'` | 可选。系列总览第三栏打开子文时写 `pane="series"` |
+
+```mdx
+import { DocList, DocRef } from '@/components/media';
+
+<DocList>
+  <DocRef of="articles/pkm-method" />
+  <DocRef of="projects/aletheia" />
+</DocList>
+```
+
+MDX 无需 `client:*`。`of` 在构建期解析；找不到对应文档会失败。`/blogs` 的名单在 `src/content/pages/blogs.mdx`。

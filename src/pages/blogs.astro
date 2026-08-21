@@ -1,0 +1,14 @@
+---
+import Base from '@/layouts/Base.astro';
+import BlogsIndex from '@/components/shell/BlogsIndex.astro';
+import { copy } from '@/lib/i18n';
+---
+
+<Base
+  title={copy['zh-CN'].blogsTitle}
+  titleEn={copy.en.blogsTitle}
+  description={copy['zh-CN'].blogsDesc}
+  descriptionEn={copy.en.blogsDesc}
+>
+  <BlogsIndex />
+</Base>
