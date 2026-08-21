@@ -7,7 +7,8 @@ export const COMMENT_ANON_NAME = '匿名';
 export const FEEDBACK_TO = 'hey@ethanchang.io';
 /** Site-owned From. Visitor address is Reply-To only, never SMTP From. */
 export const FEEDBACK_FROM = 'guestbook@ethanchang.io';
-export const FEEDBACK_SUBJECT_TAG = '[留言]';
+/** Gmail filter: subject contains this tag → label `blog comment`. */
+export const FEEDBACK_SUBJECT_TAG = '[blog comment]';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9._/-]{0,178}[a-z0-9]$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
