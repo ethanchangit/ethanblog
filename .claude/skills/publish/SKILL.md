@@ -55,7 +55,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
   `BeforeAfterSlider` / `AudioClip` / `InteractiveDemo` / `ImageGallery` / `Scene3D` / **`Var` / `Calc`**
   （`ScrollScene` 必须 `client:visible={{ rootMargin: '150% 0px' }}`）
 - **Astro 组件不写 client 指令**：`VideoEmbed` / `TweetEmbed` / `CodePlayground` / `MediaFrame` / `SideNote` /
-  `RuleGarden` / `RuleTarget` / `VerdictTable` / `Mention` / `MentionTarget`
+  `RuleGarden` / `RuleTarget` / `VerdictTable` / `Mention` / `MentionTarget` / `DocList` / `DocRef`
 - **`Calc` 必须出现在它引用的所有 `Var` 之后**（SSR 初值依赖文档顺序）
 - 不要写 `sourceView`：读者侧永不注入「⌥ 源码」
 

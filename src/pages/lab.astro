@@ -25,6 +25,8 @@ import {
   VerdictTable,
   Mention,
   MentionTarget,
+  DocList,
+  DocRef,
   MediaFrame,
 } from '@/components/media';
 import demoPeaks from '@/data/demo-chime-peaks.json';
@@ -297,6 +299,18 @@ import I18n from '@/components/shell/I18n.astro';
         ]}
         caption="裁决表：把「多方案 × 多维度」的论证变成可扫读的评分矩阵。"
       />
+    </div>
+
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">DocRef</h2>
+    <div data-testid="doc-ref">
+      <p class="mb-4 text-ink-300 leading-loose">
+        合集文里引用一篇已有文章或项目，渲染成与索引相同的一行。
+      </p>
+      <DocList>
+        <DocRef of="articles/series-demo/1" />
+        <DocRef of="articles/pkm-method" />
+        <DocRef of="projects/aletheia" />
+      </DocList>
     </div>
 
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Mention + MentionTarget</h2>

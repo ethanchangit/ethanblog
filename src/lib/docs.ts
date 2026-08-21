@@ -48,6 +48,32 @@ export async function docsBySlot(
   return (await loadDocs(opts)).filter((entry) => entry.data.slot === slot);
 }
 
+/** MDX `<DocRef of="articles/pkm-method" />` / `projects/aletheia`。 */
+export function parseDocRef(of: string): { collection: 'articles' | 'projects'; id: string } {
+  const trimmed = of.trim().replace(/^\/+/, '');
+  const match = /^(articles|projects)\/(.+)$/.exec(trimmed);
+  if (!match) {
+    throw new Error(`DocRef of="${of}" 应为 articles/<id> 或 projects/<id>`);
+  }
+  return { collection: match[1] as 'articles' | 'projects', id: match[2] };
+}
+
+export async function resolveDocRef(
+  of: string,
+  opts: { includeDrafts?: boolean } = {},
+): Promise<DocEntry> {
+  const { collection, id } = parseDocRef(of);
+  const entries = await getCollection(
+    collection,
+    opts.includeDrafts ? undefined : ({ data }) => !data.draft,
+  );
+  const entry = entries.find((item) => item.id === id);
+  if (!entry) {
+    throw new Error(`DocRef 找不到 ${of}`);
+  }
+  return entry;
+}
+
 export type SeriesContext = {
   currentId: string;
   hub: DocEntry | undefined;

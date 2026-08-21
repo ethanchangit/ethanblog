@@ -9,6 +9,7 @@ export type UrlLocale = 'en' | 'zh';
 const LOCALIZABLE_PREFIXES = [
   '/articles',
   '/projects',
+  '/blogs',
   '/tags',
   '/search',
   '/now',

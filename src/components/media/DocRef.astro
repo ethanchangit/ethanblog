@@ -1,0 +1,25 @@
+---
+import Card from '@/components/shell/Card.astro';
+import { resolveDocRef } from '@/lib/docs';
+import { docCardProps } from '@/lib/tags';
+
+interface Props {
+  of: string;
+}
+
+const { of } = Astro.props;
+const entry = await resolveDocRef(of);
+const card = docCardProps(entry);
+const lp = Astro.locals.localePath;
+---
+
+<Card
+  href={lp(card.href)}
+  title={card.title}
+  titleEn={card.titleEn}
+  description={card.description}
+  descriptionEn={card.descriptionEn}
+  meta={card.meta}
+  metaEn={card.metaEn}
+  tags={card.tags}
+/>

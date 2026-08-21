@@ -55,6 +55,20 @@ export function articlesWithTag(articles: PublishedArticle[], tag: string): Publ
   return articles.filter((entry) => entry.data.tags.includes(tag));
 }
 
+export function docCardProps(entry: DocEntry) {
+  if (entry.data.slot === 'article') return articleCardProps(entry);
+  return {
+    href: docHref(entry),
+    title: entry.data.title,
+    titleEn: entry.data.titleEn,
+    description: entry.data.description,
+    descriptionEn: entry.data.descriptionEn,
+    meta: undefined as string | undefined,
+    metaEn: undefined as string | undefined,
+    tags: entry.data.tags,
+  };
+}
+
 export function articleCardProps(entry: PublishedArticle) {
   const date = entry.data.date;
   if (!date) {

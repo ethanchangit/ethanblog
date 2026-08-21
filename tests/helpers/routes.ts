@@ -10,6 +10,7 @@ export const STATIC_ROUTES = [
   '/articles/pkm-method',
   '/articles/heptabase-method',
   '/projects',
+  '/blogs',
   '/projects/maker-plan',
   '/projects/robert',
   '/projects/network',
@@ -32,6 +33,7 @@ export const STATIC_ROUTES = [
   '/zh/articles/embed-preview',
   '/zh/articles/pkm-method',
   '/zh/projects',
+  '/zh/blogs',
   '/zh/search',
   '/zh/tags',
 ] as const;
@@ -40,6 +42,7 @@ export const KEY_PAGES_FOR_LINK_CHECK = [
   '/',
   '/articles',
   '/projects',
+  '/blogs',
   '/now',
   '/search',
   '/tags',

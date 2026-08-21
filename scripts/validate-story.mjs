@@ -40,6 +40,8 @@ const ASTRO_ONLY = [
   'VerdictTable',
   'Mention',
   'MentionTarget',
+  'DocList',
+  'DocRef',
 ];
 // Calc 表达式里的函数白名单（与 src/lib/reactive/eval.ts 同步）
 const EVAL_FUNCTIONS = new Set(['min', 'max', 'round', 'floor', 'ceil', 'abs', 'sqrt', 'clamp']);
