@@ -8,7 +8,7 @@
   }
 
   let { slug }: Props = $props();
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   onMount(() => {
     lang = readLang();

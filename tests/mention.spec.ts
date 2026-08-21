@@ -14,7 +14,7 @@ test.describe('Mention（正文 ↔ 媒介块双向高亮）', () => {
     await expect(target).toHaveClass(/mention-active/);
 
     // 移开到无关区域
-    await page.getByRole('heading', { name: '组件试验场' }).hover();
+    await page.getByRole('heading', { name: 'Component lab' }).hover();
     await expect(mention).not.toHaveClass(/mention-active/);
     await expect(target).not.toHaveClass(/mention-active/);
   });

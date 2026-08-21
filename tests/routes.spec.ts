@@ -13,19 +13,19 @@ test.describe('Route crawling', () => {
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(/\/articles\/?$/);
-    await expect(page.locator('h1')).toHaveText('文章', { useInnerText: true });
+    await expect(page.locator('h1')).toHaveText('Articles', { useInnerText: true });
   });
 
   test('/404 page renders', async ({ page }) => {
     const response = await page.goto('/404');
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: '这个页面不存在' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'This page does not exist' })).toBeVisible();
   });
 
   test('unknown route serves 404 content', async ({ page }) => {
     const response = await page.goto('/this-route-does-not-exist');
     expect(response?.status()).toBe(404);
-    await expect(page.getByRole('heading', { name: '这个页面不存在' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'This page does not exist' })).toBeVisible();
   });
 
   for (const route of KEY_PAGES_FOR_LINK_CHECK) {

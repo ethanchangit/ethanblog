@@ -7,7 +7,7 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/articles');
     await expect(page.locator('[data-reading-shell]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: '文章' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
     await expect(page.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
   });
 
@@ -20,7 +20,7 @@ test.describe('分栏阅读', () => {
     const rail = page.locator('[data-reading-rail]');
 
     await expect(index).toBeVisible();
-    await expect(index.getByRole('heading', { level: 1, name: '文章' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
     await expect(index.locator('a[href="/articles/pkm-method"]')).toHaveAttribute(
       'aria-current',
       'page',
@@ -28,7 +28,7 @@ test.describe('分栏阅读', () => {
     await expect(index.locator('a[href="/articles/pkm-method"] p').first()).toBeVisible();
 
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      '我的 PKM 实践：从笔记到知识网络',
+      'My PKM practice: from notes to a knowledge network',
       inner,
     );
     await expect(rail).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('分栏阅读', () => {
     await rail.locator('[data-series="hub"] a[href="/articles/series-demo/1"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/1\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      '系列演示 · 第 1 页',
+      'Series demo · Part 1',
       inner,
     );
     await expect(
@@ -95,10 +95,10 @@ test.describe('分栏阅读', () => {
     await page.goto('/projects/aletheia');
 
     const index = page.locator('[data-reading-index]');
-    await expect(index.getByRole('heading', { name: '项目是一条线' })).toBeVisible();
-    await expect(index.getByRole('heading', { name: '时间线：从卡片到容器' })).toBeVisible();
+    await expect(index.getByRole('heading', { name: 'Projects are a lineage' })).toBeVisible();
+    await expect(index.getByRole('heading', { name: 'Timeline: from cards to a container' })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
-    await expect(index.getByText('三条明确的能力传递：')).toBeVisible();
+    await expect(index.getByText('Three explicit hand-offs:')).toBeVisible();
     await expect(
       index.locator('[data-tl-item] a[href="/projects/aletheia"]'),
     ).toHaveAttribute('aria-current', 'page');
@@ -121,7 +121,7 @@ test.describe('分栏阅读', () => {
     await index.locator('a[href="/articles/heptabase-method"]').click();
     await expect(page).toHaveURL(/\/articles\/heptabase-method\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      '我是如何使用 Heptabase 进行深度学习的',
+      'How I use Heptabase for deep learning',
       inner,
     );
     await expect(index.locator('a[href="/articles/heptabase-method"]')).toHaveAttribute(
@@ -139,6 +139,6 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    await expect(page.getByRole('link', { name: '← 文章' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
   });
 });

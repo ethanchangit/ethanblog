@@ -36,7 +36,7 @@
   let hydrated = $state(false);
   let reduceMotion = $state(false);
   let reloadKey = $state(0);
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   onMount(() => {
     hydrated = true;

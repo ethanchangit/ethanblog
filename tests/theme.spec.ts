@@ -24,9 +24,9 @@ test.describe('Theme（浅色/深色）', () => {
     await page.reload();
 
     const footer = page.getByRole('contentinfo');
-    const toggle = footer.getByRole('button', { name: '切换浅色/深色模式' });
+    const toggle = footer.getByRole('button', { name: 'Toggle light/dark mode' });
     const island = footer.locator('astro-island').filter({
-      has: page.getByRole('button', { name: '切换浅色/深色模式' }),
+      has: page.getByRole('button', { name: 'Toggle light/dark mode' }),
     });
     await toggle.scrollIntoViewIfNeeded();
     await expect(island).not.toHaveAttribute('ssr');
@@ -49,7 +49,7 @@ test.describe('Theme（浅色/深色）', () => {
     await expect(footer).toBeInViewport();
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(footer).toBeInViewport();
-    await expect(footer.getByRole('button', { name: '切换浅色/深色模式' })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Toggle light/dark mode' })).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect(footer).toBeInViewport();
     const rss = footer.getByRole('link', { name: 'RSS' });
@@ -61,13 +61,13 @@ test.describe('Theme（浅色/深色）', () => {
   test('主题按钮在页脚、只有图标、没有「深色/浅色」文字', async ({ page }) => {
     await page.goto('/');
     const footer = page.getByRole('contentinfo');
-    const toggle = footer.getByRole('button', { name: '切换浅色/深色模式' });
+    const toggle = footer.getByRole('button', { name: 'Toggle light/dark mode' });
     await toggle.scrollIntoViewIfNeeded();
     await expect(toggle).toBeVisible();
     await expect(toggle).not.toContainText('深色');
     await expect(toggle).not.toContainText('浅色');
-    await expect(page.getByRole('button', { name: '切换浅色/深色模式' })).toHaveCount(1);
-    await expect(page.locator('header').getByRole('button', { name: '切换浅色/深色模式' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Toggle light/dark mode' })).toHaveCount(1);
+    await expect(page.locator('header').getByRole('button', { name: 'Toggle light/dark mode' })).toHaveCount(0);
     await expect(footer).not.toContainText('©');
     await expect(footer).not.toContainText('ethanchang.io');
   });
@@ -85,7 +85,7 @@ test.describe('Theme（浅色/深色）', () => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-    await page.getByRole('navigation').getByRole('link', { name: '项目' }).click();
+    await page.getByRole('navigation').getByRole('link', { name: 'Projects' }).click();
     await expect(page).toHaveURL(/\/projects\/?$/);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');

@@ -243,8 +243,8 @@ const showStamp = Boolean(created && dateOk);
           {
             showStamp && created && (
               <span>
-                <span class="i18n-zh">{formatTweetStamp(created, 'zh-CN')}</span>
-                <span class="i18n-en" aria-hidden="true">{formatTweetStamp(created, 'en')}</span>
+                <span class="i18n-zh" aria-hidden="true">{formatTweetStamp(created, 'zh-CN')}</span>
+                <span class="i18n-en">{formatTweetStamp(created, 'en')}</span>
               </span>
             )
           }

@@ -11,7 +11,7 @@ test.describe('source-view（拆开看）', () => {
 
   test('lab page (.astro, not MDX) has no source disclosures', async ({ page }) => {
     await page.goto('/lab');
-    await expect(page.getByRole('heading', { name: '组件试验场' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Component lab' })).toBeVisible();
     await expect(page.locator('details.source-view')).toHaveCount(0);
   });
 });

@@ -31,7 +31,7 @@ const activeCss = [...items, ...enItems]
 
 {
   items.length >= 3 && (
-    <nav class="toc" aria-label="目录" data-i18n-aria="tocAria">
+    <nav class="toc" aria-label="Table of contents" data-i18n-aria="tocAria">
       {activeCss && (
         <Fragment
           set:html={`<style>${activeCss}{color:var(--color-ink-200);text-decoration-color:var(--color-ink-500)}</style>`}

@@ -19,7 +19,7 @@
   let playing = $state(false);
   let progress = $state(0); // 0-1
   let duration = $state(0);
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   function fmt(s: number) {
     if (!isFinite(s)) return '0:00';

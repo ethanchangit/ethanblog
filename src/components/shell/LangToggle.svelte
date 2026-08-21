@@ -3,13 +3,13 @@
   import { initLang, readLang, setLang, subscribeLang, t, type Lang } from '@/lib/i18n';
 
   const OPTIONS = [
-    { value: 'zh-CN' as const, label: '简体中文' },
     { value: 'en' as const, label: 'English' },
+    { value: 'zh-CN' as const, label: '简体中文' },
   ];
 
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
   let open = $state(false);
-  let active = $state<Lang>('zh-CN');
+  let active = $state<Lang>('en');
   let root = $state<HTMLDivElement | undefined>();
   let buttonEl = $state<HTMLButtonElement | undefined>();
   let listEl = $state<HTMLUListElement | undefined>();

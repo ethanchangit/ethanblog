@@ -1,4 +1,4 @@
-export function formatDate(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
+export function formatDate(date: Date, lang: 'zh-CN' | 'en' = 'en'): string {
   const locale = lang === 'en' ? 'en-US' : 'zh-CN';
   const dtf = new Intl.DateTimeFormat(locale, {
     year: 'numeric',
@@ -15,7 +15,7 @@ export function formatDate(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
 }
 
 /** 推文卡页脚：时间 · 日期，对齐官方 embed 的阅读节奏。 */
-export function formatTweetStamp(date: Date, lang: 'zh-CN' | 'en' = 'zh-CN'): string {
+export function formatTweetStamp(date: Date, lang: 'zh-CN' | 'en' = 'en'): string {
   const locale = lang === 'en' ? 'en-US' : 'zh-CN';
   const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(date);
   return `${time} · ${formatDate(date, lang)}`;

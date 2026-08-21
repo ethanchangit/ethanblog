@@ -36,6 +36,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
 <!doctype html>
 <html
   lang={site.lang}
+  data-lang={site.lang}
   class:list={[split && 'reading-split']}
   data-title-zh={pageTitleZh}
   data-title-en={pageTitleEn}
@@ -54,7 +55,7 @@ const canonical = new URL(Astro.url.pathname, site.url);
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme =
             stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-          var lang = localStorage.getItem('lang') === 'en' ? 'en' : 'zh-CN';
+          var lang = localStorage.getItem('lang') === 'zh-CN' ? 'zh-CN' : 'en';
           root.dataset.theme = theme;
           root.lang = lang;
           root.dataset.lang = lang;
@@ -78,20 +79,20 @@ const canonical = new URL(Astro.url.pathname, site.url);
           });
         } catch (e) {
           document.documentElement.dataset.theme = 'light';
-          document.documentElement.lang = 'zh-CN';
-          document.documentElement.dataset.lang = 'zh-CN';
+          document.documentElement.lang = 'en';
+          document.documentElement.dataset.lang = 'en';
         }
       }
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{pageTitleZh}</title>
-    <meta name="description" content={description} />
+    <title>{pageTitleEn}</title>
+    <meta name="description" content={descriptionEn} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     <meta name="generator" content={Astro.generator} />
-    <meta property="og:title" content={pageTitleZh} />
-    <meta property="og:description" content={description} />
+    <meta property="og:title" content={pageTitleEn} />
+    <meta property="og:description" content={descriptionEn} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL(ogImage, site.url)} />

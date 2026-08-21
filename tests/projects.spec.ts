@@ -4,9 +4,9 @@ test.describe('Projects 集合页', () => {
   test('/projects 是导语 + 时间线，不是项目长文', async ({ page }) => {
     await page.goto('/projects');
 
-    await expect(page.getByRole('heading', { name: '项目是一条线' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Projects are a lineage' })).toBeVisible();
     await expect(page.locator('.ui-eyebrow')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: '时间线：从卡片到容器' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Timeline: from cards to a container' })).toBeVisible();
     await expect(page.locator('[data-tl-item]').first()).toBeVisible();
 
     // 旧版卡片网格不应存在
@@ -52,12 +52,12 @@ test.describe('Projects 集合页', () => {
 
   test('演示与长文在独立档案页', async ({ page }) => {
     await page.goto('/projects/network');
-    await expect(page.getByText('Networks · 早期原型切片', { exact: true })).toBeVisible();
-    await expect(page.getByText('双手永远放在键盘上')).toBeVisible();
+    await expect(page.getByText('Networks · early prototype slice', { exact: true })).toBeVisible();
+    await expect(page.getByText('keep both hands on the keyboard')).toBeVisible();
 
     await page.goto('/projects/robert');
-    await expect(page.getByText('Robert · 交互原型', { exact: true })).toBeVisible();
-    await expect(page.getByText('把语音放在第一入口')).toBeVisible();
+    await expect(page.getByText('Robert · interaction prototype', { exact: true })).toBeVisible();
+    await expect(page.getByText('voice at the front door')).toBeVisible();
   });
 
   test('项目页标题在 lede，没有状态芯片', async ({ page }) => {
@@ -77,13 +77,13 @@ test.describe('Projects 集合页', () => {
     await expect(page.locator('article .grid.lg\\:grid-cols-\\[1fr_240px\\]')).toHaveCount(0);
     await expect(page.locator('article.article-page > header .ui-tag-list .ui-tag').first()).toBeVisible();
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.locator('[data-reading-index]').getByRole('heading', { name: '项目是一条线' })).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { name: 'Projects are a lineage' })).toBeVisible();
   });
 
   test('项目页标题下可复制规范 URL，且在导语之上', async ({ page }) => {
     await page.goto('/projects/ethanchang-io');
 
-    const copy = page.getByRole('button', { name: '复制本页链接' });
+    const copy = page.getByRole('button', { name: 'Copy page URL' });
     const island = page.locator('astro-island').filter({ has: copy });
     await expect(copy).toBeVisible();
     await expect(island).not.toHaveAttribute('ssr');
@@ -110,7 +110,7 @@ test.describe('Projects 集合页', () => {
     });
 
     await copy.click();
-    await expect(page.getByRole('button', { name: '已复制' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
 
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedUrl?: string }).__copiedUrl,

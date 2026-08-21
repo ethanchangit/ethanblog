@@ -27,7 +27,7 @@
   let busy = $state(false);
   let error = $state(false);
   let privateSaved = $state(false);
-  let lang = $state<Lang>('zh-CN');
+  let lang = $state<Lang>('en');
 
   onMount(() => {
     let cancelled = false;
@@ -114,7 +114,7 @@
 
 <section id="comments" class="not-prose" aria-labelledby="comments-heading">
   <h2 id="comments-heading" class="ui-section-label">
-    <span class="i18n-zh">{label('zh-CN', 'commentsHeading')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsHeading')}</span>
+    <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsHeading')}</span><span class="i18n-en">{label('en', 'commentsHeading')}</span>
   </h2>
 
   {#if items.length > 0}
@@ -125,13 +125,12 @@
             <span class="text-ink-300">{item.authorName}</span>
             {#if item.visibility === 'private'}
               <span class="comment-private-mark">
-                <span class="i18n-zh">{label('zh-CN', 'commentsPrivateMark')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsPrivateMark')}</span>
+                <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsPrivateMark')}</span><span class="i18n-en">{label('en', 'commentsPrivateMark')}</span>
               </span>
             {/if}
             <time datetime={new Date(item.createdAt).toISOString()}>
-              <span class="i18n-zh">{formatDate(new Date(item.createdAt), 'zh-CN')}</span><span
-                class="i18n-en"
-                aria-hidden="true">{formatDate(new Date(item.createdAt), 'en')}</span
+              <span class="i18n-zh" aria-hidden="true">{formatDate(new Date(item.createdAt), 'zh-CN')}</span><span
+                class="i18n-en">{formatDate(new Date(item.createdAt), 'en')}</span
               >
             </time>
           </p>
@@ -141,7 +140,7 @@
     </ol>
   {:else}
     <p class="ui-meta">
-      <span class="i18n-zh">{label('zh-CN', 'commentsEmpty')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsEmpty')}</span>
+      <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsEmpty')}</span><span class="i18n-en">{label('en', 'commentsEmpty')}</span>
     </p>
   {/if}
 
@@ -166,16 +165,16 @@
           data-i18n-aria="commentsVisAria"
         />
         <span class="comment-vis-on-public" hidden={privateOn}>
-          <span class="i18n-zh">{label('zh-CN', 'commentsPublic')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsPublic')}</span>
+          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsPublic')}</span><span class="i18n-en">{label('en', 'commentsPublic')}</span>
         </span>
         <span class="comment-vis-on-private" hidden={!privateOn}>
-          <span class="i18n-zh">{label('zh-CN', 'commentsPrivate')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsPrivate')}</span>
+          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsPrivate')}</span><span class="i18n-en">{label('en', 'commentsPrivate')}</span>
         </span>
       </label>
 
       <label class="comment-compose-body">
         <span class="sr-only">
-          <span class="i18n-zh">{label('zh-CN', 'commentsBody')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsBody')}</span>
+          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsBody')}</span><span class="i18n-en">{label('en', 'commentsBody')}</span>
         </span>
         <textarea
           class="comment-field comment-field--body"
@@ -196,7 +195,7 @@
         {:else}
           <label class="comment-compose-name">
             <span class="sr-only">
-              <span class="i18n-zh">{label('zh-CN', 'commentsName')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsName')}</span>
+              <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsName')}</span><span class="i18n-en">{label('en', 'commentsName')}</span>
             </span>
             <input
               class="comment-field comment-field--name"
@@ -211,18 +210,18 @@
           </label>
         {/if}
         <button type="submit" class="comment-send" disabled={busy}>
-          <span class="i18n-zh">{label('zh-CN', 'commentsSubmit')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsSubmit')}</span>
+          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsSubmit')}</span><span class="i18n-en">{label('en', 'commentsSubmit')}</span>
         </button>
       </div>
     </div>
 
     {#if error}
       <p class="ui-meta mt-2" role="alert">
-        <span class="i18n-zh">{label('zh-CN', 'commentsError')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsError')}</span>
+        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsError')}</span><span class="i18n-en">{label('en', 'commentsError')}</span>
       </p>
     {:else if privateSaved}
       <p class="ui-meta mt-2" role="status">
-        <span class="i18n-zh">{label('zh-CN', 'commentsPrivateSaved')}</span><span class="i18n-en" aria-hidden="true">{label('en', 'commentsPrivateSaved')}</span>
+        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsPrivateSaved')}</span><span class="i18n-en">{label('en', 'commentsPrivateSaved')}</span>
       </p>
     {/if}
   </form>
