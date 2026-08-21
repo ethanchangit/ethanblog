@@ -49,6 +49,7 @@ export async function docsBySlot(
 }
 
 export type SeriesContext = {
+  currentId: string;
   hub: DocEntry | undefined;
   chapters: DocEntry[];
   prev: DocEntry | undefined;
@@ -70,6 +71,7 @@ export async function seriesContext(
   );
   const index = chapters.findIndex((chapter) => chapter.id === entry.id);
   return {
+    currentId: entry.id,
     hub: hub ?? (!parentId ? entry : undefined),
     chapters,
     prev: index > 0 ? chapters[index - 1] : undefined,

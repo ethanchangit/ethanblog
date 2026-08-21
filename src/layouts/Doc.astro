@@ -1,8 +1,6 @@
 ---
-import Base from '@/layouts/Base.astro';
 import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
 import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
-import Toc from '@/components/shell/Toc.astro';
 import ArticleComments from '@/components/shell/ArticleComments.svelte';
 import { getSession } from '@/lib/auth';
 import { listComments } from '@/lib/db';
@@ -17,19 +15,11 @@ import SeriesNav from '@/components/shell/SeriesNav.astro';
 import { site } from '@/data/profile';
 import { seriesContext, type DocEntry } from '@/lib/docs';
 
-interface TocHeading {
-  depth: number;
-  slug: string;
-  text: string;
-}
-
 interface Props {
   doc: DocEntry;
-  headings?: TocHeading[];
-  headingsEn?: TocHeading[];
 }
 
-const { doc, headings = [], headingsEn = [] } = Astro.props;
+const { doc } = Astro.props;
 const {
   slot,
   title,
@@ -73,131 +63,126 @@ if (isArticle) {
 }
 ---
 
-<Base title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
-  {isArticle && <ReadingProgress client:load slug={slug} />}
+{isArticle && <ReadingProgress client:load slug={slug} />}
 
-  <div class="article-shell relative mx-auto max-w-3xl px-4 py-14 sm:px-6">
-    <header class="article-lede">
+<div class="article-shell relative mx-auto max-w-3xl px-4 py-14 sm:px-6">
+  <header class="article-lede">
+    {
+      isArticle && date && (
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <time datetime={date.toISOString()} class="ui-meta">
+              <DateText date={date} />
+            </time>
+            {updated && (
+              <span class="ui-meta">
+                <I18n k="updatedPrefix" />{' '}
+                <DateText date={updated} />
+              </span>
+            )}
+          </div>
+          <BookmarkButton client:load slug={slug} />
+        </div>
+      )
+    }
+    <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
+      <Bi zh={title} en={titleEn} />
+    </h1>
+    {series && <SeriesNav series={series} part="parent" />}
+  </header>
+
+  <CopyUrl client:visible url={canonicalUrl} />
+
+  <div class="article-body-row relative mt-8">
+    <article class="article-page">
+      <header class="article-dek">
+        <p class="article-dek-text">
+          <Bi zh={description} en={descriptionEn} />
+        </p>
+        {isArticle ? (
+          <TagList tags={tags} />
+        ) : (
+          stack.length > 0 && (
+            <ul class="ui-tag-list mt-5">
+              {stack.map((item) => (
+                <li class="ui-tag">{item}</li>
+              ))}
+            </ul>
+          )
+        )}
+      </header>
+
       {
-        isArticle && date && (
-          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-3">
-              <time datetime={date.toISOString()} class="ui-meta">
-                <DateText date={date} />
-              </time>
-              {updated && (
-                <span class="ui-meta">
-                  <I18n k="updatedPrefix" />{' '}
-                  <DateText date={updated} />
-                </span>
-              )}
-            </div>
-            <BookmarkButton client:load slug={slug} />
+        series && (
+          <div class="reading-chapters-inline">
+            <SeriesNav series={series} part="chapters" />
           </div>
         )
       }
-      <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
-        <Bi zh={title} en={titleEn} />
-      </h1>
-      {series && <SeriesNav series={series} part="parent" />}
-    </header>
 
-    <CopyUrl client:visible url={canonicalUrl} />
+      {
+        screenshots.length > 0 && (
+          <div class="mb-10 grid gap-4 sm:grid-cols-2">
+            {screenshots.map((s) => (
+              <img src={s.src} alt={s.alt} loading="lazy" />
+            ))}
+          </div>
+        )
+      }
 
-    <div class="article-body-row relative mt-8">
-      <Toc headings={headings} headingsEn={headingsEn} />
+      <div class="article-main">
+        <div class="prose-site">
+          <slot />
+        </div>
 
-      <article class="article-page">
-        <header class="article-dek">
-          <p class="article-dek-text">
-            <Bi zh={description} en={descriptionEn} />
-          </p>
-          {isArticle ? (
-            <TagList tags={tags} />
-          ) : (
-            stack.length > 0 && (
-              <ul class="ui-tag-list mt-5">
-                {stack.map((item) => (
-                  <li class="ui-tag">{item}</li>
+        <footer class="mt-16 space-y-8 pt-8">
+          {
+            !isArticle && (repo || homepage) && (
+              <div class="flex flex-col gap-3">
+                {homepage && (
+                  <a
+                    href={homepage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100"
+                  >
+                    <I18n k="visitSite" />
+                  </a>
+                )}
+                {repo && (
+                  <a
+                    href={repo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-ink-400 underline decoration-ink-600 underline-offset-4 transition-colors hover:text-ink-100"
+                  >
+                    <I18n k="githubRepo" />
+                  </a>
+                )}
+              </div>
+            )
+          }
+          {
+            !isArticle && downloads.length > 0 && (
+              <ul class="flex flex-col gap-2">
+                {downloads.map((d) => (
+                  <li>
+                    <a
+                      href={d.url}
+                      class="flex items-center justify-between text-sm text-ink-200 transition-colors hover:text-ink-100"
+                    >
+                      <span>{d.label}</span>
+                      {d.platform && <span class="ui-meta">{d.platform}</span>}
+                    </a>
+                  </li>
                 ))}
               </ul>
             )
-          )}
-        </header>
-
-        {series && <SeriesNav series={series} part="chapters" />}
-
-        {
-          screenshots.length > 0 && (
-            <div class="mb-10 grid gap-4 sm:grid-cols-2">
-              {screenshots.map((s) => (
-                <img src={s.src} alt={s.alt} loading="lazy" />
-              ))}
-            </div>
-          )
-        }
-
-        <div class="article-main">
-          <div class="prose-site">
-            <slot />
-          </div>
-
-          <footer class="mt-16 space-y-8 pt-8">
-            {
-              !isArticle && (repo || homepage) && (
-                <div class="flex flex-col gap-3">
-                  {homepage && (
-                    <a
-                      href={homepage}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100"
-                    >
-                      <I18n k="visitSite" />
-                    </a>
-                  )}
-                  {repo && (
-                    <a
-                      href={repo}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm text-ink-400 underline decoration-ink-600 underline-offset-4 transition-colors hover:text-ink-100"
-                    >
-                      <I18n k="githubRepo" />
-                    </a>
-                  )}
-                </div>
-              )
-            }
-            {
-              !isArticle && downloads.length > 0 && (
-                <ul class="flex flex-col gap-2">
-                  {downloads.map((d) => (
-                    <li>
-                      <a
-                        href={d.url}
-                        class="flex items-center justify-between text-sm text-ink-200 transition-colors hover:text-ink-100"
-                      >
-                        <span>{d.label}</span>
-                        {d.platform && <span class="ui-meta">{d.platform}</span>}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-            {
-              !isArticle && (
-                <a href="/projects" class="ui-link-subtle">
-                  <I18n k="backToProjects" />
-                </a>
-              )
-            }
-            {series && <SeriesNav series={series} part="pager" />}
-            {isArticle && <ArticleComments client:visible slug={slug} comments={initialComments} />}
-          </footer>
-        </div>
-      </article>
-    </div>
+          }
+          {series && <SeriesNav series={series} part="pager" />}
+          {isArticle && <ArticleComments client:visible slug={slug} comments={initialComments} />}
+        </footer>
+      </div>
+    </article>
   </div>
-</Base>
+</div>

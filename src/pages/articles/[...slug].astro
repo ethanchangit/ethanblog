@@ -1,6 +1,10 @@
 ---
+import ReadingShell from '@/components/shell/ReadingShell.astro';
 import Doc from '@/layouts/Doc.astro';
-import { docsBySlot } from '@/lib/docs';
+import Toc from '@/components/shell/Toc.astro';
+import SeriesNav from '@/components/shell/SeriesNav.astro';
+import { docsBySlot, seriesContext } from '@/lib/docs';
+import { hasToc } from '@/lib/toc';
 import { render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -15,8 +19,24 @@ const { Content, headings, remarkPluginFrontmatter } = await render(article);
 const split = remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
 const zhHeadings = typeof split === 'number' ? headings.slice(0, split) : headings;
 const enHeadings = typeof split === 'number' ? headings.slice(split) : [];
+const series = await seriesContext(article);
+const showRail = hasToc(zhHeadings) || series.isHub || series.isChapter;
 ---
 
-<Doc doc={article} headings={zhHeadings} headingsEn={enHeadings}>
-  <Content />
-</Doc>
+<ReadingShell
+  kind="article"
+  title={article.data.title}
+  titleEn={article.data.titleEn}
+  description={article.data.description}
+  descriptionEn={article.data.descriptionEn ?? article.data.description}
+  currentId={article.id}
+  showRail={showRail}
+>
+  <Doc doc={article}>
+    <Content />
+  </Doc>
+  <Fragment slot="rail">
+    <SeriesNav series={series} part="rail" />
+    <Toc headings={zhHeadings} headingsEn={enHeadings} />
+  </Fragment>
+</ReadingShell>

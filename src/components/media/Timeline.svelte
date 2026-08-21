@@ -19,9 +19,10 @@
     items: Item[];
     caption?: string;
     captionEn?: string;
+    currentHref?: string;
   }
 
-  const { items, caption, captionEn }: Props = $props();
+  const { items, caption, captionEn, currentHref }: Props = $props();
 
   let root = $state<HTMLElement | null>(null);
   let animated = $state(false);
@@ -59,7 +60,7 @@
   <div>
     <h4
       class="font-semibold text-ink-100 {item.href
-        ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500'
+        ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500 group-aria-[current=page]:decoration-ink-500'
         : ''}"
     >
       <BiText zh={item.title} en={item.titleEn} />
@@ -85,7 +86,11 @@
         style={animated && !visible[i] ? 'opacity: 0; transform: translateY(16px)' : ''}
       >
         {#if item.href}
-          <a href={item.href} class="group flex items-center gap-4 text-inherit no-underline">
+          <a
+            href={item.href}
+            aria-current={item.href === currentHref ? 'page' : undefined}
+            class="group flex items-center gap-4 text-inherit no-underline"
+          >
             {@render row(item, i)}
           </a>
         {:else}
