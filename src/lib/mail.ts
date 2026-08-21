@@ -73,6 +73,8 @@ export function buildRawEmail(input: {
     `To: ${oneLine(input.to)}`,
     input.replyTo ? `Reply-To: ${oneLine(input.replyTo)}` : null,
     `Subject: ${encodeUtf8Header(input.subject)}`,
+    `Message-ID: <${crypto.randomUUID()}@ethanchang.io>`,
+    `Date: ${new Date().toUTCString()}`,
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=utf-8',
     'Content-Transfer-Encoding: 8bit',
