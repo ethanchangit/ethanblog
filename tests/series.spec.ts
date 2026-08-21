@@ -57,10 +57,8 @@ test.describe('系列子文', () => {
       { useInnerText: true },
     );
 
-    const hubNav = page.locator('[data-series="hub"]');
-    await expect(hubNav.getByText('Chapters')).toBeVisible();
-    await expect(hubNav.locator(`a[href="${PART1}"]`)).toBeVisible();
-    await expect(hubNav.locator(`a[href="${PART2}"]`)).toBeVisible();
+    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('nav.reading-series')).toHaveCount(0);
 
     await listing.locator(`a[href="${PART1}"]`).click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
@@ -69,7 +67,7 @@ test.describe('系列子文', () => {
     });
     const child = page.locator('[data-reading-child]');
     await expect(child.locator('.article-lede h1')).toHaveText(PART1_TITLE, { useInnerText: true });
-    await expect(hubNav).toBeHidden();
+    await expect(page.locator('[data-reading-rail] nav.reading-series')).toHaveCount(0);
     const close = child.locator(
       'header.article-lede > div.flex.justify-between [data-reading-child-close]',
     );
@@ -86,7 +84,9 @@ test.describe('系列子文', () => {
 
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
-    await expect(hubNav).toBeVisible();
+    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('nav.reading-series')).toHaveCount(0);
+    await expect(listing).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(HUB_TITLE, {
       useInnerText: true,
     });

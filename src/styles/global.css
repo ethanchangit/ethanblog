@@ -394,97 +394,12 @@
     @apply text-sm text-ink-500 transition-colors hover:text-ink-200;
   }
 
-  .comment-list {
-    margin: 0.75rem 0 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .comment-list li + li {
-    margin-top: 1.25rem;
-  }
-
-  .comment-list time {
-    margin-left: 0.75rem;
-  }
-
-  .comment-private-mark {
-    margin-left: 0.5rem;
-    color: var(--color-ink-500);
-  }
-
   .comment-form {
     position: relative;
-    margin-top: 1.25rem;
-  }
-
-  .comment-capsule {
+    margin-top: 0.75rem;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 0.35rem;
-    padding: 0.7rem 1.15rem 0.55rem;
-    border: 1px solid var(--color-ink-500);
-    border-radius: 1.5rem;
-    background: transparent;
-    transition: border-color 150ms ease;
-  }
-
-  .comment-capsule:hover {
-    border-color: var(--color-ink-400);
-  }
-
-  .comment-capsule:focus-within {
-    border-color: var(--color-ink-100);
-  }
-
-  .comment-vis {
-    display: inline-flex;
-    align-self: flex-start;
-    align-items: baseline;
-    cursor: pointer;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: var(--color-ink-500);
-    white-space: nowrap;
-    user-select: none;
-    transition: color 150ms ease;
-  }
-
-  .comment-vis:hover {
-    color: var(--color-ink-300);
-  }
-
-  .comment-vis:has(:focus-visible) {
-    color: var(--color-ink-100);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
-  .comment-vis-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .comment-vis-on-public[hidden],
-  .comment-vis-on-private[hidden] {
-    display: none;
-  }
-
-  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-public {
-    display: none;
-  }
-
-  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-private[hidden],
-  .comment-vis:has(.comment-vis-input:checked) .comment-vis-on-private {
-    display: inline;
+    gap: 0.85rem;
   }
 
   .comment-compose-body {
@@ -493,15 +408,16 @@
 
   .comment-compose-foot {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.75rem 1.25rem;
   }
 
-  .comment-compose-name {
-    flex: 0 1 8rem;
+  .comment-compose-name,
+  .comment-compose-email {
+    flex: 1 1 8rem;
     min-width: 0;
-    width: 6.5rem;
+    max-width: 14rem;
   }
 
   .comment-field {
@@ -548,25 +464,6 @@
     border: none;
     border-radius: 0;
     border-bottom: 1px solid var(--color-ink-100);
-    background: transparent;
-  }
-
-  .comment-capsule .comment-field {
-    border: 0;
-    padding: 0.15rem 0;
-    border-radius: 0;
-    background: transparent;
-    outline: none;
-    box-shadow: none;
-  }
-
-  .comment-capsule .comment-field:hover,
-  .comment-capsule .comment-field:focus,
-  .comment-capsule .comment-field:focus-visible {
-    border: 0;
-    outline: none;
-    outline-offset: 0;
-    box-shadow: none;
     background: transparent;
   }
 
@@ -700,23 +597,24 @@
    * In-prose links use primary (blue) so they read as clickable next to
    * ink-300 body copy. Declared after prose-invert so dark-theme color wins
    * ([data-theme] + .prose-site a matches invert's specificity).
+   * TweetEmbed chrome (handle / X logo) is not a body citation — exclude it.
    */
-  .prose-site a {
+  .prose-site a:not([data-tweet-embed] *) {
     color: var(--color-primary-600);
     text-decoration-color: var(--color-primary-300);
   }
 
-  .prose-site a:hover {
+  .prose-site a:not([data-tweet-embed] *):hover {
     color: var(--color-primary-500);
     text-decoration-color: var(--color-primary-500);
   }
 
-  [data-theme="dark"] .prose-site a {
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *) {
     color: var(--color-primary-400);
     text-decoration-color: var(--color-primary-600);
   }
 
-  [data-theme="dark"] .prose-site a:hover {
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):hover {
     color: var(--color-primary-300);
     text-decoration-color: var(--color-primary-400);
   }
@@ -728,6 +626,20 @@
   [data-theme="dark"] .prose-site [data-tweet-embed] a:hover {
     text-decoration: none;
     text-decoration-color: inherit;
+  }
+
+  .prose-site [data-tweet-embed] .tweet-embed__handle,
+  .prose-site [data-tweet-embed] .tweet-embed__handle:hover,
+  [data-theme="dark"] .prose-site [data-tweet-embed] .tweet-embed__handle,
+  [data-theme="dark"] .prose-site [data-tweet-embed] .tweet-embed__handle:hover {
+    color: var(--color-ink-500);
+  }
+
+  .prose-site [data-tweet-embed] .tweet-embed__permalink,
+  .prose-site [data-tweet-embed] .tweet-embed__permalink:hover,
+  [data-theme="dark"] .prose-site [data-tweet-embed] .tweet-embed__permalink,
+  [data-theme="dark"] .prose-site [data-tweet-embed] .tweet-embed__permalink:hover {
+    color: var(--color-ink-100);
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -1021,8 +933,6 @@
     .mention,
     .mention-active,
     .comment-field,
-    .comment-capsule,
-    .comment-vis,
     .comment-send {
       transition: none;
     }
@@ -1038,11 +948,18 @@
   }
 
   /*
-   * 分栏阅读：md+ 左栏是完整索引页（~28.125rem / 450px），其余是正文。
-   * lg+ 目录浮在阅读区右侧，不占第三栏、无分界线。窄屏只显示正文。
-   * 左栏发丝线是结构分隔，不是卡片 chrome。
+   * 分栏阅读：md+ 三栏 index | article | rail。
+   * 左栏 --reading-index-width、正文 --reading-measure 固定；有无 TOC 只改中间 gutter。
+   * 右栏有 TOC 时占 --reading-side-min，无栏为 0。
+   * 展开索引是左栏 overlay 拉宽，不改 grid 轨道，避免正文左右回弹。
+   * 窄屏隐藏索引与 rail。左栏发丝线是结构分隔，不是卡片 chrome。
    */
   .reading-shell {
+    --reading-index-width: 24rem;
+    --reading-side-min: 24rem;
+    --reading-measure: 42rem;
+    --reading-rail-width: 0px;
+    --reading-inset-y: 0.75rem;
     position: relative;
     display: flex;
     min-height: 0;
@@ -1062,6 +979,7 @@
   /*
    * 首页窄屏也要露出索引（顶栏不再放文章/项目）。
    * 发丝线是分栏结构，不是卡片 chrome。
+   * 展开的索引页：窄屏只显示列表，中栏/rail 藏起。
    */
   [data-reading-shell='home'] {
     flex-direction: column;
@@ -1071,6 +989,20 @@
     border-right: 0;
     border-bottom: 1px solid var(--color-surface-700);
     max-height: min(55vh, 28rem);
+  }
+
+  [data-reading-shell='index'] {
+    flex-direction: column;
+  }
+  [data-reading-shell='index'] .reading-index {
+    display: block;
+    flex: 1;
+    min-height: 0;
+    border-right: 0;
+  }
+  [data-reading-shell='index'] .reading-doc,
+  [data-reading-shell='index'] .reading-rail {
+    display: none;
   }
 
   .reading-doc {
@@ -1092,6 +1024,20 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
+    padding-top: 2rem;
+  }
+
+  /*
+   * 钉在 aside.reading-index 栏顶。heading 必须是
+   * [data-reading-index-body] 的直接子级：包在矮 header 里
+   * 没有 sticky 行程。surface 底是为了列表字不透上来，不是卡片。
+   */
+  .reading-index .reading-index-heading {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding-bottom: 0.5rem;
+    background-color: var(--color-surface-950);
   }
 
   .reading-index-switch {
@@ -1138,12 +1084,20 @@
     margin-left: auto;
     padding: 0.15rem;
     color: var(--color-ink-500);
-    transition: color 160ms ease;
+    transition:
+      color 160ms ease,
+      opacity 160ms ease;
   }
 
   .reading-expand:hover,
   .reading-expand:focus-visible {
     color: var(--color-ink-200);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reading-expand {
+      transition: none;
+    }
   }
 
   @media (min-width: 640px) {
@@ -1154,7 +1108,7 @@
 
   .reading-rail {
     display: none;
-    width: 12.5rem;
+    min-width: 0;
     overflow: auto;
     overscroll-behavior: contain;
     padding: 1.5rem 1rem 2.5rem;
@@ -1203,19 +1157,82 @@
   }
 
   @media (min-width: 768px) {
+    .reading-shell {
+      display: grid;
+      grid-template-columns:
+        var(--reading-index-width)
+        minmax(0, 1fr)
+        var(--reading-rail-width);
+    }
+
     .reading-index {
       display: block;
-      flex: 0 0 28.125rem;
+      grid-column: 1 / -1;
+      grid-row: 1;
+      justify-self: start;
+      z-index: 2;
+      width: var(--reading-index-width);
+      min-width: 0;
+      background-color: var(--color-surface-950);
+      transition:
+        width 320ms ease,
+        border-color 320ms ease;
+    }
+
+    .reading-doc {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .reading-rail {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .reading-doc .article-shell {
+      width: var(--reading-measure);
+      max-width: 100%;
+    }
+
+    .reading-doc,
+    .reading-rail {
+      transition: opacity 240ms ease;
     }
 
     .reading-back {
       display: none;
     }
 
-    .reading-index .reading-expand {
+    .reading-index-heading .reading-expand[data-reading-collapse] {
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .reading-index-heading:hover .reading-expand[data-reading-collapse],
+    .reading-index-heading:focus-within .reading-expand[data-reading-collapse] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .reading-index .reading-expand[data-reading-collapse] {
+      display: none;
+    }
+
+    .reading-index .reading-expand[data-reading-expand] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .reading-index .reading-index-heading:hover .reading-expand[data-reading-expand],
+    .reading-index .reading-index-heading:focus-within .reading-expand[data-reading-expand] {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     [data-reading-shell='home'] {
@@ -1228,24 +1245,71 @@
       max-height: none;
     }
 
-    /* 中栏已是 About，没有打开的文档，不显示关闭 */
-    [data-reading-shell='home'] .reading-index .reading-expand {
+    [data-reading-shell='index'] {
+      flex-direction: row;
+    }
+
+    [data-reading-shell='index'] .reading-index {
+      width: 100%;
+      border-right-color: transparent;
+    }
+
+    [data-reading-shell='index'] .reading-doc {
+      display: block;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    [data-reading-shell='index'] .reading-index .reading-expand[data-reading-expand] {
       display: none;
+    }
+
+    [data-reading-shell='index'] .reading-index .reading-expand[data-reading-collapse] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: auto;
+    }
+
+    [data-reading-shell='index'] .reading-index .reading-index-heading:hover .reading-expand[data-reading-collapse],
+    [data-reading-shell='index'] .reading-index .reading-index-heading:focus-within .reading-expand[data-reading-collapse] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .reading-index .reading-index-heading {
+      padding-top: var(--reading-inset-y);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reading-index,
+      .reading-doc,
+      .reading-rail {
+        transition: none;
+      }
     }
   }
 
   @media (min-width: 1024px) {
-    .reading-rail {
-      display: block;
-      position: absolute;
-      inset-block: 0;
-      inset-inline-end: 0;
-      z-index: 1;
+    /*
+     * TOC 出现只加右轨。正文宽度锁在 --reading-measure，只改 1fr 里的 gutter。
+     */
+    .reading-shell:has(> .reading-rail) {
+      --reading-rail-width: var(--reading-side-min);
     }
 
-    /* 正文是 max-w-2xl；右侧留出 TOC 浮层宽度，避免盖住字。 */
-    .reading-shell:has(.reading-rail) .reading-doc {
-      padding-inline-end: 12.5rem;
+    .reading-rail {
+      display: block;
+      padding-top: var(--reading-inset-y);
+    }
+
+    .reading-shell[data-reading-shell='index'] .reading-rail {
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      padding: 0;
     }
 
     .reading-chapters-inline {
@@ -1253,26 +1317,28 @@
     }
 
     /*
-     * 总览打开子文：第三栏变成可读文档栏（列表 | 总览 | 子文）。
+     * 总览打开子文：左栏仍固定，总览 | 子文均分剩余。
      * 发丝线是分栏结构，不是卡片 chrome。
      */
-    .reading-rail[data-reading-child-open] {
-      position: relative;
-      inset: auto;
-      z-index: auto;
-      display: flex;
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) {
+      grid-template-columns:
+        var(--reading-index-width)
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+    }
+
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-doc .article-shell {
       width: auto;
+      max-width: none;
+    }
+
+    .reading-rail[data-reading-child-open] {
+      display: flex;
       min-width: 0;
-      flex: 1 1 0;
       flex-direction: column;
       overflow: hidden;
       padding: 0;
       border-left: 1px solid var(--color-surface-700);
-    }
-
-    .reading-shell:has(.reading-rail[data-reading-child-open]) .reading-doc {
-      flex: 1 1 0;
-      padding-inline-end: 0;
     }
 
     /* 子文开着时只留「收起」+ 正文；篇目目录关掉，收起后再回来。 */
@@ -1363,5 +1429,16 @@
     .toc a {
       transition: none;
     }
+  }
+}
+
+/*
+ * 分栏顶距：必须写在 layer 外，才能压过 article-shell 的 pt-8 / About 的 py-14。
+ * 桌面导航是 relative 入文档流，三栏只需很小的 inset，不要再垫出一条空带。
+ */
+@media (min-width: 768px) {
+  .reading-doc .article-shell,
+  .reading-doc [data-about-panel] {
+    padding-top: var(--reading-inset-y);
   }
 }

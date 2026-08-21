@@ -31,6 +31,8 @@ test.describe('Route crawling', () => {
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', {
       useInnerText: true,
     });
+    await expect(page.locator('[data-reading-index-switch] a[href="/zh/projects"]')).toBeVisible();
+    await expect(page.locator('[data-reading-index-switch] a[href="/zh/blogs"]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeVisible();
   });
 

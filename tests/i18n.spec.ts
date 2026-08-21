@@ -51,6 +51,8 @@ test.describe('Language（中/EN）', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', inner);
+    await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
+    await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('Tags', inner);
     await expect(page.locator('header.site-nav a[href="/now"]')).toHaveText('Now', inner);
     await expect(page.locator('header.site-nav a[href="/about"]')).toHaveCount(0);
@@ -70,6 +72,8 @@ test.describe('Language（中/EN）', () => {
     await expect(home).toHaveAttribute('href', '/zh');
     await expect(home).toHaveAttribute('aria-label', '首页');
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', inner);
+    await expect(page.locator('[data-reading-index-switch] a[href="/zh/projects"]')).toBeVisible();
+    await expect(page.locator('[data-reading-index-switch] a[href="/zh/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/zh/tags"]')).toHaveText('标签', inner);
     await expect(page.locator('header.site-nav a[href="/zh/now"]')).toHaveText('现在', inner);
     await expect(page.locator('header.site-nav a[href="/zh/search"]')).toHaveAttribute('aria-label', '搜索');

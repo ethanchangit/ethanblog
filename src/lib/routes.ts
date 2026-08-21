@@ -1,6 +1,7 @@
 export const HOME_PATH = '/';
 export const ARTICLES_PATH = '/articles';
 export const PROJECTS_PATH = '/projects';
+export const BLOGS_PATH = '/blogs';
 export const TAGS_PATH = '/tags';
 export const SEARCH_PATH = '/search';
 export const NOW_PATH = '/now';
