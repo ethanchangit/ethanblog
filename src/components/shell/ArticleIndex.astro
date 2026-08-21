@@ -22,7 +22,7 @@ const groups = groupArticlesByYear(paged.items);
 const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefined;
 ---
 
-<section class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+<section class="mx-auto max-w-3xl px-4 pt-8 pb-14 sm:px-6" data-reading-index-body>
   <header class="mb-10">
     <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
       <I18n k="articlesTitle" />
@@ -56,24 +56,22 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
   {
     paged.totalPages > 1 && (
       <nav
-        class="mt-12 flex items-baseline justify-between gap-4"
+        class="mt-12 flex flex-col gap-2"
         aria-label="文章分页"
         data-i18n-aria="articlesPagerAria"
       >
-        <span>
-          {paged.hasPrev && (
-            <a href={articlesPageHref(paged.page - 1)} class="ui-link-subtle">
-              <I18n k="articlesNewer" />
-            </a>
-          )}
-        </span>
-        <span class="text-right">
-          {paged.hasNext && (
-            <a href={articlesPageHref(paged.page + 1)} class="ui-link-subtle">
-              <I18n k="articlesEarlier" />
-            </a>
-          )}
-        </span>
+        {paged.hasPrev && (
+          <a href={articlesPageHref(paged.page - 1)} class="ui-link-subtle self-start">
+            {'<- '}
+            <I18n k="articlesNewer" />
+          </a>
+        )}
+        {paged.hasNext && (
+          <a href={articlesPageHref(paged.page + 1)} class="ui-link-subtle self-end">
+            <I18n k="articlesEarlier" />
+            {' ->'}
+          </a>
+        )}
       </nav>
     )
   }

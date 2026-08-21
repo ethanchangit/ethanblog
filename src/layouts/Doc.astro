@@ -65,7 +65,7 @@ if (isArticle) {
 
 {isArticle && <ReadingProgress client:load slug={slug} />}
 
-<div class="article-shell relative mx-auto max-w-3xl px-4 py-14 sm:px-6">
+<div class="article-shell relative mx-auto max-w-2xl px-4 pt-8 pb-14 sm:px-6">
   <header class="article-lede">
     {
       isArticle && date && (
@@ -113,14 +113,6 @@ if (isArticle) {
       </header>
 
       {
-        series && (
-          <div class="reading-chapters-inline">
-            <SeriesNav series={series} part="chapters" />
-          </div>
-        )
-      }
-
-      {
         screenshots.length > 0 && (
           <div class="mb-10 grid gap-4 sm:grid-cols-2">
             {screenshots.map((s) => (
@@ -134,6 +126,8 @@ if (isArticle) {
         <div class="prose-site">
           <slot />
         </div>
+
+        {series && <SeriesNav series={series} part="chapters" />}
 
         <footer class="mt-16 space-y-8 pt-8">
           {

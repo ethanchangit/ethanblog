@@ -9,5 +9,5 @@ export function tocEntries(headings: TocHeading[]): TocHeading[] {
 }
 
 export function hasToc(headings: TocHeading[]): boolean {
-  return tocEntries(headings).length >= 3;
+  return tocEntries(headings).length > 0;
 }
