@@ -1,0 +1,12 @@
+name = "ethanblog-guestbook"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+# Service-binding only: Pages calls this Worker over [[services]], not the public internet.
+workers_dev = false
+preview_urls = false
+
+# Classic Email Routing send binding (EmailMessage). Locked to Ethan's HEY inbox.
+# Free: sending to a verified Email Routing destination. Not the paid Email Sending API.
+[[send_email]]
+name = "EMAIL"
+destination_address = "hey@ethanchang.io"

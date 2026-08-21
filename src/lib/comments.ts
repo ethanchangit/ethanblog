@@ -3,7 +3,7 @@ export const COMMENT_BODY_MAX = 1000;
 export const COMMENT_EMAIL_MAX = 120;
 export const COMMENT_ANON_NAME = '匿名';
 
-/** Locked destination for the EMAIL send_email binding. */
+/** Locked destination for the guestbook Worker EMAIL send_email binding. */
 export const FEEDBACK_TO = 'hey@ethanchang.io';
 /** Site-owned From. Visitor address is Reply-To only, never SMTP From. */
 export const FEEDBACK_FROM = 'guestbook@ethanchang.io';

@@ -85,7 +85,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const env = locals.runtime?.env;
-  if (!env?.EMAIL) {
+  if (!env?.GUESTBOOK) {
     return jsonOrRedirect(isForm, request, slug, { error: 'Email is not configured' }, 503);
   }
 

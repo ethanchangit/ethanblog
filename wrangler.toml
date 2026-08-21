@@ -15,8 +15,9 @@ migrations_dir = "migrations"
 binding = "SESSION"
 id = "5b6b6d1c5e4347289c28c34954be8cfe"
 
-# Guestbook: classic Email Routing send binding (EmailMessage), locked to Ethan.
-# Free: sending to a verified Email Routing destination. Not the paid Email Sending API.
-[[send_email]]
-name = "EMAIL"
-destination_address = "hey@ethanchang.io"
+# Guestbook mail lives on workers/guestbook (send_email is illegal on Pages).
+# Deploy that Worker before `wrangler pages deploy`. No public internet secret:
+# Pages calls it over this service binding.
+[[services]]
+binding = "GUESTBOOK"
+service = "ethanblog-guestbook"
