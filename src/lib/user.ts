@@ -13,8 +13,7 @@ export interface User {
 
 /**
  * 站长：better-auth 会话 email 对上 profile.email，或姓名对上
- * profile.name / chineseName。对不上时私密留言不会出现在公开 GET / HTML，
- * 可在 D1 comments 表里查看。
+ * profile.name / chineseName。
  */
 export function isSiteOwner(user: { email?: string | null; name?: string | null } | null | undefined): boolean {
   if (!user) return false;
