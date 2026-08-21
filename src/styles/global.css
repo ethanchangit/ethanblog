@@ -949,15 +949,18 @@
 
   /*
    * 分栏阅读：md+ 三栏 index | article | rail。
-   * 左栏 --reading-index-width、正文 --reading-measure 固定；有无 TOC 只改中间 gutter。
-   * 右栏有 TOC 时占 --reading-side-min，无栏为 0。
-   * 展开索引是左栏 overlay 拉宽，不改 grid 轨道，避免正文左右回弹。
+   * 三栏内容上限 24 / 42 / 24 rem，比例约 4:7:4。视口不够时按同一比例一起收；
+   * 多出来的宽度进 1fr gutter（页缘、左栏与中栏之间、中栏与右栏之间、右页缘）。
+   * 正文宽度由中栏轨道决定，不要在 article-shell 上写 max-w-*（utilities 会压过组件层）。
+   * 展开索引是左栏 overlay 拉满，不改其余轨道，避免正文左右回弹。
    * 窄屏隐藏索引与 rail。左栏发丝线是结构分隔，不是卡片 chrome。
    */
   .reading-shell {
     --reading-index-width: 24rem;
     --reading-side-min: 24rem;
     --reading-measure: 42rem;
+    --reading-split-2: calc(var(--reading-index-width) + var(--reading-measure));
+    --reading-split-3: calc(var(--reading-split-2) + var(--reading-side-min));
     --reading-rail-width: 0px;
     --reading-inset-y: 0.75rem;
     position: relative;
@@ -1014,7 +1017,7 @@
 
   .reading-back {
     margin: 0 auto;
-    max-width: 42rem;
+    max-width: var(--reading-measure);
     padding: 1rem 1rem 0;
   }
 
@@ -1160,18 +1163,19 @@
     .reading-shell {
       display: grid;
       grid-template-columns:
-        var(--reading-index-width)
         minmax(0, 1fr)
-        var(--reading-rail-width);
+        min(var(--reading-index-width), calc(100% * var(--reading-index-width) / var(--reading-split-2)))
+        minmax(0, 1fr)
+        min(var(--reading-measure), calc(100% * var(--reading-measure) / var(--reading-split-2)))
+        minmax(0, 1fr);
     }
 
     .reading-index {
       display: block;
-      grid-column: 1 / -1;
+      grid-column: 2;
       grid-row: 1;
-      justify-self: start;
       z-index: 2;
-      width: var(--reading-index-width);
+      width: 100%;
       min-width: 0;
       background-color: var(--color-surface-950);
       transition:
@@ -1180,18 +1184,20 @@
     }
 
     .reading-doc {
-      grid-column: 2;
+      grid-column: 4;
       grid-row: 1;
     }
 
     .reading-rail {
-      grid-column: 3;
+      grid-column: 6;
       grid-row: 1;
     }
 
-    .reading-doc .article-shell {
-      width: var(--reading-measure);
-      max-width: 100%;
+    .reading-doc .article-shell,
+    .reading-doc [data-about-panel] {
+      width: 100%;
+      max-width: none;
+      margin-inline: 0;
     }
 
     .reading-doc,
@@ -1250,6 +1256,7 @@
     }
 
     [data-reading-shell='index'] .reading-index {
+      grid-column: 1 / -1;
       width: 100%;
       border-right-color: transparent;
     }
@@ -1294,10 +1301,18 @@
 
   @media (min-width: 1024px) {
     /*
-     * TOC 出现只加右轨。正文宽度锁在 --reading-measure，只改 1fr 里的 gutter。
+     * 有 TOC 时加上右栏轨道。三栏都到上限后，多出来的宽度进四条 gutter。
      */
     .reading-shell:has(> .reading-rail) {
       --reading-rail-width: var(--reading-side-min);
+      grid-template-columns:
+        minmax(0, 1fr)
+        min(var(--reading-index-width), calc(100% * var(--reading-index-width) / var(--reading-split-3)))
+        minmax(0, 1fr)
+        min(var(--reading-measure), calc(100% * var(--reading-measure) / var(--reading-split-3)))
+        minmax(0, 1fr)
+        min(var(--reading-side-min), calc(100% * var(--reading-side-min) / var(--reading-split-3)))
+        minmax(0, 1fr);
     }
 
     .reading-rail {
@@ -1317,14 +1332,26 @@
     }
 
     /*
-     * 总览打开子文：左栏仍固定，总览 | 子文均分剩余。
+     * 总览打开子文：左栏按上限，总览 | 子文均分剩余，不再匀给 gutter。
      * 发丝线是分栏结构，不是卡片 chrome。
      */
     .reading-shell:has(> .reading-rail[data-reading-child-open]) {
       grid-template-columns:
-        var(--reading-index-width)
+        min(var(--reading-index-width), calc(100% * var(--reading-index-width) / var(--reading-split-2)))
         minmax(0, 1fr)
         minmax(0, 1fr);
+    }
+
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-index {
+      grid-column: 1;
+    }
+
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-doc {
+      grid-column: 2;
+    }
+
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-rail {
+      grid-column: 3;
     }
 
     .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-doc .article-shell {
@@ -1440,5 +1467,8 @@
   .reading-doc .article-shell,
   .reading-doc [data-about-panel] {
     padding-top: var(--reading-inset-y);
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
   }
 }

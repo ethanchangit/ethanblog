@@ -108,7 +108,7 @@ async function rootRem(page: Page) {
 async function measureReadingPanes(page: Page) {
   return page.evaluate((): ReadingPanePos | null => {
     const article =
-      document.querySelector('article.article-page') ?? document.querySelector('[data-about-panel]');
+      document.querySelector('.article-shell') ?? document.querySelector('[data-about-panel]');
     const doc = document.querySelector('[data-reading-doc]');
     const index = document.querySelector('[data-reading-index]');
     if (!article || !doc || !index) return null;
@@ -157,6 +157,20 @@ function expectFixedIndexWidth(width: number, rem: number) {
 
 function expectFixedRailWidth(width: number, rem: number) {
   expect(Math.abs(width - READING_RAIL_REMS * rem)).toBeLessThan(2);
+}
+
+function expectIndexAtMost(width: number, rem: number) {
+  expect(width).toBeLessThanOrEqual(READING_INDEX_REMS * rem + 2);
+}
+
+function expectRailAtMost(width: number, rem: number) {
+  expect(width).toBeLessThanOrEqual(READING_RAIL_REMS * rem + 2);
+}
+
+async function expectNoPageOverflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(
+    true,
+  );
 }
 
 function expectCenteredArticleGutters(pos: Pick<ReadingPanePos, 'articleLeft' | 'articleRight' | 'docLeft' | 'docRight'>) {
@@ -364,12 +378,14 @@ test.describe('分栏阅读', () => {
     const pos = await measureReadingSplit(page);
     expect(pos).not.toBeNull();
     const rem = await rootRem(page);
-    expectFixedIndexWidth(pos!.indexWidth, rem);
-    expectFixedRailWidth(pos!.railWidth, rem);
+    expectIndexAtMost(pos!.indexWidth, rem);
+    expectRailAtMost(pos!.railWidth, rem);
     expectRailAfterDoc(pos!);
     expectCenteredArticleGutters(pos!);
     expectArticleCenteredInRemaining(pos!);
+    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.docLeft + 1);
     expect(pos!.docWidth).toBeGreaterThan(36 * 16);
+    await expectNoPageOverflow(page);
     await expectTightSplitInset(page);
 
     await page.setViewportSize({ width: 1512, height: 720 });
@@ -381,7 +397,6 @@ test.describe('分栏阅读', () => {
     expectCenteredArticleGutters(wide!);
     expectArticleCenteredInRemaining(wide!);
     expectLockedArticleMeasure(wide!, rem);
-    expect(Math.abs(wide!.indexWidth - pos!.indexWidth)).toBeLessThan(2);
 
     await page.setViewportSize({ width: 1728, height: 720 });
     const ultra = await measureReadingSplit(page);
@@ -393,7 +408,9 @@ test.describe('分栏阅读', () => {
     expectArticleCenteredInRemaining(ultra!);
     expectLockedArticleMeasure(ultra!, rem);
     expect(Math.abs(ultra!.articleWidth - wide!.articleWidth)).toBeLessThan(2);
-    expect(Math.abs(ultra!.railWidth - pos!.railWidth)).toBeLessThan(2);
+    expect(Math.abs(ultra!.railWidth - wide!.railWidth)).toBeLessThan(2);
+    expect(ultra!.articleLeft).toBeGreaterThan(wide!.articleLeft + 8);
+    expect(ultra!.indexWidth).toBeLessThan(ultra!.articleLeft - 4);
   });
 
   test('短文没有第三栏', async ({ page }) => {
@@ -425,11 +442,12 @@ test.describe('分栏阅读', () => {
     await page.goto('/articles/pkm-method');
     const withToc = await measureReadingSplit(page);
     expect(withToc).not.toBeNull();
-    expectFixedIndexWidth(withToc!.indexWidth, rem);
-    expectFixedRailWidth(withToc!.railWidth, rem);
+    expectIndexAtMost(withToc!.indexWidth, rem);
+    expectRailAtMost(withToc!.railWidth, rem);
     expectArticleCenteredInRemaining(withToc!);
     expectCenteredArticleGutters(withToc!);
-    expect(Math.abs(withToc!.indexWidth - noToc!.indexWidth)).toBeLessThan(2);
+    expect(withToc!.indexRight).toBeLessThanOrEqual(withToc!.docLeft + 1);
+    await expectNoPageOverflow(page);
     await expectTightSplitInset(page);
   });
 
@@ -441,17 +459,20 @@ test.describe('分栏阅读', () => {
     const noToc = await measureReadingPanes(page);
     expect(noToc).not.toBeNull();
     expectLockedArticleMeasure(noToc!, rem);
+    expectFixedIndexWidth(noToc!.indexWidth, rem);
 
     await page.goto('/articles/pkm-method');
     const withToc = await measureReadingSplit(page);
     expect(withToc).not.toBeNull();
     expectLockedArticleMeasure(withToc!, rem);
+    expectFixedIndexWidth(withToc!.indexWidth, rem);
+    expectFixedRailWidth(withToc!.railWidth, rem);
     expect(Math.abs(withToc!.articleWidth - noToc!.articleWidth)).toBeLessThan(2);
-    expect(withToc!.docWidth).toBeLessThan(noToc!.docWidth - 8);
+    expect(Math.abs(withToc!.indexWidth - noToc!.indexWidth)).toBeLessThan(2);
   });
 
   test('分栏点无目录文章再点有目录文章，左栏宽度不变', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.setViewportSize({ width: 1600, height: 720 });
     await page.goto('/articles/embed-preview');
     const index = page.locator('[data-reading-index]');
     const before = await measureReadingPanes(page);
@@ -467,7 +488,7 @@ test.describe('分栏阅读', () => {
     expectArticleCenteredInRemaining(after!);
   });
 
-  test('768 宽左栏仍固定，目录收起且不重叠', async ({ page }) => {
+  test('768 宽两栏按比例收，目录收起且不横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 800 });
     await page.goto('/articles/pkm-method');
     await expect(page.locator('[data-reading-index]')).toBeVisible();
@@ -476,12 +497,13 @@ test.describe('分栏阅读', () => {
 
     const pos = await measureReadingPanes(page);
     expect(pos).not.toBeNull();
-    expectFixedIndexWidth(pos!.indexWidth, await rootRem(page));
+    const rem = await rootRem(page);
+    expectIndexAtMost(pos!.indexWidth, rem);
+    expect(pos!.indexWidth).toBeLessThan(READING_INDEX_REMS * rem - 8);
+    expect(pos!.articleWidth).toBeLessThan(READING_MEASURE_REMS * rem - 8);
     expect(pos!.indexRight).toBeLessThanOrEqual(pos!.docLeft + 1);
     expect(pos!.railWidth).toBeNull();
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
-    ).toBe(true);
+    await expectNoPageOverflow(page);
   });
 
   test('合集正文列出篇目，点开会进第三栏；子页不进左栏索引', async ({ page }) => {
@@ -503,7 +525,7 @@ test.describe('分栏阅读', () => {
     const part2 = listing.locator('a[href="/articles/series-demo/2"]');
     await part1.click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('Series demo: a tutorial', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
       'Series demo · Part 1',
       inner,
@@ -545,7 +567,7 @@ test.describe('分栏阅读', () => {
 
     await listing.locator('a[href="/articles/series-demo/1"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('Series demo: a tutorial', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
       'Series demo · Part 1',
       inner,
@@ -555,7 +577,7 @@ test.describe('分栏阅读', () => {
 
     await listing.locator('a[href="/articles/series-demo/2"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('Series demo: a tutorial', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
       'Series demo · Part 2',
       inner,
@@ -569,7 +591,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
     await expect(rail).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
-    await expect(doc.locator('.article-lede h1')).toHaveText('Series demo: a tutorial', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
   });
 
@@ -592,7 +614,7 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
     await expect(page.locator('[data-reading-shell]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'Series demo: a tutorial',
+      'A demo of a series of content',
       inner,
     );
   });
@@ -627,11 +649,12 @@ test.describe('分栏阅读', () => {
     const pos = await measureReadingSplit(page);
     expect(pos).not.toBeNull();
     const rem = await rootRem(page);
-    expectFixedIndexWidth(pos!.indexWidth, rem);
-    expectFixedRailWidth(pos!.railWidth, rem);
+    expectIndexAtMost(pos!.indexWidth, rem);
+    expectRailAtMost(pos!.railWidth, rem);
     expectRailAfterDoc(pos!);
     expectCenteredArticleGutters(pos!);
     expectArticleCenteredInRemaining(pos!);
+    await expectNoPageOverflow(page);
   });
 
   test('左栏点另一个项目只换正文，时间线滚动保留', async ({ page }) => {
@@ -746,7 +769,7 @@ test.describe('分栏阅读', () => {
   });
 
   test('从长文点短文只换正文，目录栏拿掉，左栏不动', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 560 });
+    await page.setViewportSize({ width: 1600, height: 560 });
     await page.goto('/articles/pkm-method');
 
     const index = page.locator('[data-reading-index]');
@@ -776,7 +799,7 @@ test.describe('分栏阅读', () => {
     await index.locator('a[href="/articles/series-demo"]').click({ force: true });
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'Series demo: a tutorial',
+      'A demo of a series of content',
       inner,
     );
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);

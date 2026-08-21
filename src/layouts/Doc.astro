@@ -44,7 +44,7 @@ const series = isArticle ? await seriesContext(doc) : null;
 
 {isArticle && <ReadingProgress client:load slug={slug} />}
 
-<div class="article-shell relative mx-auto max-w-2xl px-4 pt-8 pb-14 sm:px-6">
+<div class="article-shell relative px-4 pt-8 pb-14 sm:px-6">
   <header class="article-lede">
     {
       isArticle && date && (
