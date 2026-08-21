@@ -3,10 +3,11 @@ export const COMMENT_BODY_MAX = 1000;
 export const COMMENT_EMAIL_MAX = 120;
 export const COMMENT_ANON_NAME = '匿名';
 
-/** HEY mailbox. Plus-address is the To used for screening/search. */
-export const FEEDBACK_MAILBOX = 'Hey@ethanchang.io';
-export const FEEDBACK_TO = 'Hey+blog@ethanchang.io';
-export const FEEDBACK_SUBJECT_TAG = '[blog]';
+/** Locked destination for the EMAIL send_email binding. */
+export const FEEDBACK_TO = 'hey@ethanchang.io';
+/** Site-owned From. Visitor address is Reply-To only, never SMTP From. */
+export const FEEDBACK_FROM = 'guestbook@ethanchang.io';
+export const FEEDBACK_SUBJECT_TAG = '[留言]';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9._/-]{0,178}[a-z0-9]$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,7 +24,7 @@ export function isCommentNameTooLong(raw: string): boolean {
   return raw.replace(/\s+/g, ' ').trim().length > COMMENT_NAME_MAX;
 }
 
-/** Empty name is allowed; fall back to 匿名. */
+/** Empty name is allowed; fall back to 匿名 (mail body / subject only). */
 export function resolveCommentName(raw: string): string {
   const name = raw.replace(/\s+/g, ' ').trim();
   if (name.length > 0 && name.length <= COMMENT_NAME_MAX) return name;

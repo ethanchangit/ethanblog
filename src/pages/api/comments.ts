@@ -85,7 +85,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const env = locals.runtime?.env;
-  if (!env?.RESEND_API_KEY?.trim()) {
+  if (!env?.EMAIL) {
     return jsonOrRedirect(isForm, request, slug, { error: 'Email is not configured' }, 503);
   }
 
@@ -97,6 +97,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const url = new URL(localizeHref(articleHref(slug), locale), site.url).href;
 
   const sent = await sendFeedbackEmail(env, {
+    slug,
     title: article.data.title,
     url,
     name: authorName,
