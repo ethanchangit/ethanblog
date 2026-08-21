@@ -116,12 +116,20 @@ test.describe('Language（中/EN）', () => {
     const lede = page.locator('article > header.mb-10');
     await expect(page.locator('h1')).toHaveText('Now', inner);
     await expect(lede.locator('p.ui-meta')).toHaveText('Updated August 21, 2026', inner);
+    await expect(page.getByText("This is a Now page: what I'm doing lately.")).toBeVisible();
+    await expect(
+      page.locator('.prose-site a[href="https://nownownow.com/about"]').filter({ visible: true }),
+    ).toHaveText('nownownow.com');
     await expect(page.getByText('Writing the blog, refining notes and project pages')).toBeVisible();
 
     await chooseLang(page, '简体中文');
     await expect(page).toHaveURL((url) => url.pathname === '/zh/now');
     await expect(page.locator('h1')).toHaveText('现在', inner);
     await expect(lede.locator('p.ui-meta')).toHaveText('更新于 2026 年 8 月 21 日', inner);
+    await expect(page.getByText('这是一页 Now：最近在做什么。')).toBeVisible();
+    await expect(
+      page.locator('.prose-site a[href="https://nownownow.com/about"]').filter({ visible: true }),
+    ).toHaveText('nownownow.com');
     await expect(page.getByText('写博客，打磨笔记与项目页')).toBeVisible();
   });
 

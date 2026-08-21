@@ -8,6 +8,7 @@ import { copy } from '@/lib/i18n';
 
 const [year, month, day] = nowUpdated.split('-').map(Number);
 const updated = new Date(year, month - 1, day);
+const nowAboutHref = 'https://nownownow.com/about';
 ---
 
 <Base
@@ -25,6 +26,14 @@ const updated = new Date(year, month - 1, day);
     </header>
 
     <div class="prose-site">
+      <p>
+        <span class="i18n-zh" aria-hidden="true">
+          这是一页 Now：最近在做什么。这种格式来自 <a href={nowAboutHref} target="_blank" rel="noopener noreferrer">nownownow.com</a>。
+        </span>
+        <span class="i18n-en">
+          This is a Now page: what I'm doing lately. The format comes from <a href={nowAboutHref} target="_blank" rel="noopener noreferrer">nownownow.com</a>.
+        </span>
+      </p>
       <p>
         <span class="i18n-zh" aria-hidden="true">{nowIntro}</span>
         <span class="i18n-en">{nowIntroEn}</span>

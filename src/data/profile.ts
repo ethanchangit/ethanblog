@@ -2,6 +2,7 @@
  * 站点与个人资料的单一数据源。
  * 首页（身份）、/now、导航、RSS 都从这里读取 —— 改这里即可全站生效。
  * 更新 Now 页：只改 nowIntro / now / nowUpdated（不要另写一份 MDX）。
+ * 「什么是 Now 页」的格式说明（含 nownownow.com 链接）写在 src/pages/now.astro，不放这里。
  */
 
 export const site = {
