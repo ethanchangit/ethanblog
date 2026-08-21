@@ -1,4 +1,4 @@
-/** Canonical articles listing. The domain root `/` 301s here. */
+export const HOME_PATH = '/';
 export const ARTICLES_PATH = '/articles';
 export const PROJECTS_PATH = '/projects';
 export const TAGS_PATH = '/tags';
