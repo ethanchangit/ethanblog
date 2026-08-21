@@ -33,7 +33,8 @@ test.describe('文章留言', () => {
 
     const honeypot = comments.locator('input[name="website"]');
     await expect(honeypot).toHaveCount(1);
-    await expect(honeypot).toBeHidden();
+    await expect(comments.locator('.comment-honeypot')).toHaveAttribute('aria-hidden', 'true');
+    await expect(comments.getByRole('textbox', { name: 'Website' })).toHaveCount(0);
 
     const bodyBox = await comments.locator('textarea[name="body"]').boundingBox();
     const foot = comments.locator('.comment-compose-foot');
