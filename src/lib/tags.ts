@@ -3,8 +3,6 @@ import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
 
 export type PublishedArticle = DocEntry;
 
-export const ARTICLES_PER_PAGE = 7;
-
 export async function publishedArticles(): Promise<PublishedArticle[]> {
   return (await docsBySlot('article'))
     .filter(isIndexed)
@@ -17,19 +15,6 @@ export async function publishedArticles(): Promise<PublishedArticle[]> {
 
 export function articleYear(date: Date): number {
   return date.getUTCFullYear();
-}
-
-export function paginateArticles<T>(items: T[], page: number, perPage = ARTICLES_PER_PAGE) {
-  const totalPages = Math.max(1, Math.ceil(items.length / perPage));
-  const current = Math.min(Math.max(1, page), totalPages);
-  const start = (current - 1) * perPage;
-  return {
-    items: items.slice(start, start + perPage),
-    page: current,
-    totalPages,
-    hasPrev: current > 1,
-    hasNext: current < totalPages,
-  };
 }
 
 export function groupArticlesByYear(articles: PublishedArticle[]): { year: number; items: PublishedArticle[] }[] {

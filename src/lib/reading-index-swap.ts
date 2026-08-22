@@ -2,9 +2,9 @@
  * 分栏阅读时拦截左栏链接，避免 ClientRouter 整页 morph。
  *
  * 不能靠 `astro:before-preparation` 的 preventDefault：Astro 会把它当成
- * 失败并 `location.href = …`，整页跳到 `/articles/2` 这类单栏索引。
+ * 失败并 `location.href = …`，整页跳到 `/articles` 这类单栏索引。
  * 因此在捕获阶段拦截 click：
- * - 分页 / 文章↔项目：只换 `[data-reading-index]`，中栏不动。
+ * - 文章↔项目：只换 `[data-reading-index]`，中栏不动。
  * - 文章/项目卡片：只换 `[data-reading-doc]` 与 TOC 栏，左栏 DOM 与 scrollTop 原样保留。
  *
  * 点当前篇必须是 no-op：浏览器会在 mousedown 时 focus 卡片，默认把焦点滚进

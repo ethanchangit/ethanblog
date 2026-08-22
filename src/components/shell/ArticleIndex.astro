@@ -1,27 +1,19 @@
 ---
 import Card from '@/components/shell/Card.astro';
-import I18n from '@/components/shell/I18n.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
-import { articlesPageHref, ARTICLES_PATH, HOME_PATH } from '@/lib/routes';
+import { ARTICLES_PATH, HOME_PATH } from '@/lib/routes';
 import { seriesParentId } from '@/lib/docs';
-import {
-  articleCardProps,
-  groupArticlesByYear,
-  paginateArticles,
-  publishedArticles,
-} from '@/lib/tags';
+import { articleCardProps, groupArticlesByYear, publishedArticles } from '@/lib/tags';
 
 interface Props {
-  page: number;
   currentId?: string;
 }
 
-const { page, currentId } = Astro.props;
+const { currentId } = Astro.props;
 const lp = Astro.locals.localePath;
 const all = await publishedArticles();
-const paged = paginateArticles(all, page);
-const groups = groupArticlesByYear(paged.items);
+const groups = groupArticlesByYear(all);
 const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefined;
 ---
 
@@ -54,27 +46,5 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
         </div>
       </section>
     ))
-  }
-  {
-    paged.totalPages > 1 && (
-      <nav
-        class="mt-12 flex flex-col gap-2"
-        aria-label="文章分页"
-        data-i18n-aria="articlesPagerAria"
-      >
-        {paged.hasPrev && (
-          <a href={lp(articlesPageHref(paged.page - 1))} class="ui-link-subtle self-start">
-            {'<- '}
-            <I18n k="articlesNewer" />
-          </a>
-        )}
-        {paged.hasNext && (
-          <a href={lp(articlesPageHref(paged.page + 1))} class="ui-link-subtle self-end">
-            <I18n k="articlesEarlier" />
-            {' ->'}
-          </a>
-        )}
-      </nav>
-    )
   }
 </section>

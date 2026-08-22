@@ -39,7 +39,15 @@ export default defineConfig({
       status: 301,
       destination: '/articles',
     },
+    '/articles/2': {
+      status: 301,
+      destination: '/articles',
+    },
     '/zh/articles/1': {
+      status: 301,
+      destination: '/zh/articles',
+    },
+    '/zh/articles/2': {
       status: 301,
       destination: '/zh/articles',
     },

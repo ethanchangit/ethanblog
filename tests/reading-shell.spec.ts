@@ -851,7 +851,7 @@ test.describe('分栏阅读', () => {
     ).toBeVisible();
   });
 
-  test('分栏点「更早」只换左栏，正文与 URL 不变', async ({ page }) => {
+  test('左栏一次列出全部文章，点更早的卡片只换正文', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/articles/pkm-method');
 
@@ -861,18 +861,9 @@ test.describe('分栏阅读', () => {
       'My PKM practice: from notes to a knowledge network',
       inner,
     );
-
-    await index.getByRole('link', { name: 'Earlier' }).click();
-
-    await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
-    await expect(page.locator('[data-reading-shell]')).toBeVisible();
-    await expect(doc.locator('.article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
-      inner,
-    );
+    await expect(index.getByRole('link', { name: 'Earlier' })).toHaveCount(0);
+    await expect(index.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
     await expect(index.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    await expect(index.locator('a[href="/articles/embed-preview"]')).toHaveCount(0);
-    await expect(index.getByRole('link', { name: 'Newer' })).toBeVisible();
 
     await index.locator('a[href="/articles/dummy-2026-01"]').click({ force: true });
     await expect(page).toHaveURL(/\/articles\/dummy-2026-01\/?$/);
@@ -881,7 +872,7 @@ test.describe('分栏阅读', () => {
       'aria-current',
       'page',
     );
-    await expect(index.locator('a[href="/articles/embed-preview"]')).toHaveCount(0);
+    await expect(index.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
   });
 
   test('分栏点左栏标题「项目」只换左栏，正文与 URL 不变', async ({ page }) => {
@@ -1019,22 +1010,6 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expectKeptShell(page, 'index');
     await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
-  });
-
-  test('左栏翻页后展开仍进完整文章列表', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
-    const index = page.locator('[data-reading-index]');
-    await index.getByRole('link', { name: 'Earlier' }).click();
-    await expect(index.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    const expand = await revealReadingExpand(index);
-    await expect(expand).toHaveAttribute('href', '/articles');
-    await markReadingShell(page);
-
-    await expand.click();
-    await expect(page).toHaveURL((url) => url.pathname === '/articles');
-    await expectKeptShell(page, 'index');
-    await expect(index.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
   });
 
   test('左栏换成项目后展开进完整项目列表', async ({ page }) => {
