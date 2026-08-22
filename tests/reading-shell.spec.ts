@@ -148,7 +148,12 @@ async function measureReadingSplit(page: Page) {
 
 function expectRailAfterDoc(pos: ReadingSplitPos) {
   expect(pos.tocLeft).toBeGreaterThanOrEqual(pos.articleRight - 1);
-  expect(pos.railLeft).toBeGreaterThanOrEqual(pos.docRight - 2);
+  expect(pos.railLeft).toBeGreaterThanOrEqual(pos.articleRight - 2);
+}
+
+function expectDocIsPageScroll(pos: Pick<ReadingPanePos, 'docLeft' | 'docRight' | 'viewport'>) {
+  expect(pos.docLeft).toBeLessThanOrEqual(1);
+  expect(pos.docRight).toBeGreaterThanOrEqual(pos.viewport - 2);
 }
 
 function expectFixedIndexWidth(width: number, rem: number) {
@@ -203,23 +208,24 @@ async function expectPanesDoNotMicroScroll(page: Page) {
   }
 }
 
-function expectCenteredArticleGutters(pos: Pick<ReadingPanePos, 'articleLeft' | 'articleRight' | 'docLeft' | 'docRight'>) {
-  const left = pos.articleLeft - pos.docLeft;
-  const right = pos.docRight - pos.articleRight;
-  const room = pos.docRight - pos.docLeft - (pos.articleRight - pos.articleLeft);
+function expectCenteredArticleGutters(
+  pos: Pick<ReadingPanePos, 'articleLeft' | 'articleRight' | 'indexRight' | 'railLeft' | 'viewport'>,
+) {
+  const left = pos.articleLeft - pos.indexRight;
+  const right = (pos.railLeft ?? pos.viewport) - pos.articleRight;
+  const room = left + right;
   if (room < 24) {
     expect(Math.abs(left - right)).toBeLessThan(16);
     return;
   }
-  expect(left).toBeGreaterThanOrEqual(12);
-  expect(right).toBeGreaterThanOrEqual(12);
+  expect(left).toBeGreaterThanOrEqual(0);
+  expect(right).toBeGreaterThanOrEqual(0);
   expect(Math.abs(left - right)).toBeLessThan(16);
 }
 
-function expectLockedArticleMeasure(pos: Pick<ReadingPanePos, 'articleWidth' | 'docWidth'>, rem: number) {
+function expectLockedArticleMeasure(pos: Pick<ReadingPanePos, 'articleWidth'>, rem: number) {
   const measure = READING_MEASURE_REMS * rem;
-  const expected = Math.min(measure, pos.docWidth);
-  expect(Math.abs(pos.articleWidth - expected)).toBeLessThan(3);
+  expect(Math.abs(pos.articleWidth - measure)).toBeLessThan(3);
 }
 
 function expectArticleCenteredInRemaining(pos: Pick<ReadingPanePos, 'articleMid' | 'remainingMid'>) {
@@ -413,8 +419,9 @@ test.describe('分栏阅读', () => {
     expectRailAfterDoc(pos!);
     expectCenteredArticleGutters(pos!);
     expectArticleCenteredInRemaining(pos!);
-    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.docLeft + 1);
-    expect(pos!.docWidth).toBeGreaterThan(36 * 16);
+    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.articleLeft + 1);
+    expect(pos!.articleWidth).toBeGreaterThan(36 * 16);
+    expectDocIsPageScroll(pos!);
     await expectNoPageOverflow(page);
     await expectTightSplitInset(page);
 
@@ -476,7 +483,8 @@ test.describe('分栏阅读', () => {
     expectRailAtMost(withToc!.railWidth, rem);
     expectArticleCenteredInRemaining(withToc!);
     expectCenteredArticleGutters(withToc!);
-    expect(withToc!.indexRight).toBeLessThanOrEqual(withToc!.docLeft + 1);
+    expect(withToc!.indexRight).toBeLessThanOrEqual(withToc!.articleLeft + 1);
+    expectDocIsPageScroll(withToc!);
     await expectNoPageOverflow(page);
     await expectTightSplitInset(page);
   });
@@ -531,7 +539,8 @@ test.describe('分栏阅读', () => {
     expectIndexAtMost(pos!.indexWidth, rem);
     expect(pos!.indexWidth).toBeLessThan(READING_INDEX_REMS * rem - 8);
     expect(pos!.articleWidth).toBeLessThan(READING_MEASURE_REMS * rem - 8);
-    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.docLeft + 1);
+    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.articleLeft + 1);
+    expectDocIsPageScroll(pos!);
     expect(pos!.railWidth).toBeNull();
     await expectNoPageOverflow(page);
   });
@@ -543,6 +552,58 @@ test.describe('分栏阅读', () => {
       await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
       await expectPanesDoNotMicroScroll(page);
     }
+  });
+
+  test('gutter 能滚正文，滚动条在视口右边', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/articles/embed-preview');
+    const pos = await measureReadingPanes(page);
+    expect(pos).not.toBeNull();
+    expectDocIsPageScroll(pos!);
+    expect(pos!.indexRight).toBeLessThanOrEqual(pos!.articleLeft + 1);
+
+    const gutter = await page.evaluate(() => {
+      const doc = document.querySelector('[data-reading-doc]');
+      const index = document.querySelector('[data-reading-index]');
+      const article = document.querySelector('.article-shell');
+      if (!(doc instanceof HTMLElement) || !(index instanceof HTMLElement) || !(article instanceof HTMLElement)) {
+        return null;
+      }
+      const ir = index.getBoundingClientRect();
+      const ar = article.getBoundingClientRect();
+      const dr = doc.getBoundingClientRect();
+      const midX = Math.round((ir.right + ar.left) / 2);
+      const leftX = Math.round(ir.left / 2);
+      const y = Math.round(dr.top + 140);
+      const hit = (x: number) => {
+        const el = document.elementFromPoint(x, y);
+        return {
+          x,
+          isDoc: !!el?.closest('[data-reading-doc]'),
+          isIndex: !!el?.closest('[data-reading-index]'),
+          isArticle: !!el?.closest('.article-shell'),
+        };
+      };
+      return {
+        y,
+        canScroll: doc.scrollHeight > doc.clientHeight + 8,
+        mid: hit(midX),
+        left: hit(leftX),
+      };
+    });
+    expect(gutter).not.toBeNull();
+    expect(gutter!.canScroll).toBe(true);
+    expect(gutter!.mid.isDoc).toBe(true);
+    expect(gutter!.mid.isIndex).toBe(false);
+    expect(gutter!.mid.isArticle).toBe(false);
+    expect(gutter!.left.isDoc).toBe(true);
+    expect(gutter!.left.isIndex).toBe(false);
+
+    const doc = page.locator('[data-reading-doc]');
+    const before = await doc.evaluate((el) => el.scrollTop);
+    await page.mouse.move(gutter!.mid.x, gutter!.y);
+    await page.mouse.wheel(0, 500);
+    await expect.poll(async () => doc.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
   });
 
   test('合集正文列出篇目，点开会进第三栏；子页不进左栏索引', async ({ page }) => {

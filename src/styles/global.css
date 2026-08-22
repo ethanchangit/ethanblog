@@ -1005,6 +1005,9 @@
    * 展开索引是左栏 overlay 拉满，不改其余轨道，避免正文左右回弹。
    * 窄屏一页一样：列表页只显示列表，文章页只显示文章。没有 TOC。
    * 左栏发丝线是结构分隔，不是卡片 chrome。
+   *
+   * 正文滚动层铺满整行（含 gutter），滚动条在视口最右侧；文章仍落在第 4 轨。
+   * 左栏 / TOC 叠在这层上面，各自接收点击；空 gutter 的滚轮落到正文层。
    */
   .reading-shell {
     --reading-index-width: 24rem;
@@ -1253,20 +1256,46 @@
     }
 
     .reading-doc {
-      grid-column: 4;
+      grid-column: 1 / -1;
       grid-row: 1;
+      z-index: 0;
+      display: grid;
+      grid-template-columns: subgrid;
+      align-items: start;
+      align-content: start;
+    }
+
+    .reading-doc > .article-shell,
+    .reading-doc > [data-about-panel] {
+      grid-column: 4;
+      width: 100%;
+      max-width: none;
+      margin-inline: 0;
+    }
+
+    .reading-doc > :not(.article-shell, [data-about-panel]) {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      pointer-events: none;
     }
 
     .reading-rail {
       grid-column: 6;
       grid-row: 1;
+      z-index: 1;
+      pointer-events: none;
     }
 
-    .reading-doc .article-shell,
-    .reading-doc [data-about-panel] {
-      width: 100%;
-      max-width: none;
-      margin-inline: 0;
+    .reading-rail .toc,
+    .reading-rail .reading-series {
+      pointer-events: auto;
+      max-height: 100%;
+      overflow-x: clip;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      overscroll-behavior-x: none;
     }
 
     .reading-doc,
@@ -1417,6 +1446,15 @@
 
     .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-doc {
       grid-column: 2;
+      display: block;
+    }
+
+    .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-doc > :not(.article-shell, [data-about-panel]) {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      pointer-events: auto;
     }
 
     .reading-shell:has(> .reading-rail[data-reading-child-open]) .reading-rail {
@@ -1434,6 +1472,7 @@
       flex-direction: column;
       overflow: hidden;
       padding: 0;
+      pointer-events: auto;
       border-left: 1px solid var(--color-surface-700);
     }
 
