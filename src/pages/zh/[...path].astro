@@ -1,6 +1,8 @@
 ---
 import { zhRestPaths } from '@/lib/zh-routes';
 
+export const prerender = import.meta.env.PROD;
+
 export async function getStaticPaths() {
   const paths = await zhRestPaths();
   return paths.map((path) => ({ params: { path } }));

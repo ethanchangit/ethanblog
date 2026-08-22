@@ -48,6 +48,32 @@ export async function docsBySlot(
   return (await loadDocs(opts)).filter((entry) => entry.data.slot === slot);
 }
 
+/** `astro dev` 收录草稿，给本地编辑器预览；生产构建仍排除。 */
+export const includeDraftsInDev = import.meta.env.DEV;
+
+export async function findDoc(
+  collection: 'articles',
+  id: string,
+  opts?: { includeDrafts?: boolean },
+): Promise<CollectionEntry<'articles'> | undefined>;
+export async function findDoc(
+  collection: 'projects',
+  id: string,
+  opts?: { includeDrafts?: boolean },
+): Promise<CollectionEntry<'projects'> | undefined>;
+export async function findDoc(
+  collection: 'articles' | 'projects',
+  id: string,
+  opts: { includeDrafts?: boolean } = {},
+): Promise<DocEntry | undefined> {
+  const entries = await getCollection(
+    collection,
+    opts.includeDrafts ? undefined : ({ data }) => !data.draft,
+  );
+  return entries.find((item) => item.id === id);
+}
+
+
 /** MDX `<DocRef of="articles/pkm-method" />` / `projects/aletheia`。 */
 export function parseDocRef(of: string): { collection: 'articles' | 'projects'; id: string } {
   const trimmed = of.trim().replace(/^\/+/, '');

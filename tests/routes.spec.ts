@@ -73,6 +73,13 @@ test.describe('Route crawling', () => {
     await expect(page.getByRole('heading', { name: 'This page does not exist' })).toBeVisible();
   });
 
+  test('/studio is not shipped in the production preview', async ({ page, request }) => {
+    const pageResponse = await page.goto('/studio');
+    expect(pageResponse?.status()).toBe(404);
+    const api = await request.get('/__studio/api/docs');
+    expect(api.status()).toBeGreaterThanOrEqual(400);
+  });
+
   for (const route of KEY_PAGES_FOR_LINK_CHECK) {
     test(`${route} has no broken internal links`, async ({ page, request }) => {
       await page.goto(route);

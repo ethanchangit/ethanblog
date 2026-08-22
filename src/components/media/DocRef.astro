@@ -1,6 +1,6 @@
 ---
 import Card from '@/components/shell/Card.astro';
-import { resolveDocRef } from '@/lib/docs';
+import { includeDraftsInDev, resolveDocRef } from '@/lib/docs';
 import { docCardProps } from '@/lib/tags';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
 }
 
 const { of } = Astro.props;
-const entry = await resolveDocRef(of);
+const entry = await resolveDocRef(of, { includeDrafts: includeDraftsInDev });
 const card = docCardProps(entry);
 const lp = Astro.locals.localePath;
 ---

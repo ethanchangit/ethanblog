@@ -1,4 +1,4 @@
-import { docsBySlot } from '@/lib/docs';
+import { docsBySlot, includeDraftsInDev } from '@/lib/docs';
 import { publishedArticles, uniqueTags } from '@/lib/tags';
 
 const STATIC_SEGMENTS = [
@@ -18,9 +18,9 @@ const STATIC_SEGMENTS = [
 /** Rest paths under `/zh/…` that should rewrite to the unprefixed English page. */
 export async function zhRestPaths(): Promise<string[]> {
   const [articles, indexed, projects] = await Promise.all([
-    docsBySlot('article'),
+    docsBySlot('article', { includeDrafts: includeDraftsInDev }),
     publishedArticles(),
-    docsBySlot('project'),
+    docsBySlot('project', { includeDrafts: includeDraftsInDev }),
   ]);
   const paths = new Set<string>(STATIC_SEGMENTS);
 

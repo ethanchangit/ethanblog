@@ -45,6 +45,7 @@
 ## 开发环境说明
 
 - Node 22+，`npm install` 后即可 `npm run dev`（无 submodule、无额外工具链）。
+- `npm run studio`（或 `npm run dev`）在 http://localhost:4321/studio 打开本地写作台：创建文章/项目、中英分页编辑、右侧改元数据、插入已有页面或给当前页加子页面、站点预览、收入 `/blogs`、提交 `src/content`。该路由与 `/__studio/api` 只在 `astro dev` 注入，生产构建不打包。合集不是一种特殊页面，只是带 `DocList` 子页的普通文章。
 - `npm run preview` 用静态服务器伺服 dist/（`@astrojs/cloudflare` adapter 不支持 `astro preview`）。
 - 构建产物 `dist/`（已 gitignore）。
 - 提交前跑验证四连 `npm run validate:content && npm run check && npm run build && npm run test`。

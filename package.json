@@ -5,11 +5,12 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
+    "studio": "astro dev",
     "build": "astro build && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
-    "test": "playwright test",
+    "test": "node --test studio/lib.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler deploy -c workers/guestbook/wrangler.toml && wrangler pages deploy dist --project-name=ethanblog",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
@@ -31,7 +32,8 @@
     "svelte": "^5.28.0",
     "tailwindcss": "^4.1.0",
     "three": "^0.185.1",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260703.1",

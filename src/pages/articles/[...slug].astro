@@ -2,13 +2,15 @@
 import ReadingShell from '@/components/shell/ReadingShell.astro';
 import Doc from '@/layouts/Doc.astro';
 import Toc from '@/components/shell/Toc.astro';
-import { docsBySlot } from '@/lib/docs';
+import { docsBySlot, findDoc, includeDraftsInDev } from '@/lib/docs';
 import { hasToc } from '@/lib/toc';
 import { render } from 'astro:content';
 
+export const prerender = import.meta.env.PROD;
+
 // 纯数字 slug 留给旧分页 URL（`/articles/2` → `/articles`），避免和文章抢路径。
 export async function getStaticPaths() {
-  const articles = await docsBySlot('article');
+  const articles = await docsBySlot('article', { includeDrafts: includeDraftsInDev });
   return articles
     .filter((article) => !/^\d+$/.test(article.id))
     .map((article) => ({
@@ -17,7 +19,13 @@ export async function getStaticPaths() {
     }));
 }
 
-const { article } = Astro.props;
+const slug = Astro.params.slug ?? '';
+const article =
+  Astro.props.article ??
+  (await findDoc('articles', slug, { includeDrafts: includeDraftsInDev }));
+if (!article || /^\d+$/.test(article.id)) {
+  return Astro.rewrite('/404');
+}
 const rendered = await render(article);
 const split = rendered.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
 const zhHeadings =
