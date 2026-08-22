@@ -540,7 +540,7 @@ function render() {
         </div>
       </header>
       ${state.error ? `<p class="px-4 text-sm text-ink-200 sm:px-6" role="alert">${esc(state.error)}</p>` : ''}
-      <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[14rem_minmax(0,1fr)_18rem]">
+      <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[13rem_minmax(0,1fr)_20rem]">
         <aside class="flex min-h-0 flex-col gap-6 overflow-y-auto px-4 py-4 sm:px-6 md:px-4">
           <label><span class="sr-only">筛选</span><input class="comment-field" type="search" placeholder="筛选文章" data-testid="studio-filter" data-filter value="${attr(state.filter)}" /></label>
           <section>
