@@ -11,6 +11,7 @@ import SeriesNav from '@/components/shell/SeriesNav.astro';
 import { site } from '@/data/profile';
 import { seriesContext, type DocEntry } from '@/lib/docs';
 import { localizeHref } from '@/lib/locale';
+import { docJsonLd } from '@/lib/agent';
 
 interface Props {
   doc: DocEntry;
@@ -40,7 +41,10 @@ const canonicalUrl = new URL(
   site.url,
 ).href;
 const series = isArticle ? await seriesContext(doc) : null;
+const jsonLd = docJsonLd(doc);
 ---
+
+<script is:inline type="application/ld+json" set:html={jsonLd} />
 
 {isArticle && <ReadingProgress client:load slug={slug} />}
 

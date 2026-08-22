@@ -1,0 +1,15 @@
+---
+import Base from '@/layouts/Base.astro';
+import AgentProse from '@/components/shell/AgentProse.astro';
+import { contactMarkdown, liteMarkdownHtml } from '@/lib/agent';
+import { copy } from '@/lib/i18n';
+---
+
+<Base
+  title={copy['zh-CN'].contactPageTitle}
+  titleEn={copy.en.contactPageTitle}
+  description={copy['zh-CN'].contactPageDesc}
+  descriptionEn={copy.en.contactPageDesc}
+>
+  <AgentProse zh={liteMarkdownHtml(contactMarkdown('zh'))} en={liteMarkdownHtml(contactMarkdown('en'))} />
+</Base>

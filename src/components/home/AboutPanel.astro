@@ -2,8 +2,10 @@
 import I18n from '@/components/shell/I18n.astro';
 import { profile, skills } from '@/data/profile';
 import { domainKey } from '@/lib/i18n';
+import { CONTACT_PATH, FOR_AGENTS_PATH, NOW_PATH, PRIVACY_PATH } from '@/lib/routes';
 
 const domains = [...new Set(skills.map((s) => s.domain))];
+const lp = Astro.locals.localePath;
 ---
 
 <article class="px-4 py-14 sm:px-6" data-about-panel>
@@ -53,6 +55,30 @@ const domains = [...new Set(skills.map((s) => s.domain))];
           );
         })
       }
-    </div>
+      </div>
+    </section>
+
+  <section class="mt-12 prose-site" data-about-howto>
+    <h2><I18n k="aboutHowTitle" /></h2>
+    <h3><I18n k="aboutHowArticlesTitle" /></h3>
+    <p><I18n k="aboutHowArticlesBody" /></p>
+    <h3><I18n k="aboutHowMachineTitle" /></h3>
+    <p>
+      <span class="i18n-zh" aria-hidden="true">
+        同一地址在 <code>Accept: text/markdown</code> 时给出 Markdown。目录是 <a href="/llms.txt">llms.txt</a>，说明写在 <a href={lp(FOR_AGENTS_PATH)}>ethanchang.io 给 agent 的开发者资源</a>。Now 页在 <a href={lp(NOW_PATH)}>Now</a>。
+      </span>
+      <span class="i18n-en">
+        The same URL serves Markdown when the client sends <code>Accept: text/markdown</code>. Start at <a href="/llms.txt">llms.txt</a>. The stack is documented at <a href={lp(FOR_AGENTS_PATH)}>ethanchang.io developer resources</a>. The living status page is <a href={lp(NOW_PATH)}>Now</a>.
+      </span>
+    </p>
+    <h3><I18n k="aboutHowContactTitle" /></h3>
+    <p>
+      <span class="i18n-zh" aria-hidden="true">
+        写信到 <a href={lp(CONTACT_PATH)}>联系</a>。收集了什么、没收集什么，写在 <a href={lp(PRIVACY_PATH)}>隐私</a>。
+      </span>
+      <span class="i18n-en">
+        Write via <a href={lp(CONTACT_PATH)}>Contact</a>. What is collected, and what is not, is on <a href={lp(PRIVACY_PATH)}>Privacy</a>.
+      </span>
+    </p>
   </section>
 </article>

@@ -5,6 +5,9 @@ export const BLOGS_PATH = '/blogs';
 export const TAGS_PATH = '/tags';
 export const SEARCH_PATH = '/search';
 export const NOW_PATH = '/now';
+export const CONTACT_PATH = '/contact';
+export const PRIVACY_PATH = '/privacy';
+export const FOR_AGENTS_PATH = '/for-agents';
 
 export function articleHref(id: string): string {
   return `${ARTICLES_PATH}/${id}`;

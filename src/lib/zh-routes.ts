@@ -1,7 +1,19 @@
 import { docsBySlot } from '@/lib/docs';
 import { ARTICLES_PER_PAGE, publishedArticles, uniqueTags } from '@/lib/tags';
 
-const STATIC_SEGMENTS = ['articles', 'projects', 'blogs', 'now', 'search', 'tags', 'lab', '404'] as const;
+const STATIC_SEGMENTS = [
+  'articles',
+  'projects',
+  'blogs',
+  'now',
+  'search',
+  'tags',
+  'lab',
+  '404',
+  'contact',
+  'privacy',
+  'for-agents',
+] as const;
 
 /** Rest paths under `/zh/…` that should rewrite to the unprefixed English page. */
 export async function zhRestPaths(): Promise<string[]> {

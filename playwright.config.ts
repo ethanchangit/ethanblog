@@ -20,7 +20,7 @@ export default defineConfig({
       : {}),
   },
   webServer: {
-    command: 'npx serve dist -l 4322 -c ../serve.json',
+    command: 'node --experimental-strip-types scripts/preview.mjs --port 4322',
     url: 'http://localhost:4322',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

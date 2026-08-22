@@ -9,6 +9,8 @@ import Footer from '@/components/shell/Footer.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
 import { isZhPath, stripLocalePrefix, withLocalePrefix } from '@/lib/locale';
+import { markdownAssetPath } from '@/lib/accept';
+import { siteJsonLd } from '@/lib/agent';
 
 interface Props {
   title?: string;
@@ -42,6 +44,8 @@ const canonical = new URL(canonicalPath, site.url);
 const unprefixedPath = stripLocalePrefix(canonicalPath);
 const enUrl = new URL(unprefixedPath, site.url);
 const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
+const markdownUrl = new URL(markdownAssetPath(canonicalPath), site.url);
+const jsonLd = siteJsonLd();
 ---
 
 <!doctype html>
@@ -111,6 +115,8 @@ const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
     <link rel="alternate" hreflang="x-default" href={enUrl} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+    <link rel="alternate" type="text/markdown" href={markdownUrl} />
+    <script is:inline type="application/ld+json" set:html={jsonLd} />
     <meta name="generator" content={Astro.generator} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={pageDescription} />

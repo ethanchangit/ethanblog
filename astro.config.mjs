@@ -11,7 +11,21 @@ import { remarkLangSplit } from './plugins/remark-lang-split.mjs';
 export default defineConfig({
   site: 'https://ethanchang.io',
   output: 'static',
-  adapter: cloudflare({ imageService: 'compile' }),
+  adapter: cloudflare({
+    imageService: 'compile',
+    routes: {
+      extend: {
+        include: [{ pattern: '/*' }],
+        exclude: [
+          { pattern: '/_astro/*' },
+          { pattern: '/media/*' },
+          { pattern: '/demos/*' },
+          { pattern: '/favicon.svg' },
+          { pattern: '/og-default.svg' },
+        ],
+      },
+    },
+  }),
   redirects: {
     '/about': {
       status: 301,
