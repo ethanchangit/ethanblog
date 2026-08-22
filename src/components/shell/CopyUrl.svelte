@@ -73,7 +73,7 @@
 
 <button
   type="button"
-  class="mt-4 inline-flex items-center gap-1.5 py-1 text-xs font-medium tracking-wide text-ink-400 transition-colors hover:text-ink-100 motion-reduce:transition-none"
+  class="copy-url-btn mt-4 inline-flex items-center gap-1.5 py-1 text-xs font-medium tracking-wide text-ink-400 transition-colors hover:text-ink-100 motion-reduce:transition-none"
   aria-label={aria}
   aria-live="polite"
   data-i18n-aria={copied ? 'copyUrlCopied' : 'copyUrlAria'}

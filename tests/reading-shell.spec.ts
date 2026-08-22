@@ -931,9 +931,22 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/articles/pkm-method');
     await expect(page.locator('[data-reading-index]')).toBeHidden();
-    await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
+    const back = page.getByRole('link', { name: '← Articles' });
+    await expect(back).toBeVisible();
+    const navBox = await page.locator('header.site-nav').boundingBox();
+    const backBox = await back.boundingBox();
+    const titleBox = await page.locator('[data-reading-doc] .article-lede h1').boundingBox();
+    expect(navBox).toBeTruthy();
+    expect(backBox).toBeTruthy();
+    expect(titleBox).toBeTruthy();
+    expect(backBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height - 2);
+    expect(titleBox!.y).toBeGreaterThan(backBox!.y);
+    await expect(page.locator('[data-reading-rail]')).toBeVisible();
+    await expect(page.locator('[data-reading-toc-fold] > summary')).toBeVisible();
+    await expect(page.locator('[data-reading-toc-fold] nav.toc')).toBeHidden();
+    await page.locator('[data-reading-toc-fold] > summary').click();
+    await expect(page.locator('[data-reading-toc-fold] nav.toc')).toBeVisible();
   });
 
   test('分栏点 EthanChang 回到首页 About', async ({ page }) => {

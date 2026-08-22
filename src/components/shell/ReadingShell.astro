@@ -72,6 +72,37 @@ const showProjects = listKind === 'projects';
       }
     </aside>
 
+    {
+      kind !== 'home' && kind !== 'index' && (
+        <p class="reading-back">
+          <a href={indexHref} class="ui-link-subtle">
+            <I18n k={backKey} />
+          </a>
+        </p>
+      )
+    }
+
+    {
+      showRail && (
+        <aside class="reading-rail" data-reading-rail>
+          <details class="reading-toc-fold" open data-reading-toc-fold>
+            <script is:inline>
+              {
+                const fold = document.currentScript?.parentElement;
+                if (fold && window.matchMedia('(max-width: 1023px)').matches) {
+                  fold.removeAttribute('open');
+                }
+              }
+            </script>
+            <summary class="reading-toc-summary">
+              <I18n k="toc" />
+            </summary>
+            <slot name="rail" />
+          </details>
+        </aside>
+      )
+    }
+
     <div
       class="reading-doc"
       data-reading-pane
@@ -80,25 +111,8 @@ const showProjects = listKind === 'projects';
       inert={kind === 'index'}
       aria-hidden={kind === 'index' ? 'true' : undefined}
     >
-      {
-        kind !== 'home' && kind !== 'index' && (
-          <p class="reading-back">
-            <a href={indexHref} class="ui-link-subtle">
-              <I18n k={backKey} />
-            </a>
-          </p>
-        )
-      }
       <slot />
     </div>
-
-    {
-      showRail && (
-        <aside class="reading-rail" data-reading-rail>
-          <slot name="rail" />
-        </aside>
-      )
-    }
   </div>
 </Base>
 
@@ -107,4 +121,15 @@ const showProjects = listKind === 'projects';
   import { initReadingSeriesPane } from '@/lib/reading-series-pane';
   initReadingIndexSwap();
   initReadingSeriesPane();
+
+  function syncReadingTocFold() {
+    const desktop = window.matchMedia('(min-width: 1024px)').matches;
+    document.querySelectorAll<HTMLDetailsElement>('[data-reading-toc-fold]').forEach((el) => {
+      el.open = desktop;
+    });
+  }
+
+  const tocMq = window.matchMedia('(min-width: 1024px)');
+  tocMq.addEventListener('change', syncReadingTocFold);
+  document.addEventListener('astro:after-swap', syncReadingTocFold);
 </script>

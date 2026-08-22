@@ -102,7 +102,7 @@ const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
         }
       }
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{pageTitle}</title>
     <meta name="description" content={pageDescription} />
     <link rel="canonical" href={canonical} />
@@ -123,7 +123,7 @@ const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
     <meta name="theme-color" id="theme-color" content="#ffffff" />
     <ClientRouter />
   </head>
-  <body class:list={['flex min-h-screen flex-col', split && 'h-dvh overflow-hidden']}>
+  <body class:list={['flex min-h-screen flex-col', split && 'md:h-dvh md:overflow-hidden']}>
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:px-3 focus:py-2 focus:text-ink-100"
@@ -131,7 +131,7 @@ const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
       <I18n k="skipToContent" />
     </a>
     <Nav />
-    <main id="main" class:list={['flex-1 pb-10', split && 'flex min-h-0 flex-col overflow-hidden']}>
+    <main id="main" class:list={['site-main flex-1', split && 'md:flex md:min-h-0 md:flex-col md:overflow-hidden']}>
       <slot />
     </main>
     <Footer />

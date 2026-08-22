@@ -113,7 +113,7 @@
   <button
     bind:this={buttonEl}
     type="button"
-    class="inline-flex h-4 w-4 items-center justify-center transition-colors hover:text-ink-100"
+    class="footer-hit inline-flex items-center justify-center transition-colors hover:text-ink-100"
     aria-label={aria}
     title={aria}
     aria-haspopup="listbox"
