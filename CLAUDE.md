@@ -15,12 +15,13 @@
 ## 常用命令
 
 ```bash
-npm run dev              # 本地开发（端口 4321）
+npm run studio            # 本地写作台（astro dev + /studio）
+npm run dev               # 本地开发（端口 4321；/studio 同样可用）
 npm run build            # 生产构建，输出到 dist/
 npm run preview          # 静态伺服 dist/（Cloudflare adapter 不支持 astro preview）
 npm run check            # astro check：类型 + 内容 schema 校验
 npm run validate:content # 内容闸门：schema 查不到的创作规约（注水指令/Var-Calc 顺序等）
-npm run test             # Playwright 测试（需先 npm run build）
+npm run test             # studio 单测 + Playwright（Playwright 需先 npm run build）
 npm run deploy           # 构建并手动部署到 Cloudflare Pages
 ```
 
@@ -45,6 +46,7 @@ plugins/
   remark-source-view.mjs   构建期插件保留，默认永不注入「⌥ 源码」
 workers/
   guestbook/               Email Routing send_email Worker（Pages `[[services]]` GUESTBOOK）
+studio/                    本地写作台（仅 `astro dev` 注入 `/studio`；生产不打包）
 public/
   demos/<name>/index.html  自包含演示包（knowledge-garden / robert / network）
   media/                   图片、音频等静态媒体
@@ -59,7 +61,7 @@ scripts/validate-story.mjs 内容闸门（npm run validate:content）
 
 **先读 [docs/MEDIUM.md](docs/MEDIUM.md)**——创作规范：从"对话/笔记/文章"到本站 MDX 的转换流水线（输入类型专则、组件决策表、页面接口）。调研笔记见 [docs/research/](docs/research/)。
 
-**写一篇文章**：在 `src/content/articles/` 建 `<slug>.mdx`。frontmatter 必填 `slot: article`、title/description/date；定稿还必须有 `titleEn`/`descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。页面路由是 `/articles/<slug>`。
+**写一篇文章**：本地打开 `npm run studio`（浏览器 `/studio`）用 Markdown 写，或在 `src/content/articles/` 建 `<slug>.mdx`。frontmatter 必填 `slot: article`、title/description/date；定稿还必须有 `titleEn`/`descriptionEn` 与正文 `<div data-lang-split></div>` 后的英文副本。交互组件从 `@/components/media` 导入，Svelte 组件必须写 `client:*` 指令（规则见 `src/components/media/README.md`，ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`）。页面路由是 `/articles/<slug>`。
 
 **添加一个项目**：在 `src/content/projects/` 建 `<slug>.mdx`，同一套字段加 `slot: project`；`repo`/`demo`/`screenshots` 等可选。要在页面内提供在线体验，把自包含的演示 HTML 放进 `public/demos/<name>/`，并在正文用 `InteractiveDemo` 嵌入。
 

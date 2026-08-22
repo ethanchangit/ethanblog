@@ -6,6 +6,7 @@ import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkSourceView } from './plugins/remark-source-view.mjs';
 import { remarkLangSplit } from './plugins/remark-lang-split.mjs';
+import { studioIntegration } from './studio/plugin.mjs';
 
 // https://astro.build/config
 export default defineConfig({
@@ -52,7 +53,7 @@ export default defineConfig({
       destination: '/zh/articles',
     },
   },
-  integrations: [mdx({ remarkPlugins: [remarkSourceView, remarkLangSplit] }), svelte()],
+  integrations: [mdx({ remarkPlugins: [remarkSourceView, remarkLangSplit] }), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
   },

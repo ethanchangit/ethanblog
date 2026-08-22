@@ -1,0 +1,43 @@
+---
+/**
+ * Local writing studio. Injected only during `astro dev`.
+ * Production builds never include this route.
+ */
+import '@fontsource-variable/inter';
+import '@fontsource/jetbrains-mono/400.css';
+import '@/styles/global.css';
+import App from './App.svelte';
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <script is:inline>
+      {
+        function applyPrefs(root) {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme =
+            stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
+          root.dataset.theme = theme;
+          var themeColor = document.querySelector('meta#theme-color');
+          if (themeColor) themeColor.setAttribute('content', theme === 'dark' ? '#191919' : '#ffffff');
+        }
+        try {
+          applyPrefs(document.documentElement);
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      }
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Studio · ethanchang.io</title>
+    <meta name="theme-color" id="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="h-dvh overflow-hidden bg-surface-950 text-ink-300">
+    <App client:load />
+  </body>
+</html>
