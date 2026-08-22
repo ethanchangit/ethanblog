@@ -13,11 +13,6 @@ export function articleHref(id: string): string {
   return `${ARTICLES_PATH}/${id}`;
 }
 
-/** Page 1 is `/articles`; later pages are static `/articles/2`, `/articles/3`, … */
-export function articlesPageHref(page: number): string {
-  return page <= 1 ? ARTICLES_PATH : `${ARTICLES_PATH}/${page}`;
-}
-
 export function projectHref(id: string): string {
   return `${PROJECTS_PATH}/${id}`;
 }

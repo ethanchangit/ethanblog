@@ -2,7 +2,6 @@
 export const STATIC_ROUTES = [
   '/',
   '/articles',
-  '/articles/2',
   '/articles/embed-preview',
   '/articles/series-demo',
   '/articles/series-demo/1',
@@ -35,7 +34,6 @@ export const STATIC_ROUTES = [
   '/zh/privacy',
   '/zh/for-agents',
   '/zh/articles',
-  '/zh/articles/2',
   '/zh/articles/embed-preview',
   '/zh/articles/pkm-method',
   '/zh/projects',

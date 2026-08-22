@@ -9,6 +9,26 @@
       "source": "/zh/about",
       "destination": "/zh",
       "type": 301
+    },
+    {
+      "source": "/articles/1",
+      "destination": "/articles",
+      "type": 301
+    },
+    {
+      "source": "/articles/2",
+      "destination": "/articles",
+      "type": 301
+    },
+    {
+      "source": "/zh/articles/1",
+      "destination": "/zh/articles",
+      "type": 301
+    },
+    {
+      "source": "/zh/articles/2",
+      "destination": "/zh/articles",
+      "type": 301
     }
   ]
 }

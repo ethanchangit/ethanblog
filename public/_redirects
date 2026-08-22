@@ -15,5 +15,9 @@
 /posts /articles 301
 /articles/1 /articles 301
 /articles/1/ /articles 301
+/articles/2 /articles 301
+/articles/2/ /articles 301
 /zh/articles/1 /zh/articles 301
 /zh/articles/1/ /zh/articles 301
+/zh/articles/2 /zh/articles 301
+/zh/articles/2/ /zh/articles 301

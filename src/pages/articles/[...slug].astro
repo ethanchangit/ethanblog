@@ -2,74 +2,44 @@
 import ReadingShell from '@/components/shell/ReadingShell.astro';
 import Doc from '@/layouts/Doc.astro';
 import Toc from '@/components/shell/Toc.astro';
-import { copy } from '@/lib/i18n';
 import { docsBySlot } from '@/lib/docs';
 import { hasToc } from '@/lib/toc';
-import { ARTICLES_PER_PAGE, publishedArticles } from '@/lib/tags';
 import { render } from 'astro:content';
 
-// `/articles/2` 与文章 slug 共用本路由：单独的 `[page].astro` 会在 `/zh` rewrite 时抢走单段路径。
+// 纯数字 slug 留给旧分页 URL（`/articles/2` → `/articles`），避免和文章抢路径。
 export async function getStaticPaths() {
-  const [articles, indexed] = await Promise.all([docsBySlot('article'), publishedArticles()]);
-  const totalPages = Math.max(1, Math.ceil(indexed.length / ARTICLES_PER_PAGE));
-  const pagePaths = [];
-  for (let page = 2; page <= totalPages; page++) {
-    pagePaths.push({
-      params: { slug: String(page) },
-      props: { kind: 'page' as const, page },
-    });
-  }
-  const articlePaths = articles
+  const articles = await docsBySlot('article');
+  return articles
     .filter((article) => !/^\d+$/.test(article.id))
     .map((article) => ({
       params: { slug: article.id },
-      props: { kind: 'article' as const, article },
+      props: { article },
     }));
-  return [...pagePaths, ...articlePaths];
 }
 
-const { kind } = Astro.props;
-const indexPage = kind === 'page' ? Astro.props.page : undefined;
-const article = kind === 'article' ? Astro.props.article : undefined;
-const rendered = article ? await render(article) : undefined;
-const split = rendered?.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
-const zhHeadings = rendered
-  ? typeof split === 'number'
-    ? rendered.headings.slice(0, split)
-    : rendered.headings
-  : [];
-const enHeadings = rendered && typeof split === 'number' ? rendered.headings.slice(split) : [];
+const { article } = Astro.props;
+const rendered = await render(article);
+const split = rendered.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
+const zhHeadings =
+  typeof split === 'number' ? rendered.headings.slice(0, split) : rendered.headings;
+const enHeadings = typeof split === 'number' ? rendered.headings.slice(split) : [];
 const showRail = hasToc(zhHeadings);
-const Content = rendered?.Content;
+const Content = rendered.Content;
 ---
 
-{
-  indexPage !== undefined ? (
-    <ReadingShell
-      kind="index"
-      indexList="articles"
-      indexPage={indexPage}
-      title={copy['zh-CN'].articlesTitle}
-      titleEn={copy.en.articlesTitle}
-      description={copy['zh-CN'].articlesDesc}
-      descriptionEn={copy.en.articlesDesc}
-    />
-  ) : article && Content ? (
-    <ReadingShell
-      kind="article"
-      title={article.data.title}
-      titleEn={article.data.titleEn}
-      description={article.data.description}
-      descriptionEn={article.data.descriptionEn ?? article.data.description}
-      currentId={article.id}
-      showRail={showRail}
-    >
-      <Doc doc={article}>
-        <Content />
-      </Doc>
-      <Fragment slot="rail">
-        <Toc headings={zhHeadings} headingsEn={enHeadings} />
-      </Fragment>
-    </ReadingShell>
-  ) : null
-}
+<ReadingShell
+  kind="article"
+  title={article.data.title}
+  titleEn={article.data.titleEn}
+  description={article.data.description}
+  descriptionEn={article.data.descriptionEn ?? article.data.description}
+  currentId={article.id}
+  showRail={showRail}
+>
+  <Doc doc={article}>
+    <Content />
+  </Doc>
+  <Fragment slot="rail">
+    <Toc headings={zhHeadings} headingsEn={enHeadings} />
+  </Fragment>
+</ReadingShell>
