@@ -1,0 +1,15 @@
+---
+import Base from '@/layouts/Base.astro';
+import AgentProse from '@/components/shell/AgentProse.astro';
+import { liteMarkdownHtml, privacyMarkdown } from '@/lib/agent';
+import { copy } from '@/lib/i18n';
+---
+
+<Base
+  title={copy['zh-CN'].privacyTitle}
+  titleEn={copy.en.privacyTitle}
+  description={copy['zh-CN'].privacyDesc}
+  descriptionEn={copy.en.privacyDesc}
+>
+  <AgentProse zh={liteMarkdownHtml(privacyMarkdown('zh'))} en={liteMarkdownHtml(privacyMarkdown('en'))} />
+</Base>

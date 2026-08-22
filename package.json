@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
-    "preview": "npx serve dist -c ../serve.json",
+    "build": "astro build && node scripts/patch-routes.mjs",
+    "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
     "test": "playwright test",

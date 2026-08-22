@@ -15,6 +15,9 @@ const LOCALIZABLE_PREFIXES = [
   '/now',
   '/lab',
   '/about',
+  '/contact',
+  '/privacy',
+  '/for-agents',
 ] as const;
 
 export function isZhPath(pathname: string): boolean {

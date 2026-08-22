@@ -1,0 +1,18 @@
+---
+import Base from '@/layouts/Base.astro';
+import AgentProse from '@/components/shell/AgentProse.astro';
+import { forAgentsMarkdown, liteMarkdownHtml } from '@/lib/agent';
+import { copy } from '@/lib/i18n';
+---
+
+<Base
+  title={copy['zh-CN'].forAgentsTitle}
+  titleEn={copy.en.forAgentsTitle}
+  description={copy['zh-CN'].forAgentsDesc}
+  descriptionEn={copy.en.forAgentsDesc}
+>
+  <AgentProse
+    zh={liteMarkdownHtml(forAgentsMarkdown('zh'))}
+    en={liteMarkdownHtml(forAgentsMarkdown('en'))}
+  />
+</Base>
