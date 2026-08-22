@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { docsBySlot } from '@/lib/docs';
+import { docHref, loadDocs } from '@/lib/docs';
 import { articleHref } from '@/lib/routes';
 import { localeFromPath, localizeHref } from '@/lib/locale';
 import { site } from '@/data/profile';
@@ -16,10 +16,10 @@ import { sendFeedbackEmail } from '@/lib/mail';
 
 export const prerender = false;
 
-async function findArticle(slug: string) {
+async function findDoc(slug: string) {
   if (!isCommentSlug(slug)) return null;
-  const hits = (await docsBySlot('article')).filter((entry) => entry.id === slug);
-  return hits[0] ?? null;
+  const hits = (await loadDocs()).filter((entry) => entry.id === slug);
+  return hits.find((entry) => entry.data.slot === 'article') ?? hits[0] ?? null;
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -60,7 +60,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return jsonOrRedirect(isForm, request, slug, { error: 'Invalid body' }, 400);
   }
 
-  const article = await findArticle(slug);
+  const article = await findDoc(slug);
   if (!article) {
     return jsonOrRedirect(isForm, request, slug, { error: 'Unknown article' }, 400);
   }
@@ -94,12 +94,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const locale = localeFromReferer(request);
-  const url = new URL(localizeHref(articleHref(slug), locale), site.url).href;
+  const url = new URL(localizeHref(docHref(article), locale), site.url).href;
 
   const sent = await sendFeedbackEmail(env, {
     slug,
     title: article.data.title,
     url,
+    tags: article.data.tags ?? [],
     name: authorName,
     email,
     body: text,

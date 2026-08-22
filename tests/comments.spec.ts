@@ -28,6 +28,7 @@ test.describe('文章留言', () => {
     await expect(comments.getByRole('button', { name: 'Send' })).toBeVisible();
     await expect(comments.locator('form')).toHaveAttribute('action', '/api/comments');
     await expect(comments.locator('form')).toHaveAttribute('method', /post/i);
+    await expect(comments.locator('input[name="slug"]')).toHaveValue('pkm-method');
     await expect(comments.getByRole('button', { name: '写下' })).toHaveCount(0);
     await expect(comments.getByText('一两句话即可。')).toHaveCount(0);
 
