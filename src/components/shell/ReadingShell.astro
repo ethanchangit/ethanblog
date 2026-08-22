@@ -84,26 +84,24 @@ const showProjects = listKind === 'projects';
 
     {
       showRail && (
-        <aside class="reading-rail" data-reading-rail>
-          <details class="reading-toc-fold" open data-reading-toc-fold>
-            <script is:inline>
-              {
-                const fold = document.currentScript?.parentElement;
-                if (fold && window.matchMedia('(max-width: 1023px)').matches) {
-                  fold.removeAttribute('open');
-                }
-              }
-            </script>
-            <summary class="reading-toc-summary">
+        <aside id="reading-toc-page" class="reading-rail" data-reading-rail>
+          <p class="reading-toc-entry">
+            <a href="#reading-toc-page" class="ui-link-subtle">
               <I18n k="toc" />
-            </summary>
-            <slot name="rail" />
-          </details>
+            </a>
+          </p>
+          <p class="reading-toc-back">
+            <a href="#reading-article" class="ui-link-subtle">
+              <I18n k="backToDoc" />
+            </a>
+          </p>
+          <slot name="rail" />
         </aside>
       )
     }
 
     <div
+      id="reading-article"
       class="reading-doc"
       data-reading-pane
       data-reading-doc
@@ -121,15 +119,4 @@ const showProjects = listKind === 'projects';
   import { initReadingSeriesPane } from '@/lib/reading-series-pane';
   initReadingIndexSwap();
   initReadingSeriesPane();
-
-  function syncReadingTocFold() {
-    const desktop = window.matchMedia('(min-width: 1024px)').matches;
-    document.querySelectorAll<HTMLDetailsElement>('[data-reading-toc-fold]').forEach((el) => {
-      el.open = desktop;
-    });
-  }
-
-  const tocMq = window.matchMedia('(min-width: 1024px)');
-  tocMq.addEventListener('change', syncReadingTocFold);
-  document.addEventListener('astro:after-swap', syncReadingTocFold);
 </script>

@@ -1003,7 +1003,8 @@
    * 多出来的宽度进 1fr gutter（页缘、左栏与中栏之间、中栏与右栏之间、右页缘）。
    * 正文宽度由中栏轨道决定，不要在 article-shell 上写 max-w-*（utilities 会压过组件层）。
    * 展开索引是左栏 overlay 拉满，不改其余轨道，避免正文左右回弹。
-   * 窄屏隐藏索引与 rail。左栏发丝线是结构分隔，不是卡片 chrome。
+   * 窄屏一页一样：索引 / 目录 / 正文各占满一页，不分栏。
+   * 左栏发丝线是结构分隔，不是卡片 chrome。
    */
   .reading-shell {
     --reading-index-width: 24rem;
@@ -1182,30 +1183,17 @@
     padding: 1.5rem 1rem 2.5rem;
   }
 
-  .reading-toc-fold {
+  .reading-toc-entry,
+  .reading-toc-back {
+    display: none;
     margin: 0;
   }
 
-  .reading-toc-summary {
-    cursor: pointer;
-    list-style: none;
-    display: block;
+  .reading-toc-entry a,
+  .reading-toc-back a {
+    display: inline-flex;
     min-height: 2.75rem;
-    padding-block: 0.85rem;
-    font-size: 0.75rem;
-    line-height: 1rem;
-    color: var(--color-ink-500);
-  }
-
-  .reading-toc-summary::-webkit-details-marker,
-  .reading-toc-summary::marker {
-    display: none;
-    content: none;
-  }
-
-  .reading-toc-summary:hover,
-  .reading-toc-summary:focus-visible {
-    color: var(--color-ink-200);
+    align-items: center;
   }
 
   /*
@@ -1411,10 +1399,6 @@
     .reading-rail {
       display: block;
       padding-top: var(--reading-inset-y);
-    }
-
-    .reading-toc-summary {
-      display: none;
     }
 
     .reading-shell[data-reading-shell='index'] .reading-rail {
@@ -1640,6 +1624,58 @@
     padding-right: max(1rem, env(safe-area-inset-right, 0px));
   }
 
+  .reading-toc-entry {
+    display: block;
+  }
+
+  [data-reading-shell='article'] .reading-rail :is(.toc, .reading-series, .reading-toc-back),
+  [data-reading-shell='project'] .reading-rail :is(.toc, .reading-series, .reading-toc-back) {
+    display: none;
+  }
+
+  [data-reading-shell='article'] .reading-rail:target,
+  [data-reading-shell='project'] .reading-rail:target {
+    min-height: calc(100dvh - 6.5rem);
+  }
+
+  [data-reading-shell='article'] .reading-rail:target :is(.toc, .reading-series),
+  [data-reading-shell='project'] .reading-rail:target :is(.toc, .reading-series) {
+    display: block;
+  }
+
+  [data-reading-shell='article'] .reading-rail:target .reading-toc-back,
+  [data-reading-shell='project'] .reading-rail:target .reading-toc-back {
+    display: block;
+  }
+
+  [data-reading-shell='article'] .reading-rail:target .reading-toc-entry,
+  [data-reading-shell='project'] .reading-rail:target .reading-toc-entry {
+    display: none;
+  }
+
+  .reading-shell:has(> .reading-rail:target) .reading-doc,
+  .reading-shell:has(> .reading-rail:target) .reading-back {
+    display: none;
+  }
+
+  [data-reading-shell='article'] .reading-rail:target .toc a,
+  [data-reading-shell='project'] .reading-rail:target .toc a {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    overflow: visible;
+    white-space: normal;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  [data-reading-shell='article'] .reading-rail:target .toc-label,
+  [data-reading-shell='project'] .reading-rail:target .toc-label {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+  }
+
   .reading-back {
     padding-left: max(1rem, env(safe-area-inset-left, 0px));
     padding-right: max(1rem, env(safe-area-inset-right, 0px));
@@ -1702,12 +1738,6 @@
 @media (max-width: 767.98px) and (max-height: 500px) {
   .site-nav-veil {
     height: calc(3.75rem + env(safe-area-inset-top, 0px));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reading-toc-summary {
-    transition: none;
   }
 }
 

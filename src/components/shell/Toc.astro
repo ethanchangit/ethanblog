@@ -1,7 +1,8 @@
 ---
 /**
  * 目录 —— 只收 depth 2-3；没有条目时不渲染。
- * 分栏阅读时浮在阅读区右侧（.reading-rail）；窄屏随 rail 一起隐藏。
+ * 分栏阅读时浮在阅读区右侧（.reading-rail）。
+ * 窄屏目录是独立一页（#reading-toc-page:target），不是侧栏，也不叠在正文上。
  * 无 JS 时靠 :target 标明当前条；有 JS 时按阅读栏滚动位置写 aria-current。
  */
 import Bi from '@/components/shell/Bi.astro';
@@ -176,15 +177,4 @@ const activeCss = [...items, ...enItems]
     attributes: true,
     attributeFilter: ['data-lang'],
   });
-
-  function syncTocFold() {
-    const wide = window.matchMedia('(min-width: 1024px)').matches;
-    document.querySelectorAll('details[data-reading-toc-fold]').forEach((el) => {
-      if (!(el instanceof HTMLDetailsElement)) return;
-      if (wide) el.open = true;
-    });
-  }
-
-  window.addEventListener('resize', syncTocFold);
-  document.addEventListener('astro:page-load', syncTocFold);
 </script>

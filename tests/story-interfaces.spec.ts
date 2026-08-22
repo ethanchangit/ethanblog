@@ -131,17 +131,18 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(firstLink).toHaveAttribute('aria-current', 'true');
   });
 
-  test('390×844 下左栏隐藏、目录可折叠、正文在、无横向溢出', async ({ page }) => {
+  test('390×844 下左栏隐藏、目录与正文各占一页、无横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(FINAL);
 
     await expect(page.locator('details.toc-mobile')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeVisible();
-    await expect(page.locator('[data-reading-toc-fold] > summary')).toBeVisible();
-    await expect(page.locator('[data-reading-toc-fold] nav.toc')).toBeHidden();
+    await expect(page.locator('.reading-toc-entry a')).toBeVisible();
+    await expect(page.locator('[data-reading-rail] nav.toc')).toBeHidden();
     await expect(page.locator('.article-body-row > details')).toHaveCount(0);
     await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
+    await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
 
     const stacked = await page.evaluate(() => {
       const row = document.querySelector('.article-body-row');

@@ -85,7 +85,7 @@ test.describe('手机阅读', () => {
     expect(heading!.y).toBeGreaterThanOrEqual(nav!.y + nav!.height - 2);
   });
 
-  test('长文目录可打开，返回键在导航下方', async ({ page }) => {
+  test('长文目录是独立一页，不和正文叠在一起', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/articles/heptabase-method');
     await expect(page.locator('[data-reading-index]')).toBeHidden();
@@ -97,13 +97,19 @@ test.describe('手机阅读', () => {
     expect(backBox).toBeTruthy();
     expect(backBox!.y).toBeGreaterThanOrEqual(nav!.y + nav!.height - 2);
 
-    const fold = page.locator('[data-reading-toc-fold]');
-    await expect(fold).toBeVisible();
-    await expect(fold.locator('nav.toc')).toBeHidden();
-    await fold.locator('summary').click();
-    await expect(fold).toHaveAttribute('open', '');
-    await expect(fold.locator('nav.toc a').filter({ visible: true }).first()).toBeVisible();
-    await fold.locator('nav.toc a').filter({ visible: true }).nth(3).click();
+    const tocEntry = page.locator('.reading-toc-entry a');
+    await expect(tocEntry).toBeVisible();
+    await expect(page.locator('[data-reading-rail] nav.toc')).toBeHidden();
+    await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
+
+    await tocEntry.click();
+    await expect(page.locator('[data-reading-rail] nav.toc a').filter({ visible: true }).first()).toBeVisible();
+    await expect(page.locator('[data-reading-doc]')).toBeHidden();
+    await expect(page.locator('.reading-toc-entry')).toBeHidden();
+
+    await page.locator('[data-reading-rail] nav.toc a').filter({ visible: true }).nth(3).click();
+    await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
+    await expect(page.locator('[data-reading-rail] nav.toc')).toBeHidden();
     await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
   });
 
