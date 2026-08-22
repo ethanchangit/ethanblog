@@ -47,7 +47,7 @@
 **组件契约要点**（完整版见 [media/README.md](../src/components/media/README.md)）：
 props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只消费设计 token / `.media-frame` 仅作间距与图注（无边框无背景）/ ScrollScene 必须提前注水（`rootMargin: '150% 0px'`）。
 
-**主页**：Hero → Now → 精选 → 技能 → 联系。纯文字排版，无卡片壳。
+**主页**：左栏文章索引 + 中栏 About。纯文字排版，无卡片壳。
 
 ## 四、Phase 1 —— 博客骨架与组件库 ✅（2026-07 完成）
 
