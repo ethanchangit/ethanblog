@@ -1202,15 +1202,20 @@ test.describe('分栏关闭（无 JS）', () => {
       const pane = document.querySelector('[data-reading-index]');
       const bar = pane?.querySelector('.reading-index-heading');
       if (!(pane instanceof HTMLElement) || !(bar instanceof HTMLElement)) return null;
+      const style = getComputedStyle(bar);
       return {
-        sticky: getComputedStyle(bar).position,
+        sticky: style.position,
         paneTop: pane.getBoundingClientRect().top,
         headingTop: bar.getBoundingClientRect().top,
+        padBottom: Number.parseFloat(style.paddingBottom),
+        backgroundImage: style.backgroundImage,
       };
     });
     expect(rest).not.toBeNull();
     expect(rest!.sticky).toBe('sticky');
     expect(Math.abs(rest!.headingTop - rest!.paneTop)).toBeLessThan(1);
+    expect(rest!.padBottom).toBeGreaterThanOrEqual(16);
+    expect(rest!.backgroundImage).toMatch(/linear-gradient/i);
 
     const scrolled = await page.evaluate(() => {
       const pane = document.querySelector('[data-reading-index]');

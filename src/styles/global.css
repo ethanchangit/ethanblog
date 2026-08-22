@@ -1096,14 +1096,23 @@
   /*
    * 钉在 aside.reading-index 栏顶。heading 必须是
    * [data-reading-index-body] 的直接子级：包在矮 header 里
-   * 没有 sticky 行程。surface 底是为了列表字不透上来，不是卡片。
+   * 没有 sticky 行程。标题行用 surface 实底挡住列表字；
+   * 底边短 fade 溶掉滚上来的字（功能遮挡，不是装饰渐变）。
+   * 终点必须是同色 0 alpha：keyword transparent 会插成黑，看起来仍像硬切。
    */
   .reading-index .reading-index-heading {
+    --reading-index-fade: 1.25rem;
     position: sticky;
     top: 0;
     z-index: 1;
-    padding-bottom: 0.5rem;
-    background-color: var(--color-surface-950);
+    padding-bottom: var(--reading-index-fade);
+    background-color: transparent;
+    background-image: linear-gradient(
+      to bottom in srgb,
+      var(--color-surface-950) 0%,
+      var(--color-surface-950) calc(100% - var(--reading-index-fade)),
+      rgb(from var(--color-surface-950) r g b / 0)
+    );
   }
 
   .reading-index-switch {
@@ -1547,6 +1556,54 @@
   }
 }
 
+
+/*
+ * Fixed chrome fade — same token trick as .reading-index-heading:
+ * extra padding is the dissolve band; surface-950 stays opaque over
+ * the controls, then goes to same-color 0 alpha (keyword transparent
+ * interpolates through black). Functional occlusion, not decorative chrome.
+ * Heading keeps its own rules; do not restyle it from here.
+ */
+:root {
+  --chrome-fade: 1.25rem;
+}
+
+.chrome-fade-bottom,
+.chrome-fade-top {
+  background-color: transparent;
+}
+
+.chrome-fade-bottom {
+  padding-bottom: var(--chrome-fade);
+  background-image: linear-gradient(
+    to bottom in srgb,
+    var(--color-surface-950) 0%,
+    var(--color-surface-950) calc(100% - var(--chrome-fade)),
+    rgb(from var(--color-surface-950) r g b / 0)
+  );
+}
+
+.chrome-fade-top {
+  padding-top: var(--chrome-fade);
+  background-image: linear-gradient(
+    to top in srgb,
+    var(--color-surface-950) 0%,
+    var(--color-surface-950) calc(100% - var(--chrome-fade)),
+    rgb(from var(--color-surface-950) r g b / 0)
+  );
+}
+
+/*
+ * Desktop nav is in document flow (scrolls away), so a fade band would
+ * only add empty gap. Keep the class on the markup; paint only when fixed.
+ */
+@media (min-width: 768px) {
+  .site-nav-bar.chrome-fade-bottom {
+    padding-bottom: 0;
+    background-image: none;
+  }
+}
+
 /*
  * 窄屏：文档滚 + 安全区 + 触控热区。必须写在 layer 外，才能压过
  * article-shell / nav utilities。md+ 三栏轨道数学不变。
@@ -1566,19 +1623,15 @@
 
 @media (max-width: 767.98px) {
   .site-nav-bar {
-    min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+    min-height: calc(3.5rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
     padding-top: env(safe-area-inset-top, 0px);
     padding-left: max(1rem, env(safe-area-inset-left, 0px));
     padding-right: max(1rem, env(safe-area-inset-right, 0px));
   }
 
   .site-main {
-    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
     padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
-  }
-
-  .site-footer {
-    background-color: var(--color-surface-950);
   }
 
   .site-footer-inner {

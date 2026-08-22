@@ -19,13 +19,13 @@ const iconPaths: Record<(typeof links)[number]['icon'], string[]> = {
 };
 ---
 
-<footer class="site-footer pointer-events-none fixed inset-x-0 bottom-0 z-50">
+<footer class="site-footer chrome-fade-top pointer-events-none fixed inset-x-0 bottom-0 z-50">
   <div class="site-footer-inner flex items-center justify-between px-4 text-sm text-ink-500 sm:px-6">
-    <div class="footer-toggles pointer-events-auto flex shrink-0 items-center gap-1 bg-surface-950 md:gap-4">
+    <div class="footer-toggles pointer-events-auto flex shrink-0 items-center gap-1 md:gap-4">
       <LangToggle client:visible />
       <ThemeToggle client:visible />
     </div>
-    <ul class="pointer-events-auto flex items-center gap-1 bg-surface-950 sm:gap-4">
+    <ul class="pointer-events-auto flex items-center gap-1 sm:gap-4">
       {
         links.map((s) => (
           <li>
