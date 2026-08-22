@@ -37,9 +37,9 @@ const CANONICAL_KEYS = [
   'featured',
 ];
 
-const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)?$/;
+const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
 const DOCREF_RE = /<DocRef\s+of=["']([^"']+)["']\s*\/>/g;
-const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)?$/;
+const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
 
 export function todayIso(date = new Date()) {
   const y = date.getFullYear();
@@ -298,27 +298,10 @@ function projectTemplate({ title }) {
   });
 }
 
-function seriesHubTemplate({ title, slug, date }) {
-  const of = `articles/${slug}/1`;
-  const list = `<DocList pane="series">\n  <DocRef of="${of}" />\n</DocList>`;
+function childTemplate({ title, date, order, slot }) {
   return serializeMdx({
     frontmatter: {
-      slot: 'article',
-      title,
-      description: '草稿摘要，发布前改成可检验的陈述句。',
-      date,
-      draft: true,
-    },
-    imports: MEDIA_IMPORT,
-    bodyZh: `这是系列总览。子文写在 \`${slug}/<n>.mdx\`，默认不进 /articles。\n\n${list}`,
-    bodyEn: `This is the series hub. Chapters live in \`${slug}/<n>.mdx\` and stay off /articles by default.\n\n${list}`,
-  });
-}
-
-function seriesChapterTemplate({ title, date, order }) {
-  return serializeMdx({
-    frontmatter: {
-      slot: 'article',
+      slot: slot ?? 'article',
       title,
       description: '草稿摘要，发布前改成可检验的陈述句。',
       date,
@@ -326,9 +309,18 @@ function seriesChapterTemplate({ title, date, order }) {
       draft: true,
     },
     imports: '',
-    bodyZh: '在这里写这一页。',
-    bodyEn: 'Write this chapter here.',
+    bodyZh: '在这里用 Markdown 写这一页。',
+    bodyEn: 'Write this page here.',
   });
+}
+
+export function parentIdOf(id) {
+  const slash = String(id ?? '').lastIndexOf('/');
+  return slash === -1 ? undefined : id.slice(0, slash);
+}
+
+export function collectionPane(collection) {
+  return collection === 'pages' ? undefined : 'series';
 }
 
 async function assertNewFile(file) {
@@ -361,50 +353,42 @@ export async function createDoc(root, input) {
     return { collection, id: slug, href: publicHref(collection, slug) };
   }
 
-  if (kind === 'series') {
-    const slug = String(input.slug ?? slugify(title)).trim();
-    if (!isSafeId('articles', slug) || slug.includes('/')) {
-      throw new Error('系列 slug 只能用小写字母、数字和连字符');
+  if (kind === 'child') {
+    const parentCollection = input.parentCollection || 'articles';
+    const parentId = String(input.parentId ?? input.hub ?? '').trim();
+    if (parentCollection === 'pages' || !isSafeId(parentCollection, parentId)) {
+      throw new Error('请打开一篇可以有子页面的文章');
     }
-    const hubFile = resolveDocPath(root, 'articles', slug);
-    const chapterFile = resolveDocPath(root, 'articles', `${slug}/1`);
-    await assertNewFile(hubFile);
-    await assertNewFile(chapterFile);
-    await mkdir(path.dirname(chapterFile), { recursive: true });
-    await writeFile(hubFile, seriesHubTemplate({ title, slug, date }));
-    await writeFile(
-      chapterFile,
-      seriesChapterTemplate({ title: `${title} · 第 1 页`, date, order: 1 }),
-    );
-    return { collection: 'articles', id: slug, href: publicHref('articles', slug), chapterId: `${slug}/1` };
-  }
-
-  if (kind === 'chapter') {
-    const hub = String(input.hub ?? '').trim();
-    if (!isSafeId('articles', hub) || hub.includes('/')) {
-      throw new Error('请选择合法的系列总览');
+    const parentFile = resolveDocPath(root, parentCollection, parentId);
+    const parentRaw = await readFile(parentFile, 'utf8');
+    const next = await nextChildNumber(root, parentCollection, parentId);
+    const id = `${parentId}/${next}`;
+    if (!isSafeId(parentCollection, id)) {
+      throw new Error('子页面路径不合法');
     }
-    const hubFile = resolveDocPath(root, 'articles', hub);
-    const hubRaw = await readFile(hubFile, 'utf8');
-    const next = await nextChapterNumber(root, hub);
-    const id = `${hub}/${next}`;
-    const file = resolveDocPath(root, 'articles', id);
+    const file = resolveDocPath(root, parentCollection, id);
     await assertNewFile(file);
+    const parent = parseMdx(parentRaw);
+    const slot = parent.frontmatter.slot || (parentCollection === 'projects' ? 'project' : 'article');
     await mkdir(path.dirname(file), { recursive: true });
-    await writeFile(
-      file,
-      seriesChapterTemplate({ title: `${title} · 第 ${next} 页`, date, order: next }),
-    );
-    const updated = addDocRefToRaw(hubRaw, `articles/${id}`, { pane: 'series' });
-    await writeFile(hubFile, updated);
-    return { collection: 'articles', id, href: publicHref('articles', id), hub };
+    await writeFile(file, childTemplate({ title, date, order: next, slot }));
+    const updated = addDocRefToRaw(parentRaw, `${parentCollection}/${id}`, {
+      pane: collectionPane(parentCollection),
+    });
+    await writeFile(parentFile, updated.endsWith('\n') ? updated : `${updated}\n`);
+    return {
+      collection: parentCollection,
+      id,
+      href: publicHref(parentCollection, id),
+      parentId,
+    };
   }
 
   throw new Error(`未知的创建类型：${kind}`);
 }
 
-export async function nextChapterNumber(root, hub) {
-  const dir = path.join(root, 'src/content/articles', hub);
+export async function nextChildNumber(root, collection, parentId) {
+  const dir = path.join(root, 'src/content', collection, parentId);
   let names = [];
   try {
     names = await readdir(dir);

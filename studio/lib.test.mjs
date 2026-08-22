@@ -56,8 +56,8 @@ describe('studio lib', () => {
   it('rejects path escape ids', () => {
     assert.equal(isSafeId('articles', '../secret'), false);
     assert.equal(isSafeId('articles', '/etc/passwd'), false);
-    assert.equal(isSafeId('pages', 'blogs'), true);
-    assert.equal(isSafeId('pages', 'other'), false);
+    assert.equal(isSafeId('articles', 'deep-dive/1'), true);
+    assert.equal(isSafeId('articles', 'deep-dive/1/2'), true);
     assert.throws(() => resolveDocPath('/tmp/repo', 'articles', '../x'));
   });
 
@@ -76,7 +76,7 @@ describe('studio lib', () => {
     assert.match(raw, /<div data-lang-split><\/div>/);
   });
 
-  it('creates article, project, series, and chapter files', async () => {
+  it('creates article, project, and child pages on an ordinary article', async () => {
     const root = await makeRepo();
     try {
       const article = await createDoc(root, { kind: 'article', title: 'Hello Studio', slug: 'hello-studio' });
@@ -91,18 +91,29 @@ describe('studio lib', () => {
       const projectRaw = await readFile(path.join(root, 'src/content/projects/trace-two.mdx'), 'utf8');
       assert.match(projectRaw, /slot: ["']?project/);
 
-      const series = await createDoc(root, { kind: 'series', title: 'Deep Dive', slug: 'deep-dive' });
-      assert.equal(series.id, 'deep-dive');
+      const parent = await createDoc(root, { kind: 'article', title: 'Deep Dive', slug: 'deep-dive' });
+      const child = await createDoc(root, {
+        kind: 'child',
+        title: '第一页',
+        parentCollection: 'articles',
+        parentId: parent.id,
+      });
+      assert.equal(child.id, 'deep-dive/1');
       const hub = await readFile(path.join(root, 'src/content/articles/deep-dive.mdx'), 'utf8');
       assert.match(hub, /DocRef of="articles\/deep-dive\/1"/);
       assert.match(hub, /pane="series"/);
 
-      const chapter = await createDoc(root, { kind: 'chapter', title: 'Deep Dive', hub: 'deep-dive' });
-      assert.equal(chapter.id, 'deep-dive/2');
-      const hubAfter = await readFile(path.join(root, 'src/content/articles/deep-dive.mdx'), 'utf8');
-      assert.match(hubAfter, /DocRef of="articles\/deep-dive\/2"/);
+      const nested = await createDoc(root, {
+        kind: 'child',
+        title: '更里一层',
+        parentCollection: 'articles',
+        parentId: child.id,
+      });
+      assert.equal(nested.id, 'deep-dive/1/1');
+      const childRaw = await readFile(path.join(root, 'src/content/articles/deep-dive/1.mdx'), 'utf8');
+      assert.match(childRaw, /DocRef of="articles\/deep-dive\/1\/1"/);
       const listed = await listDocs(root);
-      assert.ok(listed.articles.some((item) => item.id === 'deep-dive/2'));
+      assert.ok(listed.articles.some((item) => item.id === 'deep-dive/1/1'));
     } finally {
       await rm(root, { recursive: true, force: true });
     }
