@@ -612,7 +612,7 @@ test.describe('分栏阅读', () => {
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
-    const listing = doc.locator('.article-shell [data-series="hub-inline"]');
+    const listing = doc.locator('.article-shell [data-series="hub-inline"]:visible');
     const rail = page.locator('[data-reading-rail]');
     await expect(index.locator('a[href="/articles/series-demo"] h3')).toBeVisible();
     await expect(index.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
@@ -663,7 +663,7 @@ test.describe('分栏阅读', () => {
 
     const doc = page.locator('[data-reading-doc]');
     const rail = page.locator('[data-reading-rail]');
-    const listing = doc.locator('.article-shell [data-series="hub-inline"]');
+    const listing = doc.locator('.article-shell [data-series="hub-inline"]:visible');
 
     await listing.locator('a[href="/articles/series-demo/1"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
@@ -699,7 +699,7 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/articles/series-demo');
     await page
-      .locator('[data-reading-doc] .article-shell [data-series="hub-inline"] a[href="/articles/series-demo/1"]')
+      .locator('[data-reading-doc] .article-shell [data-series="hub-inline"]:visible a[href="/articles/series-demo/1"]')
       .click();
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
       'Series demo · Part 1',
@@ -907,7 +907,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
     await expect(
       page.locator(
-        '[data-reading-doc] .article-shell [data-series="hub-inline"] a[href="/articles/series-demo/1"]',
+        '[data-reading-doc] .article-shell [data-series="hub-inline"]:visible a[href="/articles/series-demo/1"]',
       ),
     ).toBeVisible();
   });

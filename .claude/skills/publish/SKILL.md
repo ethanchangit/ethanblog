@@ -38,7 +38,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ### 5. 定落盘路径
 - 文章 → `src/content/articles/<slug>.mdx`
-- 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）
+- 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）。总览篇目在 `<hub>.mdx` 里用 `<DocList pane="series">` + `<DocRef of="articles/<hub>/n" />` 手写，不靠文件夹自动列出。
 - 项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`
 
 ### 6. 写 frontmatter

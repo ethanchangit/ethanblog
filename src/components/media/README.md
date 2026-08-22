@@ -52,7 +52,7 @@
 | `Mention` | Astro | 正文词语，与同 id 的 `MentionTarget` 双向高亮；点击/Enter 滚动到目标（零 JS 降级为普通文本） |
 | `MentionTarget` | Astro | `Mention` 的落点容器（可包住任何媒介块，含已套 MediaFrame 的组件） |
 | `DocRef` | Astro | 引用一篇已有文章或项目，渲染成与索引相同的一行卡片（零 JS） |
-| `DocList` | Astro | `DocRef` 的列表容器；`pane="series"` 时供分栏第三栏打开子文 |
+| `DocList` | Astro | `DocRef` 的列表容器；系列总览手写篇目时用 `pane="series"`（宽屏第三栏打开子文） |
 
 ## MDX 用法示例
 
@@ -192,15 +192,15 @@ YouTube 不在进页时自动挂 `youtube.com/embed` iframe。封面点击后才
 | 组件 | Prop | 类型 | 说明 |
 |---|---|---|---|
 | `DocRef` | `of` | `string` | `articles/<id>` 或 `projects/<id>`（系列子文如 `articles/series-demo/1`） |
-| `DocList` | `pane` | `'series'` | 可选。系列总览第三栏打开子文时写 `pane="series"` |
+| `DocList` | `pane` | `'series'` | 可选。系列总览手写篇目、且要宽屏第三栏打开子文时写 `pane="series"` |
 
 ```mdx
 import { DocList, DocRef } from '@/components/media';
 
-<DocList>
-  <DocRef of="articles/pkm-method" />
-  <DocRef of="projects/aletheia" />
+<DocList pane="series">
+  <DocRef of="articles/series-demo/1" />
+  <DocRef of="articles/series-demo/2" />
 </DocList>
 ```
 
-MDX 无需 `client:*`。`of` 在构建期解析；找不到对应文档会失败。`/blogs` 的名单在 `src/content/pages/blogs.mdx`。
+MDX 无需 `client:*`。`of` 在构建期解析；找不到对应文档会失败。文件夹系列的子文仍放 `articles/<hub>/<n>.mdx`（默认不进 `/articles`），总览上的卡片必须在 `<hub>.mdx` 里手写，不会从目录自动生成。`/blogs` 的名单在 `src/content/pages/blogs.mdx`。

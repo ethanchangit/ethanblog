@@ -1,42 +1,17 @@
 ---
 import Bi from '@/components/shell/Bi.astro';
-import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
-import DocList from '@/components/media/DocList.astro';
 import { docHref, type SeriesContext } from '@/lib/docs';
-import { articleCardProps } from '@/lib/tags';
 
 interface Props {
   series: SeriesContext;
-  part: 'parent' | 'chapters' | 'pager';
+  part: 'parent' | 'pager';
 }
 
 const { series, part } = Astro.props;
-const { hub, chapters, prev, next, isHub, isChapter } = series;
+const { hub, prev, next, isChapter } = series;
 const lp = Astro.locals.localePath;
 ---
-
-{
-  part === 'chapters' && isHub && (
-    <DocList pane="series">
-      {chapters.map((chapter) => {
-        const card = articleCardProps(chapter);
-        return (
-          <Card
-            href={lp(card.href)}
-            title={card.title}
-            titleEn={card.titleEn}
-            description={card.description}
-            descriptionEn={card.descriptionEn}
-            meta={card.meta}
-            metaEn={card.metaEn}
-            tags={card.tags}
-          />
-        );
-      })}
-    </DocList>
-  )
-}
 
 {
   part === 'parent' && isChapter && hub && (
