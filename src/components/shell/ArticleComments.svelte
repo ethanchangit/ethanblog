@@ -110,23 +110,6 @@
       </label>
     </div>
 
-    <label class="comment-compose-body">
-      <span class="sr-only">
-        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsBody')}</span><span class="i18n-en">{label('en', 'commentsBody')}</span>
-      </span>
-      <textarea
-        class="comment-field comment-field--body"
-        name="body"
-        required
-        maxlength={COMMENT_BODY_MAX}
-        rows="1"
-        placeholder={t(lang, 'commentsBody')}
-        data-i18n-placeholder="commentsBody"
-        use:autogrow={body}
-        bind:value={body}
-      ></textarea>
-    </label>
-
     <div class="comment-compose-foot">
       <label class="comment-compose-name">
         <span class="sr-only">
@@ -162,6 +145,23 @@
         <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsSubmit')}</span><span class="i18n-en">{label('en', 'commentsSubmit')}</span>
       </button>
     </div>
+
+    <label class="comment-compose-body">
+      <span class="sr-only">
+        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsBody')}</span><span class="i18n-en">{label('en', 'commentsBody')}</span>
+      </span>
+      <textarea
+        class="comment-field comment-field--body"
+        name="body"
+        required
+        maxlength={COMMENT_BODY_MAX}
+        rows="1"
+        placeholder={t(lang, 'commentsBody')}
+        data-i18n-placeholder="commentsBody"
+        use:autogrow={body}
+        bind:value={body}
+      ></textarea>
+    </label>
 
     {#if error}
       <p class="ui-meta" role="alert">
