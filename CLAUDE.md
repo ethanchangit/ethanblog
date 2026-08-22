@@ -37,7 +37,7 @@ src/
   lib/                     docs.ts、viz/registry.ts、rules/、reactive/、motion.ts、format.ts、user.ts、routes.ts
   layouts/                 Base / Doc
   components/shell/        Nav / Footer / Card / SectionHeading
-  components/home/         Hero / NowPanel / SkillsGraph
+  components/home/         AboutPanel / NowPanel
   components/media/        可选交互组件（见其 README.md）
   pages/                   index（身份） / now / articles / projects / lab / 404 / rss.xml.ts / api/*（auth 可选）
   content/articles/*.mdx   文章（slot: article）
