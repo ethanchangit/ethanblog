@@ -4,6 +4,7 @@
  * Worker. Exclude wins over include, so Accept negotiation in middleware
  * would never run on `/` or `/articles/*`. Rewrite _routes.json so document
  * requests go through the Worker while hashed assets stay on the asset server.
+ * wrap-worker.mjs then handles Accept before Astro's ASSETS short-circuit.
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';

@@ -53,6 +53,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const chosen = preferredType(context.request.headers.get('accept'));
   if (chosen === null) return notAcceptable();
 
+  // On Cloudflare Pages this branch only runs for non-prerendered routes.
+  // Document URLs are handled first by scripts/wrap-worker.mjs.
   if (chosen === 'text/markdown') {
     const mdPath = markdownAssetPath(context.url.pathname);
     const asset = await loadMarkdownAsset(context, mdPath);
