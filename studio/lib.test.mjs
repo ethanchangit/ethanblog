@@ -22,6 +22,21 @@ import {
   setBlogsRef,
   slugify,
 } from './lib.mjs';
+import {
+  atQueryAtCaret,
+  classifyBlock,
+  clearBlockFormat,
+  detectMarkdownShortcut,
+  docRefMarkup,
+  formatBlock,
+  hasBlockFormat,
+  isFormattedEmpty,
+  joinBlocks,
+  matchPages,
+  mergeBlockMarkdown,
+  renderBlockHtml,
+  splitBlocks,
+} from './blocks.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -189,5 +204,101 @@ describe('studio lib', () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('studio block editor helpers', () => {
+  it('splits on blank lines, not on wrapped lines inside a paragraph', () => {
+    const body = [
+      '> 引用。',
+      '',
+      '## 标题',
+      '',
+      '第一句。',
+      '同一段的硬换行仍算一段。',
+      '',
+      '- 甲',
+      '- 乙',
+    ].join('\n');
+    const blocks = splitBlocks(body);
+    assert.deepEqual(blocks, [
+      '> 引用。',
+      '## 标题',
+      '第一句。\n同一段的硬换行仍算一段。',
+      '- 甲\n- 乙',
+    ]);
+    assert.equal(joinBlocks(blocks), body);
+  });
+
+  it('keeps fenced code, MDX imports, and lang-split as opaque blocks', () => {
+    const body = [
+      'import { DocList } from \'@/components/media\';',
+      '',
+      '```js',
+      'const x = 1;',
+      '```',
+      '',
+      '<div data-lang-split></div>',
+      '',
+      '<DocList pane="series">',
+      '  <DocRef of="articles/hello" />',
+      '</DocList>',
+    ].join('\n');
+    const blocks = splitBlocks(body);
+    assert.equal(blocks.length, 4);
+    assert.equal(joinBlocks(blocks), body);
+    const jsx = renderBlockHtml(blocks[3]);
+    assert.equal(jsx.includes('<DocList'), false);
+    assert.match(jsx, /&lt;DocList/);
+  });
+
+  it('renders headings and quotes, and escapes scripts', () => {
+    assert.match(renderBlockHtml('## 现在'), /<h2>现在<\/h2>/);
+    assert.match(renderBlockHtml('> 引用 **加重**'), /<blockquote>/);
+    assert.match(renderBlockHtml('> 引用 **加重**'), /<strong>加重<\/strong>/);
+    const dirty = renderBlockHtml('<script>alert(1)</script>');
+    assert.equal(dirty.includes('<script>'), false);
+    assert.match(dirty, /&lt;script&gt;/);
+    assert.equal(renderBlockHtml('[x](javascript:alert(1))').includes('javascript:'), false);
+  });
+
+  it('reads @query at the caret and ignores emails', () => {
+    assert.deepEqual(atQueryAtCaret('见 @pk', 5), { start: 2, query: 'pk' });
+    assert.equal(atQueryAtCaret('mail@host', 9), null);
+    assert.deepEqual(atQueryAtCaret('@', 1), { start: 0, query: '' });
+  });
+
+  it('builds DocList/DocRef markup and matches pages by title or path', () => {
+    assert.equal(
+      docRefMarkup('articles/a-blog-of-a-blog', 'series'),
+      '<DocList pane="series">\n  <DocRef of="articles/a-blog-of-a-blog" />\n</DocList>',
+    );
+    const pages = [
+      { collection: 'articles', id: 'a-blog-of-a-blog', title: '一篇关于博客的博客', titleEn: 'A Blog of a Blog' },
+      { collection: 'projects', id: 'trace', title: 'Trace' },
+    ];
+    assert.equal(matchPages(pages, '博客').length, 1);
+    assert.equal(matchPages(pages, 'projects/trace')[0].id, 'trace');
+    assert.equal(matchPages(pages, '').length, 2);
+  });
+
+  it('turns markdown shortcuts into block kinds and empty format backspaces to a paragraph', () => {
+    assert.deepEqual(detectMarkdownShortcut('## '), { type: 'h', level: 2, text: '' });
+    assert.deepEqual(detectMarkdownShortcut('> 引用'), { type: 'quote', text: '引用' });
+    assert.deepEqual(detectMarkdownShortcut('- 列表'), { type: 'ul', text: '列表' });
+    assert.equal(classifyBlock('## 标题').type, 'h');
+    assert.equal(classifyBlock('## 标题').level, 2);
+    assert.equal(formatBlock('h', '标题', { level: 2 }), '## 标题');
+    assert.equal(isFormattedEmpty('##'), true);
+    assert.equal(isFormattedEmpty('## 标题'), false);
+    assert.equal(clearBlockFormat('##'), '');
+    assert.equal(clearBlockFormat('> 引用'), '引用');
+    assert.match(renderBlockHtml('##'), /<h2>/);
+    assert.equal(hasBlockFormat('> 引用'), true);
+    assert.equal(hasBlockFormat('普通段落'), false);
+    assert.equal(clearBlockFormat('## 标题'), '标题');
+    assert.equal(mergeBlockMarkdown('hello', 'world'), 'helloworld');
+    assert.equal(mergeBlockMarkdown('## 甲', '乙'), '## 甲乙');
+    assert.equal(mergeBlockMarkdown('> 甲', '乙'), '> 甲乙');
   });
 });

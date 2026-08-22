@@ -1,0 +1,194 @@
+/* Local studio block editor — tokens only, no card chrome. */
+
+.studio-measure {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 42rem;
+}
+
+.studio-editor {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.studio-block {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  column-gap: 0.85rem;
+  align-items: flex-start;
+  padding-block: 0.45rem;
+  cursor: text;
+}
+
+.studio-block__mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  /* First-line box of body copy (1rem × leading-loose 1.8), not ui-meta's 12px em. */
+  height: 1.8rem;
+  margin: 0;
+  padding-top: 0;
+  text-align: right;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-block:has(.studio-block__preview h1) .studio-block__mark {
+  height: 2.5rem;
+}
+
+.studio-block:has(.studio-block__preview h2) .studio-block__mark {
+  height: 2rem;
+}
+
+.studio-block:has(.studio-block__preview h3) .studio-block__mark {
+  height: 2rem;
+}
+
+.studio-block:has(.studio-block__preview h4) .studio-block__mark {
+  height: 1.5rem;
+}
+
+.studio-block__body {
+  min-width: 0;
+}
+
+.studio-editor .studio-block__preview.prose-site > :first-child,
+.studio-editor .studio-block__preview.prose-site > :first-child > :first-child {
+  margin-block-start: 0;
+  padding-block-start: 0;
+}
+
+.studio-editor .studio-block__preview.prose-site > :last-child,
+.studio-editor .studio-block__preview.prose-site > :last-child > :last-child {
+  margin-block-end: 0;
+}
+
+.studio-editor .studio-block__preview.prose-site :is(blockquote, blockquote p)::before,
+.studio-editor .studio-block__preview.prose-site :is(blockquote, blockquote p)::after {
+  content: none;
+  display: none;
+}
+
+.studio-editor .studio-block,
+.studio-editor .studio-block:focus,
+.studio-editor .studio-block:focus-visible,
+.studio-editor .studio-block__body,
+.studio-editor .studio-block__body:focus,
+.studio-editor .studio-block__body:focus-visible,
+.studio-editor .studio-block__preview,
+.studio-editor .studio-block__preview:focus,
+.studio-editor .studio-block__preview:focus-visible,
+.studio-editor .studio-block__preview[contenteditable="true"],
+.studio-editor .studio-block__preview[contenteditable="true"]:focus,
+.studio-editor .studio-block__preview[contenteditable="true"]:focus-visible,
+.studio-editor .studio-block__preview :focus,
+.studio-editor .studio-block__preview :focus-visible {
+  outline: 0 !important;
+  outline-width: 0 !important;
+  outline-offset: 0 !important;
+  outline-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.studio-block__preview {
+  cursor: text;
+  min-height: 1.8em;
+}
+
+.studio-block__preview[contenteditable="true"] {
+  caret-color: var(--color-ink-100);
+  border: 0;
+  background: transparent;
+}
+
+.studio-block__source {
+  display: block;
+  width: 100%;
+  min-height: 1.8em;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--color-ink-200);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.8;
+  outline: none;
+  box-shadow: none;
+}
+
+.studio-block-opaque {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--color-ink-400);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.studio-at-picker {
+  position: absolute;
+  z-index: 20;
+  width: min(22rem, calc(100% - 3rem));
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--color-surface-950);
+}
+
+.studio-at-picker__hint {
+  margin: 0 0 0.5rem;
+}
+
+.studio-at-item {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 0;
+  text-align: left;
+}
+
+.studio-at-item[aria-selected="true"] .studio-at-item__title,
+.studio-at-item:hover .studio-at-item__title,
+.studio-at-item:focus-visible .studio-at-item__title {
+  color: var(--color-ink-100);
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-ink-500);
+  text-underline-offset: 0.25em;
+}
+
+.studio-at-item__title {
+  display: block;
+  color: var(--color-ink-200);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.studio-at-item__meta {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studio-block__preview a {
+    transition-property: color, text-decoration-color;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+
+  .studio-at-item__title {
+    transition-property: color, text-decoration-color;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+}

@@ -2,6 +2,9 @@ import '@fontsource-variable/inter';
 import '@fontsource/jetbrains-mono/400.css';
 import '@/styles/global.css';
 import { initTheme, toggleTheme } from '@/lib/theme';
+import { ensureMediaImport } from '../blocks.mjs';
+import { mountBlockEditor } from './block-editor.js';
+import './editor.css';
 
 const root = document.getElementById('studio');
 
@@ -25,7 +28,10 @@ const state = {
   commitMessage: '',
   previewKey: 0,
   filter: '',
+  linkFilter: '',
 };
+
+let bodyEditor = null;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => (
@@ -58,6 +64,76 @@ function inBlogs() {
 
 function canHaveChildren() {
   return Boolean(state.doc && state.doc.collection === 'articles');
+}
+
+function mentionPages() {
+  return [...state.docs.articles, ...state.docs.projects];
+}
+
+function mentionPane() {
+  return state.doc?.collection === 'pages' ? undefined : 'series';
+}
+
+function ensureStudioMediaImport() {
+  if (!state.doc) return;
+  state.doc = { ...state.doc, imports: ensureMediaImport(state.doc.imports) };
+  markDirty();
+}
+
+async function createFromMention({ kind, title }) {
+  if (!state.current) return null;
+  state.error = '';
+  try {
+    if (state.dirty) await save({ reload: false });
+    const payload = { kind, title };
+    if (kind === 'child') {
+      if (!canHaveChildren()) throw new Error('请先打开一篇文章再加子页面');
+      payload.parentCollection = state.current.collection;
+      payload.parentId = state.current.id;
+    }
+    const created = await api('/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    await refreshLists();
+    const of = `${created.collection}/${created.id}`;
+    if (kind === 'child') {
+      const next = await api(
+        `/doc?collection=${encodeURIComponent(state.current.collection)}&id=${encodeURIComponent(state.current.id)}`,
+      );
+      state.doc = next;
+      state.dirty = false;
+      persist();
+      state.status = '已创建子页面';
+      render();
+      return { of, reloaded: true };
+    }
+    state.status = '已创建';
+    paintChrome();
+    return { of, reloaded: false };
+  } catch (err) {
+    state.error = err instanceof Error ? err.message : String(err);
+    render();
+    return null;
+  }
+}
+
+function bindBodyEditor() {
+  bodyEditor?.destroy();
+  bodyEditor = null;
+  const host = root.querySelector('[data-body-editor]');
+  if (!(host instanceof HTMLElement) || !state.doc) return;
+  const bodyKey = host.dataset.bodyEditor;
+  bodyEditor = mountBlockEditor(host, {
+    value: state.doc[bodyKey] ?? '',
+    pages: mentionPages(),
+    currentOf: `${state.doc.collection}/${state.doc.id}`,
+    canCreateChild: canHaveChildren(),
+    pane: mentionPane(),
+    onChange: (value) => setBody(bodyKey, value),
+    onEnsureImport: ensureStudioMediaImport,
+    onCreate: (input) => createFromMention(input),
+  });
 }
 
 function previewSrc() {
@@ -428,18 +504,19 @@ function editorHtml() {
       ` : ''}
     </div>`;
   if (state.sourceMode) {
-    return `${toolbar}<textarea class="min-h-0 flex-1 resize-none bg-transparent font-mono text-sm leading-relaxed text-ink-200 outline-none" spellcheck="false" data-testid="studio-source" data-body="raw">${esc(state.doc.raw)}</textarea>`;
+    return `<div class="studio-measure">${toolbar}<textarea class="min-h-0 flex-1 resize-none bg-transparent font-mono text-sm leading-relaxed text-ink-200 outline-none" spellcheck="false" data-testid="studio-source" data-body="raw">${esc(state.doc.raw)}</textarea></div>`;
   }
-  const body = state.lang === 'en' ? state.doc.bodyEn : state.doc.bodyZh;
   const bodyKey = state.lang === 'en' ? 'bodyEn' : 'bodyZh';
   const testId = state.lang === 'en' ? 'studio-body-en' : 'studio-body-zh';
   return `
+    <div class="studio-measure">
     <div class="mb-6 flex min-w-0 gap-8">
       <button type="button" class="truncate text-xl font-semibold ${state.lang === 'zh' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-zh" data-lang="zh">${esc(zhTitle)}</button>
       <button type="button" class="truncate text-xl font-semibold ${state.lang === 'en' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-en" data-lang="en">${esc(enTitle)}</button>
     </div>
     ${toolbar}
-    <textarea class="min-h-0 flex-1 resize-none bg-transparent font-mono text-sm leading-relaxed text-ink-200 outline-none" spellcheck="true" data-testid="${testId}" data-body="${bodyKey}">${esc(body)}</textarea>`;
+    <div class="studio-editor min-h-0 flex-1 overflow-y-auto" data-testid="${testId}" data-body-editor="${bodyKey}"></div>
+    </div>`;
 }
 
 function metaHtml() {
@@ -486,36 +563,59 @@ function dialogHtml() {
         ${state.createKind !== 'child' ? `<label class="mt-4 block"><span class="ui-meta">slug</span><input class="comment-field" placeholder="留空则从标题生成" data-testid="studio-create-slug" data-create="slug" value="${attr(state.createSlug)}" /></label>` : ''}
         <div class="mt-8 flex gap-6 text-sm">
           <button type="submit" class="text-ink-100 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-submit">创建</button>
-          <button type="button" class="text-ink-400 hover:text-ink-100" data-action="close-create">取消</button>
+          <button type="button" class="text-ink-500 hover:text-ink-200" data-action="close-create">取消</button>
         </div>
       </form>
     </div>` : '';
   const existing = [...state.docs.articles, ...state.docs.projects].filter((item) => (
     item.collection !== state.current?.collection || item.id !== state.current?.id
   ));
+  const linkQuery = state.linkFilter.trim().toLowerCase();
+  const filtered = existing.filter((item) => {
+    if (!linkQuery) return true;
+    const path = `${item.collection}/${item.id}`;
+    return item.title.toLowerCase().includes(linkQuery)
+      || String(item.titleEn ?? '').toLowerCase().includes(linkQuery)
+      || path.toLowerCase().includes(linkQuery);
+  });
+  const tabClass = (active) => active
+    ? 'text-ink-100 underline decoration-ink-500 underline-offset-4'
+    : 'text-ink-500 hover:text-ink-200';
   const link = state.linkOpen && state.doc ? `
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-surface-950/80 p-6 md:items-center" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 z-50 flex items-end justify-center bg-surface-950/80 p-6 md:items-center" role="dialog" aria-modal="true" aria-labelledby="studio-link-title">
       <div class="w-full max-w-md bg-surface-950">
-        <h2 class="text-xl font-semibold text-ink-100">插入页面</h2>
-        <div class="mt-4 flex gap-6 text-sm">
-          <button type="button" class="${state.linkMode === 'existing' ? 'text-ink-100 underline decoration-ink-500 underline-offset-4' : 'text-ink-400'}" data-testid="studio-link-existing" data-action="link-existing">已有页面</button>
-          ${canHaveChildren() ? `<button type="button" class="${state.linkMode === 'child' ? 'text-ink-100 underline decoration-ink-500 underline-offset-4' : 'text-ink-400'}" data-testid="studio-link-child" data-action="link-child">新建子页面</button>` : ''}
+        <h2 id="studio-link-title" class="text-xl font-semibold text-ink-100">插入页面</h2>
+        <div class="mt-6 flex gap-6 text-sm">
+          <button type="button" class="${tabClass(state.linkMode === 'existing')}" data-testid="studio-link-existing" data-action="link-existing">已有页面</button>
+          ${canHaveChildren() ? `<button type="button" class="${tabClass(state.linkMode === 'child')}" data-testid="studio-link-child" data-action="link-child">新建子页面</button>` : ''}
         </div>
         ${state.linkMode === 'child' && canHaveChildren() ? `
-          <form class="mt-6" data-create-form>
-            <p class="text-sm text-ink-400">子页面是普通文章，写在 \`${esc(state.doc.id)}/&lt;n&gt;.mdx\`，默认不进 /articles。</p>
-            <label class="mt-4 block"><span class="ui-meta">标题</span><input class="comment-field" required data-testid="studio-child-title" data-create="title" value="${attr(state.createTitle)}" /></label>
-            <div class="mt-8 flex gap-6 text-sm">
+          <form class="mt-8" data-create-form>
+            <p class="ui-meta">子页面是普通文章，写在 \`${esc(state.doc.id)}/&lt;n&gt;.mdx\`，默认不进 /articles。</p>
+            <label class="mt-6 block"><span class="ui-meta">标题</span><input class="comment-field" required data-testid="studio-child-title" data-create="title" value="${attr(state.createTitle)}" /></label>
+            <div class="mt-10 flex items-baseline justify-between gap-6 text-sm">
               <button type="submit" class="text-ink-100 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-child">创建</button>
-              <button type="button" class="text-ink-400 hover:text-ink-100" data-action="close-link">取消</button>
+              <button type="button" class="text-ink-500 underline decoration-transparent underline-offset-4 hover:text-ink-200 hover:decoration-ink-500" data-action="close-link">取消</button>
             </div>
           </form>
         ` : `
-          <p class="mt-2 text-sm text-ink-400">写入这篇的 DocList，和合集篇目同一套语法。</p>
-          <ul class="mt-6 max-h-80 overflow-y-auto">
-            ${existing.map((item) => `<li><button type="button" class="block w-full py-1.5 text-left text-sm text-ink-400 hover:text-ink-100" data-link="${esc(item.collection)}/${esc(item.id)}">${esc(item.title)} <span class="font-mono text-xs text-ink-500">${esc(item.collection)}/${esc(item.id)}</span></button></li>`).join('')}
+          <p class="mt-3 ui-meta">写入这篇的 DocList，和合集篇目同一套语法。</p>
+          <label class="mt-6 block">
+            <span class="sr-only">筛选页面</span>
+            <input class="comment-field" type="search" placeholder="筛选标题或路径" data-testid="studio-link-filter" data-link-filter value="${attr(state.linkFilter)}" />
+          </label>
+          <ul class="mt-2 max-h-80 overflow-y-auto">
+            ${filtered.length ? filtered.map((item) => `
+              <li>
+                <button type="button" class="group block w-full py-3 text-left" data-link="${esc(item.collection)}/${esc(item.id)}">
+                  <span class="block text-sm text-ink-200 underline decoration-transparent underline-offset-4 group-hover:text-ink-100 group-hover:decoration-ink-500 group-focus-visible:text-ink-100 group-focus-visible:decoration-ink-500">${esc(item.title)}</span>
+                  <span class="mt-1 block font-mono text-xs text-ink-500">${esc(item.collection)}/${esc(item.id)}</span>
+                </button>
+              </li>`).join('') : `<li class="py-3 ui-meta">没有匹配的页面</li>`}
           </ul>
-          <button type="button" class="mt-6 text-sm text-ink-400 hover:text-ink-100" data-action="close-link">取消</button>
+          <div class="mt-8">
+            <button type="button" class="text-sm text-ink-500 underline decoration-transparent underline-offset-4 hover:text-ink-200 hover:decoration-ink-500" data-action="close-link">取消</button>
+          </div>
         `}
       </div>
     </div>` : '';
@@ -585,6 +685,7 @@ function render() {
       </div>
     </div>
     ${dialogHtml()}`;
+  bindBodyEditor();
 }
 
 root.addEventListener('click', (event) => {
@@ -614,6 +715,7 @@ root.addEventListener('click', (event) => {
   } else if (action === 'open-link') {
     state.linkOpen = true;
     state.linkMode = 'existing';
+    state.linkFilter = '';
     state.createKind = 'child';
     state.createTitle = '';
     render();
@@ -629,6 +731,7 @@ root.addEventListener('click', (event) => {
     render();
   } else if (action === 'close-link') {
     state.linkOpen = false;
+    state.linkFilter = '';
     render();
   } else if (action === 'commit') void commit();
   else if (action === 'push') void pushRemote();
@@ -645,6 +748,18 @@ root.addEventListener('input', (event) => {
     state.filter = target.value;
     render();
     root.querySelector('[data-filter]')?.focus();
+    return;
+  }
+  if (target.dataset.linkFilter !== undefined) {
+    state.linkFilter = target.value;
+    const pos = target.selectionStart;
+    render();
+    const input = root.querySelector('[data-link-filter]');
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      const caret = typeof pos === 'number' ? pos : input.value.length;
+      input.setSelectionRange(caret, caret);
+    }
     return;
   }
   if (target.dataset.commit !== undefined) state.commitMessage = target.value;
