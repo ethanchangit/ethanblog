@@ -7,11 +7,12 @@ import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { MEDIA_IMPORT, ensureMediaImport } from './blocks.mjs';
 
 const execFileAsync = promisify(execFile);
 
 export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
-export const MEDIA_IMPORT = "import { DocList, DocRef } from '@/components/media';";
+export { MEDIA_IMPORT, ensureMediaImport };
 export const LANG_SPLIT = '<div data-lang-split></div>';
 
 const CANONICAL_KEYS = [
@@ -416,24 +417,6 @@ export function listDocRefs(raw) {
     }
   }
   return refs;
-}
-
-export function ensureMediaImport(imports) {
-  const lines = String(imports ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const fromMedia = lines.find((line) => line.includes("@/components/media"));
-  if (!fromMedia) return [MEDIA_IMPORT, ...lines].join('\n');
-  const names = new Set();
-  const named = /import\s*\{([^}]+)\}\s*from\s*['"]@\/components\/media['"]/.exec(fromMedia);
-  if (named) {
-    for (const part of named[1].split(',')) names.add(part.trim());
-  }
-  names.add('DocList');
-  names.add('DocRef');
-  const merged = `import { ${[...names].join(', ')} } from '@/components/media';`;
-  return lines.map((line) => (line === fromMedia ? merged : line)).join('\n');
 }
 
 function insertRefInSection(section, of, pane) {
