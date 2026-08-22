@@ -41,7 +41,7 @@ test.describe('文章留言', () => {
     const footBox = await foot.boundingBox();
     expect(bodyBox).toBeTruthy();
     expect(footBox).toBeTruthy();
-    expect(bodyBox!.y).toBeLessThan(footBox!.y);
+    expect(footBox!.y).toBeLessThan(bodyBox!.y);
     await expect(foot.locator('input[name="name"]')).toBeVisible();
     await expect(foot.locator('input[name="email"]')).toBeVisible();
     await expect(foot.getByRole('button', { name: 'Send' })).toBeVisible();
