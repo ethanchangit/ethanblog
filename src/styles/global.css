@@ -545,7 +545,9 @@
     border: 0;
   }
 
-  /* Bilingual chrome: Chinese copy is in the DOM, hidden until html[data-lang='zh-CN']. */
+  /* Bilingual chrome: Chinese copy is in the DOM, hidden until html[data-lang='zh-CN'].
+   * .i18n-zh 里 <a> 要紧贴前后汉字（写信到<a>联系</a>）；源码空格/换行会变成「写信到 联系」。
+   * 英文链接前后可以留空格。 */
   .i18n-zh {
     display: none;
   }
@@ -595,7 +597,7 @@
     @apply prose max-w-none
       prose-headings:text-ink-100 prose-headings:font-semibold
       prose-p:leading-loose prose-p:text-ink-300
-      prose-a:underline prose-a:underline-offset-2
+      prose-a:underline
       prose-strong:text-ink-100
       prose-code:before:content-none prose-code:after:content-none
       prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-ink-400 prose-blockquote:italic
@@ -634,6 +636,9 @@
   .prose-site a:not([data-tweet-embed] *) {
     color: var(--color-primary-600);
     text-decoration-color: var(--color-primary-300);
+    text-underline-position: under;
+    text-underline-offset: 0.2em;
+    text-decoration-skip-ink: auto;
   }
 
   .prose-site a:not([data-tweet-embed] *):hover {

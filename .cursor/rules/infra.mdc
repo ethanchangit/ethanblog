@@ -19,4 +19,4 @@ alwaysApply: false
 3. **遵循约束**：[AGENTS.md](../../AGENTS.md) + [media/README.md](../../src/components/media/README.md)。
 4. **新组件准入**：满足 media/README 契约（含视觉极简）→ `/lab` 点亮 → 补测试 → 更新 README。
 5. **验证**：`npm run check && npm run build && npm run test`。
-6. **视觉**：不引入边框、背景色块、圆角卡片、色条等装饰；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。
+6. **视觉**：不引入边框、背景色块、圆角卡片、色条等装饰；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。中文 `.i18n-zh` 里 `<a>` 紧贴汉字，不要因换行挤出空格。

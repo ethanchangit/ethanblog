@@ -112,6 +112,15 @@ test.describe('Language（中/EN）', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/zh');
     await expect(page.getByRole('heading', { name: '我在做什么' })).toBeVisible();
     await expect(page.locator('header.site-nav a[href="/zh/now"]')).toHaveText('现在', inner);
+    await expect(
+      page.locator('[data-about-howto] p').filter({ has: page.locator('a[href="/zh/contact"]') }),
+    ).toHaveText('写信到联系。收集了什么、没收集什么，写在隐私。', inner);
+    await expect(
+      page.locator('[data-about-howto] p').filter({ has: page.locator('a[href="/zh/for-agents"]') }),
+    ).toHaveText(
+      '同一地址在 Accept: text/markdown 时给出 Markdown。目录是llms.txt，说明写在ethanchang.io 给 agent 的开发者资源。Now 页在Now。',
+      inner,
+    );
   });
 
   test('切换语言会改掉 Now 页可见文案', async ({ page }) => {
@@ -130,7 +139,7 @@ test.describe('Language（中/EN）', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/zh/now');
     await expect(page.locator('h1')).toHaveText('现在', inner);
     await expect(lede.locator('p.ui-meta')).toHaveText('更新于 2026 年 8 月 21 日', inner);
-    await expect(page.getByText('这是一页 Now：最近在做什么。')).toBeVisible();
+    await expect(page.getByText('这是一页 Now：最近在做什么。这种格式来自nownownow.com。')).toBeVisible();
     await expect(
       page.locator('.prose-site a[href="https://nownownow.com/about"]').filter({ visible: true }),
     ).toHaveText('nownownow.com');
