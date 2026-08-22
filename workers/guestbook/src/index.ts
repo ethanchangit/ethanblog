@@ -8,8 +8,10 @@ import {
 } from '../../../src/lib/comments';
 import {
   buildRawEmail,
+  feedbackHeaders,
   feedbackSubject,
   feedbackText,
+  sanitizeTags,
   type FeedbackPayload,
 } from '../../../src/lib/mail';
 
@@ -47,8 +49,9 @@ export default {
       from: FEEDBACK_FROM,
       to: FEEDBACK_TO,
       replyTo: parsed.email || undefined,
-      subject: feedbackSubject(parsed.name, parsed.slug),
+      subject: feedbackSubject(parsed),
       text: feedbackText(parsed),
+      extraHeaders: feedbackHeaders(parsed),
     });
 
     try {
@@ -64,6 +67,8 @@ function parsePayload(input: Partial<FeedbackPayload>): FeedbackPayload | null {
   if (!isNonEmptyString(input.slug) || input.slug.length > 180) return null;
   if (!isNonEmptyString(input.title) || input.title.length > 200) return null;
   if (!isNonEmptyString(input.url) || input.url.length > 500) return null;
+  const tags = parseTags(input.tags);
+  if (!tags) return null;
   if (!isString(input.name) || input.name.length < 1 || input.name.length > COMMENT_NAME_MAX) {
     return null;
   }
@@ -73,10 +78,21 @@ function parsePayload(input: Partial<FeedbackPayload>): FeedbackPayload | null {
     slug: input.slug,
     title: input.title,
     url: input.url,
+    tags,
     name: input.name,
     email: input.email,
     body: input.body,
   };
+}
+
+function parseTags(value: unknown): string[] | null {
+  if (value == null) return [];
+  if (!Array.isArray(value)) return null;
+  if (value.length > 12) return null;
+  for (const item of value) {
+    if (typeof item !== 'string' || item.length > 40) return null;
+  }
+  return sanitizeTags(value);
 }
 
 function isString(value: unknown): value is string {
