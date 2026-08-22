@@ -49,10 +49,10 @@ function portFromArgs(argv) {
   return 3000;
 }
 
-function send(res, status, contentType, body, extra = {}) {
+function send(res, status, contentType, body) {
   res.statusCode = status;
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Vary', extra.vary ?? 'Accept');
+  res.setHeader('Vary', 'Accept');
   res.end(body);
 }
 
@@ -64,7 +64,12 @@ const server = createServer(async (req, res) => {
   if (shouldNegotiate(url.pathname) && req.method !== 'OPTIONS') {
     const chosen = preferredType(req.headers.accept ?? null);
     if (chosen === null) {
-      send(res, 406, 'text/plain; charset=utf-8', 'Not Acceptable. Available representations: text/html, text/markdown.');
+      send(
+        res,
+        406,
+        'text/plain; charset=utf-8',
+        'Not Acceptable. Available representations: text/html, text/markdown.',
+      );
       return;
     }
     if (chosen === 'text/markdown') {
@@ -84,24 +89,38 @@ const server = createServer(async (req, res) => {
   res.setHeader = (name, value) => {
     if (String(name).toLowerCase() === 'vary') {
       const current = Array.isArray(value) ? value.join(', ') : String(value);
-      if (!current.toLowerCase().split(',').map((s) => s.trim()).includes('accept')) {
+      if (
+        !current
+          .toLowerCase()
+          .split(',')
+          .map((s) => s.trim())
+          .includes('accept')
+      ) {
         return originalSetHeader(name, `${current}, Accept`);
       }
       return originalSetHeader(name, value);
     }
     return originalSetHeader(name, value);
   };
+  res.setHeader('Vary', 'Accept');
 
   await handler(req, res, {
     public: dist,
     redirects: serveConfig.redirects,
-    cleanUrls: false,
+    cleanUrls: true,
+    directoryListing: false,
     trailingSlash: false,
+    headers: [
+      {
+        source: '**/*.md',
+        headers: [{ key: 'Content-Type', value: 'text/markdown; charset=utf-8' }],
+      },
+      {
+        source: '.well-known/api-catalog',
+        headers: [{ key: 'Content-Type', value: 'application/linkset+json; charset=utf-8' }],
+      },
+    ],
   });
-
-  if (!res.headersSent && !res.hasHeader('vary')) {
-    res.setHeader('Vary', 'Accept');
-  }
 });
 
 server.listen(port, () => {
