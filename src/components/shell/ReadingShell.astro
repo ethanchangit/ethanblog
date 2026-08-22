@@ -67,13 +67,9 @@ const showProjects = listKind === 'projects';
       )
     }
 
-    {
-      showRail && (
-        <aside class="reading-rail" data-reading-rail>
-          <slot name="rail" />
-        </aside>
-      )
-    }
+    <aside class="reading-rail" data-reading-rail>
+      {showRail && <slot name="rail" />}
+    </aside>
 
     <div
       class="reading-doc"
