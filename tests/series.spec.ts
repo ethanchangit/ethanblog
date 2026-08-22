@@ -6,6 +6,7 @@ const PART2 = '/articles/series-demo/2';
 const HUB_TITLE = 'A demo of a series of content';
 const PART1_TITLE = 'Series demo · Part 1';
 const PART2_TITLE = 'Series demo · Part 2';
+const HUB_LISTING = '.article-shell [data-series="hub-inline"]:visible';
 
 test.describe('系列子文', () => {
   test('总览在文章列表，子页不在', async ({ page }) => {
@@ -37,7 +38,7 @@ test.describe('系列子文', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto(HUB);
 
-    const listing = page.locator('.article-shell [data-series="hub-inline"]');
+    const listing = page.locator(HUB_LISTING);
     await expect(listing).toBeVisible();
     await expect(listing.getByRole('heading', { level: 2, name: 'Chapters' })).toBeVisible();
     await expect(listing.locator(`a[href="${PART1}"] h3`)).toHaveText(PART1_TITLE, {
@@ -111,7 +112,7 @@ test.describe('系列子文', () => {
   test('低于第三栏宽度时篇目仍整页打开', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 720 });
     await page.goto(HUB);
-    await page.locator(`.article-shell [data-series="hub-inline"] a[href="${PART1}"]`).click();
+    await page.locator(`${HUB_LISTING} a[href="${PART1}"]`).click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/1\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(PART1_TITLE, {
       useInnerText: true,
@@ -124,7 +125,7 @@ test.describe('系列子文（无 JS）', () => {
 
   test('总览篇目和子页翻页仍是真实链接', async ({ page }) => {
     await page.goto(HUB);
-    await page.locator(`.article-shell [data-series="hub-inline"] a[href="${PART1}"]`).click();
+    await page.locator(`${HUB_LISTING} a[href="${PART1}"]`).click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/1\/?$/);
     await page.locator('[data-series-next]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/2\/?$/);

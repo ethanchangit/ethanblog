@@ -156,8 +156,8 @@ draft: true             # 默认 true
 
 **DocRef 专则**：
 - `of` 写 `articles/<id>` 或 `projects/<id>`（系列子文是 `articles/<hub>/1`）。构建期查不到就报错。
-- 卡片长得和 `/articles` 索引行一样（`Card.astro`）；包在 `<DocList>` 里。系列总览若要第三栏打开子文，写 `<DocList pane="series">`。
-- 文件夹系列（`articles/<hub>/<n>.mdx`）总览仍会自动列出篇目，不必再手写一遍。
+- 卡片长得和 `/articles` 索引行一样（`Card.astro`）；包在 `<DocList>` 里。系列总览的篇目要在 `<hub>.mdx` 里手写 `DocRef`，并写 `<DocList pane="series">`（宽屏第三栏打开子文）。
+- 文件夹只决定子文路由与「不进 `/articles`」，**不会**往总览正文自动插一篇目列表。
 - `/blogs` 的名单只改 `src/content/pages/blogs.mdx` 里的 `DocRef`，不会自动收录整个 `articles/`。
 
 **RuleGarden 专则**（第五档，用它时页面就是房间）：
@@ -254,7 +254,7 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 `/blogs` 不是第三个 slot，而是 `src/content/pages/blogs.mdx` 里用 `<DocRef of="articles/…" />` 手工引用已有文档。
 对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
 系列教程把总览放 `articles/<hub>.mdx`（进 `/articles`），子页放 `articles/<hub>/<n>.mdx`
-（路由 `/articles/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。`listed: false` 可把顶层文章也藏起来。
+（路由 `/articles/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。总览上的篇目卡片在 `<hub>.mdx` 里用 `DocList` + `DocRef` 手写，不从文件夹生成。`listed: false` 可把顶层文章也藏起来。
 
 ## 11. 附录：模板
 
@@ -309,14 +309,25 @@ titleEn: "… · Part 1"
 description: "……"
 descriptionEn: "……"
 date: 2026-08-19
-order: 1          # 篇目顺序；总览页自动列出
+order: 1          # 子页「上一篇 / 下一篇」顺序
 draft: true
 ---
 ```
 
 总览是旁边那份 `src/content/articles/<hub>.mdx`（不要用 `index.mdx`）。子文 id 含 `/`，默认不进索引；不必写 `listed: false`。若要把一篇顶层文章藏起来，写 `listed: false`。
 
-自定义合集（不必靠文件夹）在 MDX 里写：
+总览正文的篇目列表要手写（中英两份各放一份；卡片标题/摘要/日期本身已双语）：
+
+```mdx
+import { DocList, DocRef } from '@/components/media';
+
+<DocList pane="series">
+  <DocRef of="articles/<hub>/1" />
+  <DocRef of="articles/<hub>/2" />
+</DocList>
+```
+
+自定义合集（不必靠文件夹、也不开第三栏）在 MDX 里写：
 
 ```mdx
 import { DocList, DocRef } from '@/components/media';
