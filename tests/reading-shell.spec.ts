@@ -455,7 +455,7 @@ test.describe('分栏阅读', () => {
     await page.goto('/articles/embed-preview');
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.toc')).toHaveCount(0);
   });
 
@@ -466,13 +466,13 @@ test.describe('分栏阅读', () => {
     await page.goto('/');
     const home = await measureReadingPanes(page);
     expect(home).not.toBeNull();
-    expectFixedIndexWidth(home!.indexWidth, rem);
+    expectIndexAtMost(home!.indexWidth, rem);
 
     await page.goto('/articles/embed-preview');
     const noToc = await measureReadingPanes(page);
     expect(noToc).not.toBeNull();
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
-    expectFixedIndexWidth(noToc!.indexWidth, rem);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
+    expectIndexAtMost(noToc!.indexWidth, rem);
     expectArticleCenteredInRemaining(noToc!);
     expect(Math.abs(noToc!.indexWidth - home!.indexWidth)).toBeLessThan(2);
 
@@ -484,6 +484,8 @@ test.describe('分栏阅读', () => {
     expectArticleCenteredInRemaining(withToc!);
     expectCenteredArticleGutters(withToc!);
     expect(withToc!.indexRight).toBeLessThanOrEqual(withToc!.articleLeft + 1);
+    expect(Math.abs(withToc!.indexWidth - noToc!.indexWidth)).toBeLessThan(2);
+    expect(Math.abs(withToc!.articleWidth - noToc!.articleWidth)).toBeLessThan(2);
     expectDocIsPageScroll(withToc!);
     await expectNoPageOverflow(page);
     await expectTightSplitInset(page);
@@ -510,20 +512,22 @@ test.describe('分栏阅读', () => {
   });
 
   test('分栏点无目录文章再点有目录文章，左栏宽度不变', async ({ page }) => {
-    await page.setViewportSize({ width: 1600, height: 720 });
-    await page.goto('/articles/embed-preview');
-    const index = page.locator('[data-reading-index]');
-    const before = await measureReadingPanes(page);
-    expect(before).not.toBeNull();
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    for (const width of [1280, 1600] as const) {
+      await page.setViewportSize({ width, height: 720 });
+      await page.goto('/articles/embed-preview');
+      const index = page.locator('[data-reading-index]');
+      const before = await measureReadingPanes(page);
+      expect(before).not.toBeNull();
+      await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
 
-    await index.locator('a[href="/articles/pkm-method"]').click({ force: true });
-    await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
-    await expect(page.locator('[data-reading-rail] nav.toc')).toBeVisible();
-    const after = await measureReadingSplit(page);
-    expect(after).not.toBeNull();
-    expect(Math.abs(after!.indexWidth - before!.indexWidth)).toBeLessThan(2);
-    expectArticleCenteredInRemaining(after!);
+      await index.locator('a[href="/articles/pkm-method"]').click({ force: true });
+      await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
+      await expect(page.locator('[data-reading-rail] nav.toc')).toBeVisible();
+      const after = await measureReadingSplit(page);
+      expect(after).not.toBeNull();
+      expect(Math.abs(after!.indexWidth - before!.indexWidth)).toBeLessThan(2);
+      expectArticleCenteredInRemaining(after!);
+    }
   });
 
   test('768 宽两栏按比例收，目录收起且不横向溢出', async ({ page }) => {
@@ -709,7 +713,7 @@ test.describe('分栏阅读', () => {
 
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
     await expect(page.locator('[data-reading-shell]')).toBeVisible();
@@ -880,7 +884,7 @@ test.describe('分栏阅读', () => {
     await index.locator('a[href="/articles/embed-preview"]').click({ force: true });
     await expect(page).toHaveURL(/\/articles\/embed-preview\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(index).toHaveAttribute('data-keep-index', '1');
     await expect(index.locator('a[href="/articles/embed-preview"]')).toHaveAttribute(
       'aria-current',
@@ -903,7 +907,7 @@ test.describe('分栏阅读', () => {
       inner,
     );
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
     await expect(
       page.locator(
@@ -1016,7 +1020,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
     await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
   });
 
   test('从文章列表点 EthanChang 进分栏首页', async ({ page }) => {

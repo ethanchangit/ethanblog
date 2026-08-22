@@ -58,7 +58,7 @@ test.describe('系列子文', () => {
       { useInnerText: true },
     );
 
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
 
     await listing.locator(`a[href="${PART1}"]`).click();
@@ -85,7 +85,7 @@ test.describe('系列子文', () => {
 
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
-    await expect(page.locator('[data-reading-rail]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
     await expect(listing).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(HUB_TITLE, {

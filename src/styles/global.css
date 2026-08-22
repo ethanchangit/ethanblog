@@ -1408,9 +1408,10 @@
 
   @media (min-width: 1024px) {
     /*
-     * 有 TOC 时加上右栏轨道。三栏都到上限后，多出来的宽度进四条 gutter。
+     * 桌面始终按三栏轨道排。没有 TOC 时右栏空着，左栏/正文不随目录出现回弹。
+     * 三栏都到上限后，多出来的宽度进四条 gutter。
      */
-    .reading-shell:has(> .reading-rail) {
+    .reading-shell {
       --reading-rail-width: var(--reading-side-min);
       grid-template-columns:
         minmax(0, 1fr)
@@ -1425,6 +1426,10 @@
     .reading-rail {
       display: block;
       padding-top: var(--reading-inset-y);
+    }
+
+    .reading-rail:not(:has(*)) {
+      padding: 0;
     }
 
     .reading-shell[data-reading-shell='index'] .reading-rail {
