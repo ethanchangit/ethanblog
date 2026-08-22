@@ -942,11 +942,11 @@ test.describe('分栏阅读', () => {
     expect(titleBox).toBeTruthy();
     expect(backBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height - 2);
     expect(titleBox!.y).toBeGreaterThan(backBox!.y);
-    await expect(page.locator('[data-reading-rail]')).toBeVisible();
-    await expect(page.locator('[data-reading-toc-fold] > summary')).toBeVisible();
-    await expect(page.locator('[data-reading-toc-fold] nav.toc')).toBeHidden();
-    await page.locator('[data-reading-toc-fold] > summary').click();
-    await expect(page.locator('[data-reading-toc-fold] nav.toc')).toBeVisible();
+    await expect(page.locator('[data-reading-rail]')).toBeHidden();
+    await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Contents' })).toHaveCount(0);
+    expect(backBox!.x).toBeLessThan(48);
+    expect(Math.abs(backBox!.x - titleBox!.x)).toBeLessThan(8);
   });
 
   test('分栏点 EthanChang 回到首页 About', async ({ page }) => {

@@ -176,15 +176,4 @@ const activeCss = [...items, ...enItems]
     attributes: true,
     attributeFilter: ['data-lang'],
   });
-
-  function syncTocFold() {
-    const wide = window.matchMedia('(min-width: 1024px)').matches;
-    document.querySelectorAll('details[data-reading-toc-fold]').forEach((el) => {
-      if (!(el instanceof HTMLDetailsElement)) return;
-      if (wide) el.open = true;
-    });
-  }
-
-  window.addEventListener('resize', syncTocFold);
-  document.addEventListener('astro:page-load', syncTocFold);
 </script>
