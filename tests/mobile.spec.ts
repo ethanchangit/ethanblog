@@ -83,34 +83,46 @@ test.describe('手机阅读', () => {
     expect(nav).toBeTruthy();
     expect(heading).toBeTruthy();
     expect(heading!.y).toBeGreaterThanOrEqual(nav!.y + nav!.height - 2);
+    await expect(page.locator('[data-about-panel]')).toBeHidden();
+    await expect(page.locator('[data-reading-doc]')).toBeHidden();
   });
 
-  test('长文目录是独立一页，不和正文叠在一起', async ({ page }) => {
+  test('长文不显示 TOC，返回键靠左，列表与正文不同时出现', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/articles/heptabase-method');
     await expect(page.locator('[data-reading-index]')).toBeHidden();
+    await expect(page.locator('[data-reading-rail]')).toBeHidden();
+    await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Contents' })).toHaveCount(0);
     const back = page.getByRole('link', { name: '← Articles' });
     await expect(back).toBeVisible();
     const nav = await page.locator('header.site-nav').boundingBox();
     const backBox = await back.boundingBox();
+    const titleBox = await page.locator('[data-reading-doc] .article-lede h1').boundingBox();
     expect(nav).toBeTruthy();
     expect(backBox).toBeTruthy();
+    expect(titleBox).toBeTruthy();
     expect(backBox!.y).toBeGreaterThanOrEqual(nav!.y + nav!.height - 2);
+    expect(backBox!.x).toBeLessThan(48);
+    expect(Math.abs(backBox!.x - titleBox!.x)).toBeLessThan(8);
+  });
 
-    const tocEntry = page.locator('.reading-toc-entry a');
-    await expect(tocEntry).toBeVisible();
-    await expect(page.locator('[data-reading-rail] nav.toc')).toBeHidden();
-    await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-
-    await tocEntry.click();
-    await expect(page.locator('[data-reading-rail] nav.toc a').filter({ visible: true }).first()).toBeVisible();
+  test('文章列表页窄屏只显示列表', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/articles');
+    await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc]')).toBeHidden();
-    await expect(page.locator('.reading-toc-entry')).toBeHidden();
+    await expect(page.locator('[data-reading-rail]')).toBeHidden();
+    await expect(page.getByRole('link', { name: '← Articles' })).toHaveCount(0);
+  });
 
-    await page.locator('[data-reading-rail] nav.toc a').filter({ visible: true }).nth(3).click();
+  test('iPad 横屏仍是三栏，目录在右', async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 820 });
+    await page.goto('/articles/pkm-method');
+    await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    await expect(page.locator('[data-reading-rail] nav.toc')).toBeHidden();
-    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
+    await expect(page.locator('[data-reading-rail] nav.toc').filter({ visible: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: '← Articles' })).toBeHidden();
   });
 
   test('留言发送键不掉出视口宽，热区够点', async ({ page }) => {

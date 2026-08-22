@@ -84,24 +84,13 @@ const showProjects = listKind === 'projects';
 
     {
       showRail && (
-        <aside id="reading-toc-page" class="reading-rail" data-reading-rail>
-          <p class="reading-toc-entry">
-            <a href="#reading-toc-page" class="ui-link-subtle">
-              <I18n k="toc" />
-            </a>
-          </p>
-          <p class="reading-toc-back">
-            <a href="#reading-article" class="ui-link-subtle">
-              <I18n k="backToDoc" />
-            </a>
-          </p>
+        <aside class="reading-rail" data-reading-rail>
           <slot name="rail" />
         </aside>
       )
     }
 
     <div
-      id="reading-article"
       class="reading-doc"
       data-reading-pane
       data-reading-doc
