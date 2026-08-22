@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/patch-routes.mjs",
+    "build": "astro build && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
