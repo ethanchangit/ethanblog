@@ -3,6 +3,8 @@
  * `astro dev` / `npm run studio` → http://localhost:4321/studio
  * Production builds never inject the route or the filesystem API.
  */
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   addDocRefToDoc,
@@ -18,7 +20,7 @@ import {
 } from './lib.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PAGE = fileURLToPath(new URL('./page.astro', import.meta.url));
+const INDEX = fileURLToPath(new URL('./ui/index.html', import.meta.url));
 const MAX_BODY = 2_000_000;
 
 function json(res, status, payload) {
@@ -108,12 +110,26 @@ export async function handleStudioApi(root, req, url) {
   return { status: 404, body: { error: 'not found' } };
 }
 
-function studioApiPlugin(root = ROOT) {
+function studioDevPlugin(root = ROOT) {
   return {
-    name: 'ethan-studio-api',
+    name: 'ethan-studio',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url ?? '/';
+        const pathname = rawUrl.split('?')[0];
+        if (pathname === '/studio' || pathname === '/studio/') {
+          if (!isLocalHost(req.headers.host)) {
+            res.statusCode = 403;
+            res.end('studio 只接受本机请求');
+            return;
+          }
+          const html = await readFile(INDEX, 'utf8');
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(html);
+          return;
+        }
         if (!rawUrl.startsWith('/__studio/api')) return next();
         if (!isLocalHost(req.headers.host)) {
           json(res, 403, { error: 'studio API 只接受本机请求' });
@@ -130,6 +146,11 @@ function studioApiPlugin(root = ROOT) {
         }
       });
     },
+    handleHotUpdate(ctx) {
+      if (ctx.file.includes(`${path.sep}src${path.sep}content${path.sep}`)) {
+        return [];
+      }
+    },
   };
 }
 
@@ -137,15 +158,11 @@ export function studioIntegration() {
   return {
     name: 'ethan-studio',
     hooks: {
-      'astro:config:setup': ({ command, injectRoute, updateConfig, logger }) => {
+      'astro:config:setup': ({ command, updateConfig, logger }) => {
         if (command !== 'dev') return;
-        injectRoute({
-          pattern: '/studio',
-          entrypoint: PAGE,
-        });
         updateConfig({
           vite: {
-            plugins: [studioApiPlugin()],
+            plugins: [studioDevPlugin()],
           },
         });
         logger.info('本地编辑器：http://localhost:4321/studio');
