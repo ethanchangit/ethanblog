@@ -674,3 +674,561 @@ export function mountBlockEditor(host, options) {
     },
   };
 }
+
+export function mountCompareEditors(host, options) {
+  const {
+    zh,
+    en,
+    onChangeZh,
+    onChangeEn,
+    pages = [],
+    currentOf = '',
+    canCreateChild = false,
+    pane = 'series',
+    onEnsureImport,
+    onCreate,
+  } = options;
+
+  let zhBlocks = splitBlocks(zh);
+  let enBlocks = splitBlocks(en);
+  let focused = null;
+  let composing = false;
+  let mention = null;
+  let mentionIndex = 0;
+  let destroyed = false;
+  let ignoreBlur = false;
+  let ignoreBlurUntil = 0;
+
+  function holdBlur(ms = 250) {
+    ignoreBlur = true;
+    ignoreBlurUntil = Date.now() + ms;
+    const release = () => {
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('mouseup', release, true);
+      window.setTimeout(() => {
+        if (Date.now() < ignoreBlurUntil) return;
+        ignoreBlur = false;
+      }, 0);
+    };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('mouseup', release, true);
+    window.setTimeout(release, ms);
+  }
+
+  host.replaceChildren();
+  host.classList.add('studio-compare');
+
+  function blocksOf(side) {
+    return side === 'en' ? enBlocks : zhBlocks;
+  }
+
+  function emit(side) {
+    if (side === 'en') onChangeEn?.(joinBlocks(enBlocks));
+    else onChangeZh?.(joinBlocks(zhBlocks));
+  }
+
+  function emitBoth() {
+    onChangeZh?.(joinBlocks(zhBlocks));
+    onChangeEn?.(joinBlocks(enBlocks));
+  }
+
+  function alignLength() {
+    const n = Math.max(zhBlocks.length, enBlocks.length, 1);
+    while (zhBlocks.length < n) zhBlocks.push('');
+    while (enBlocks.length < n) enBlocks.push('');
+  }
+
+  function previewAt(side, index) {
+    return host.querySelector(`[data-block-side="${side}"][data-block-index="${index}"] .studio-block__preview`);
+  }
+
+  function focusedEl() {
+    if (!focused) return null;
+    return previewAt(focused.side, focused.index);
+  }
+
+  function commitFocused() {
+    const el = focusedEl();
+    if (!(el instanceof HTMLElement) || !focused) return;
+    if (el.getAttribute('contenteditable') !== 'true') return;
+    blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
+  }
+
+  function mentionItems() {
+    const query = mention?.query ?? '';
+    const available = pages.filter((page) => pageOf(page) !== currentOf);
+    const matched = matchPages(available, query).slice(0, 24);
+    const items = matched.map((page) => ({
+      type: 'doc',
+      of: pageOf(page),
+      title: page.title,
+      path: pageOf(page),
+    }));
+    const title = query.trim();
+    if (title) {
+      if (canCreateChild) {
+        items.push({ type: 'create-child', title, label: `新建子页面「${title}」` });
+      }
+      items.push({ type: 'create-article', title, label: `新建文章「${title}」` });
+    }
+    return items;
+  }
+
+  function placePicker(picker, el) {
+    const hostBox = host.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    picker.style.left = `${Math.max(0, box.left - hostBox.left)}px`;
+    picker.style.top = `${box.bottom - hostBox.top + host.scrollTop + 6}px`;
+  }
+
+  function paintPicker() {
+    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+    const el = focusedEl();
+    if (!mention || !(el instanceof HTMLElement)) return;
+    const items = mentionItems();
+    const picker = document.createElement('div');
+    picker.className = 'studio-at-picker';
+    picker.setAttribute('data-testid', 'studio-at-picker');
+    picker.setAttribute('role', 'listbox');
+    const hint = document.createElement('p');
+    hint.className = 'studio-at-picker__hint ui-meta';
+    hint.textContent = '插入页面';
+    picker.append(hint);
+    items.forEach((item, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'studio-at-item';
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', index === mentionIndex ? 'true' : 'false');
+      if (item.type === 'doc') {
+        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.title)}</span><span class="studio-at-item__meta ui-meta">${escapeText(item.path)}</span>`;
+      } else {
+        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.label)}</span><span class="studio-at-item__meta ui-meta">${item.type === 'create-child' ? '当前页的子 MDX' : '新的草稿文章'}</span>`;
+      }
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        holdBlur();
+        void applyMention(item);
+      });
+      picker.append(button);
+    });
+    host.append(picker);
+    placePicker(picker, el);
+  }
+
+  function dismissMention() {
+    mention = null;
+    mentionIndex = 0;
+    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+  }
+
+  function insertMarkupAt(side, index, offset, markup) {
+    const blocks = blocksOf(side);
+    const source = blocks[index] ?? '';
+    blocks[index] = `${source.slice(0, offset)}${markup}${source.slice(offset)}`;
+    emit(side);
+    onEnsureImport?.();
+    paint();
+    activate(side, index, { caret: offset + markup.length });
+  }
+
+  function replaceMentionWith(markup) {
+    if (!mention || !focused) return;
+    const { side, index } = focused;
+    const start = mention.start;
+    const end = start + 1 + mention.query.length;
+    const source = blocksOf(side)[index];
+    blocksOf(side)[index] = `${source.slice(0, start)}${source.slice(end)}`;
+    mention = null;
+    insertMarkupAt(side, index, start, markup);
+  }
+
+  async function applyMention(item) {
+    if (!item || !focused) return;
+    if (item.type === 'doc') {
+      replaceMentionWith(docRefMarkup(item.of, pane));
+      return;
+    }
+    if (!mention) return;
+    const { side, index } = focused;
+    const start = mention.start;
+    const source = blocksOf(side)[index];
+    const end = start + 1 + mention.query.length;
+    blocksOf(side)[index] = `${source.slice(0, start)}${source.slice(end)}`;
+    mention = null;
+    mentionIndex = 0;
+    emit(side);
+    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+    paintBlock(side, index);
+    if (!onCreate) return;
+    const created = await onCreate({
+      kind: item.type === 'create-child' ? 'child' : 'article',
+      title: item.title,
+    });
+    if (!created || created.reloaded || destroyed) return;
+    insertMarkupAt(side, index, start, docRefMarkup(created.of, pane));
+  }
+
+  function decoratePreview(preview, side, index) {
+    const block = blocksOf(side)[index] ?? '';
+    const kind = classifyBlock(block);
+    preview.className = 'studio-block__preview prose-site';
+    preview.innerHTML = renderBlockHtml(block);
+    preview.dataset.kind = kind.type;
+    if (kind.level) preview.dataset.level = String(kind.level);
+    else delete preview.dataset.level;
+    preview.setAttribute('aria-label', side === 'en' ? '编辑这段英文' : '编辑这段中文');
+    preview.spellcheck = true;
+    const active = focused && focused.side === side && focused.index === index;
+    if (active) {
+      preview.contentEditable = 'true';
+      preview.dataset.blockSource = '';
+    } else {
+      preview.removeAttribute('contenteditable');
+      delete preview.dataset.blockSource;
+    }
+  }
+
+  function paintBlock(side, index) {
+    const preview = previewAt(side, index);
+    if (!(preview instanceof HTMLElement)) return;
+    decoratePreview(preview, side, index);
+  }
+
+  function makeBlock(side, index) {
+    const row = document.createElement('div');
+    row.className = 'studio-block';
+    row.dataset.blockIndex = String(index);
+    row.dataset.blockSide = side;
+    const mark = document.createElement('span');
+    mark.className = 'studio-block__mark ui-meta';
+    mark.textContent = String(index + 1);
+    mark.setAttribute('aria-hidden', 'true');
+    const body = document.createElement('div');
+    body.className = 'studio-block__body';
+    const preview = document.createElement('div');
+    decoratePreview(preview, side, index);
+    body.append(preview);
+    row.append(mark, body);
+    return row;
+  }
+
+  function paint() {
+    alignLength();
+    const items = zhBlocks.map((_, index) => {
+      const pair = document.createElement('div');
+      pair.className = 'studio-compare-pair';
+      pair.dataset.pairIndex = String(index);
+      pair.append(makeBlock('zh', index), makeBlock('en', index));
+      return pair;
+    });
+    host.replaceChildren(...items);
+    paintPicker();
+  }
+
+  function ensureStableCaret(el) {
+    const leaf = el.querySelector('p, h1, h2, h3, h4, h5, h6, li, pre, code') || el;
+    const onlyBr = leaf.childNodes.length === 1 && leaf.firstChild?.nodeName === 'BR';
+    if (leaf.childNodes.length === 0 || onlyBr) {
+      leaf.replaceChildren(document.createTextNode('\u200B'));
+    }
+  }
+
+  function activate(side, index, { caret, focus = true } = {}) {
+    alignLength();
+    if (index < 0 || index >= blocksOf(side).length) return;
+    holdBlur();
+    if (focused && (focused.side !== side || focused.index !== index)) {
+      const prev = previewAt(focused.side, focused.index);
+      if (prev instanceof HTMLElement) {
+        prev.removeAttribute('contenteditable');
+        delete prev.dataset.blockSource;
+      }
+    }
+    focused = { side, index };
+    const el = previewAt(side, index);
+    if (!(el instanceof HTMLElement)) return;
+    el.contentEditable = 'true';
+    el.dataset.blockSource = '';
+    ensureStableCaret(el);
+    if (focus) el.focus({ preventScroll: true });
+    if (caret != null) setCaretOffset(el, caret);
+  }
+
+  function collapseFocus() {
+    if (!focused) return;
+    commitFocused();
+    emit(focused.side);
+    focused = null;
+    mention = null;
+    zhBlocks = splitBlocks(joinBlocks(zhBlocks));
+    enBlocks = splitBlocks(joinBlocks(enBlocks));
+    alignLength();
+    paint();
+  }
+
+  function applyKind(type, text, extra = {}) {
+    if (!focused) return;
+    blocksOf(focused.side)[focused.index] = formatBlock(type, text, extra);
+    emit(focused.side);
+    paintBlock(focused.side, focused.index);
+    const el = focusedEl();
+    if (el) {
+      el.focus({ preventScroll: true });
+      setCaretOffset(el, String(text ?? '').length);
+    }
+  }
+
+  function maybeShortcut(el) {
+    if (!(el instanceof HTMLElement) || !focused) return false;
+    if ((el.dataset.kind || 'p') !== 'p') return false;
+    const found = detectMarkdownShortcut(visibleText(el));
+    if (!found) return false;
+    applyKind(found.type, found.text, { level: found.level });
+    return true;
+  }
+
+  function checkMention(el) {
+    const found = atQueryAtCaret(visibleText(el), caretOffsetIn(el));
+    if (found) {
+      mention = found;
+      mentionIndex = 0;
+      paintPicker();
+    } else if (mention) {
+      mention = null;
+      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+    }
+  }
+
+  function onInput(event) {
+    if (isImeEvent(event, composing) || event.inputType === 'insertCompositionText') return;
+    const el = event.target instanceof Element ? event.target.closest('.studio-block__preview') : null;
+    if (!(el instanceof HTMLElement) || el.getAttribute('contenteditable') !== 'true' || !focused) return;
+    if (maybeShortcut(el)) return;
+    blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
+    emit(focused.side);
+    checkMention(el);
+  }
+
+  function afterComposition(event) {
+    composing = false;
+    const el = event.target instanceof Element ? event.target.closest('.studio-block__preview') : null;
+    if (!(el instanceof HTMLElement) || !focused) return;
+    if (maybeShortcut(el)) return;
+    blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
+    emit(focused.side);
+    checkMention(el);
+  }
+
+  function currentListItem(el) {
+    const sel = window.getSelection();
+    if (!sel || !sel.anchorNode) return null;
+    const node = sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode.parentElement;
+    return node?.closest('li') ?? el.querySelector('li');
+  }
+
+  function insertPairAfter(index) {
+    zhBlocks.splice(index + 1, 0, '');
+    enBlocks.splice(index + 1, 0, '');
+  }
+
+  function removePair(index) {
+    zhBlocks.splice(index, 1);
+    enBlocks.splice(index, 1);
+    if (!zhBlocks.length) zhBlocks = [''];
+    if (!enBlocks.length) enBlocks = [''];
+    alignLength();
+  }
+
+  function onKey(event) {
+    if (isImeEvent(event, composing)) return;
+    const el = event.target instanceof Element ? event.target.closest('.studio-block__preview') : null;
+    if (!(el instanceof HTMLElement) || el.getAttribute('contenteditable') !== 'true' || !focused) return;
+    const { side, index } = focused;
+    const blocks = blocksOf(side);
+
+    if (mention) {
+      const items = mentionItems();
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        mentionIndex = items.length ? (mentionIndex + 1) % items.length : 0;
+        paintPicker();
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        mentionIndex = items.length ? (mentionIndex - 1 + items.length) % items.length : 0;
+        paintPicker();
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void applyMention(items[mentionIndex]);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dismissMention();
+        return;
+      }
+    }
+
+    const kind = classifyBlock(blocks[index]);
+    const atStart = isCollapsed() && caretOffsetIn(el) === 0;
+    const atEnd = isCollapsed() && caretOffsetIn(el) >= visibleText(el).length;
+
+    if (!event.shiftKey && event.key === 'ArrowLeft' && atStart && index > 0) {
+      event.preventDefault();
+      commitFocused();
+      emit(side);
+      activate(side, index - 1, { caret: classifyBlock(blocks[index - 1]).text.length });
+      return;
+    }
+    if (!event.shiftKey && event.key === 'ArrowRight' && atEnd && index < blocks.length - 1) {
+      event.preventDefault();
+      commitFocused();
+      emit(side);
+      activate(side, index + 1, { caret: 0 });
+      return;
+    }
+    if (event.key === 'ArrowUp' && atStart && index > 0) {
+      event.preventDefault();
+      commitFocused();
+      emit(side);
+      activate(side, index - 1, { caret: classifyBlock(blocks[index - 1]).text.length });
+      return;
+    }
+    if (event.key === 'ArrowDown' && atEnd && index < blocks.length - 1) {
+      event.preventDefault();
+      commitFocused();
+      emit(side);
+      activate(side, index + 1, { caret: 0 });
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      if (kind.type === 'fence' || kind.type === 'opaque') return;
+      if (kind.type === 'ul' || kind.type === 'ol') {
+        const li = currentListItem(el);
+        const emptyItem = !li || !stripMarks(li.textContent ?? '').trim();
+        if (emptyItem) {
+          event.preventDefault();
+          commitFocused();
+          const remaining = classifyBlock(blocks[index]).text.split('\n').filter((line) => line.trim());
+          blocks[index] = remaining.length ? formatBlock(kind.type, remaining.join('\n')) : '';
+          insertPairAfter(index);
+          emitBoth();
+          paint();
+          activate(side, index + 1, { caret: 0 });
+        }
+        return;
+      }
+      event.preventDefault();
+      commitFocused();
+      const current = classifyBlock(blocks[index]);
+      const offset = Math.min(caretOffsetIn(el), current.text.length);
+      const before = current.text.slice(0, offset);
+      const after = current.text.slice(offset);
+      blocks[index] = formatBlock(current.type, before, { level: current.level });
+      insertPairAfter(index);
+      blocks[index + 1] = after;
+      emitBoth();
+      paint();
+      activate(side, index + 1, { caret: 0 });
+      return;
+    }
+
+    if (event.key === 'Delete' && atEnd && index < blocks.length - 1) {
+      event.preventDefault();
+      commitFocused();
+      const caret = classifyBlock(blocks[index]).text.length;
+      blocks[index] = mergeBlockMarkdown(blocks[index], blocks[index + 1]);
+      removePair(index + 1);
+      emitBoth();
+      paint();
+      activate(side, index, { caret });
+      return;
+    }
+
+    if (event.key === 'Backspace' && atStart) {
+      event.preventDefault();
+      commitFocused();
+      if (hasBlockFormat(blocks[index])) {
+        blocks[index] = clearBlockFormat(blocks[index]);
+        emit(side);
+        paintBlock(side, index);
+        focusedEl()?.focus({ preventScroll: true });
+        setCaretOffset(focusedEl(), 0);
+        return;
+      }
+      if (index === 0) {
+        if (!classifyBlock(blocks[0]).text.trim()) {
+          blocks[0] = '';
+          emit(side);
+          paintBlock(side, 0);
+        }
+        return;
+      }
+      const prevLen = classifyBlock(blocks[index - 1]).text.length;
+      blocks[index - 1] = mergeBlockMarkdown(blocks[index - 1], blocks[index]);
+      removePair(index);
+      emitBoth();
+      paint();
+      activate(side, index - 1, { caret: prevLen });
+    }
+  }
+
+  function onFocusOut() {
+    requestAnimationFrame(() => {
+      if (destroyed || ignoreBlur || Date.now() < ignoreBlurUntil) return;
+      if (mention) return;
+      if (host.contains(document.activeElement)) return;
+      collapseFocus();
+    });
+  }
+
+  host.addEventListener('input', onInput);
+  host.addEventListener('keydown', onKey);
+  host.addEventListener('focusout', onFocusOut);
+  host.addEventListener('compositionstart', () => { composing = true; });
+  host.addEventListener('compositionend', afterComposition);
+
+  host.addEventListener('pointerdown', (event) => {
+    if (destroyed) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('[data-testid="studio-at-picker"]')) {
+      event.preventDefault();
+      return;
+    }
+    const link = target.closest('a');
+    if (link && host.contains(link)) event.preventDefault();
+    const row = target.closest('[data-block-side][data-block-index]');
+    if (row instanceof HTMLElement) {
+      const index = Number(row.dataset.blockIndex);
+      const side = row.dataset.blockSide === 'en' ? 'en' : 'zh';
+      if (focused && focused.side === side && focused.index === index) return;
+      commitFocused();
+      if (focused) emit(focused.side);
+      mention = null;
+      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+      activate(side, index, { focus: false });
+    }
+  });
+
+  const onDocPointer = (event) => {
+    if (!(event.target instanceof Node) || host.contains(event.target)) return;
+    if (mention) dismissMention();
+  };
+  document.addEventListener('pointerdown', onDocPointer);
+
+  paint();
+
+  return {
+    destroy() {
+      destroyed = true;
+      commitFocused();
+      document.removeEventListener('pointerdown', onDocPointer);
+    },
+  };
+}

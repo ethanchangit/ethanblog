@@ -115,8 +115,7 @@ describe('studio lib', () => {
       });
       assert.equal(child.id, 'deep-dive/1');
       const hub = await readFile(path.join(root, 'src/content/articles/deep-dive.mdx'), 'utf8');
-      assert.match(hub, /DocRef of="articles\/deep-dive\/1"/);
-      assert.match(hub, /pane="series"/);
+      assert.equal(hub.includes('DocRef'), false);
 
       const nested = await createDoc(root, {
         kind: 'child',
@@ -126,7 +125,7 @@ describe('studio lib', () => {
       });
       assert.equal(nested.id, 'deep-dive/1/1');
       const childRaw = await readFile(path.join(root, 'src/content/articles/deep-dive/1.mdx'), 'utf8');
-      assert.match(childRaw, /DocRef of="articles\/deep-dive\/1\/1"/);
+      assert.equal(childRaw.includes('DocRef'), false);
       const listed = await listDocs(root);
       assert.ok(listed.articles.some((item) => item.id === 'deep-dive/1/1'));
     } finally {

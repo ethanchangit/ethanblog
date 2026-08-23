@@ -1,25 +1,226 @@
 /* Local studio block editor — tokens only, no card chrome. */
 
+/*
+ * Viewport-locked shell. global.css sets html { overflow-x: clip }, which
+ * computes overflow-y to auto; a content-sized grid row then grows the
+ * document and leaves a tall blank under the three columns.
+ */
+html:has(#studio) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html:has(#studio) body,
+#studio {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio-shell {
+  display: flex;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio-columns {
+  --reading-index-width: 24rem;
+  --reading-side-min: 24rem;
+  --reading-measure: 42rem;
+  --reading-split-2: calc(var(--reading-index-width) + var(--reading-measure));
+  --reading-split-3: calc(var(--reading-split-2) + var(--reading-side-min));
+  --reading-inset-y: 0.75rem;
+  --studio-col-index: var(--reading-index-width);
+  --studio-col-editor: var(--reading-measure);
+  --studio-col-rail: var(--reading-side-min);
+  display: grid;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+}
+
+.studio-doc,
+.studio-rail,
+.studio-doc-head,
+.studio-rail-head,
+.studio-compare {
+  min-width: 0;
+  min-height: 0;
+}
+
+.studio-doc {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1rem 1rem 2.5rem;
+}
+
+.studio-rail {
+  display: none;
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem 1rem 2.5rem;
+}
+
+.studio-doc-head,
+.studio-rail-head {
+  padding: 1rem 1rem 0;
+}
+
+.studio-compare {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1rem 2.5rem;
+}
+
+.studio-compare-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-block: 0.35rem;
+}
+
+.studio-compare-pair:focus-within > .studio-block {
+  background-color: color-mix(in srgb, var(--color-ink-100) 7%, var(--color-surface-950));
+}
+
+@media (min-width: 640px) {
+  .studio-doc,
+  .studio-doc-head,
+  .studio-compare {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .studio-columns {
+    overflow: hidden;
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--studio-col-index)
+      minmax(0, 1fr)
+      var(--studio-col-editor)
+      minmax(0, 1fr)
+      var(--studio-col-rail)
+      minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .studio-columns--compare {
+    --studio-col-rail: var(--studio-col-editor);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .studio-columns.is-resizing,
+  .studio-columns.is-resizing * {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .studio-index {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+
+  .studio-doc {
+    grid-column: 4;
+    grid-row: 1 / -1;
+    padding-top: var(--reading-inset-y);
+    padding-inline: 0;
+  }
+
+  .studio-rail {
+    display: flex;
+    grid-column: 6;
+    grid-row: 1 / -1;
+    padding-top: var(--reading-inset-y);
+    padding-inline: 0 0.25rem;
+  }
+
+  .studio-doc-head {
+    grid-column: 4;
+    grid-row: 1;
+    padding-top: var(--reading-inset-y);
+    padding-inline: 0;
+  }
+
+  .studio-rail-head {
+    grid-column: 6;
+    grid-row: 1;
+    padding-top: var(--reading-inset-y);
+    padding-inline: 0;
+  }
+
+  .studio-compare {
+    grid-column: 4 / 8;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-content: start;
+    align-items: start;
+    padding-inline: 0;
+  }
+
+  .studio-compare-pair {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: stretch;
+    gap: 0;
+    padding-block: 0;
+  }
+
+  .studio-compare-pair > [data-block-side='zh'] {
+    grid-column: 1;
+  }
+
+  .studio-compare-pair > [data-block-side='en'] {
+    grid-column: 3;
+  }
+}
+
 .studio-measure {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-width: 0;
   min-height: 0;
   width: 100%;
-  max-width: 42rem;
+  max-width: var(--reading-measure, 42rem);
+}
+
+@media (min-width: 768px) {
+  .studio-doc .studio-measure {
+    max-width: none;
+  }
 }
 
 .studio-editor {
   position: relative;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .studio-block {
+  --studio-block-gutter: 2rem;
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
+  grid-template-columns: var(--studio-block-gutter) minmax(0, 1fr) var(--studio-block-gutter);
   column-gap: 0.85rem;
   align-items: flex-start;
   padding-block: 0.45rem;
@@ -62,37 +263,37 @@
   min-width: 0;
 }
 
-.studio-editor .studio-block__preview.prose-site > :first-child,
-.studio-editor .studio-block__preview.prose-site > :first-child > :first-child {
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site > :first-child,
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site > :first-child > :first-child {
   margin-block-start: 0;
   padding-block-start: 0;
 }
 
-.studio-editor .studio-block__preview.prose-site > :last-child,
-.studio-editor .studio-block__preview.prose-site > :last-child > :last-child {
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site > :last-child,
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site > :last-child > :last-child {
   margin-block-end: 0;
 }
 
-.studio-editor .studio-block__preview.prose-site :is(blockquote, blockquote p)::before,
-.studio-editor .studio-block__preview.prose-site :is(blockquote, blockquote p)::after {
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site :is(blockquote, blockquote p)::before,
+:is(.studio-editor, .studio-compare) .studio-block__preview.prose-site :is(blockquote, blockquote p)::after {
   content: none;
   display: none;
 }
 
-.studio-editor .studio-block,
-.studio-editor .studio-block:focus,
-.studio-editor .studio-block:focus-visible,
-.studio-editor .studio-block__body,
-.studio-editor .studio-block__body:focus,
-.studio-editor .studio-block__body:focus-visible,
-.studio-editor .studio-block__preview,
-.studio-editor .studio-block__preview:focus,
-.studio-editor .studio-block__preview:focus-visible,
-.studio-editor .studio-block__preview[contenteditable="true"],
-.studio-editor .studio-block__preview[contenteditable="true"]:focus,
-.studio-editor .studio-block__preview[contenteditable="true"]:focus-visible,
-.studio-editor .studio-block__preview :focus,
-.studio-editor .studio-block__preview :focus-visible {
+:is(.studio-editor, .studio-compare) .studio-block,
+:is(.studio-editor, .studio-compare) .studio-block:focus,
+:is(.studio-editor, .studio-compare) .studio-block:focus-visible,
+:is(.studio-editor, .studio-compare) .studio-block__body,
+:is(.studio-editor, .studio-compare) .studio-block__body:focus,
+:is(.studio-editor, .studio-compare) .studio-block__body:focus-visible,
+:is(.studio-editor, .studio-compare) .studio-block__preview,
+:is(.studio-editor, .studio-compare) .studio-block__preview:focus,
+:is(.studio-editor, .studio-compare) .studio-block__preview:focus-visible,
+:is(.studio-editor, .studio-compare) .studio-block__preview[contenteditable="true"],
+:is(.studio-editor, .studio-compare) .studio-block__preview[contenteditable="true"]:focus,
+:is(.studio-editor, .studio-compare) .studio-block__preview[contenteditable="true"]:focus-visible,
+:is(.studio-editor, .studio-compare) .studio-block__preview :focus,
+:is(.studio-editor, .studio-compare) .studio-block__preview :focus-visible {
   outline: 0 !important;
   outline-width: 0 !important;
   outline-offset: 0 !important;
@@ -177,6 +378,102 @@
 .studio-at-item__meta {
   display: block;
   margin-top: 0.2rem;
+}
+
+.studio-index {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio-resize {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .studio-resize {
+    display: block;
+    position: relative;
+    z-index: 3;
+    width: 0.75rem;
+    height: 100%;
+    margin-inline: -0.375rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    appearance: none;
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .studio-resize--index {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    justify-self: start;
+  }
+
+  .studio-resize--rail {
+    grid-column: 5;
+    grid-row: 1 / -1;
+    justify-self: start;
+  }
+
+  .studio-resize::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 50%;
+    width: 1px;
+    transform: translateX(-50%);
+    background: var(--color-surface-700);
+  }
+}
+
+.studio-index-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.studio-index-heading {
+  --studio-index-fade: 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: var(--studio-index-fade);
+  background-color: transparent;
+  background-image: linear-gradient(
+    to bottom in srgb,
+    var(--color-surface-950) 0%,
+    var(--color-surface-950) calc(100% - var(--studio-index-fade)),
+    rgb(from var(--color-surface-950) r g b / 0)
+  );
+}
+
+.studio-index-card {
+  display: flex;
+  width: 100%;
+  height: auto;
+  flex-direction: column;
+  margin: 0;
+  padding-block: 1rem;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.studio-index-card[aria-current='page'] h3 {
+  text-decoration-color: var(--color-ink-500);
 }
 
 @media (prefers-reduced-motion: no-preference) {

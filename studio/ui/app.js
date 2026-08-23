@@ -1,9 +1,10 @@
 import '@fontsource-variable/inter';
 import '@fontsource/jetbrains-mono/400.css';
 import '@/styles/global.css';
+import { formatDate } from '@/lib/format';
 import { initTheme, toggleTheme } from '@/lib/theme';
-import { ensureMediaImport } from '../blocks.mjs';
-import { mountBlockEditor } from './block-editor.js';
+import { docRefMarkup, ensureMediaImport } from '../blocks.mjs';
+import { mountBlockEditor, mountCompareEditors } from './block-editor.js';
 import './editor.css';
 
 const root = document.getElementById('studio');
@@ -26,12 +27,22 @@ const state = {
   linkMode: 'existing',
   git: null,
   commitMessage: '',
-  previewKey: 0,
   filter: '',
   linkFilter: '',
+  indexList: 'articles',
+  bilingual: false,
 };
 
+function todayIsoLocal() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 let bodyEditor = null;
+let compareEditor = null;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => (
@@ -57,9 +68,31 @@ function fm() {
   return state.doc?.frontmatter ?? {};
 }
 
-function inBlogs() {
-  if (!state.doc) return false;
-  return state.docs.blogsRefs.includes(`${state.doc.collection}/${state.doc.id}`);
+function collectionKind() {
+  const data = fm();
+  if (data.listed === false) return 'blog';
+  if (state.doc?.id?.includes('/') && data.listed !== true) return 'blog';
+  if (data.slot === 'project') return 'project';
+  return 'article';
+}
+
+function setCollectionKind(kind) {
+  if (!state.doc || state.doc.collection === 'pages') return;
+  const next = { ...fm() };
+  const series = String(state.doc.id).includes('/');
+  if (kind === 'blog') {
+    next.listed = false;
+  } else {
+    next.slot = kind === 'project' ? 'project' : 'article';
+    if (series) next.listed = true;
+    else delete next.listed;
+    if (kind === 'article' && !String(next.date ?? '').slice(0, 10)) next.date = todayIsoLocal();
+  }
+  state.doc = { ...state.doc, frontmatter: next };
+  if (kind === 'project') state.indexList = 'projects';
+  else if (kind === 'article') state.indexList = 'articles';
+  markDirty();
+  render();
 }
 
 function canHaveChildren() {
@@ -97,18 +130,7 @@ async function createFromMention({ kind, title }) {
     });
     await refreshLists();
     const of = `${created.collection}/${created.id}`;
-    if (kind === 'child') {
-      const next = await api(
-        `/doc?collection=${encodeURIComponent(state.current.collection)}&id=${encodeURIComponent(state.current.id)}`,
-      );
-      state.doc = next;
-      state.dirty = false;
-      persist();
-      state.status = '已创建子页面';
-      render();
-      return { of, reloaded: true };
-    }
-    state.status = '已创建';
+    state.status = kind === 'child' ? '已创建子页面' : '已创建';
     paintChrome();
     return { of, reloaded: false };
   } catch (err) {
@@ -118,11 +140,44 @@ async function createFromMention({ kind, title }) {
   }
 }
 
+function canBilingual() {
+  return Boolean(
+    state.doc
+    && !state.sourceMode
+    && typeof state.doc.bodyZh === 'string'
+    && typeof state.doc.bodyEn === 'string',
+  );
+}
+
+function bilingualOn() {
+  return Boolean(state.bilingual && canBilingual());
+}
+
 function bindBodyEditor() {
   bodyEditor?.destroy();
+  compareEditor?.destroy();
   bodyEditor = null;
+  compareEditor = null;
+  if (!state.doc) return;
+  if (bilingualOn()) {
+    const host = root.querySelector('[data-compare-editor]');
+    if (!(host instanceof HTMLElement)) return;
+    compareEditor = mountCompareEditors(host, {
+      zh: state.doc.bodyZh ?? '',
+      en: state.doc.bodyEn ?? '',
+      pages: mentionPages(),
+      currentOf: `${state.doc.collection}/${state.doc.id}`,
+      canCreateChild: canHaveChildren(),
+      pane: mentionPane(),
+      onChangeZh: (value) => setBody('bodyZh', value),
+      onChangeEn: (value) => setBody('bodyEn', value),
+      onEnsureImport: ensureStudioMediaImport,
+      onCreate: (input) => createFromMention(input),
+    });
+    return;
+  }
   const host = root.querySelector('[data-body-editor]');
-  if (!(host instanceof HTMLElement) || !state.doc) return;
+  if (!(host instanceof HTMLElement)) return;
   const bodyKey = host.dataset.bodyEditor;
   bodyEditor = mountBlockEditor(host, {
     value: state.doc[bodyKey] ?? '',
@@ -139,14 +194,23 @@ function bindBodyEditor() {
 function previewSrc() {
   if (!state.doc) return '';
   const href = state.doc.href;
-  const path = state.lang === 'zh' && href !== '/' ? `/zh${href}` : href;
-  return `${path}?studio=${state.previewKey}`;
+  return state.lang === 'zh' && href !== '/' ? `/zh${href}` : href;
 }
 
 function matchesFilter(item) {
   const q = state.filter.trim().toLowerCase();
   if (!q) return true;
-  return item.id.toLowerCase().includes(q) || item.title.toLowerCase().includes(q);
+  const tags = Array.isArray(item.tags) ? item.tags.join(' ') : '';
+  return [item.id, item.title, item.titleEn, item.description, item.descriptionEn, tags]
+    .join('\n')
+    .toLowerCase()
+    .includes(q);
+}
+
+function parseIsoDate(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? ''));
+  if (!match) return null;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
 }
 
 function tagsText(value) {
@@ -215,12 +279,159 @@ function persist() {
         lang: state.lang,
         dirty: state.dirty,
         filter: state.filter,
+        indexList: state.indexList,
+        bilingual: state.bilingual,
         commitMessage: state.commitMessage,
       }),
     );
   } catch {
     // ignore quota
   }
+}
+
+const COL_STORAGE_KEY = 'studio-col-widths';
+const COL_MIN_REM = 14;
+const COL_GUTTER_REM = 8;
+let colDragging = false;
+
+function remPx() {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+}
+
+function readColWidths() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COL_STORAGE_KEY) || '');
+    if (
+      Number.isFinite(saved?.index)
+      && Number.isFinite(saved?.editor)
+      && Number.isFinite(saved?.rail)
+    ) {
+      return { index: saved.index, editor: saved.editor, rail: saved.rail };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function writeColWidths(widths) {
+  try {
+    localStorage.setItem(COL_STORAGE_KEY, JSON.stringify({
+      index: Math.round(widths.index),
+      editor: Math.round(widths.editor),
+      rail: Math.round(widths.rail),
+    }));
+  } catch {
+    // ignore quota
+  }
+}
+
+function defaultColWidths(host) {
+  const rem = remPx();
+  const min = COL_MIN_REM * rem;
+  const pad = COL_GUTTER_REM * rem;
+  const avail = Math.max(min * 3, host.clientWidth - pad);
+  if (host.classList.contains('studio-columns--compare')) {
+    const index = Math.min(24 * rem, Math.max(min, avail / 4));
+    const half = Math.max(min, (avail - index) / 2);
+    return { index, editor: half, rail: half };
+  }
+  return {
+    index: 24 * rem,
+    editor: 42 * rem,
+    rail: 24 * rem,
+  };
+}
+
+function fitColWidths(host, widths) {
+  const rem = remPx();
+  const min = COL_MIN_REM * rem;
+  const pad = COL_GUTTER_REM * rem;
+  const maxSum = Math.max(min * 3, host.clientWidth - pad);
+  let index = Math.max(min, widths.index);
+  let editor = Math.max(min, widths.editor);
+  let rail = Math.max(min, widths.rail);
+  const sum = index + editor + rail;
+  if (sum > maxSum) {
+    const scale = maxSum / sum;
+    index = Math.max(min, index * scale);
+    editor = Math.max(min, editor * scale);
+    rail = Math.max(min, rail * scale);
+  }
+  return { index, editor, rail };
+}
+
+function setColVars(host, widths) {
+  const next = fitColWidths(host, widths);
+  host.style.setProperty('--studio-col-index', `${Math.round(next.index)}px`);
+  host.style.setProperty('--studio-col-editor', `${Math.round(next.editor)}px`);
+  host.style.setProperty('--studio-col-rail', `${Math.round(next.rail)}px`);
+  return next;
+}
+
+function currentColWidths(host) {
+  const style = getComputedStyle(host);
+  return {
+    index: Number.parseFloat(style.getPropertyValue('--studio-col-index')) || 0,
+    editor: Number.parseFloat(style.getPropertyValue('--studio-col-editor')) || 0,
+    rail: Number.parseFloat(style.getPropertyValue('--studio-col-rail')) || 0,
+  };
+}
+
+function applyColumnLayout() {
+  const host = root.querySelector('.studio-columns');
+  if (!(host instanceof HTMLElement) || colDragging) return;
+  setColVars(host, readColWidths() ?? defaultColWidths(host));
+}
+
+function onColResizePointerDown(event) {
+  if (!(event instanceof PointerEvent) || event.button !== 0) return;
+  const handle = event.target instanceof Element
+    ? event.target.closest('[data-studio-resize]')
+    : null;
+  if (!(handle instanceof HTMLElement)) return;
+  const host = handle.closest('.studio-columns');
+  if (!(host instanceof HTMLElement) || window.matchMedia('(max-width: 767px)').matches) return;
+  const edge = handle.dataset.studioResize;
+  if (edge !== 'index' && edge !== 'rail') return;
+  event.preventDefault();
+  const startX = event.clientX;
+  const start = currentColWidths(host);
+  const min = COL_MIN_REM * remPx();
+  colDragging = true;
+  host.classList.add('is-resizing');
+  handle.setPointerCapture(event.pointerId);
+
+  const move = (ev) => {
+    const delta = ev.clientX - startX;
+    const next = { ...start };
+    if (edge === 'index') {
+      const pair = start.index + start.editor;
+      next.index = Math.min(pair - min, Math.max(min, start.index + delta));
+      next.editor = pair - next.index;
+    } else {
+      const pair = start.editor + start.rail;
+      next.editor = Math.min(pair - min, Math.max(min, start.editor + delta));
+      next.rail = pair - next.editor;
+    }
+    host.style.setProperty('--studio-col-index', `${Math.round(next.index)}px`);
+    host.style.setProperty('--studio-col-editor', `${Math.round(next.editor)}px`);
+    host.style.setProperty('--studio-col-rail', `${Math.round(next.rail)}px`);
+  };
+
+  const stop = (ev) => {
+    handle.removeEventListener('pointermove', move);
+    handle.removeEventListener('pointerup', stop);
+    handle.removeEventListener('pointercancel', stop);
+    colDragging = false;
+    host.classList.remove('is-resizing');
+    if (handle.hasPointerCapture(ev.pointerId)) handle.releasePointerCapture(ev.pointerId);
+    writeColWidths(currentColWidths(host));
+  };
+
+  handle.addEventListener('pointermove', move);
+  handle.addEventListener('pointerup', stop);
+  handle.addEventListener('pointercancel', stop);
 }
 
 function restoreSession() {
@@ -235,6 +446,8 @@ function restoreSession() {
       state.lang = saved.lang === 'en' || saved.previewLang === 'en' ? 'en' : 'zh';
       state.dirty = Boolean(saved.dirty);
       state.filter = saved.filter ?? '';
+      state.indexList = saved.indexList === 'projects' ? 'projects' : 'articles';
+      state.bilingual = Boolean(saved.bilingual);
       state.commitMessage = saved.commitMessage ?? '';
     }
   } catch {
@@ -255,11 +468,6 @@ function paintChrome() {
     saveBtn.disabled = !state.doc || state.saving;
     saveBtn.textContent = state.saving ? '保存中' : '保存';
   }
-  const iframe = root.querySelector('[data-testid="studio-preview"]');
-  if (iframe instanceof HTMLIFrameElement) {
-    const src = previewSrc();
-    if (src && iframe.getAttribute('src') !== src) iframe.src = src;
-  }
 }
 
 function markDirty() {
@@ -274,19 +482,6 @@ async function refreshLists() {
   state.git = await api('/git');
 }
 
-async function waitForPreview(href) {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      const res = await fetch(href, { method: 'GET' });
-      if (res.ok) break;
-    } catch {
-      // content layer may still be reloading
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  state.previewKey += 1;
-}
-
 async function openDoc(collection, id) {
   if (state.dirty && !window.confirm('有未保存的改动，确定离开？')) return;
   const next = await api(`/doc?collection=${encodeURIComponent(collection)}&id=${encodeURIComponent(id)}`);
@@ -296,7 +491,8 @@ async function openDoc(collection, id) {
   state.dirty = false;
   state.error = '';
   state.status = '';
-  state.previewKey += 1;
+  if (collection === 'projects') state.indexList = 'projects';
+  else if (collection === 'articles') state.indexList = 'articles';
   persist();
   render();
 }
@@ -328,12 +524,7 @@ async function save(opts = {}) {
     state.dirty = false;
     persist();
     await refreshLists();
-    if (opts.reload !== false) {
-      await waitForPreview(saved.href);
-      state.status = '已保存';
-    } else {
-      state.status = '已保存';
-    }
+    state.status = '已保存';
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
   } finally {
@@ -355,6 +546,7 @@ function openCreate(kind) {
 
 async function createDocFromForm() {
   state.error = '';
+  const fromLinkDialog = state.linkOpen && state.createKind === 'child';
   try {
     const payload = {
       kind: state.createKind,
@@ -372,10 +564,14 @@ async function createDocFromForm() {
       body: JSON.stringify(payload),
     });
     state.createOpen = false;
-    state.linkOpen = false;
     state.createTitle = '';
     state.createSlug = '';
     await refreshLists();
+    const of = `${created.collection}/${created.id}`;
+    if (fromLinkDialog) {
+      await copyLinkMarkup(of);
+      return;
+    }
     const next = await api(
       `/doc?collection=${encodeURIComponent(created.collection)}&id=${encodeURIComponent(created.id)}`,
     );
@@ -384,7 +580,6 @@ async function createDocFromForm() {
     state.sourceMode = false;
     state.dirty = false;
     state.error = '';
-    await waitForPreview(created.href);
     state.status = state.createKind === 'child' ? '已创建子页面' : '已创建';
     persist();
     render();
@@ -394,41 +589,14 @@ async function createDocFromForm() {
   }
 }
 
-async function toggleBlogs() {
-  if (!state.doc || state.doc.collection === 'pages') return;
-  const of = `${state.doc.collection}/${state.doc.id}`;
-  const present = !inBlogs();
-  const result = await api('/blogs', {
-    method: 'POST',
-    body: JSON.stringify({ of, present }),
-  });
-  state.docs = { ...state.docs, blogsRefs: result.refs };
-  state.status = present ? '已加入 /blogs' : '已移出 /blogs';
-  state.previewKey += 1;
-  render();
-}
-
-async function insertLink(of) {
-  if (!state.current) return;
-  state.error = '';
+async function copyLinkMarkup(of) {
+  const snippet = docRefMarkup(of, mentionPane());
   try {
-    if (state.dirty) await save({ reload: false });
-    const pane = state.doc?.collection === 'pages' ? undefined : 'series';
-    const next = await api('/link', {
-      method: 'POST',
-      body: JSON.stringify({
-        collection: state.current.collection,
-        id: state.current.id,
-        of,
-        pane,
-      }),
-    });
-    state.doc = next;
-    state.dirty = false;
+    await navigator.clipboard.writeText(snippet);
     state.linkOpen = false;
-    state.status = `已插入 ${of}`;
-    state.previewKey += 1;
-    await refreshLists();
+    state.linkFilter = '';
+    state.status = '已复制';
+    persist();
     render();
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
@@ -465,12 +633,105 @@ async function pushRemote() {
   }
 }
 
-function itemButton(item, collection) {
+function itemCard(item, collection) {
   const active = state.current?.id === item.id && state.current?.collection === collection;
-  const klass = active ? 'text-ink-100' : 'text-ink-400 hover:text-ink-100';
+  const en = state.lang === 'en';
+  const title = en && item.titleEn ? item.titleEn : item.title;
+  const description = en && item.descriptionEn ? item.descriptionEn : item.description;
+  const date = parseIsoDate(item.date);
+  const meta = date ? formatDate(date, en ? 'en' : 'zh-CN') : '';
+  const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
   const indents = ['', 'pl-3', 'pl-6', 'pl-9'];
   const indentClass = indents[Math.min(depthOf(item.id), 3)];
-  return `<li><button type="button" class="block w-full py-1.5 text-left text-sm ${klass} ${indentClass}" data-open="${collection}:${esc(item.id)}">${esc(item.title)}${item.draft ? '<span class="ml-2 text-xs text-ink-500">草稿</span>' : ''}</button></li>`;
+  return `<li>
+    <button type="button" class="studio-index-card group ${indentClass}" data-open="${collection}:${esc(item.id)}"${active ? ' aria-current="page"' : ''}>
+      <div class="flex items-start justify-between gap-3">
+        <h3 class="text-lg font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500">${esc(title)}</h3>
+        ${item.draft ? `<span class="ui-badge">${en ? 'Draft' : '草稿'}</span>` : ''}
+      </div>
+      ${description ? `<p class="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-400 transition-colors group-hover:text-ink-300">${esc(description)}</p>` : ''}
+      <div class="mt-auto flex items-center justify-between gap-3 pt-3">
+        ${meta ? `<p class="ui-meta">${esc(meta)}</p>` : ''}
+        ${tags.length ? `<ul class="ui-tag-list">${tags.map((tag) => `<li class="ui-tag">${esc(tag)}</li>`).join('')}</ul>` : ''}
+      </div>
+    </button>
+  </li>`;
+}
+
+function isRootAmong(item, items) {
+  const parent = parentIdOf(item.id);
+  return !parent || !items.some((other) => other.id === parent);
+}
+
+function groupArticleBlocks(items) {
+  const blocks = [];
+  for (const item of items) {
+    if (isRootAmong(item, items)) blocks.push({ item, descendants: [] });
+    else if (blocks.length) blocks[blocks.length - 1].descendants.push(item);
+    else blocks.push({ item, descendants: [] });
+  }
+  const groups = [];
+  for (const block of blocks) {
+    const year = parseIsoDate(block.item.date)?.getUTCFullYear() ?? 0;
+    const last = groups[groups.length - 1];
+    if (last && last.year === year) last.blocks.push(block);
+    else groups.push({ year, blocks: [block] });
+  }
+  return groups;
+}
+
+function articleIndexHtml() {
+  const groups = groupArticleBlocks(visibleArticles());
+  if (!groups.length) return `<p class="ui-meta">没有匹配的文章</p>`;
+  return groups.map((group, index) => `
+    <section class="${index > 0 ? 'mt-10' : ''}">
+      ${group.year ? `<h2 class="mb-2 text-xl font-semibold tracking-tight text-ink-100 sm:text-2xl">${group.year}</h2>` : ''}
+      <ul class="flex flex-col">${group.blocks.flatMap((block) => [itemCard(block.item, 'articles'), ...block.descendants.map((child) => itemCard(child, 'articles'))]).join('')}</ul>
+    </section>
+  `).join('');
+}
+
+function projectIndexHtml() {
+  const items = state.docs.projects.filter(matchesFilter);
+  if (!items.length) return `<p class="ui-meta">没有匹配的项目</p>`;
+  return `<ul class="flex flex-col">${items.map((item) => itemCard(item, 'projects')).join('')}</ul>`;
+}
+
+function indexAsideHtml() {
+  const articles = state.indexList !== 'projects';
+  return `
+        <aside class="studio-index px-4 sm:px-6 md:px-4" data-testid="studio-index">
+          <div class="studio-index-scroll pb-8">
+            <div class="reading-index-heading studio-index-heading">
+              <nav class="reading-index-switch" aria-label="切换文章或项目">
+                ${articles ? `
+                  <h1 class="reading-index-switch-title" aria-current="page">文章</h1>
+                  <button type="button" class="reading-index-switch-alt" data-action="index-list" data-index-list="projects">项目</button>
+                ` : `
+                  <h1 class="reading-index-switch-title" aria-current="page">项目</h1>
+                  <button type="button" class="reading-index-switch-alt" data-action="index-list" data-index-list="articles">文章</button>
+                `}
+              </nav>
+              <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-article" data-create-kind="article" ${articles ? '' : 'hidden'}>新建</button>
+              <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-project" data-create-kind="project" ${articles ? 'hidden' : ''}>新建</button>
+            </div>
+            <label class="mb-6 block"><span class="sr-only">筛选</span><input class="comment-field" type="search" placeholder="${articles ? '筛选文章' : '筛选项目'}" data-testid="studio-filter" data-filter value="${attr(state.filter)}" /></label>
+            ${articles ? articleIndexHtml() : projectIndexHtml()}
+            <section class="mt-10">
+              <h2 class="ui-meta mb-2">博客名单</h2>
+              <button type="button" class="block w-full py-1.5 text-left text-sm ${state.current?.id === 'blogs' ? 'text-ink-100' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-open-blogs" data-open="pages:blogs">/blogs</button>
+            </section>
+          </div>
+          <section class="shrink-0 pt-4 pb-4">
+            <h2 class="ui-meta mb-2">仓库</h2>
+            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个改动` : ''}</p>` : ''}
+            <label class="mt-3 block"><span class="sr-only">提交说明</span><input class="comment-field" placeholder="提交说明" data-testid="studio-commit-message" data-commit value="${attr(state.commitMessage)}" /></label>
+            <div class="mt-3 flex flex-wrap gap-4 text-sm">
+              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-commit" data-action="commit">提交内容</button>
+              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-push" data-action="push">推送远程</button>
+            </div>
+          </section>
+        </aside>`;
 }
 
 function visibleArticles() {
@@ -488,21 +749,37 @@ function visibleArticles() {
   return orderedWithChildren(items.filter((item) => keep.has(item.id)));
 }
 
-function editorHtml() {
-  if (!state.doc) {
-    return `<p class="max-w-md text-ink-400">选一篇已有文章，或按「新建」。顶部两个标题切换中文 / 英文，一次只写一页。</p>`;
-  }
-  const data = fm();
-  const zhTitle = data.title || '中文';
-  const enTitle = data.titleEn || 'English';
-  const toolbar = `
+function editorToolbarHtml() {
+  const bilingual = canBilingual();
+  return `
     <div class="mb-4 flex flex-wrap items-center gap-4 text-sm">
       <span class="font-mono text-xs text-ink-500">${esc(state.doc.collection)}/${esc(state.doc.id)}</span>
       <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-action="toggle-source">${state.sourceMode ? '页面' : '源码'}</button>
       ${state.doc.collection !== 'pages' || state.doc.id === 'blogs' ? `
         <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-link" data-action="open-link">插入页面</button>
       ` : ''}
+      ${bilingual ? `
+        <button type="button" class="${state.bilingual ? 'text-ink-100' : 'text-ink-200'} underline decoration-ink-500 underline-offset-4" data-testid="studio-bilingual" data-action="toggle-bilingual" aria-pressed="${state.bilingual ? 'true' : 'false'}">对照翻译</button>
+      ` : ''}
     </div>`;
+}
+
+function editorTitleHtml() {
+  const data = fm();
+  const zhTitle = data.title || '中文';
+  const enTitle = data.titleEn || 'English';
+  return `
+    <div class="mb-6 flex min-w-0 gap-8">
+      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'zh' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-zh" data-lang="zh">${esc(zhTitle)}</button>
+      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'en' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-en" data-lang="en">${esc(enTitle)}</button>
+    </div>`;
+}
+
+function editorHtml() {
+  if (!state.doc) {
+    return `<p class="max-w-md text-ink-400">选一篇已有文章，或按「新建」。顶部两个标题切换中文 / 英文，一次只写一页。</p>`;
+  }
+  const toolbar = editorToolbarHtml();
   if (state.sourceMode) {
     return `<div class="studio-measure">${toolbar}<textarea class="min-h-0 flex-1 resize-none bg-transparent font-mono text-sm leading-relaxed text-ink-200 outline-none" spellcheck="false" data-testid="studio-source" data-body="raw">${esc(state.doc.raw)}</textarea></div>`;
   }
@@ -510,13 +787,39 @@ function editorHtml() {
   const testId = state.lang === 'en' ? 'studio-body-en' : 'studio-body-zh';
   return `
     <div class="studio-measure">
-    <div class="mb-6 flex min-w-0 gap-8">
-      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'zh' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-zh" data-lang="zh">${esc(zhTitle)}</button>
-      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'en' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-en" data-lang="en">${esc(enTitle)}</button>
-    </div>
+    ${editorTitleHtml()}
     ${toolbar}
     <div class="studio-editor min-h-0 flex-1 overflow-y-auto" data-testid="${testId}" data-body-editor="${bodyKey}"></div>
     </div>`;
+}
+
+function compareColumnsHtml() {
+  const data = fm();
+  const zhTitle = data.title || '中文';
+  const enTitle = data.titleEn || 'English';
+  return `
+    <div class="studio-doc-head">
+      <p class="mb-6 truncate text-xl font-semibold text-ink-100">${esc(zhTitle)}</p>
+      ${editorToolbarHtml()}
+    </div>
+    <div class="studio-rail-head">
+      <p class="mb-6 truncate text-xl font-semibold text-ink-400">${esc(enTitle)}</p>
+      <p class="ui-meta">逐段对照，点一段即可改</p>
+    </div>
+    <div class="studio-compare" data-compare-editor data-testid="studio-compare"></div>`;
+}
+
+function resizeHandleHtml(edge, label) {
+  return `<button type="button" class="studio-resize studio-resize--${edge}" data-studio-resize="${edge}" aria-label="${label}"></button>`;
+}
+
+function columnsHtml() {
+  const handles = `${resizeHandleHtml('index', '调整目录与正文宽度')}${resizeHandleHtml('rail', '调整正文与侧栏宽度')}`;
+  if (bilingualOn()) return `${handles}${compareColumnsHtml()}`;
+  return `
+        ${handles}
+        <section class="studio-doc">${editorHtml()}</section>
+        <section class="studio-rail">${metaHtml()}</section>`;
 }
 
 function metaHtml() {
@@ -531,11 +834,11 @@ function metaHtml() {
       <p class="ui-meta">${isEn ? 'English metadata' : '页面信息'}</p>
       <label><span class="ui-meta">${isEn ? 'Title' : '标题'}</span><input class="comment-field" data-testid="studio-title" data-fm="${isEn ? 'titleEn' : 'title'}" value="${attr(isEn ? data.titleEn : data.title)}" /></label>
       <label><span class="ui-meta">${isEn ? 'Description' : '摘要'}</span><input class="comment-field" data-fm="${isEn ? 'descriptionEn' : 'description'}" value="${attr(isEn ? data.descriptionEn : data.description)}" /></label>
-      ${state.doc.collection === 'articles' ? `
+      ${state.doc.collection !== 'pages' && data.slot !== 'project' ? `
         <label><span class="ui-meta">日期</span><input class="comment-field" type="date" data-fm="date" value="${attr(String(data.date ?? '').slice(0, 10))}" /></label>
         <label><span class="ui-meta">标签（逗号分隔）</span><input class="comment-field" data-tags value="${attr(tagsText(data.tags))}" /></label>
       ` : ''}
-      ${state.doc.collection === 'projects' ? `
+      ${state.doc.collection !== 'pages' && data.slot === 'project' ? `
         <label><span class="ui-meta">状态</span>
           <select class="comment-field" data-fm="status">
             ${['wip', 'active', 'shipped', 'archived'].map((item) => `<option value="${item}" ${String(data.status ?? 'wip') === item ? 'selected' : ''}>${item}</option>`).join('')}
@@ -545,7 +848,15 @@ function metaHtml() {
       ` : ''}
       ${state.doc.collection !== 'pages' ? `
         <label class="inline-flex items-center gap-2 text-sm text-ink-400"><input type="checkbox" data-fm="draft" ${data.draft ? 'checked' : ''}/> 草稿</label>
-        <label class="inline-flex items-center gap-2 text-sm text-ink-400"><input type="checkbox" data-testid="studio-blogs-toggle" data-action="toggle-blogs" ${inBlogs() ? 'checked' : ''}/> 收入 /blogs</label>
+        <div class="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label="收录到">
+          ${['article', 'project', 'blog'].map((kind) => {
+            const current = collectionKind();
+            const klass = current === kind
+              ? 'text-ink-100 underline decoration-ink-500 underline-offset-4'
+              : 'text-ink-400 hover:text-ink-100';
+            return `<button type="button" class="${klass}" data-testid="studio-kind-${kind}" data-action="collection-kind" data-kind="${kind}">${kind}</button>`;
+          }).join('')}
+        </div>
       ` : ''}
       ${state.doc.imports ? `<label><span class="ui-meta">imports</span><textarea class="comment-field comment-field--body min-h-16 font-mono" spellcheck="false" data-body="imports">${esc(state.doc.imports)}</textarea></label>` : ''}
       <a class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">新标签打开预览</a>
@@ -558,7 +869,7 @@ function dialogHtml() {
     <div class="fixed inset-0 z-50 flex items-end justify-center bg-surface-950/80 p-6 md:items-center" role="dialog" aria-modal="true">
       <form class="w-full max-w-md bg-surface-950" data-create-form>
         <h2 class="text-xl font-semibold text-ink-100">${kindLabel}</h2>
-        <p class="mt-2 text-sm text-ink-400">${state.createKind === 'child' ? '会生成当前页的子 MDX，并写进这篇的 DocList。合集就是有子页面的普通文章。' : '会生成带 frontmatter 的 MDX，默认草稿。'}</p>
+        <p class="mt-2 text-sm text-ink-400">${state.createKind === 'child' ? '会生成当前页的子 MDX。合集就是有子页面的普通文章。' : '会生成带 frontmatter 的 MDX，默认草稿。'}</p>
         <label class="mt-6 block"><span class="ui-meta">标题</span><input class="comment-field" required data-testid="studio-create-title" data-create="title" value="${attr(state.createTitle)}" /></label>
         ${state.createKind !== 'child' ? `<label class="mt-4 block"><span class="ui-meta">slug</span><input class="comment-field" placeholder="留空则从标题生成" data-testid="studio-create-slug" data-create="slug" value="${attr(state.createSlug)}" /></label>` : ''}
         <div class="mt-8 flex gap-6 text-sm">
@@ -591,7 +902,7 @@ function dialogHtml() {
         </div>
         ${state.linkMode === 'child' && canHaveChildren() ? `
           <form class="mt-8" data-create-form>
-            <p class="ui-meta">子页面是普通文章，写在 \`${esc(state.doc.id)}/&lt;n&gt;.mdx\`，默认不进 /articles。</p>
+            <p class="ui-meta">子页面写在 \`${esc(state.doc.id)}/&lt;n&gt;.mdx\`。创建后复制 DocList 标记，再贴到正文。</p>
             <label class="mt-6 block"><span class="ui-meta">标题</span><input class="comment-field" required data-testid="studio-child-title" data-create="title" value="${attr(state.createTitle)}" /></label>
             <div class="mt-10 flex items-baseline justify-between gap-6 text-sm">
               <button type="submit" class="text-ink-100 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-child">创建</button>
@@ -599,7 +910,7 @@ function dialogHtml() {
             </div>
           </form>
         ` : `
-          <p class="mt-3 ui-meta">写入这篇的 DocList，和合集篇目同一套语法。</p>
+          <p class="mt-3 ui-meta">找到页面后点选，复制 DocList 标记，再贴到正文。</p>
           <label class="mt-6 block">
             <span class="sr-only">筛选页面</span>
             <input class="comment-field" type="search" placeholder="筛选标题或路径" data-testid="studio-link-filter" data-link-filter value="${attr(state.linkFilter)}" />
@@ -623,9 +934,8 @@ function dialogHtml() {
 }
 
 function render() {
-  const src = previewSrc();
   root.innerHTML = `
-    <div class="flex h-dvh min-h-0 flex-col" data-testid="studio-app">
+    <div class="studio-shell" data-testid="studio-app">
       <header class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <div class="min-w-0">
           <p class="ui-meta">本地编辑器</p>
@@ -639,53 +949,15 @@ function render() {
           <button type="button" class="text-ink-400 hover:text-ink-100" data-action="theme">主题</button>
         </div>
       </header>
-      ${state.error ? `<p class="px-4 text-sm text-ink-200 sm:px-6" role="alert">${esc(state.error)}</p>` : ''}
-      <div class="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[13rem_minmax(0,1fr)_20rem]">
-        <aside class="flex min-h-0 flex-col gap-6 overflow-y-auto px-4 py-4 sm:px-6 md:px-4">
-          <label><span class="sr-only">筛选</span><input class="comment-field" type="search" placeholder="筛选文章" data-testid="studio-filter" data-filter value="${attr(state.filter)}" /></label>
-          <section>
-            <div class="mb-2 flex items-baseline justify-between gap-2">
-              <h2 class="ui-meta">文章</h2>
-              <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-article" data-create-kind="article">新建</button>
-            </div>
-            <ul class="flex flex-col">${visibleArticles().map((item) => itemButton(item, 'articles')).join('')}</ul>
-          </section>
-          <section>
-            <div class="mb-2 flex items-baseline justify-between gap-2">
-              <h2 class="ui-meta">项目</h2>
-              <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-create-project" data-create-kind="project">新建</button>
-            </div>
-            <ul class="flex flex-col">${state.docs.projects.filter(matchesFilter).map((item) => itemButton(item, 'projects')).join('')}</ul>
-          </section>
-          <section>
-            <h2 class="ui-meta mb-2">博客名单</h2>
-            <button type="button" class="block w-full py-1.5 text-left text-sm ${state.current?.id === 'blogs' ? 'text-ink-100' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-open-blogs" data-open="pages:blogs">/blogs</button>
-          </section>
-          <section class="mt-auto pb-4">
-            <h2 class="ui-meta mb-2">仓库</h2>
-            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个改动` : ''}</p>` : ''}
-            <label class="mt-3 block"><span class="sr-only">提交说明</span><input class="comment-field" placeholder="提交说明" data-testid="studio-commit-message" data-commit value="${attr(state.commitMessage)}" /></label>
-            <div class="mt-3 flex flex-wrap gap-4 text-sm">
-              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-commit" data-action="commit">提交内容</button>
-              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-push" data-action="push">推送远程</button>
-            </div>
-          </section>
-        </aside>
-        <section class="flex min-h-0 flex-col overflow-hidden px-4 py-4 md:px-6">${editorHtml()}</section>
-        <section class="hidden min-h-0 flex-col md:flex">
-          <div class="min-h-0 shrink-0 overflow-y-auto px-4 py-4">${metaHtml()}</div>
-          <div class="flex min-h-0 flex-1 flex-col">
-            <div class="flex items-center gap-4 px-4 py-2 text-sm">
-              <span class="ui-meta">站点预览</span>
-              <button type="button" class="text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="refresh">刷新</button>
-            </div>
-            ${src ? `<iframe class="min-h-0 w-full flex-1 bg-surface-950" title="文章预览" src="${attr(src)}" data-testid="studio-preview"></iframe>` : `<p class="px-4 text-sm text-ink-500">保存或打开一篇文档后，这里渲染真实页面。</p>`}
-          </div>
-        </section>
+      ${state.error ? `<p class="shrink-0 px-4 text-sm text-ink-200 sm:px-6" role="alert">${esc(state.error)}</p>` : ''}
+      <div class="studio-columns${bilingualOn() ? ' studio-columns--compare' : ''}">
+        ${indexAsideHtml()}
+        ${columnsHtml()}
       </div>
     </div>
     ${dialogHtml()}`;
   bindBodyEditor();
+  applyColumnLayout();
 }
 
 root.addEventListener('click', (event) => {
@@ -702,7 +974,13 @@ root.addEventListener('click', (event) => {
   } else if (createKind) {
     openCreate(createKind);
   } else if (link) {
-    void insertLink(link);
+    void copyLinkMarkup(link);
+  } else if (target.dataset.indexList) {
+    state.indexList = target.dataset.indexList === 'projects' ? 'projects' : 'articles';
+    persist();
+    render();
+  } else if (action === 'collection-kind' && target.dataset.kind) {
+    setCollectionKind(target.dataset.kind);
   } else if (lang) {
     state.lang = lang === 'en' ? 'en' : 'zh';
     persist();
@@ -711,6 +989,13 @@ root.addEventListener('click', (event) => {
   else if (action === 'theme') toggleTheme();
   else if (action === 'toggle-source') {
     state.sourceMode = !state.sourceMode;
+    if (state.sourceMode) state.bilingual = false;
+    persist();
+    render();
+  } else if (action === 'toggle-bilingual') {
+    if (!canBilingual()) return;
+    state.bilingual = !state.bilingual;
+    persist();
     render();
   } else if (action === 'open-link') {
     state.linkOpen = true;
@@ -733,12 +1018,8 @@ root.addEventListener('click', (event) => {
     state.linkOpen = false;
     state.linkFilter = '';
     render();
-  } else if (action === 'commit') void commit();
+  }   else if (action === 'commit') void commit();
   else if (action === 'push') void pushRemote();
-  else if (action === 'refresh') {
-    state.previewKey += 1;
-    render();
-  }
 });
 
 root.addEventListener('input', (event) => {
@@ -775,14 +1056,6 @@ root.addEventListener('input', (event) => {
   if (target.dataset.body) setBody(target.dataset.body, target.value);
 });
 
-root.addEventListener('change', (event) => {
-  const target = event.target;
-  if (target instanceof HTMLInputElement && target.dataset.action === 'toggle-blogs') {
-    event.preventDefault();
-    void toggleBlogs();
-  }
-});
-
 root.addEventListener('submit', (event) => {
   if (!(event.target instanceof HTMLFormElement) || !event.target.hasAttribute('data-create-form')) return;
   event.preventDefault();
@@ -796,6 +1069,9 @@ window.addEventListener('keydown', (event) => {
     void save();
   }
 });
+
+root.addEventListener('pointerdown', onColResizePointerDown);
+window.addEventListener('resize', applyColumnLayout);
 
 initTheme();
 restoreSession();
