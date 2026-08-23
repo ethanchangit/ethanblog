@@ -194,6 +194,8 @@ function summarize(collection, id, parsed, file) {
     title: data.title ?? id,
     titleEn: data.titleEn ?? '',
     description: data.description ?? '',
+    descriptionEn: data.descriptionEn ?? '',
+    tags: Array.isArray(data.tags) ? data.tags : [],
     draft: Boolean(data.draft),
     listed: data.listed,
     date: data.date ? String(data.date).slice(0, 10) : '',
@@ -373,10 +375,6 @@ export async function createDoc(root, input) {
     const slot = parent.frontmatter.slot || (parentCollection === 'projects' ? 'project' : 'article');
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, childTemplate({ title, date, order: next, slot }));
-    const updated = addDocRefToRaw(parentRaw, `${parentCollection}/${id}`, {
-      pane: collectionPane(parentCollection),
-    });
-    await writeFile(parentFile, updated.endsWith('\n') ? updated : `${updated}\n`);
     return {
       collection: parentCollection,
       id,
