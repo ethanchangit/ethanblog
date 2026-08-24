@@ -1,6 +1,7 @@
 import '@fontsource-variable/inter';
 import '@fontsource/jetbrains-mono/400.css';
 import '@/styles/global.css';
+import { groupedTags, tagGroups } from '@/data/tag-groups';
 import { formatDate } from '@/lib/format';
 import { initTheme, toggleTheme } from '@/lib/theme';
 import { docRefMarkup, ensureMediaImport } from '../blocks.mjs';
@@ -31,6 +32,15 @@ const state = {
   linkFilter: '',
   indexList: 'articles',
   bilingual: false,
+  tagsOpen: false,
+  tagCatalog: [],
+  tagUsed: {},
+  tagAdd: [],
+  tagNewGroup: { slug: '', title: '', titleEn: '' },
+  tagSaving: false,
+  tagError: '',
+  tagCatalogSaved: '',
+  tagsFocus: null,
 };
 
 function todayIsoLocal() {
@@ -70,8 +80,8 @@ function fm() {
 
 function collectionKind() {
   const data = fm();
-  if (data.listed === false) return 'blog';
-  if (state.doc?.id?.includes('/') && data.listed !== true) return 'blog';
+  if (data.listed === false) return 'library';
+  if (state.doc?.id?.includes('/') && data.listed !== true) return 'library';
   if (data.slot === 'project') return 'project';
   return 'article';
 }
@@ -80,7 +90,7 @@ function setCollectionKind(kind) {
   if (!state.doc || state.doc.collection === 'pages') return;
   const next = { ...fm() };
   const series = String(state.doc.id).includes('/');
-  if (kind === 'blog') {
+  if (kind === 'library') {
     next.listed = false;
   } else {
     next.slot = kind === 'project' ? 'project' : 'article';
@@ -213,8 +223,149 @@ function parseIsoDate(iso) {
   return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
 }
 
-function tagsText(value) {
-  return Array.isArray(value) ? value.join(', ') : '';
+let tagQuery = '';
+let tagHighlight = 0;
+let tagPickerOpen = false;
+
+function selectedTags() {
+  const tags = fm().tags;
+  if (!Array.isArray(tags)) return [];
+  return tags.map((tag) => String(tag).trim()).filter(Boolean);
+}
+
+function allKnownTags() {
+  const tags = new Set(tagGroups.flatMap((group) => group.tags));
+  for (const item of [...state.docs.articles, ...state.docs.projects]) {
+    if (!Array.isArray(item.tags)) continue;
+    for (const tag of item.tags) {
+      const value = String(tag ?? '').trim();
+      if (value) tags.add(value);
+    }
+  }
+  for (const tag of selectedTags()) tags.add(tag);
+  return [...tags];
+}
+
+function tagMatchItems(query, selected) {
+  const selectedSet = new Set(selected);
+  const q = String(query ?? '').trim().toLowerCase();
+  const items = [];
+  for (const group of groupedTags(allKnownTags())) {
+    const title = state.lang === 'en' ? group.titleEn : group.title;
+    const haystack = [group.title, group.titleEn, title].join('\n').toLowerCase();
+    const groupHit = Boolean(q) && haystack.includes(q);
+    for (const tag of group.tags) {
+      if (selectedSet.has(tag)) continue;
+      if (q && !groupHit && !tag.toLowerCase().includes(q)) continue;
+      items.push({ tag, group, title });
+    }
+  }
+  return items;
+}
+
+function tagChipsHtml(selected, isEn) {
+  if (!selected.length) return '';
+  return selected.map((tag) => `
+    <li class="studio-tag-chip">
+      <span class="ui-tag">${esc(tag)}</span>
+      <button type="button" class="studio-tag-chip__remove" data-action="remove-tag" data-tag="${attr(tag)}" aria-label="${isEn ? `Remove ${esc(tag)}` : `移除 ${esc(tag)}`}">×</button>
+    </li>`).join('');
+}
+
+function tagsListHtml(items, highlight, isEn, query) {
+  const q = String(query ?? '').trim();
+  if (!items.length) {
+    if (q) {
+      return `<button type="button" class="studio-at-item" role="option" id="studio-tag-opt-0" data-action="add-tag" data-tag="${attr(q)}" data-tag-create="true" data-testid="studio-tag-create" aria-selected="true">
+        <span class="studio-at-item__title">${esc(q)}</span>
+        <span class="studio-at-item__meta ui-meta">${isEn ? 'Not in catalog — add anyway' : '不在目录中，仍然添加'}</span>
+      </button>`;
+    }
+    return `<p class="ui-meta">${isEn ? 'No matching tags.' : '没有匹配的标签。'}</p>`;
+  }
+  const grouped = !q;
+  const parts = [];
+  let lastSlug = '';
+  items.forEach((item, index) => {
+    if (grouped && item.group.slug !== lastSlug) {
+      lastSlug = item.group.slug;
+      parts.push(`<p class="studio-tag-picker__heading ui-meta">${esc(item.title)}</p>`);
+    }
+    const meta = grouped ? '' : `<span class="studio-at-item__meta ui-meta">${esc(item.title)}</span>`;
+    const optionLabel = isEn ? `${item.tag} (${item.title})` : `${item.tag}（${item.title}）`;
+    parts.push(`<button type="button" class="studio-at-item" role="option" id="studio-tag-opt-${index}" data-action="add-tag" data-tag="${attr(item.tag)}" data-testid="studio-tag-option" aria-selected="${index === highlight ? 'true' : 'false'}" aria-label="${attr(optionLabel)}">
+      <span class="studio-at-item__title">${esc(item.tag)}</span>
+      ${meta}
+    </button>`);
+  });
+  return parts.join('');
+}
+
+function tagsPickerHtml() {
+  const isEn = state.lang === 'en';
+  const selected = selectedTags();
+  const items = tagMatchItems(tagQuery, selected);
+  if (tagHighlight >= items.length) tagHighlight = Math.max(0, items.length - 1);
+  const activedescendant = tagPickerOpen && (items.length || tagQuery.trim())
+    ? `studio-tag-opt-${items.length ? tagHighlight : 0}`
+    : '';
+  return `
+    <div class="studio-tag-picker" data-tag-picker>
+      <span class="ui-meta" id="studio-tags-label">${isEn ? 'Tags' : '标签'}</span>
+      <ul class="ui-tag-list ui-tag-list--start" data-tag-chips>${tagChipsHtml(selected, isEn)}</ul>
+      <input class="comment-field" type="search" autocomplete="off" data-tags data-testid="studio-tags" role="combobox" aria-labelledby="studio-tags-label" aria-autocomplete="list" aria-expanded="${tagPickerOpen ? 'true' : 'false'}" aria-controls="studio-tag-list" aria-activedescendant="${attr(activedescendant)}" placeholder="${isEn ? 'Search existing tags' : '搜索已有标签'}" value="${attr(tagQuery)}" />
+      <div class="studio-tag-picker__list" id="studio-tag-list" data-tag-list role="listbox" aria-labelledby="studio-tags-label" ${tagPickerOpen ? '' : 'hidden'}>
+        ${tagsListHtml(items, tagHighlight, isEn, tagQuery)}
+      </div>
+    </div>`;
+}
+
+function paintTagsPicker() {
+  const host = root.querySelector('[data-tag-picker]');
+  if (!(host instanceof HTMLElement)) return;
+  const isEn = state.lang === 'en';
+  const selected = selectedTags();
+  const items = tagMatchItems(tagQuery, selected);
+  if (tagHighlight >= items.length) tagHighlight = Math.max(0, items.length - 1);
+  const chips = host.querySelector('[data-tag-chips]');
+  if (chips) chips.innerHTML = tagChipsHtml(selected, isEn);
+  const list = host.querySelector('[data-tag-list]');
+  if (list instanceof HTMLElement) {
+    list.hidden = !tagPickerOpen;
+    list.innerHTML = tagsListHtml(items, tagHighlight, isEn, tagQuery);
+  }
+  const input = host.querySelector('[data-tags]');
+  if (input instanceof HTMLInputElement) {
+    input.setAttribute('aria-expanded', tagPickerOpen ? 'true' : 'false');
+    const activedescendant = tagPickerOpen && (items.length || tagQuery.trim())
+      ? `studio-tag-opt-${items.length ? tagHighlight : 0}`
+      : '';
+    if (activedescendant) input.setAttribute('aria-activedescendant', activedescendant);
+    else input.removeAttribute('aria-activedescendant');
+    if (input.value !== tagQuery) input.value = tagQuery;
+  }
+}
+
+function addTag(tag) {
+  const value = String(tag ?? '').trim();
+  if (!value) return;
+  const current = selectedTags();
+  if (current.includes(value)) {
+    tagQuery = '';
+    tagHighlight = 0;
+    paintTagsPicker();
+    return;
+  }
+  setFm('tags', [...current, value]);
+  tagQuery = '';
+  tagHighlight = 0;
+  tagPickerOpen = true;
+  paintTagsPicker();
+}
+
+function removeTag(tag) {
+  setFm('tags', selectedTags().filter((item) => item !== tag));
+  paintTagsPicker();
 }
 
 function parentIdOf(id) {
@@ -643,8 +794,8 @@ function itemCard(item, collection) {
   const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
   const indents = ['', 'pl-3', 'pl-6', 'pl-9'];
   const indentClass = indents[Math.min(depthOf(item.id), 3)];
-  return `<li>
-    <button type="button" class="studio-index-card group ${indentClass}" data-open="${collection}:${esc(item.id)}"${active ? ' aria-current="page"' : ''}>
+  return `<li${indentClass ? ` class="${indentClass}"` : ''}>
+    <button type="button" class="studio-index-card group" data-open="${collection}:${esc(item.id)}"${item.draft ? ' data-draft' : ''}${active ? ' aria-current="page"' : ''}>
       <div class="flex items-start justify-between gap-3">
         <h3 class="text-lg font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500">${esc(title)}</h3>
         ${item.draft ? `<span class="ui-badge">${en ? 'Draft' : '草稿'}</span>` : ''}
@@ -836,8 +987,8 @@ function metaHtml() {
       <label><span class="ui-meta">${isEn ? 'Description' : '摘要'}</span><input class="comment-field" data-fm="${isEn ? 'descriptionEn' : 'description'}" value="${attr(isEn ? data.descriptionEn : data.description)}" /></label>
       ${state.doc.collection !== 'pages' && data.slot !== 'project' ? `
         <label><span class="ui-meta">日期</span><input class="comment-field" type="date" data-fm="date" value="${attr(String(data.date ?? '').slice(0, 10))}" /></label>
-        <label><span class="ui-meta">标签（逗号分隔）</span><input class="comment-field" data-tags value="${attr(tagsText(data.tags))}" /></label>
       ` : ''}
+      ${state.doc.collection !== 'pages' ? tagsPickerHtml() : ''}
       ${state.doc.collection !== 'pages' && data.slot === 'project' ? `
         <label><span class="ui-meta">状态</span>
           <select class="comment-field" data-fm="status">
@@ -849,7 +1000,7 @@ function metaHtml() {
       ${state.doc.collection !== 'pages' ? `
         <label class="inline-flex items-center gap-2 text-sm text-ink-400"><input type="checkbox" data-fm="draft" ${data.draft ? 'checked' : ''}/> 草稿</label>
         <div class="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label="收录到">
-          ${['article', 'project', 'blog'].map((kind) => {
+          ${['article', 'project', 'library'].map((kind) => {
             const current = collectionKind();
             const klass = current === kind
               ? 'text-ink-100 underline decoration-ink-500 underline-offset-4'
@@ -859,7 +1010,240 @@ function metaHtml() {
         </div>
       ` : ''}
       ${state.doc.imports ? `<label><span class="ui-meta">imports</span><textarea class="comment-field comment-field--body min-h-16 font-mono" spellcheck="false" data-body="imports">${esc(state.doc.imports)}</textarea></label>` : ''}
-      <a class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">新标签打开预览</a>
+      <a class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">${isEn ? 'preview in the new tab' : '打开新标签进行预览'}</a>
+    </div>`;
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function tagsCopy() {
+  const en = state.lang === 'en';
+  return {
+    button: en ? 'Tags' : '标签',
+    title: en ? 'Tags' : '标签',
+    hint: en
+      ? 'Edit the /tags groups. Ungrouped tags go under Other. Save writes src/data/tag-groups.ts; article frontmatter is unchanged.'
+      : '这里改 /tags 的分组目录。未分组会进「其他」。保存写入 tag-groups.ts，不改文章标签。',
+    ungrouped: en ? 'Ungrouped' : '未分组',
+    addTag: en ? 'Add tag' : '添加标签',
+    addGroup: en ? 'Add group' : '添加分组',
+    remove: en ? 'Remove' : '移除',
+    deleteGroup: en ? 'Delete group' : '删除分组',
+    save: en ? 'Save' : '保存',
+    cancel: en ? 'Cancel' : '取消',
+    saving: en ? 'Saving…' : '保存中',
+    titleZh: en ? 'Title (zh)' : '中文名',
+    titleEn: en ? 'Title (en)' : '英文名',
+    slug: 'slug',
+    confirmClose: en ? 'Discard unsaved tag catalog changes?' : '放弃未保存的标签目录改动？',
+    confirmDelete: en ? 'Delete this group? Its tags become ungrouped; articles stay the same.' : '删除这个分组？里面的标签会变成未分组，文章不会改。',
+    saved: en ? 'Tags saved' : '标签已保存',
+  };
+}
+
+function catalogUngrouped() {
+  const assigned = new Set();
+  for (const group of state.tagCatalog) {
+    for (const tag of group.tags) {
+      const value = String(tag ?? '').trim();
+      if (value) assigned.add(value);
+    }
+  }
+  const used = new Set(Object.keys(state.tagUsed));
+  for (const item of [...(state.docs.articles ?? []), ...(state.docs.projects ?? [])]) {
+    if (!Array.isArray(item.tags)) continue;
+    for (const tag of item.tags) {
+      const value = String(tag ?? '').trim();
+      if (value) used.add(value);
+    }
+  }
+  return [...used].filter((tag) => !assigned.has(tag)).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+function catalogDirty() {
+  return JSON.stringify(state.tagCatalog) !== state.tagCatalogSaved;
+}
+
+async function openTags() {
+  state.error = '';
+  state.tagError = '';
+  try {
+    const data = await api('/tag-groups');
+    state.tagCatalog = cloneJson(data.groups ?? []);
+    state.tagUsed = data.used ?? {};
+    state.tagAdd = state.tagCatalog.map(() => '');
+    state.tagNewGroup = { slug: '', title: '', titleEn: '' };
+    state.tagCatalogSaved = JSON.stringify(state.tagCatalog);
+    state.tagsOpen = true;
+    state.createOpen = false;
+    state.linkOpen = false;
+    state.tagsFocus = { kind: 'first' };
+    render();
+  } catch (err) {
+    state.error = err instanceof Error ? err.message : String(err);
+    render();
+  }
+}
+
+function closeTags() {
+  if (state.tagSaving) return;
+  if (catalogDirty() && !window.confirm(tagsCopy().confirmClose)) return;
+  state.tagsOpen = false;
+  state.tagError = '';
+  render();
+}
+
+async function saveTags() {
+  const copy = tagsCopy();
+  state.tagError = '';
+  state.tagSaving = true;
+  render();
+  try {
+    const data = await api('/tag-groups', {
+      method: 'PUT',
+      body: JSON.stringify({ groups: state.tagCatalog }),
+    });
+    state.tagCatalog = cloneJson(data.groups ?? []);
+    state.tagUsed = data.used ?? {};
+    state.tagAdd = state.tagCatalog.map(() => '');
+    state.tagCatalogSaved = JSON.stringify(state.tagCatalog);
+    state.tagSaving = false;
+    state.tagsOpen = false;
+    state.status = copy.saved;
+    render();
+  } catch (err) {
+    state.tagSaving = false;
+    state.tagError = err instanceof Error ? err.message : String(err);
+    render();
+  }
+}
+
+function addCatalogTag(index) {
+  const group = state.tagCatalog[index];
+  if (!group) return;
+  const value = String(state.tagAdd[index] ?? '').trim();
+  if (!value) return;
+  for (const other of state.tagCatalog) {
+    other.tags = other.tags.filter((tag) => String(tag).trim() !== value);
+  }
+  group.tags.push(value);
+  state.tagAdd[index] = '';
+  state.tagError = '';
+  state.tagsFocus = { kind: 'add', index };
+  render();
+}
+
+function removeCatalogTag(groupIndex, tagIndex) {
+  const group = state.tagCatalog[groupIndex];
+  if (!group) return;
+  group.tags.splice(tagIndex, 1);
+  render();
+}
+
+function removeCatalogGroup(index) {
+  if (!state.tagCatalog[index]) return;
+  if (!window.confirm(tagsCopy().confirmDelete)) return;
+  state.tagCatalog.splice(index, 1);
+  state.tagAdd.splice(index, 1);
+  render();
+}
+
+function addCatalogGroup() {
+  const copy = tagsCopy();
+  const slug = state.tagNewGroup.slug.trim();
+  const title = state.tagNewGroup.title.trim();
+  const titleEn = state.tagNewGroup.titleEn.trim();
+  if (!slug || !title || !titleEn) {
+    state.tagError = state.lang === 'en' ? 'Fill slug, Chinese title, and English title.' : '请填写 slug、中文名和英文名';
+    render();
+    return;
+  }
+  if (state.tagCatalog.some((group) => group.slug === slug)) {
+    state.tagError = state.lang === 'en' ? 'That slug is already used.' : '这个 slug 已经存在';
+    render();
+    return;
+  }
+  state.tagCatalog.push({ slug, title, titleEn, tags: [] });
+  state.tagAdd.push('');
+  state.tagNewGroup = { slug: '', title: '', titleEn: '' };
+  state.tagError = '';
+  state.tagsFocus = { kind: 'add', index: state.tagCatalog.length - 1 };
+  render();
+}
+
+function restoreTagsFocus() {
+  const focus = state.tagsFocus;
+  if (!focus || !state.tagsOpen) return;
+  state.tagsFocus = null;
+  const dialog = root.querySelector('[data-testid="studio-tags-dialog"]');
+  if (!(dialog instanceof HTMLElement)) return;
+  let input = null;
+  if (focus.kind === 'add') {
+    input = dialog.querySelector(`[data-catalog-add][data-group-index="${focus.index}"]`);
+  } else {
+    input = dialog.querySelector('input');
+  }
+  if (input instanceof HTMLInputElement) input.focus();
+}
+
+function tagsDialogHtml() {
+  if (!state.tagsOpen) return '';
+  const copy = tagsCopy();
+  const ungrouped = catalogUngrouped();
+  const groups = state.tagCatalog.map((group, gi) => `
+    <section class="${gi ? 'mt-8' : ''}">
+      <div class="flex flex-wrap items-baseline justify-between gap-4">
+        <p class="ui-meta">${esc(group.slug || copy.slug)}</p>
+        <button type="button" class="text-sm text-ink-500 hover:text-ink-200" data-action="catalog-remove-group" data-group-index="${gi}">${esc(copy.deleteGroup)}</button>
+      </div>
+      <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleZh)}</span><input class="comment-field" data-catalog-field="title" data-group-index="${gi}" value="${attr(group.title)}" /></label>
+      <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleEn)}</span><input class="comment-field" data-catalog-field="titleEn" data-group-index="${gi}" value="${attr(group.titleEn)}" /></label>
+      <label class="mt-3 block"><span class="ui-meta">${esc(copy.slug)}</span><input class="comment-field" data-catalog-field="slug" data-group-index="${gi}" value="${attr(group.slug)}" /></label>
+      <ul class="mt-4">
+        ${group.tags.map((tag, ti) => `
+          <li class="flex items-baseline gap-4 py-2">
+            <input class="comment-field min-w-0 flex-1" data-catalog-tag data-group-index="${gi}" data-tag-index="${ti}" value="${attr(tag)}" aria-label="${attr(tag)}" />
+            <span class="ui-meta tabular-nums">${esc(String(state.tagUsed[tag] ?? 0))}</span>
+            <button type="button" class="shrink-0 text-sm text-ink-500 hover:text-ink-200" data-action="catalog-remove-tag" data-group-index="${gi}" data-tag-index="${ti}" aria-label="${attr(`${copy.remove} ${tag}`)}">${esc(copy.remove)}</button>
+          </li>`).join('')}
+      </ul>
+      <div class="mt-3 flex items-end gap-4">
+        <label class="min-w-0 flex-1"><span class="sr-only">${esc(copy.addTag)}</span><input class="comment-field" data-catalog-add data-group-index="${gi}" placeholder="${attr(copy.addTag)}" value="${attr(state.tagAdd[gi] ?? '')}" /></label>
+        <button type="button" class="shrink-0 text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="catalog-add-tag" data-group-index="${gi}">${esc(copy.addTag)}</button>
+      </div>
+    </section>`).join('');
+  return `
+    <div class="fixed inset-0 z-50 flex items-end justify-center bg-surface-950/80 p-6 md:items-center" role="dialog" aria-modal="true" aria-labelledby="studio-tags-title">
+      <div class="flex max-h-[min(90dvh,40rem)] w-full max-w-lg flex-col bg-surface-950" data-testid="studio-tags-dialog">
+        <h2 id="studio-tags-title" class="text-xl font-semibold text-ink-100">${esc(copy.title)}</h2>
+        <p class="mt-2 text-sm text-ink-400">${esc(copy.hint)}</p>
+        ${state.tagError ? `<p class="mt-4 text-sm text-ink-200" role="alert">${esc(state.tagError)}</p>` : ''}
+        <div class="mt-6 min-h-0 flex-1 overflow-y-auto">
+          ${groups || `<p class="ui-meta">${esc(copy.addGroup)}</p>`}
+          ${ungrouped.length ? `
+            <section class="mt-8">
+              <p class="ui-meta">${esc(copy.ungrouped)}</p>
+              <ul class="mt-3">
+                ${ungrouped.map((tag) => `<li class="py-1 text-sm text-ink-200">${esc(tag)}${state.tagUsed[tag] ? ` <span class="ui-meta">${esc(String(state.tagUsed[tag]))}</span>` : ''}</li>`).join('')}
+              </ul>
+            </section>` : ''}
+          <section class="mt-8">
+            <p class="ui-meta">${esc(copy.addGroup)}</p>
+            <label class="mt-3 block"><span class="ui-meta">${esc(copy.slug)}</span><input class="comment-field" data-catalog-new="slug" data-testid="studio-tag-group-slug" value="${attr(state.tagNewGroup.slug)}" /></label>
+            <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleZh)}</span><input class="comment-field" data-catalog-new="title" value="${attr(state.tagNewGroup.title)}" /></label>
+            <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleEn)}</span><input class="comment-field" data-catalog-new="titleEn" value="${attr(state.tagNewGroup.titleEn)}" /></label>
+            <div class="mt-4">
+              <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="catalog-add-group" data-testid="studio-tag-group-add">${esc(copy.addGroup)}</button>
+            </div>
+          </section>
+        </div>
+        <div class="mt-8 flex gap-6 text-sm">
+          <button type="button" class="text-ink-100 underline decoration-ink-500 underline-offset-4" data-action="save-tags" data-testid="studio-tags-save" ${state.tagSaving ? 'disabled' : ''}>${esc(state.tagSaving ? copy.saving : copy.save)}</button>
+          <button type="button" class="text-ink-500 hover:text-ink-200" data-action="close-tags">${esc(copy.cancel)}</button>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -930,10 +1314,11 @@ function dialogHtml() {
         `}
       </div>
     </div>` : '';
-  return create + link;
+  return create + link + tagsDialogHtml();
 }
 
 function render() {
+  tagPickerOpen = false;
   root.innerHTML = `
     <div class="studio-shell" data-testid="studio-app">
       <header class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -945,6 +1330,7 @@ function render() {
           <span class="text-ink-400" data-studio-dirty ${state.dirty ? '' : 'hidden'}>未保存</span>
           <span class="text-ink-400" data-studio-status ${state.status ? '' : 'hidden'}>${esc(state.status)}</span>
           <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="save" ${!state.doc || state.saving ? 'disabled' : ''}>${state.saving ? '保存中' : '保存'}</button>
+          <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="open-tags" data-testid="studio-manage-tags">${esc(tagsCopy().button)}</button>
           <a class="text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" href="/">站点</a>
           <button type="button" class="text-ink-400 hover:text-ink-100" data-action="theme">主题</button>
         </div>
@@ -958,6 +1344,7 @@ function render() {
     ${dialogHtml()}`;
   bindBodyEditor();
   applyColumnLayout();
+  restoreTagsFocus();
 }
 
 root.addEventListener('click', (event) => {
@@ -975,6 +1362,10 @@ root.addEventListener('click', (event) => {
     openCreate(createKind);
   } else if (link) {
     void copyLinkMarkup(link);
+  } else if (action === 'add-tag' && target.dataset.tag) {
+    addTag(target.dataset.tag);
+  } else if (action === 'remove-tag' && target.dataset.tag) {
+    removeTag(target.dataset.tag);
   } else if (target.dataset.indexList) {
     state.indexList = target.dataset.indexList === 'projects' ? 'projects' : 'articles';
     persist();
@@ -986,6 +1377,13 @@ root.addEventListener('click', (event) => {
     persist();
     render();
   } else if (action === 'save') void save();
+  else if (action === 'open-tags') void openTags();
+  else if (action === 'close-tags') closeTags();
+  else if (action === 'save-tags') void saveTags();
+  else if (action === 'catalog-add-tag') addCatalogTag(Number(target.dataset.groupIndex));
+  else if (action === 'catalog-remove-tag') removeCatalogTag(Number(target.dataset.groupIndex), Number(target.dataset.tagIndex));
+  else if (action === 'catalog-remove-group') removeCatalogGroup(Number(target.dataset.groupIndex));
+  else if (action === 'catalog-add-group') addCatalogGroup();
   else if (action === 'theme') toggleTheme();
   else if (action === 'toggle-source') {
     state.sourceMode = !state.sourceMode;
@@ -1046,12 +1444,41 @@ root.addEventListener('input', (event) => {
   if (target.dataset.commit !== undefined) state.commitMessage = target.value;
   if (target.dataset.create === 'title') state.createTitle = target.value;
   if (target.dataset.create === 'slug') state.createSlug = target.value;
+  if (target.dataset.catalogField) {
+    const group = state.tagCatalog[Number(target.dataset.groupIndex)];
+    const field = target.dataset.catalogField;
+    if (group && (field === 'slug' || field === 'title' || field === 'titleEn')) {
+      group[field] = target.value;
+    }
+    return;
+  }
+  if (target.dataset.catalogTag !== undefined) {
+    const group = state.tagCatalog[Number(target.dataset.groupIndex)];
+    const index = Number(target.dataset.tagIndex);
+    if (group && Number.isInteger(index) && index >= 0) group.tags[index] = target.value;
+    return;
+  }
+  if (target.dataset.catalogAdd !== undefined) {
+    state.tagAdd[Number(target.dataset.groupIndex)] = target.value;
+    return;
+  }
+  if (target.dataset.catalogNew) {
+    const field = target.dataset.catalogNew;
+    if (field === 'slug' || field === 'title' || field === 'titleEn') {
+      state.tagNewGroup[field] = target.value;
+    }
+    return;
+  }
   if (target.dataset.fm) {
     if (target.dataset.fm === 'draft') setFm('draft', target instanceof HTMLInputElement && target.checked);
     else setFm(target.dataset.fm, target.value);
   }
   if (target.dataset.tags !== undefined) {
-    setFm('tags', target.value.split(',').map((item) => item.trim()).filter(Boolean));
+    tagQuery = target.value;
+    tagHighlight = 0;
+    tagPickerOpen = true;
+    paintTagsPicker();
+    return;
   }
   if (target.dataset.body) setBody(target.dataset.body, target.value);
 });
@@ -1064,13 +1491,81 @@ root.addEventListener('submit', (event) => {
 });
 
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.tagsOpen) {
+    event.preventDefault();
+    closeTags();
+    return;
+  }
   if ((event.metaKey || event.ctrlKey) && event.key === 's') {
     event.preventDefault();
-    void save();
+    if (state.tagsOpen) void saveTags();
+    else void save();
   }
 });
 
+root.addEventListener('pointerdown', (event) => {
+  const option = event.target instanceof Element
+    ? event.target.closest('[data-action="add-tag"]')
+    : null;
+  if (option) event.preventDefault();
+});
 root.addEventListener('pointerdown', onColResizePointerDown);
+
+root.addEventListener('focusin', (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.dataset.tags !== undefined) {
+    tagPickerOpen = true;
+    paintTagsPicker();
+  }
+});
+
+root.addEventListener('focusout', (event) => {
+  const picker = root.querySelector('[data-tag-picker]');
+  if (!(picker instanceof HTMLElement)) return;
+  const next = event.relatedTarget;
+  if (next instanceof Node && picker.contains(next)) return;
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement) || target.dataset.tags === undefined) return;
+  tagPickerOpen = false;
+  paintTagsPicker();
+});
+
+root.addEventListener('keydown', (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.dataset.catalogAdd !== undefined && event.key === 'Enter') {
+    event.preventDefault();
+    addCatalogTag(Number(target.dataset.groupIndex));
+    return;
+  }
+  if (!(target instanceof HTMLInputElement) || target.dataset.tags === undefined) return;
+  const selected = selectedTags();
+  const items = tagMatchItems(tagQuery, selected);
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    tagPickerOpen = true;
+    if (items.length) tagHighlight = (tagHighlight + 1) % items.length;
+    paintTagsPicker();
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    tagPickerOpen = true;
+    if (items.length) tagHighlight = (tagHighlight - 1 + items.length) % items.length;
+    paintTagsPicker();
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    if (items[tagHighlight]) addTag(items[tagHighlight].tag);
+    else if (tagQuery.trim()) addTag(tagQuery.trim());
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    tagQuery = '';
+    tagHighlight = 0;
+    tagPickerOpen = false;
+    paintTagsPicker();
+  } else if (event.key === 'Backspace' && !target.value && selected.length) {
+    event.preventDefault();
+    removeTag(selected[selected.length - 1]);
+  }
+});
+
 window.addEventListener('resize', applyColumnLayout);
 
 initTheme();

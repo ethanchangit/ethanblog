@@ -10,7 +10,7 @@
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
-    "test": "node --test studio/lib.test.mjs && playwright test",
+    "test": "node --test studio/*.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler deploy -c workers/guestbook/wrangler.toml && wrangler pages deploy dist --project-name=ethanblog",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"

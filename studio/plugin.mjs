@@ -18,6 +18,7 @@ import {
   saveDoc,
   setBlogsRef,
 } from './lib.mjs';
+import { readTagTaxonomy, saveTagGroups } from './tag-groups.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const INDEX = fileURLToPath(new URL('./ui/index.html', import.meta.url));
@@ -105,6 +106,15 @@ export async function handleStudioApi(root, req, url) {
 
   if (pathname === '/__studio/api/git/push' && method === 'POST') {
     return { status: 200, body: await gitPush(root) };
+  }
+
+  if (pathname.endsWith('/tag-groups') && method === 'GET') {
+    return { status: 200, body: await readTagTaxonomy(root) };
+  }
+
+  if (pathname.endsWith('/tag-groups') && method === 'PUT') {
+    const payload = await readJson(req);
+    return { status: 200, body: await saveTagGroups(root, payload.groups) };
   }
 
   return { status: 404, body: { error: 'not found' } };
