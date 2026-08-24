@@ -2,7 +2,7 @@
 /**
  * Mention — 正文词语 ↔ 媒介块的双向高亮（Embark 的 mention 范式）。
  * 悬停/聚焦任一侧，两侧同时点亮；点击或按 Enter 把目标滚进视野。
- * 零注水：交互由下方文档级事件委托脚本承担（Astro 会把 <script> 去重为全站一份），
+ * 零注水：交互由下方文档级事件委托脚本承担（Astro 会把 script 去重为全站一份），
  * ClientRouter 导航后 document 级监听器天然存活。无 JS 时是普通下划线文本。
  */
 interface Props {

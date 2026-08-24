@@ -3,18 +3,21 @@ import I18n from '@/components/shell/I18n.astro';
 import { copy, DEFAULT_LANG } from '@/lib/i18n';
 
 interface Props {
-  /** 系列总览正文里手写篇目：标成 hub-inline，宽屏点击在第三栏打开子文。 */
-  pane?: 'series';
+  /** series：系列总览篇目。embed：单页引用，同样在宽屏第三栏打开，不显示「篇目」。 */
+  pane?: 'series' | 'embed';
 }
 
 const { pane } = Astro.props;
 const series = pane === 'series';
+const embed = pane === 'embed';
+const inline = series || embed;
 ---
 
 <nav
   class:list={['not-prose', series && 'mt-12']}
   data-doc-list
-  data-series={series ? 'hub-inline' : undefined}
+  data-series={inline ? 'hub-inline' : undefined}
+  data-doc-embed={embed ? '' : undefined}
   aria-label={series ? copy[DEFAULT_LANG].seriesNavAria : copy[DEFAULT_LANG].docListAria}
   data-i18n-aria={series ? 'seriesNavAria' : 'docListAria'}
 >

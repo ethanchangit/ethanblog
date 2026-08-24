@@ -380,6 +380,61 @@ html:has(#studio) body,
   margin-top: 0.2rem;
 }
 
+.studio-tag-picker {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.studio-tag-picker .ui-tag-list {
+  gap: 0.75rem 1rem;
+}
+
+.studio-tag-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.studio-tag-chip__remove {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-500);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.studio-tag-chip__remove:hover,
+.studio-tag-chip__remove:focus-visible {
+  color: var(--color-ink-100);
+}
+
+.studio-tag-picker__list {
+  max-height: 14rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.studio-tag-picker__heading {
+  position: sticky;
+  top: 0;
+  margin: 0.65rem 0 0.1rem;
+  background: var(--color-surface-950);
+}
+
+.studio-tag-picker__heading:first-child {
+  margin-top: 0.25rem;
+}
+
+.studio-tag-picker .studio-at-item {
+  padding-block: 0.3rem;
+}
+
 .studio-index {
   display: flex;
   min-width: 0;
@@ -472,8 +527,65 @@ html:has(#studio) body,
   cursor: pointer;
 }
 
+.studio-index-card[data-draft] {
+  margin-block: 0.25rem;
+  padding-inline: 0.75rem;
+  border: 1px dashed var(--color-ink-500);
+}
+
+.studio-index-card[data-draft] .ui-badge {
+  color: var(--color-ink-300);
+}
+
 .studio-index-card[aria-current='page'] h3 {
   text-decoration-color: var(--color-ink-500);
+}
+
+.studio-embed {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.studio-embed__title {
+  display: block;
+  color: var(--color-ink-100);
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-ink-500);
+  text-underline-offset: 0.25em;
+}
+
+.studio-embed__meta {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.studio-child {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.studio-child__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.studio-child__frame {
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--color-surface-950);
 }
 
 @media (prefers-reduced-motion: no-preference) {

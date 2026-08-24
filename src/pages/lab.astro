@@ -311,6 +311,12 @@ import I18n from '@/components/shell/I18n.astro';
         <DocRef of="articles/pkm-method" />
         <DocRef of="projects/aletheia" />
       </DocList>
+      <p class="mb-4 mt-8 text-ink-300 leading-loose">
+        `pane="embed"` 没有篇目标题；宽屏阅读栏会把被引页当作子页打开，而不是整页跳走。
+      </p>
+      <DocList pane="embed">
+        <DocRef of="articles/pkm-method" />
+      </DocList>
     </div>
 
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Mention + MentionTarget</h2>

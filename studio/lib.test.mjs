@@ -23,19 +23,26 @@ import {
   slugify,
 } from './lib.mjs';
 import {
+  applyFormatCommand,
   atQueryAtCaret,
   classifyBlock,
   clearBlockFormat,
   detectMarkdownShortcut,
   docRefMarkup,
+  filterSlashCommands,
   formatBlock,
   hasBlockFormat,
+  hrefForOf,
+  inlineMentionMarkup,
   isFormattedEmpty,
   joinBlocks,
   matchPages,
   mergeBlockMarkdown,
+  parseDocEmbed,
   renderBlockHtml,
+  slashQueryAtCaret,
   splitBlocks,
+  wikiQueryAtCaret,
 } from './blocks.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -299,5 +306,31 @@ describe('studio block editor helpers', () => {
     assert.equal(mergeBlockMarkdown('hello', 'world'), 'helloworld');
     assert.equal(mergeBlockMarkdown('## 甲', '乙'), '## 甲乙');
     assert.equal(mergeBlockMarkdown('> 甲', '乙'), '> 甲乙');
+  });
+
+  it('slash, wiki, fence/hr format, and inline mention markup', () => {
+    assert.deepEqual(slashQueryAtCaret('/h2', 4), { start: 0, query: 'h2' });
+    assert.equal(slashQueryAtCaret('http://x', 8), null);
+    assert.deepEqual(slashQueryAtCaret('见 /引', 4), { start: 2, query: '引' });
+    assert.deepEqual(wikiQueryAtCaret('见 [[pkm', 8), { start: 2, query: 'pkm' });
+    assert.equal(wikiQueryAtCaret('见 [链接]', 6), null);
+    assert.equal(formatBlock('fence', 'const x = 1;'), '```\nconst x = 1;\n```');
+    assert.equal(formatBlock('hr', 'ignored'), '---');
+    assert.equal(applyFormatCommand('一段话', { type: 'h', level: 2 }), '## 一段话');
+    assert.equal(applyFormatCommand('一段话', { type: 'p' }), '一段话');
+    assert.equal(applyFormatCommand('一段话', { type: 'hr' }), '---');
+    assert.ok(filterSlashCommands('标题', 'zh').some((cmd) => cmd.id === 'h1'));
+    assert.ok(filterSlashCommands('code', 'en').some((cmd) => cmd.id === 'fence'));
+    assert.equal(inlineMentionMarkup('articles/pkm-method', 'PKM 实践'), '[PKM 实践](/articles/pkm-method)');
+    assert.equal(hrefForOf('pages/blogs'), '/blogs');
+    assert.equal(hrefForOf('projects/aletheia'), '/projects/aletheia');
+    assert.deepEqual(
+      parseDocEmbed('<DocList pane="embed">\n  <DocRef of="articles/pkm-method" />\n</DocList>'),
+      { of: 'articles/pkm-method', pane: 'embed' },
+    );
+    assert.equal(
+      docRefMarkup('articles/pkm-method', 'embed'),
+      '<DocList pane="embed">\n  <DocRef of="articles/pkm-method" />\n</DocList>',
+    );
   });
 });
