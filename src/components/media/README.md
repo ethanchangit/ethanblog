@@ -192,7 +192,7 @@ YouTube 不在进页时自动挂 `youtube.com/embed` iframe。封面点击后才
 | 组件 | Prop | 类型 | 说明 |
 |---|---|---|---|
 | `DocRef` | `of` | `string` | `articles/<id>` 或 `projects/<id>`（系列子文如 `articles/series-demo/1`） |
-| `DocList` | `pane` | `'series'` | 可选。系列总览手写篇目、且要宽屏第三栏打开子文时写 `pane="series"` |
+| `DocList` | `pane` | `'series' \| 'embed'` | 可选。`series`：系列总览篇目（带「篇目」标题）。`embed`：单页引用，同样在宽屏第三栏打开，不显示篇目标题。都不写则整页导航。 |
 
 ```mdx
 import { DocList, DocRef } from '@/components/media';
@@ -200,6 +200,10 @@ import { DocList, DocRef } from '@/components/media';
 <DocList pane="series">
   <DocRef of="articles/series-demo/1" />
   <DocRef of="articles/series-demo/2" />
+</DocList>
+
+<DocList pane="embed">
+  <DocRef of="articles/pkm-method" />
 </DocList>
 ```
 

@@ -541,6 +541,53 @@ html:has(#studio) body,
   text-decoration-color: var(--color-ink-500);
 }
 
+.studio-embed {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.studio-embed__title {
+  display: block;
+  color: var(--color-ink-100);
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-ink-500);
+  text-underline-offset: 0.25em;
+}
+
+.studio-embed__meta {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.studio-child {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.studio-child__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.studio-child__frame {
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--color-surface-950);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .studio-block__preview a {
     transition-property: color, text-decoration-color;

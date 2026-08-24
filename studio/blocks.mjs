@@ -216,6 +216,33 @@ export function classifyBlock(block) {
   return { type: 'p', text: raw };
 }
 
+export function fenceInner(block) {
+  const raw = String(block ?? '');
+  if (!FENCE_RE.test(raw.trim())) return raw;
+  const lines = raw.split('\n');
+  const end = FENCE_RE.test(lines[lines.length - 1] ?? '') ? lines.length - 1 : lines.length;
+  return lines.slice(1, end).join('\n');
+}
+
+export function parseDocEmbed(block) {
+  const raw = String(block ?? '');
+  if (!/<DocList\b/.test(raw) || !/<DocRef\b/.test(raw)) return null;
+  const of = /<DocRef\s+of=["']([^"']+)["']\s*\/>/.exec(raw);
+  if (!of) return null;
+  let pane;
+  if (/<DocList\s+pane=["']embed["']/.test(raw)) pane = 'embed';
+  else if (/<DocList\s+pane=["']series["']/.test(raw)) pane = 'series';
+  return { of: of[1], pane };
+}
+
+export function blockPlainText(block) {
+  const kind = classifyBlock(block);
+  if (kind.type === 'fence') return fenceInner(block);
+  if (kind.type === 'hr') return '';
+  if (kind.type === 'opaque') return parseDocEmbed(block) ? '' : String(kind.text ?? '');
+  return String(kind.text ?? '');
+}
+
 export function formatBlock(type, text, { level = 2 } = {}) {
   const body = String(text ?? '');
   if (type === 'h') {
@@ -234,8 +261,20 @@ export function formatBlock(type, text, { level = 2 } = {}) {
     if (!body.trim()) return '1.';
     return body.split('\n').map((line, index) => `${index + 1}. ${line}`).join('\n');
   }
-  if (type === 'opaque' || type === 'fence' || type === 'hr') return body;
+  if (type === 'fence') {
+    const inner = body.replace(/^```[^\n]*\n?/, '').replace(/\n?```\s*$/, '');
+    return `\`\`\`\n${inner}\n\`\`\``;
+  }
+  if (type === 'hr') return '---';
+  if (type === 'opaque') return body;
   return body;
+}
+
+export function applyFormatCommand(block, command) {
+  const text = blockPlainText(block);
+  if (!command || command.type === 'p') return text;
+  if (command.type === 'hr') return '---';
+  return formatBlock(command.type, text, { level: command.level });
 }
 
 export function isFormattedEmpty(block) {
@@ -246,7 +285,7 @@ export function isFormattedEmpty(block) {
 
 export function hasBlockFormat(block) {
   const type = classifyBlock(block).type;
-  return type === 'h' || type === 'quote' || type === 'ul' || type === 'ol';
+  return type === 'h' || type === 'quote' || type === 'ul' || type === 'ol' || type === 'fence' || type === 'hr';
 }
 
 export function mergeBlockMarkdown(prev, next) {
@@ -262,7 +301,9 @@ export function mergeBlockMarkdown(prev, next) {
 
 export function clearBlockFormat(block) {
   const kind = classifyBlock(block);
-  return kind.type === 'p' ? String(block ?? '') : String(kind.text ?? '');
+  if (kind.type === 'p') return String(block ?? '');
+  if (kind.type === 'opaque') return String(kind.text ?? '');
+  return blockPlainText(block);
 }
 
 /** Detect a markdown block shortcut at the start of typed plain text (`## `, `> `, `- `, `1. `). */
@@ -325,8 +366,75 @@ export function atQueryAtCaret(text, caret) {
   return { start: pos - query.length - 1, query };
 }
 
+/** `/query` at the start of a block or after whitespace. Ignores `http://` paths. */
+export function slashQueryAtCaret(text, caret) {
+  const value = String(text ?? '');
+  const pos = Math.max(0, Math.min(Number(caret) || 0, value.length));
+  const before = value.slice(0, pos);
+  if (/:\/{0,2}$/.test(before) || /:\/\S*$/.test(before)) return null;
+  const match = /(^|[\s\n])\/([^\s]*)$/.exec(before);
+  if (!match) return null;
+  return { start: pos - match[2].length - 1, query: match[2] };
+}
+
+/** `[[query` wiki-link trigger, including in the middle of a paragraph. */
+export function wikiQueryAtCaret(text, caret) {
+  const value = String(text ?? '');
+  const pos = Math.max(0, Math.min(Number(caret) || 0, value.length));
+  const before = value.slice(0, pos);
+  const match = /\[\[([^\]]*)$/.exec(before);
+  if (!match) return null;
+  return { start: pos - match[0].length, query: match[1] };
+}
+
+export function slashCommands(lang = 'zh') {
+  const en = lang === 'en';
+  return [
+    { id: 'p', type: 'p', label: en ? 'Paragraph' : '正文', hint: 'p', aliases: ['p', 'paragraph', 'text', '正文', '段落'] },
+    { id: 'h1', type: 'h', level: 1, label: en ? 'Heading 1' : '标题 1', hint: '#', aliases: ['h1', 'title', '标题'] },
+    { id: 'h2', type: 'h', level: 2, label: en ? 'Heading 2' : '标题 2', hint: '##', aliases: ['h2', 'heading', '标题'] },
+    { id: 'h3', type: 'h', level: 3, label: en ? 'Heading 3' : '标题 3', hint: '###', aliases: ['h3'] },
+    { id: 'h4', type: 'h', level: 4, label: en ? 'Heading 4' : '标题 4', hint: '####', aliases: ['h4'] },
+    { id: 'h5', type: 'h', level: 5, label: en ? 'Heading 5' : '标题 5', hint: '#####', aliases: ['h5'] },
+    { id: 'h6', type: 'h', level: 6, label: en ? 'Heading 6' : '标题 6', hint: '######', aliases: ['h6'] },
+    { id: 'quote', type: 'quote', label: en ? 'Quote' : '引用', hint: '>', aliases: ['quote', 'blockquote', '引用'] },
+    { id: 'ul', type: 'ul', label: en ? 'Bullet list' : '无序列表', hint: '-', aliases: ['ul', 'list', 'bullet', '列表', '无序'] },
+    { id: 'ol', type: 'ol', label: en ? 'Numbered list' : '有序列表', hint: '1.', aliases: ['ol', 'numbered', '有序', '数字'] },
+    { id: 'fence', type: 'fence', label: en ? 'Code' : '代码块', hint: '```', aliases: ['code', 'fence', 'pre', '代码'] },
+    { id: 'hr', type: 'hr', label: en ? 'Divider' : '分割线', hint: '---', aliases: ['hr', 'divider', 'split', '分割', '分隔'] },
+  ];
+}
+
+export function filterSlashCommands(query, lang = 'zh') {
+  const commands = slashCommands(lang);
+  const q = String(query ?? '').trim().toLowerCase().replace(/^\//, '');
+  if (!q) return commands;
+  return commands.filter((cmd) => (
+    cmd.id.includes(q)
+    || cmd.label.toLowerCase().includes(q)
+    || cmd.hint.toLowerCase().includes(q)
+    || cmd.aliases.some((alias) => alias.toLowerCase().includes(q))
+  ));
+}
+
+export function hrefForOf(of) {
+  const raw = String(of ?? '').trim();
+  if (raw === 'pages/blogs' || raw === 'blogs') return '/blogs';
+  if (raw.startsWith('articles/') || raw.startsWith('projects/')) return `/${raw}`;
+  return '/';
+}
+
+export function inlineMentionMarkup(of, title) {
+  const label = String(title || of).replace(/[\[\]\n]/g, '');
+  return `[${label}](${hrefForOf(of)})`;
+}
+
 export function docRefMarkup(of, pane) {
-  const open = pane === 'series' ? '<DocList pane="series">' : '<DocList>';
+  const open = pane === 'series'
+    ? '<DocList pane="series">'
+    : pane === 'embed'
+      ? '<DocList pane="embed">'
+      : '<DocList>';
   return `${open}\n  <DocRef of="${of}" />\n</DocList>`;
 }
 

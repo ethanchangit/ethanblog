@@ -70,6 +70,10 @@ function isChapterOfHub(pathname: string, hub: string): boolean {
   return path.startsWith(`${parent}/`) && path.length > parent.length + 1;
 }
 
+function isArticleOrProjectPath(path: string): boolean {
+  return path.startsWith('/articles/') || path.startsWith('/projects/');
+}
+
 function overlayBlocksEscape(): boolean {
   if (document.querySelector('[role="dialog"][aria-modal="true"]')) return true;
   if (document.querySelector('[role="listbox"]')) return true;
@@ -255,7 +259,12 @@ function interceptTarget(link: HTMLAnchorElement): 'open' | 'close' | null {
   const hub = hubPath();
   const path = pagePath(url.pathname);
   if (path === hub) return 'close';
-  if (isChapterOfHub(path, hub)) return 'open';
+  if (inChild) {
+    if (isChapterOfHub(path, hub)) return 'open';
+    return null;
+  }
+  if (path === '/blogs' || path.startsWith('/blogs/')) return null;
+  if (isArticleOrProjectPath(path)) return 'open';
   return null;
 }
 

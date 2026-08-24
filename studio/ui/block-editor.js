@@ -1,17 +1,31 @@
 import {
+  applyFormatCommand,
   atQueryAtCaret,
+  blockPlainText,
   classifyBlock,
   clearBlockFormat,
   detectMarkdownShortcut,
   docRefMarkup,
   formatBlock,
   hasBlockFormat,
+  hrefForOf,
+  inlineMentionMarkup,
   joinBlocks,
-  matchPages,
   mergeBlockMarkdown,
+  parseDocEmbed,
   renderBlockHtml,
+  slashQueryAtCaret,
   splitBlocks,
+  wikiQueryAtCaret,
 } from '../blocks.mjs';
+import {
+  overlayCopy,
+  pageOverlayItems,
+  pageTitle,
+  paintOverlayPicker,
+  slashOverlayItems,
+  triggerLength,
+} from './overlay.js';
 
 function pageOf(page) {
   return `${page.collection}/${page.id}`;
@@ -126,15 +140,17 @@ export function mountBlockEditor(host, options) {
     currentOf = '',
     canCreateChild = false,
     pane = 'series',
+    lang = 'zh',
     onEnsureImport,
     onCreate,
+    onOpenEmbed,
   } = options;
 
   let blocks = splitBlocks(value);
   let focused = -1;
   let composing = false;
-  let mention = null;
-  let mentionIndex = 0;
+  let overlay = null;
+  let overlayIndex = 0;
   let destroyed = false;
   let ignoreBlur = false;
   let ignoreBlurUntil = 0;
@@ -177,24 +193,16 @@ export function mountBlockEditor(host, options) {
     blocks[focused] = editableToMarkdown(el);
   }
 
-  function mentionItems() {
-    const query = mention?.query ?? '';
-    const available = pages.filter((page) => pageOf(page) !== currentOf);
-    const matched = matchPages(available, query).slice(0, 24);
-    const items = matched.map((page) => ({
-      type: 'doc',
-      of: pageOf(page),
-      title: page.title,
-      path: pageOf(page),
-    }));
-    const title = query.trim();
-    if (title) {
-      if (canCreateChild) {
-        items.push({ type: 'create-child', title, label: `新建子页面「${title}」` });
-      }
-      items.push({ type: 'create-article', title, label: `新建文章「${title}」` });
-    }
-    return items;
+  function overlayItems() {
+    if (!overlay) return [];
+    if (overlay.type === 'slash') return slashOverlayItems(overlay.query, lang);
+    return pageOverlayItems({
+      pages,
+      currentOf,
+      query: overlay.query,
+      canCreateChild,
+      lang,
+    });
   }
 
   function placePicker(picker, el) {
@@ -206,119 +214,152 @@ export function mountBlockEditor(host, options) {
     picker.style.left = `${left}px`;
   }
 
-  function closeMention({ keepAt = true } = {}) {
-    if (!mention || focused < 0) {
-      mention = null;
-      return;
-    }
-    const start = mention.start;
-    const end = start + 1 + mention.query.length;
-    const source = blocks[focused];
-    blocks[focused] = keepAt
-      ? `${source.slice(0, start)}@${source.slice(end)}`
-      : `${source.slice(0, start)}${source.slice(end)}`;
-    emit();
-    mention = null;
-    mentionIndex = 0;
+  function removePicker() {
     host.querySelector('[data-testid="studio-at-picker"]')?.remove();
-    paintBlock(focused);
-    const el = focusedEl();
-    if (el) setCaretOffset(el, keepAt ? start + 1 : start);
   }
 
-  function dismissMention() {
-    closeMention({ keepAt: true });
-    paintPicker();
+  function stripOverlayTrigger(plain, keepTrigger) {
+    if (!overlay) return plain;
+    const len = triggerLength(overlay.type);
+    const start = overlay.start;
+    const end = start + len + overlay.query.length;
+    const trigger = overlay.type === 'wiki' ? '[[' : overlay.type === 'slash' ? '/' : '@';
+    return keepTrigger
+      ? `${plain.slice(0, start)}${trigger}${plain.slice(end)}`
+      : `${plain.slice(0, start)}${plain.slice(end)}`;
+  }
+
+  function writePlain(plain, caret) {
+    if (focused < 0) return;
+    const kind = classifyBlock(blocks[focused]);
+    const type = kind.type === 'opaque' || kind.type === 'hr' ? 'p' : kind.type;
+    blocks[focused] = type === 'p' || type === 'fence' ? (type === 'fence' ? formatBlock('fence', plain) : plain) : formatBlock(type, plain, { level: kind.level });
+    overlay = null;
+    overlayIndex = 0;
+    emit();
+    paintBlock(focused);
+    const el = focusedEl();
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (caret != null) setCaretOffset(el, caret);
+    }
+  }
+
+  function closeOverlay({ keepTrigger = true } = {}) {
+    if (!overlay || focused < 0) {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
+      return;
+    }
+    const kind = classifyBlock(blocks[focused]);
+    if (kind.type === 'opaque' || kind.type === 'fence') {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
+      return;
+    }
+    const plain = blockPlainText(blocks[focused]);
+    const len = triggerLength(overlay.type);
+    const caret = keepTrigger ? overlay.start + len : overlay.start;
+    writePlain(stripOverlayTrigger(plain, keepTrigger), caret);
   }
 
   function paintPicker() {
-    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
-    if (!mention || focused < 0) return;
+    removePicker();
+    if (!overlay || focused < 0) return;
     const el = focusedEl();
     if (!(el instanceof HTMLElement)) return;
-    const items = mentionItems();
-    if (mentionIndex >= items.length) mentionIndex = Math.max(0, items.length - 1);
-    const picker = document.createElement('div');
-    picker.className = 'studio-at-picker';
-    picker.setAttribute('data-testid', 'studio-at-picker');
-    picker.setAttribute('role', 'listbox');
-    picker.setAttribute('aria-label', '插入页面');
-    const hint = document.createElement('p');
-    hint.className = 'studio-at-picker__hint ui-meta';
-    hint.textContent = mention.query ? '匹配页面，或新建' : '选择要插入的页面';
-    picker.append(hint);
-    if (!items.length) {
-      const empty = document.createElement('p');
-      empty.className = 'ui-meta';
-      empty.textContent = '没有匹配的页面';
-      picker.append(empty);
-    }
-    items.forEach((item, index) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'studio-at-item';
-      button.setAttribute('role', 'option');
-      button.setAttribute('aria-selected', index === mentionIndex ? 'true' : 'false');
-      if (item.type === 'doc') {
-        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.title)}</span><span class="studio-at-item__meta ui-meta">${escapeText(item.path)}</span>`;
-      } else {
-        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.label)}</span><span class="studio-at-item__meta ui-meta">${item.type === 'create-child' ? '当前页的子 MDX' : '新的草稿文章'}</span>`;
-      }
-      button.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void applyMention(item);
-      });
-      picker.append(button);
+    const items = overlayItems();
+    if (overlayIndex >= items.length) overlayIndex = Math.max(0, items.length - 1);
+    const copy = overlayCopy(lang);
+    const type = overlay.type;
+    paintOverlayPicker(host, {
+      items,
+      selected: overlayIndex,
+      label: type === 'slash' ? copy.slashLabel : type === 'wiki' ? copy.wikiLabel : copy.atLabel,
+      hint: type === 'slash' ? copy.slashHint : (overlay.query ? copy.pageHint : copy.pagePick),
+      empty: type === 'slash' ? copy.slashEmpty : copy.pageEmpty,
+      pickerType: type,
+      anchor: el,
+      place: placePicker,
+      lang,
+      onPick: (item) => applyOverlay(item),
     });
-    host.append(picker);
-    placePicker(picker, el);
   }
 
-  function insertMarkupAt(index, offset, markup) {
-    const source = blocks[index] ?? '';
-    const before = source.slice(0, offset).replace(/\s+$/, '');
-    const after = source.slice(offset).replace(/^\s+/, '');
+  function insertBlockAt(index, offsetPlain, markup) {
+    const kind = classifyBlock(blocks[index] ?? '');
+    const plain = blockPlainText(blocks[index] ?? '');
+    const beforeText = plain.slice(0, offsetPlain).replace(/\s+$/, '');
+    const afterText = plain.slice(offsetPlain).replace(/^\s+/, '');
+    const type = kind.type === 'opaque' || kind.type === 'fence' || kind.type === 'hr' ? 'p' : kind.type;
     const next = [];
-    if (before) next.push(before);
+    if (beforeText) next.push(type === 'p' ? beforeText : formatBlock(type, beforeText, { level: kind.level }));
     next.push(markup);
-    if (after) next.push(after);
+    if (afterText) next.push(afterText);
     if (!next.length) next.push('');
     blocks.splice(index, 1, ...next);
-    mention = null;
-    mentionIndex = 0;
-    const nextFocus = after ? index + (before ? 2 : 1) : index;
+    overlay = null;
+    overlayIndex = 0;
     onEnsureImport?.();
     emit();
     paint();
-    activate(after ? nextFocus : index, { caret: after ? 0 : null });
+    const nextFocus = afterText ? index + (beforeText ? 2 : 1) : index + (beforeText ? 1 : 0);
+    activate(Math.min(nextFocus, blocks.length - 1), { caret: afterText ? 0 : null });
   }
 
-  function replaceMentionWith(markup) {
-    if (!mention || focused < 0) return;
-    const start = mention.start;
-    const end = start + 1 + mention.query.length;
-    const source = blocks[focused];
-    blocks[focused] = `${source.slice(0, start)}${source.slice(end)}`;
-    insertMarkupAt(focused, start, markup);
-  }
-
-  async function applyMention(item) {
-    if (!item) return;
-    if (item.type === 'doc') {
-      replaceMentionWith(docRefMarkup(item.of, pane));
+  async function applyOverlay(item) {
+    if (!item || !overlay || focused < 0) return;
+    commitFocused();
+    if (overlay.type === 'slash') {
+      const remaining = stripOverlayTrigger(blockPlainText(blocks[focused]), false).replace(/^\s+/, '');
+      overlay = null;
+      overlayIndex = 0;
+      blocks[focused] = applyFormatCommand(remaining, item);
+      emit();
+      paintBlock(focused);
+      const el = focusedEl();
+      if (el) {
+        el.focus({ preventScroll: true });
+        setCaretOffset(el, blockPlainText(blocks[focused]).length);
+      }
+      removePicker();
       return;
     }
-    if (!mention || focused < 0) return;
-    const start = mention.start;
-    const source = blocks[focused];
-    const end = start + 1 + mention.query.length;
-    blocks[focused] = `${source.slice(0, start)}${source.slice(end)}`;
-    mention = null;
-    mentionIndex = 0;
-    emit();
-    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
-    paintBlock(focused);
+    const start = overlay.start;
+    if (overlay.type === 'at') {
+      if (item.type === 'doc') {
+        const insert = inlineMentionMarkup(item.of, item.title);
+        const plain = blockPlainText(blocks[focused]);
+        const next = `${plain.slice(0, start)}${insert}${plain.slice(start + triggerLength('at') + overlay.query.length)}`;
+        writePlain(next, start + insert.length);
+        return;
+      }
+      writePlain(stripOverlayTrigger(blockPlainText(blocks[focused]), false), start);
+      if (!onCreate) return;
+      const created = await onCreate({
+        kind: item.type === 'create-child' ? 'child' : 'article',
+        title: item.title,
+      });
+      if (!created || created.reloaded || destroyed) return;
+      if (focused < 0) focused = Math.max(0, blocks.length - 1);
+      const markup = inlineMentionMarkup(created.of, item.title);
+      const current = blockPlainText(blocks[focused]);
+      writePlain(`${current.slice(0, start)}${markup}${current.slice(start)}`, start + markup.length);
+      return;
+    }
+    if (item.type === 'doc') {
+      const plain = blockPlainText(blocks[focused]);
+      const cleared = `${plain.slice(0, start)}${plain.slice(start + triggerLength('wiki') + overlay.query.length)}`;
+      const kind = classifyBlock(blocks[focused]);
+      const type = kind.type === 'opaque' || kind.type === 'fence' || kind.type === 'hr' ? 'p' : kind.type;
+      blocks[focused] = type === 'p' ? cleared : formatBlock(type, cleared, { level: kind.level });
+      overlay = null;
+      insertBlockAt(focused, Math.min(start, blockPlainText(blocks[focused]).length), docRefMarkup(item.of, 'embed'));
+      return;
+    }
+    writePlain(stripOverlayTrigger(blockPlainText(blocks[focused]), false), start);
     if (!onCreate) return;
     const created = await onCreate({
       kind: item.type === 'create-child' ? 'child' : 'article',
@@ -326,18 +367,31 @@ export function mountBlockEditor(host, options) {
     });
     if (!created || created.reloaded || destroyed) return;
     if (focused < 0) focused = Math.max(0, blocks.length - 1);
-    insertMarkupAt(focused, start, docRefMarkup(created.of, pane));
+    insertBlockAt(focused, start, docRefMarkup(created.of, 'embed'));
   }
 
   function decoratePreview(preview, index) {
+    const embed = parseDocEmbed(blocks[index]);
     const kind = classifyBlock(blocks[index]);
     preview.className = 'studio-block__preview prose-site';
+    preview.setAttribute('aria-label', '编辑这一段');
+    preview.spellcheck = true;
+    if (embed) {
+      const page = pages.find((item) => pageOf(item) === embed.of);
+      const title = pageTitle(page, lang) || embed.of;
+      const href = page?.href || hrefForOf(embed.of);
+      preview.dataset.kind = 'embed';
+      delete preview.dataset.level;
+      preview.innerHTML = `<button type="button" class="studio-embed" data-embed-of="${escapeText(embed.of)}" data-embed-href="${escapeText(href)}" data-testid="studio-embed"><span class="studio-embed__title">${escapeText(title)}</span><span class="studio-embed__meta ui-meta">${escapeText(embed.of)}</span></button>`;
+      preview.contentEditable = 'false';
+      preview.removeAttribute('contenteditable');
+      delete preview.dataset.blockSource;
+      return;
+    }
     preview.innerHTML = renderBlockHtml(blocks[index]);
     preview.dataset.kind = kind.type;
     if (kind.level) preview.dataset.level = String(kind.level);
     else delete preview.dataset.level;
-    preview.setAttribute('aria-label', '编辑这一段');
-    preview.spellcheck = true;
     if (index === focused) {
       preview.contentEditable = 'true';
       preview.dataset.blockSource = '';
@@ -396,6 +450,11 @@ export function mountBlockEditor(host, options) {
     focused = index;
     const el = previewAt(index);
     if (!(el instanceof HTMLElement)) return;
+    if (parseDocEmbed(blocks[index])) {
+      el.contentEditable = 'false';
+      el.removeAttribute('contenteditable');
+      return;
+    }
     el.contentEditable = 'true';
     el.dataset.blockSource = '';
     ensureStableCaret(el);
@@ -408,7 +467,8 @@ export function mountBlockEditor(host, options) {
     commitFocused();
     emit();
     focused = -1;
-    mention = null;
+    overlay = null;
+    overlayIndex = 0;
     blocks = splitBlocks(joinBlocks(blocks));
     if (!blocks.length) blocks = [''];
     paint();
@@ -435,16 +495,26 @@ export function mountBlockEditor(host, options) {
     return true;
   }
 
-  function checkMention(el) {
-    const found = atQueryAtCaret(visibleText(el), caretOffsetIn(el));
-    if (found) {
-      mention = found;
-      mentionIndex = 0;
-      paintPicker();
-    } else if (mention) {
-      mention = null;
-      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+  function checkOverlay(el) {
+    const kind = classifyBlock(blocks[focused] ?? '');
+    if (kind.type === 'opaque' && parseDocEmbed(blocks[focused])) {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
+      return;
     }
+    const text = visibleText(el);
+    const caret = caretOffsetIn(el);
+    const wiki = wikiQueryAtCaret(text, caret);
+    const at = atQueryAtCaret(text, caret);
+    const slash = kind.type === 'fence' ? null : slashQueryAtCaret(text, caret);
+    if (wiki) overlay = { type: 'wiki', ...wiki };
+    else if (at) overlay = { type: 'at', ...at };
+    else if (slash) overlay = { type: 'slash', ...slash };
+    else overlay = null;
+    overlayIndex = 0;
+    if (overlay) paintPicker();
+    else removePicker();
   }
 
   function onInput(event) {
@@ -454,7 +524,7 @@ export function mountBlockEditor(host, options) {
     if (maybeShortcut(el)) return;
     blocks[focused] = editableToMarkdown(el);
     emit();
-    checkMention(el);
+    checkOverlay(el);
   }
 
   function afterComposition(event) {
@@ -464,7 +534,7 @@ export function mountBlockEditor(host, options) {
     if (maybeShortcut(el)) return;
     blocks[focused] = editableToMarkdown(el);
     emit();
-    checkMention(el);
+    checkOverlay(el);
   }
 
   function currentListItem(el) {
@@ -479,28 +549,28 @@ export function mountBlockEditor(host, options) {
     const el = event.target instanceof Element ? event.target.closest('.studio-block__preview') : null;
     if (!(el instanceof HTMLElement) || el.getAttribute('contenteditable') !== 'true' || focused < 0) return;
 
-    if (mention) {
-      const items = mentionItems();
+    if (overlay) {
+      const items = overlayItems();
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        mentionIndex = items.length ? (mentionIndex + 1) % items.length : 0;
+        overlayIndex = items.length ? (overlayIndex + 1) % items.length : 0;
         paintPicker();
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        mentionIndex = items.length ? (mentionIndex - 1 + items.length) % items.length : 0;
+        overlayIndex = items.length ? (overlayIndex - 1 + items.length) % items.length : 0;
         paintPicker();
         return;
       }
       if (event.key === 'Enter') {
         event.preventDefault();
-        void applyMention(items[mentionIndex]);
+        void applyOverlay(items[overlayIndex]);
         return;
       }
       if (event.key === 'Escape') {
         event.preventDefault();
-        dismissMention();
+        closeOverlay({ keepTrigger: true });
         return;
       }
     }
@@ -613,7 +683,7 @@ export function mountBlockEditor(host, options) {
   function onFocusOut() {
     requestAnimationFrame(() => {
       if (destroyed || ignoreBlur || Date.now() < ignoreBlurUntil) return;
-      if (mention) return;
+      if (overlay) return;
       if (host.contains(document.activeElement)) return;
       collapseFocus();
     });
@@ -633,6 +703,15 @@ export function mountBlockEditor(host, options) {
       event.preventDefault();
       return;
     }
+    const embedBtn = target.closest('[data-embed-of]');
+    if (embedBtn && host.contains(embedBtn)) {
+      event.preventDefault();
+      const of = embedBtn.getAttribute('data-embed-of');
+      const href = embedBtn.getAttribute('data-embed-href') || hrefForOf(of);
+      const title = embedBtn.querySelector('.studio-embed__title')?.textContent || of;
+      onOpenEmbed?.({ of, href, title });
+      return;
+    }
     const link = target.closest('a');
     if (link && host.contains(link)) event.preventDefault();
     const row = target.closest('[data-block-index]');
@@ -641,8 +720,9 @@ export function mountBlockEditor(host, options) {
       if (index === focused) return;
       commitFocused();
       emit();
-      mention = null;
-      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
       activate(index, { focus: false });
       return;
     }
@@ -653,14 +733,15 @@ export function mountBlockEditor(host, options) {
         emit();
         paint();
       }
-      mention = null;
+      overlay = null;
+      overlayIndex = 0;
       activate(blocks.length - 1, { caret: 0 });
     }
   });
 
   const onDocPointer = (event) => {
     if (!(event.target instanceof Node) || host.contains(event.target)) return;
-    if (mention) dismissMention();
+    if (overlay) closeOverlay({ keepTrigger: true });
   };
   document.addEventListener('pointerdown', onDocPointer);
 
@@ -685,16 +766,18 @@ export function mountCompareEditors(host, options) {
     currentOf = '',
     canCreateChild = false,
     pane = 'series',
+    lang = 'zh',
     onEnsureImport,
     onCreate,
+    onOpenEmbed,
   } = options;
 
   let zhBlocks = splitBlocks(zh);
   let enBlocks = splitBlocks(en);
   let focused = null;
   let composing = false;
-  let mention = null;
-  let mentionIndex = 0;
+  let overlay = null;
+  let overlayIndex = 0;
   let destroyed = false;
   let ignoreBlur = false;
   let ignoreBlurUntil = 0;
@@ -754,24 +837,16 @@ export function mountCompareEditors(host, options) {
     blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
   }
 
-  function mentionItems() {
-    const query = mention?.query ?? '';
-    const available = pages.filter((page) => pageOf(page) !== currentOf);
-    const matched = matchPages(available, query).slice(0, 24);
-    const items = matched.map((page) => ({
-      type: 'doc',
-      of: pageOf(page),
-      title: page.title,
-      path: pageOf(page),
-    }));
-    const title = query.trim();
-    if (title) {
-      if (canCreateChild) {
-        items.push({ type: 'create-child', title, label: `新建子页面「${title}」` });
-      }
-      items.push({ type: 'create-article', title, label: `新建文章「${title}」` });
-    }
-    return items;
+  function overlayItems() {
+    if (!overlay) return [];
+    if (overlay.type === 'slash') return slashOverlayItems(overlay.query, lang);
+    return pageOverlayItems({
+      pages,
+      currentOf,
+      query: overlay.query,
+      canCreateChild,
+      lang,
+    });
   }
 
   function placePicker(picker, el) {
@@ -781,104 +856,194 @@ export function mountCompareEditors(host, options) {
     picker.style.top = `${box.bottom - hostBox.top + host.scrollTop + 6}px`;
   }
 
-  function paintPicker() {
-    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
-    const el = focusedEl();
-    if (!mention || !(el instanceof HTMLElement)) return;
-    const items = mentionItems();
-    const picker = document.createElement('div');
-    picker.className = 'studio-at-picker';
-    picker.setAttribute('data-testid', 'studio-at-picker');
-    picker.setAttribute('role', 'listbox');
-    const hint = document.createElement('p');
-    hint.className = 'studio-at-picker__hint ui-meta';
-    hint.textContent = '插入页面';
-    picker.append(hint);
-    items.forEach((item, index) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'studio-at-item';
-      button.setAttribute('role', 'option');
-      button.setAttribute('aria-selected', index === mentionIndex ? 'true' : 'false');
-      if (item.type === 'doc') {
-        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.title)}</span><span class="studio-at-item__meta ui-meta">${escapeText(item.path)}</span>`;
-      } else {
-        button.innerHTML = `<span class="studio-at-item__title">${escapeText(item.label)}</span><span class="studio-at-item__meta ui-meta">${item.type === 'create-child' ? '当前页的子 MDX' : '新的草稿文章'}</span>`;
-      }
-      button.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        holdBlur();
-        void applyMention(item);
-      });
-      picker.append(button);
-    });
-    host.append(picker);
-    placePicker(picker, el);
-  }
-
-  function dismissMention() {
-    mention = null;
-    mentionIndex = 0;
+  function removePicker() {
     host.querySelector('[data-testid="studio-at-picker"]')?.remove();
   }
 
-  function insertMarkupAt(side, index, offset, markup) {
-    const blocks = blocksOf(side);
-    const source = blocks[index] ?? '';
-    blocks[index] = `${source.slice(0, offset)}${markup}${source.slice(offset)}`;
-    emit(side);
-    onEnsureImport?.();
-    paint();
-    activate(side, index, { caret: offset + markup.length });
+  function stripOverlayTrigger(plain, keepTrigger) {
+    if (!overlay) return plain;
+    const len = triggerLength(overlay.type);
+    const start = overlay.start;
+    const end = start + len + overlay.query.length;
+    const trigger = overlay.type === 'wiki' ? '[[' : overlay.type === 'slash' ? '/' : '@';
+    return keepTrigger
+      ? `${plain.slice(0, start)}${trigger}${plain.slice(end)}`
+      : `${plain.slice(0, start)}${plain.slice(end)}`;
   }
 
-  function replaceMentionWith(markup) {
-    if (!mention || !focused) return;
+  function writePlain(plain, caret) {
+    if (!focused) return;
     const { side, index } = focused;
-    const start = mention.start;
-    const end = start + 1 + mention.query.length;
-    const source = blocksOf(side)[index];
-    blocksOf(side)[index] = `${source.slice(0, start)}${source.slice(end)}`;
-    mention = null;
-    insertMarkupAt(side, index, start, markup);
+    const kind = classifyBlock(blocksOf(side)[index]);
+    const type = kind.type === 'opaque' || kind.type === 'hr' ? 'p' : kind.type;
+    blocksOf(side)[index] = type === 'p' || type === 'fence'
+      ? (type === 'fence' ? formatBlock('fence', plain) : plain)
+      : formatBlock(type, plain, { level: kind.level });
+    overlay = null;
+    overlayIndex = 0;
+    emit(side);
+    paintBlock(side, index);
+    const el = focusedEl();
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (caret != null) setCaretOffset(el, caret);
+    }
   }
 
-  async function applyMention(item) {
-    if (!item || !focused) return;
-    if (item.type === 'doc') {
-      replaceMentionWith(docRefMarkup(item.of, pane));
+  function closeOverlay({ keepTrigger = true } = {}) {
+    if (!overlay || !focused) {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
       return;
     }
-    if (!mention) return;
     const { side, index } = focused;
-    const start = mention.start;
-    const source = blocksOf(side)[index];
-    const end = start + 1 + mention.query.length;
-    blocksOf(side)[index] = `${source.slice(0, start)}${source.slice(end)}`;
-    mention = null;
-    mentionIndex = 0;
-    emit(side);
-    host.querySelector('[data-testid="studio-at-picker"]')?.remove();
-    paintBlock(side, index);
+    const kind = classifyBlock(blocksOf(side)[index]);
+    if (kind.type === 'opaque' || kind.type === 'fence') {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
+      return;
+    }
+    const plain = blockPlainText(blocksOf(side)[index]);
+    const len = triggerLength(overlay.type);
+    const caret = keepTrigger ? overlay.start + len : overlay.start;
+    writePlain(stripOverlayTrigger(plain, keepTrigger), caret);
+  }
+
+  function paintPicker() {
+    removePicker();
+    const el = focusedEl();
+    if (!overlay || !(el instanceof HTMLElement)) return;
+    const items = overlayItems();
+    if (overlayIndex >= items.length) overlayIndex = Math.max(0, items.length - 1);
+    const copy = overlayCopy(lang);
+    const type = overlay.type;
+    paintOverlayPicker(host, {
+      items,
+      selected: overlayIndex,
+      label: type === 'slash' ? copy.slashLabel : type === 'wiki' ? copy.wikiLabel : copy.atLabel,
+      hint: type === 'slash' ? copy.slashHint : (overlay.query ? copy.pageHint : copy.pagePick),
+      empty: type === 'slash' ? copy.slashEmpty : copy.pageEmpty,
+      pickerType: type,
+      anchor: el,
+      place: placePicker,
+      lang,
+      onPick: (item) => applyOverlay(item),
+    });
+  }
+
+  function insertBlockAt(side, index, offsetPlain, markup) {
+    const kind = classifyBlock(blocksOf(side)[index] ?? '');
+    const plain = blockPlainText(blocksOf(side)[index] ?? '');
+    const beforeText = plain.slice(0, offsetPlain).replace(/\s+$/, '');
+    const afterText = plain.slice(offsetPlain).replace(/^\s+/, '');
+    const type = kind.type === 'opaque' || kind.type === 'fence' || kind.type === 'hr' ? 'p' : kind.type;
+    const next = [];
+    if (beforeText) next.push(type === 'p' ? beforeText : formatBlock(type, beforeText, { level: kind.level }));
+    next.push(markup);
+    if (afterText) next.push(afterText);
+    if (!next.length) next.push('');
+    const other = next.map((block) => (block === markup ? markup : ''));
+    if (side === 'zh') {
+      zhBlocks.splice(index, 1, ...next);
+      enBlocks.splice(index, 1, ...other);
+    } else {
+      enBlocks.splice(index, 1, ...next);
+      zhBlocks.splice(index, 1, ...other);
+    }
+    overlay = null;
+    overlayIndex = 0;
+    onEnsureImport?.();
+    emitBoth();
+    paint();
+    const nextFocus = afterText ? index + (beforeText ? 2 : 1) : index + (beforeText ? 1 : 0);
+    activate(side, Math.min(nextFocus, blocksOf(side).length - 1), { caret: afterText ? 0 : null });
+  }
+
+  async function applyOverlay(item) {
+    if (!item || !overlay || !focused) return;
+    commitFocused();
+    const { side, index } = focused;
+    if (overlay.type === 'slash') {
+      const remaining = stripOverlayTrigger(blockPlainText(blocksOf(side)[index]), false).replace(/^\s+/, '');
+      overlay = null;
+      overlayIndex = 0;
+      blocksOf(side)[index] = applyFormatCommand(remaining, item);
+      emit(side);
+      paintBlock(side, index);
+      const el = focusedEl();
+      if (el) {
+        el.focus({ preventScroll: true });
+        setCaretOffset(el, blockPlainText(blocksOf(side)[index]).length);
+      }
+      removePicker();
+      return;
+    }
+    const start = overlay.start;
+    if (overlay.type === 'at') {
+      if (item.type === 'doc') {
+        const insert = inlineMentionMarkup(item.of, item.title);
+        const plain = blockPlainText(blocksOf(side)[index]);
+        const next = `${plain.slice(0, start)}${insert}${plain.slice(start + triggerLength('at') + overlay.query.length)}`;
+        writePlain(next, start + insert.length);
+        return;
+      }
+      writePlain(stripOverlayTrigger(blockPlainText(blocksOf(side)[index]), false), start);
+      if (!onCreate) return;
+      const created = await onCreate({
+        kind: item.type === 'create-child' ? 'child' : 'article',
+        title: item.title,
+      });
+      if (!created || created.reloaded || destroyed) return;
+      const markup = inlineMentionMarkup(created.of, item.title);
+      const current = blockPlainText(blocksOf(side)[index]);
+      writePlain(`${current.slice(0, start)}${markup}${current.slice(start)}`, start + markup.length);
+      return;
+    }
+    if (item.type === 'doc') {
+      const plain = blockPlainText(blocksOf(side)[index]);
+      const cleared = `${plain.slice(0, start)}${plain.slice(start + triggerLength('wiki') + overlay.query.length)}`;
+      const kind = classifyBlock(blocksOf(side)[index]);
+      const type = kind.type === 'opaque' || kind.type === 'fence' || kind.type === 'hr' ? 'p' : kind.type;
+      blocksOf(side)[index] = type === 'p' ? cleared : formatBlock(type, cleared, { level: kind.level });
+      overlay = null;
+      insertBlockAt(side, index, Math.min(start, blockPlainText(blocksOf(side)[index]).length), docRefMarkup(item.of, 'embed'));
+      return;
+    }
+    writePlain(stripOverlayTrigger(blockPlainText(blocksOf(side)[index]), false), start);
     if (!onCreate) return;
     const created = await onCreate({
       kind: item.type === 'create-child' ? 'child' : 'article',
       title: item.title,
     });
     if (!created || created.reloaded || destroyed) return;
-    insertMarkupAt(side, index, start, docRefMarkup(created.of, pane));
+    insertBlockAt(side, index, start, docRefMarkup(created.of, 'embed'));
   }
 
   function decoratePreview(preview, side, index) {
     const block = blocksOf(side)[index] ?? '';
+    const embed = parseDocEmbed(block);
     const kind = classifyBlock(block);
     preview.className = 'studio-block__preview prose-site';
+    preview.setAttribute('aria-label', side === 'en' ? '编辑这段英文' : '编辑这段中文');
+    preview.spellcheck = true;
+    if (embed) {
+      const page = pages.find((item) => pageOf(item) === embed.of);
+      const title = pageTitle(page, lang) || embed.of;
+      const href = page?.href || hrefForOf(embed.of);
+      preview.dataset.kind = 'embed';
+      delete preview.dataset.level;
+      preview.innerHTML = `<button type="button" class="studio-embed" data-embed-of="${escapeText(embed.of)}" data-embed-href="${escapeText(href)}" data-testid="studio-embed"><span class="studio-embed__title">${escapeText(title)}</span><span class="studio-embed__meta ui-meta">${escapeText(embed.of)}</span></button>`;
+      preview.contentEditable = 'false';
+      preview.removeAttribute('contenteditable');
+      delete preview.dataset.blockSource;
+      return;
+    }
     preview.innerHTML = renderBlockHtml(block);
     preview.dataset.kind = kind.type;
     if (kind.level) preview.dataset.level = String(kind.level);
     else delete preview.dataset.level;
-    preview.setAttribute('aria-label', side === 'en' ? '编辑这段英文' : '编辑这段中文');
-    preview.spellcheck = true;
     const active = focused && focused.side === side && focused.index === index;
     if (active) {
       preview.contentEditable = 'true';
@@ -948,6 +1113,11 @@ export function mountCompareEditors(host, options) {
     focused = { side, index };
     const el = previewAt(side, index);
     if (!(el instanceof HTMLElement)) return;
+    if (parseDocEmbed(blocksOf(side)[index])) {
+      el.contentEditable = 'false';
+      el.removeAttribute('contenteditable');
+      return;
+    }
     el.contentEditable = 'true';
     el.dataset.blockSource = '';
     ensureStableCaret(el);
@@ -960,7 +1130,8 @@ export function mountCompareEditors(host, options) {
     commitFocused();
     emit(focused.side);
     focused = null;
-    mention = null;
+    overlay = null;
+    overlayIndex = 0;
     zhBlocks = splitBlocks(joinBlocks(zhBlocks));
     enBlocks = splitBlocks(joinBlocks(enBlocks));
     alignLength();
@@ -988,16 +1159,28 @@ export function mountCompareEditors(host, options) {
     return true;
   }
 
-  function checkMention(el) {
-    const found = atQueryAtCaret(visibleText(el), caretOffsetIn(el));
-    if (found) {
-      mention = found;
-      mentionIndex = 0;
-      paintPicker();
-    } else if (mention) {
-      mention = null;
-      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+  function checkOverlay(el) {
+    if (!focused) return;
+    const source = blocksOf(focused.side)[focused.index] ?? '';
+    const kind = classifyBlock(source);
+    if (kind.type === 'opaque' && parseDocEmbed(source)) {
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
+      return;
     }
+    const text = visibleText(el);
+    const caret = caretOffsetIn(el);
+    const wiki = wikiQueryAtCaret(text, caret);
+    const at = atQueryAtCaret(text, caret);
+    const slash = kind.type === 'fence' ? null : slashQueryAtCaret(text, caret);
+    if (wiki) overlay = { type: 'wiki', ...wiki };
+    else if (at) overlay = { type: 'at', ...at };
+    else if (slash) overlay = { type: 'slash', ...slash };
+    else overlay = null;
+    overlayIndex = 0;
+    if (overlay) paintPicker();
+    else removePicker();
   }
 
   function onInput(event) {
@@ -1007,7 +1190,7 @@ export function mountCompareEditors(host, options) {
     if (maybeShortcut(el)) return;
     blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
     emit(focused.side);
-    checkMention(el);
+    checkOverlay(el);
   }
 
   function afterComposition(event) {
@@ -1017,7 +1200,7 @@ export function mountCompareEditors(host, options) {
     if (maybeShortcut(el)) return;
     blocksOf(focused.side)[focused.index] = editableToMarkdown(el);
     emit(focused.side);
-    checkMention(el);
+    checkOverlay(el);
   }
 
   function currentListItem(el) {
@@ -1047,28 +1230,28 @@ export function mountCompareEditors(host, options) {
     const { side, index } = focused;
     const blocks = blocksOf(side);
 
-    if (mention) {
-      const items = mentionItems();
+    if (overlay) {
+      const items = overlayItems();
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        mentionIndex = items.length ? (mentionIndex + 1) % items.length : 0;
+        overlayIndex = items.length ? (overlayIndex + 1) % items.length : 0;
         paintPicker();
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        mentionIndex = items.length ? (mentionIndex - 1 + items.length) % items.length : 0;
+        overlayIndex = items.length ? (overlayIndex - 1 + items.length) % items.length : 0;
         paintPicker();
         return;
       }
       if (event.key === 'Enter') {
         event.preventDefault();
-        void applyMention(items[mentionIndex]);
+        void applyOverlay(items[overlayIndex]);
         return;
       }
       if (event.key === 'Escape') {
         event.preventDefault();
-        dismissMention();
+        closeOverlay({ keepTrigger: true });
         return;
       }
     }
@@ -1181,7 +1364,7 @@ export function mountCompareEditors(host, options) {
   function onFocusOut() {
     requestAnimationFrame(() => {
       if (destroyed || ignoreBlur || Date.now() < ignoreBlurUntil) return;
-      if (mention) return;
+      if (overlay) return;
       if (host.contains(document.activeElement)) return;
       collapseFocus();
     });
@@ -1201,6 +1384,15 @@ export function mountCompareEditors(host, options) {
       event.preventDefault();
       return;
     }
+    const embedBtn = target.closest('[data-embed-of]');
+    if (embedBtn && host.contains(embedBtn)) {
+      event.preventDefault();
+      const of = embedBtn.getAttribute('data-embed-of');
+      const href = embedBtn.getAttribute('data-embed-href') || hrefForOf(of);
+      const title = embedBtn.querySelector('.studio-embed__title')?.textContent || of;
+      onOpenEmbed?.({ of, href, title });
+      return;
+    }
     const link = target.closest('a');
     if (link && host.contains(link)) event.preventDefault();
     const row = target.closest('[data-block-side][data-block-index]');
@@ -1210,15 +1402,16 @@ export function mountCompareEditors(host, options) {
       if (focused && focused.side === side && focused.index === index) return;
       commitFocused();
       if (focused) emit(focused.side);
-      mention = null;
-      host.querySelector('[data-testid="studio-at-picker"]')?.remove();
+      overlay = null;
+      overlayIndex = 0;
+      removePicker();
       activate(side, index, { focus: false });
     }
   });
 
   const onDocPointer = (event) => {
     if (!(event.target instanceof Node) || host.contains(event.target)) return;
-    if (mention) dismissMention();
+    if (overlay) closeOverlay({ keepTrigger: true });
   };
   document.addEventListener('pointerdown', onDocPointer);
 

@@ -41,6 +41,7 @@ const state = {
   tagError: '',
   tagCatalogSaved: '',
   tagsFocus: null,
+  childPreview: null,
 };
 
 function todayIsoLocal() {
@@ -110,7 +111,7 @@ function canHaveChildren() {
 }
 
 function mentionPages() {
-  return [...state.docs.articles, ...state.docs.projects];
+  return [...state.docs.articles, ...state.docs.projects, ...(state.docs.pages ?? [])];
 }
 
 function mentionPane() {
@@ -179,10 +180,12 @@ function bindBodyEditor() {
       currentOf: `${state.doc.collection}/${state.doc.id}`,
       canCreateChild: canHaveChildren(),
       pane: mentionPane(),
+      lang: state.lang,
       onChangeZh: (value) => setBody('bodyZh', value),
       onChangeEn: (value) => setBody('bodyEn', value),
       onEnsureImport: ensureStudioMediaImport,
       onCreate: (input) => createFromMention(input),
+      onOpenEmbed: openChildPreview,
     });
     return;
   }
@@ -195,16 +198,61 @@ function bindBodyEditor() {
     currentOf: `${state.doc.collection}/${state.doc.id}`,
     canCreateChild: canHaveChildren(),
     pane: mentionPane(),
+    lang: state.lang,
     onChange: (value) => setBody(bodyKey, value),
     onEnsureImport: ensureStudioMediaImport,
     onCreate: (input) => createFromMention(input),
+    onOpenEmbed: openChildPreview,
   });
 }
 
 function previewSrc() {
   if (!state.doc) return '';
-  const href = state.doc.href;
-  return state.lang === 'zh' && href !== '/' ? `/zh${href}` : href;
+  return hrefPreview(state.doc.href);
+}
+
+function hrefPreview(href) {
+  const path = href || '/';
+  return state.lang === 'zh' && path !== '/' ? `/zh${path}` : path;
+}
+
+function openChildPreview({ of, href, title }) {
+  if (!of) return;
+  state.childPreview = { of, href: href || hrefForOfFallback(of), title: title || of };
+  paintChildRail();
+}
+
+function hrefForOfFallback(of) {
+  const raw = String(of ?? '').trim();
+  if (raw === 'pages/blogs' || raw === 'blogs') return '/blogs';
+  if (raw.startsWith('articles/') || raw.startsWith('projects/')) return `/${raw}`;
+  return '/';
+}
+
+function childRailHtml() {
+  const item = state.childPreview;
+  if (!item) return '';
+  const isEn = state.lang === 'en';
+  const src = hrefPreview(item.href);
+  return `
+    <div class="studio-child" data-testid="studio-child">
+      <div class="studio-child__bar">
+        <p class="ui-meta">${esc(item.title || item.of)}</p>
+        <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${isEn ? 'Close' : '关闭'}</button>
+      </div>
+      <iframe class="studio-child__frame" src="${attr(src)}" title="${attr(item.title || item.of)}"></iframe>
+    </div>`;
+}
+
+function paintChildRail() {
+  const rail = root.querySelector('.studio-rail');
+  if (!(rail instanceof HTMLElement)) return;
+  rail.innerHTML = state.childPreview ? childRailHtml() : metaHtml();
+}
+
+function closeChildPreview() {
+  state.childPreview = null;
+  paintChildRail();
 }
 
 function matchesFilter(item) {
@@ -642,6 +690,7 @@ async function openDoc(collection, id) {
   state.dirty = false;
   state.error = '';
   state.status = '';
+  state.childPreview = null;
   if (collection === 'projects') state.indexList = 'projects';
   else if (collection === 'articles') state.indexList = 'articles';
   persist();
@@ -1345,6 +1394,7 @@ function render() {
   bindBodyEditor();
   applyColumnLayout();
   restoreTagsFocus();
+  if (state.childPreview) paintChildRail();
 }
 
 root.addEventListener('click', (event) => {
@@ -1379,6 +1429,7 @@ root.addEventListener('click', (event) => {
   } else if (action === 'save') void save();
   else if (action === 'open-tags') void openTags();
   else if (action === 'close-tags') closeTags();
+  else if (action === 'close-child') closeChildPreview();
   else if (action === 'save-tags') void saveTags();
   else if (action === 'catalog-add-tag') addCatalogTag(Number(target.dataset.groupIndex));
   else if (action === 'catalog-remove-tag') removeCatalogTag(Number(target.dataset.groupIndex), Number(target.dataset.tagIndex));
