@@ -4,7 +4,7 @@ import '@/styles/global.css';
 import { groupedTags, tagGroups } from '@/data/tag-groups';
 import { formatDate } from '@/lib/format';
 import { initTheme, toggleTheme } from '@/lib/theme';
-import { docRefMarkup, ensureMediaImport } from '../blocks.mjs';
+import { docRefMarkup, ensureMediaImport, hrefForOf } from '../blocks.mjs';
 import { mountBlockEditor, mountCompareEditors } from './block-editor.js';
 import './editor.css';
 
@@ -41,7 +41,7 @@ const state = {
   tagError: '',
   tagCatalogSaved: '',
   tagsFocus: null,
-  childPreview: null,
+  child: null,
 };
 
 function todayIsoLocal() {
@@ -54,6 +54,7 @@ function todayIsoLocal() {
 
 let bodyEditor = null;
 let compareEditor = null;
+let childEditor = null;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => (
@@ -128,7 +129,7 @@ async function createFromMention({ kind, title }) {
   if (!state.current) return null;
   state.error = '';
   try {
-    if (state.dirty) await save({ reload: false });
+    if (isDirty()) await save({ reload: false });
     const payload = { kind, title };
     if (kind === 'child') {
       if (!canHaveChildren()) throw new Error('请先打开一篇文章再加子页面');
@@ -161,7 +162,7 @@ function canBilingual() {
 }
 
 function bilingualOn() {
-  return Boolean(state.bilingual && canBilingual());
+  return Boolean(state.bilingual && canBilingual() && !state.child);
 }
 
 function bindBodyEditor() {
@@ -185,7 +186,7 @@ function bindBodyEditor() {
       onChangeEn: (value) => setBody('bodyEn', value),
       onEnsureImport: ensureStudioMediaImport,
       onCreate: (input) => createFromMention(input),
-      onOpenEmbed: openChildPreview,
+      onOpenEmbed: openChildEditor,
     });
     return;
   }
@@ -202,7 +203,7 @@ function bindBodyEditor() {
     onChange: (value) => setBody(bodyKey, value),
     onEnsureImport: ensureStudioMediaImport,
     onCreate: (input) => createFromMention(input),
-    onOpenEmbed: openChildPreview,
+    onOpenEmbed: openChildEditor,
   });
 }
 
@@ -216,43 +217,188 @@ function hrefPreview(href) {
   return state.lang === 'zh' && path !== '/' ? `/zh${path}` : path;
 }
 
-function openChildPreview({ of, href, title }) {
-  if (!of) return;
-  state.childPreview = { of, href: href || hrefForOfFallback(of), title: title || of };
-  paintChildRail();
+function parseDocOf(of) {
+  const raw = String(of ?? '').trim();
+  if (!raw) return null;
+  if (raw === 'blogs') return { collection: 'pages', id: 'blogs' };
+  const slash = raw.indexOf('/');
+  if (slash <= 0) return null;
+  const collection = raw.slice(0, slash);
+  const id = raw.slice(slash + 1);
+  if (!collection || !id) return null;
+  return { collection, id };
 }
 
-function hrefForOfFallback(of) {
-  const raw = String(of ?? '').trim();
-  if (raw === 'pages/blogs' || raw === 'blogs') return '/blogs';
-  if (raw.startsWith('articles/') || raw.startsWith('projects/')) return `/${raw}`;
-  return '/';
+function childKey(child = state.child) {
+  return child ? `${child.collection}/${child.id}` : '';
+}
+
+function currentKey() {
+  return state.current ? `${state.current.collection}/${state.current.id}` : '';
+}
+
+function isDirty() {
+  return Boolean(state.dirty || state.child?.dirty);
+}
+
+function confirmLeave(message = '有未保存的改动，确定离开？') {
+  return !isDirty() || window.confirm(message);
+}
+
+function bindChildEditor() {
+  childEditor?.destroy();
+  childEditor = null;
+  if (!state.child?.doc) return;
+  const host = root.querySelector('[data-child-body-editor]');
+  if (!(host instanceof HTMLElement)) return;
+  const bodyKey = host.dataset.childBodyEditor;
+  childEditor = mountBlockEditor(host, {
+    value: state.child.doc[bodyKey] ?? '',
+    pages: mentionPages(),
+    currentOf: childKey(),
+    canCreateChild: false,
+    pane: 'embed',
+    lang: state.lang,
+    onChange: (value) => setChildBody(bodyKey, value),
+    onEnsureImport: ensureChildMediaImport,
+    onCreate: (input) => createFromMention(input),
+    onOpenEmbed: openChildEditor,
+  });
+}
+
+async function openChildEditor({ of }) {
+  const parsed = parseDocOf(of);
+  if (!parsed) return;
+  const nextOf = `${parsed.collection}/${parsed.id}`;
+  if (currentKey() === nextOf) {
+    if (state.child) closeChildEditor();
+    return;
+  }
+  if (childKey() === nextOf && state.child?.doc) return;
+  if (state.child?.dirty && childKey() !== nextOf) {
+    if (!window.confirm('侧栏有未保存的改动，确定离开？')) return;
+  }
+  const hadRail = Boolean(root.querySelector('.studio-rail'));
+  state.child = {
+    collection: parsed.collection,
+    id: parsed.id,
+    of: nextOf,
+    doc: null,
+    dirty: false,
+    loading: true,
+    error: '',
+  };
+  if (hadRail) paintChildRail();
+  else render();
+  try {
+    const doc = await api(`/doc?collection=${encodeURIComponent(parsed.collection)}&id=${encodeURIComponent(parsed.id)}`);
+    if (childKey() !== nextOf) return;
+    state.child = { ...state.child, doc, loading: false, error: '' };
+    paintChildRail();
+  } catch (err) {
+    if (childKey() !== nextOf) return;
+    state.child = {
+      ...state.child,
+      loading: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+    paintChildRail();
+  }
 }
 
 function childRailHtml() {
-  const item = state.childPreview;
+  const item = state.child;
   if (!item) return '';
   const isEn = state.lang === 'en';
-  const src = hrefPreview(item.href);
+  const closeLabel = isEn ? 'Close' : '关闭';
+  const previewLabel = isEn ? 'preview in the new tab' : '打开新标签进行预览';
+  if (item.loading) {
+    return `
+    <div class="studio-child" data-testid="studio-child">
+      <div class="studio-child__bar">
+        <p class="ui-meta">${esc(item.of)}</p>
+        <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
+      </div>
+      <p class="ui-meta">${isEn ? 'Opening…' : '打开中…'}</p>
+    </div>`;
+  }
+  if (item.error || !item.doc) {
+    return `
+    <div class="studio-child" data-testid="studio-child">
+      <div class="studio-child__bar">
+        <p class="ui-meta">${esc(item.of)}</p>
+        <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
+      </div>
+      <p class="text-sm text-ink-200" role="alert">${esc(item.error || (isEn ? 'Could not open this page.' : '无法打开这篇页面。'))}</p>
+    </div>`;
+  }
+  const data = item.doc.frontmatter ?? {};
+  const titleKey = isEn ? 'titleEn' : 'title';
+  const bodyKey = isEn ? 'bodyEn' : 'bodyZh';
+  const src = hrefPreview(item.doc.href || hrefForOf(item.of));
   return `
     <div class="studio-child" data-testid="studio-child">
       <div class="studio-child__bar">
-        <p class="ui-meta">${esc(item.title || item.of)}</p>
-        <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${isEn ? 'Close' : '关闭'}</button>
+        <p class="ui-meta">${esc(item.of)}</p>
+        <div class="studio-child__bar-actions">
+          <a class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">${previewLabel}</a>
+          <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
+        </div>
       </div>
-      <iframe class="studio-child__frame" src="${attr(src)}" title="${attr(item.title || item.of)}"></iframe>
+      <label><span class="ui-meta">${isEn ? 'Title' : '标题'}</span><input class="comment-field" data-testid="studio-child-title-field" data-child-fm="${titleKey}" value="${attr(data[titleKey] ?? '')}" /></label>
+      <div class="studio-editor min-h-0 flex-1 overflow-y-auto" data-testid="studio-child-editor" data-child-body-editor="${bodyKey}"></div>
     </div>`;
 }
 
 function paintChildRail() {
   const rail = root.querySelector('.studio-rail');
   if (!(rail instanceof HTMLElement)) return;
-  rail.innerHTML = state.childPreview ? childRailHtml() : metaHtml();
+  childEditor?.destroy();
+  childEditor = null;
+  rail.innerHTML = state.child ? childRailHtml() : metaHtml();
+  bindChildEditor();
 }
 
-function closeChildPreview() {
-  state.childPreview = null;
-  paintChildRail();
+function closeChildEditor() {
+  if (!state.child) return;
+  if (state.child.dirty && !window.confirm('侧栏有未保存的改动，确定关闭？')) return;
+  const restoreBilingual = Boolean(state.bilingual);
+  childEditor?.destroy();
+  childEditor = null;
+  state.child = null;
+  if (restoreBilingual) render();
+  else paintChildRail();
+}
+
+function markChildDirty() {
+  if (!state.child) return;
+  state.child.dirty = true;
+  const flag = root.querySelector('[data-studio-dirty]');
+  if (flag) flag.hidden = false;
+}
+
+function setChildFm(key, value) {
+  if (!state.child?.doc) return;
+  state.child = {
+    ...state.child,
+    doc: { ...state.child.doc, frontmatter: { ...state.child.doc.frontmatter, [key]: value } },
+  };
+  markChildDirty();
+}
+
+function setChildBody(which, value) {
+  if (!state.child?.doc) return;
+  state.child = { ...state.child, doc: { ...state.child.doc, [which]: value } };
+  markChildDirty();
+}
+
+function ensureChildMediaImport() {
+  if (!state.child?.doc) return;
+  state.child = {
+    ...state.child,
+    doc: { ...state.child.doc, imports: ensureMediaImport(state.child.doc.imports) },
+  };
+  markChildDirty();
 }
 
 function matchesFilter(item) {
@@ -656,7 +802,7 @@ function restoreSession() {
 
 function paintChrome() {
   const dirty = root.querySelector('[data-studio-dirty]');
-  if (dirty) dirty.hidden = !state.dirty;
+  if (dirty) dirty.hidden = !isDirty();
   const status = root.querySelector('[data-studio-status]');
   if (status) {
     status.hidden = !state.status;
@@ -682,15 +828,17 @@ async function refreshLists() {
 }
 
 async function openDoc(collection, id) {
-  if (state.dirty && !window.confirm('有未保存的改动，确定离开？')) return;
+  if (!confirmLeave()) return;
   const next = await api(`/doc?collection=${encodeURIComponent(collection)}&id=${encodeURIComponent(id)}`);
+  childEditor?.destroy();
+  childEditor = null;
   state.current = { collection, id };
   state.doc = next;
   state.sourceMode = false;
   state.dirty = false;
   state.error = '';
   state.status = '';
-  state.childPreview = null;
+  state.child = null;
   if (collection === 'projects') state.indexList = 'projects';
   else if (collection === 'articles') state.indexList = 'articles';
   persist();
@@ -722,6 +870,21 @@ async function save(opts = {}) {
     });
     state.doc = saved;
     state.dirty = false;
+    if (state.child?.doc) {
+      const savedChild = await api('/doc', {
+        method: 'PUT',
+        body: JSON.stringify({
+          collection: state.child.collection,
+          id: state.child.id,
+          sourceMode: false,
+          frontmatter: state.child.doc.frontmatter,
+          imports: state.child.doc.imports,
+          bodyZh: state.child.doc.bodyZh,
+          bodyEn: state.child.doc.bodyEn,
+        }),
+      });
+      state.child = { ...state.child, doc: savedChild, dirty: false };
+    }
     persist();
     await refreshLists();
     state.status = '已保存';
@@ -755,7 +918,7 @@ async function createDocFromForm() {
     };
     if (state.createKind === 'child') {
       if (!state.current || !canHaveChildren()) throw new Error('请先打开一篇文章再加子页面');
-      if (state.dirty) await save({ reload: false });
+      if (isDirty()) await save({ reload: false });
       payload.parentCollection = state.current.collection;
       payload.parentId = state.current.id;
     }
@@ -807,7 +970,7 @@ async function copyLinkMarkup(of) {
 async function commit() {
   state.error = '';
   try {
-    if (state.dirty) await save();
+    if (isDirty()) await save();
     state.git = await api('/git/commit', {
       method: 'POST',
       body: JSON.stringify({ message: state.commitMessage }),
@@ -1019,7 +1182,7 @@ function columnsHtml() {
   return `
         ${handles}
         <section class="studio-doc">${editorHtml()}</section>
-        <section class="studio-rail">${metaHtml()}</section>`;
+        <section class="studio-rail">${state.child ? childRailHtml() : metaHtml()}</section>`;
 }
 
 function metaHtml() {
@@ -1376,7 +1539,7 @@ function render() {
           <h1 class="truncate text-lg font-semibold text-ink-100">Studio</h1>
         </div>
         <div class="flex flex-wrap items-center justify-end gap-4 text-sm">
-          <span class="text-ink-400" data-studio-dirty ${state.dirty ? '' : 'hidden'}>未保存</span>
+          <span class="text-ink-400" data-studio-dirty ${isDirty() ? '' : 'hidden'}>未保存</span>
           <span class="text-ink-400" data-studio-status ${state.status ? '' : 'hidden'}>${esc(state.status)}</span>
           <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="save" ${!state.doc || state.saving ? 'disabled' : ''}>${state.saving ? '保存中' : '保存'}</button>
           <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="open-tags" data-testid="studio-manage-tags">${esc(tagsCopy().button)}</button>
@@ -1392,9 +1555,9 @@ function render() {
     </div>
     ${dialogHtml()}`;
   bindBodyEditor();
+  bindChildEditor();
   applyColumnLayout();
   restoreTagsFocus();
-  if (state.childPreview) paintChildRail();
 }
 
 root.addEventListener('click', (event) => {
@@ -1429,7 +1592,7 @@ root.addEventListener('click', (event) => {
   } else if (action === 'save') void save();
   else if (action === 'open-tags') void openTags();
   else if (action === 'close-tags') closeTags();
-  else if (action === 'close-child') closeChildPreview();
+  else if (action === 'close-child') closeChildEditor();
   else if (action === 'save-tags') void saveTags();
   else if (action === 'catalog-add-tag') addCatalogTag(Number(target.dataset.groupIndex));
   else if (action === 'catalog-remove-tag') removeCatalogTag(Number(target.dataset.groupIndex), Number(target.dataset.tagIndex));
@@ -1518,6 +1681,10 @@ root.addEventListener('input', (event) => {
     if (field === 'slug' || field === 'title' || field === 'titleEn') {
       state.tagNewGroup[field] = target.value;
     }
+    return;
+  }
+  if (target.dataset.childFm) {
+    setChildFm(target.dataset.childFm, target.value);
     return;
   }
   if (target.dataset.fm) {
