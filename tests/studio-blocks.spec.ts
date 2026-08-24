@@ -61,5 +61,15 @@ test.describe('Studio 块编辑器 / @ [[', () => {
     await expect(childEditor).toContainText('侧栏编辑标记');
     await expect(editor).not.toContainText('侧栏编辑标记');
     await expect(editor.getByTestId('studio-embed')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('studio-app')).toBeVisible();
+    await expect(page.getByTestId('studio-child-editor')).toBeVisible();
+    await expect(page.getByTestId('studio-child-title-field')).toHaveValue(
+      '我的 PKM 实践：从笔记到知识网络',
+    );
+    await expect(page.getByTestId('studio-child-editor')).toContainText('侧栏编辑标记');
+    await expect(page.getByTestId('studio-body-zh')).not.toContainText('侧栏编辑标记');
+    await expect(page.getByTestId('studio-body-zh').getByTestId('studio-embed')).toBeVisible();
   });
 });

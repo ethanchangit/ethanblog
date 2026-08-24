@@ -294,6 +294,7 @@ async function openChildEditor({ of }) {
     const doc = await api(`/doc?collection=${encodeURIComponent(parsed.collection)}&id=${encodeURIComponent(parsed.id)}`);
     if (childKey() !== nextOf) return;
     state.child = { ...state.child, doc, loading: false, error: '' };
+    persist();
     paintChildRail();
   } catch (err) {
     if (childKey() !== nextOf) return;
@@ -366,6 +367,7 @@ function closeChildEditor() {
   childEditor?.destroy();
   childEditor = null;
   state.child = null;
+  persist();
   if (restoreBilingual) render();
   else paintChildRail();
 }
@@ -373,6 +375,7 @@ function closeChildEditor() {
 function markChildDirty() {
   if (!state.child) return;
   state.child.dirty = true;
+  persist();
   const flag = root.querySelector('[data-studio-dirty]');
   if (flag) flag.hidden = false;
 }
@@ -627,11 +630,23 @@ function persist() {
         indexList: state.indexList,
         bilingual: state.bilingual,
         commitMessage: state.commitMessage,
+        child: childSnapshot(),
       }),
     );
   } catch {
     // ignore quota
   }
+}
+
+function childSnapshot() {
+  if (!state.child?.doc) return null;
+  return {
+    collection: state.child.collection,
+    id: state.child.id,
+    of: state.child.of,
+    doc: state.child.doc,
+    dirty: Boolean(state.child.dirty),
+  };
 }
 
 const COL_STORAGE_KEY = 'studio-col-widths';
@@ -794,6 +809,17 @@ function restoreSession() {
       state.indexList = saved.indexList === 'projects' ? 'projects' : 'articles';
       state.bilingual = Boolean(saved.bilingual);
       state.commitMessage = saved.commitMessage ?? '';
+      if (saved.child?.doc && saved.child.collection && saved.child.id) {
+        state.child = {
+          collection: saved.child.collection,
+          id: saved.child.id,
+          of: saved.child.of || `${saved.child.collection}/${saved.child.id}`,
+          doc: saved.child.doc,
+          dirty: Boolean(saved.child.dirty),
+          loading: false,
+          error: '',
+        };
+      }
     }
   } catch {
     sessionStorage.removeItem('studio-state');
