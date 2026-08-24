@@ -565,6 +565,10 @@ html:has(#studio) body,
   margin-top: 0.15rem;
 }
 
+.studio-rail:has(.studio-child) {
+  overflow: hidden;
+}
+
 .studio-child {
   display: flex;
   min-height: 0;
@@ -575,17 +579,26 @@ html:has(#studio) body,
 
 .studio-child__bar {
   display: flex;
+  flex-shrink: 0;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.studio-child__frame {
+.studio-child__bar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.studio-child > label {
+  flex-shrink: 0;
+}
+
+.studio-child .studio-editor {
   min-height: 0;
-  flex: 1;
-  width: 100%;
-  border: 0;
-  background: var(--color-surface-950);
+  flex: 1 1 0%;
 }
 
 @media (prefers-reduced-motion: no-preference) {

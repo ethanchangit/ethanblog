@@ -6,7 +6,7 @@ test.describe('Studio 块编辑器 / @ [[', () => {
     test.skip(res.status() === 404, 'Studio 只在 astro dev 注入');
   });
 
-  test('斜杠改块、@ 插入行内链接、[[ 插入 embed 并在侧栏打开', async ({ page }) => {
+  test('斜杠改块、@ 插入行内链接、[[ 插入 embed 并在侧栏编辑', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto('/studio');
     await expect(page.getByTestId('studio-app')).toBeVisible();
@@ -46,9 +46,30 @@ test.describe('Studio 块编辑器 / @ [[', () => {
     await expect(embed).toBeVisible();
     await embed.click();
     await expect(page.getByTestId('studio-child')).toBeVisible();
-    await expect(page.locator('.studio-child__frame')).toHaveAttribute(
-      'src',
-      /\/zh\/articles\/pkm-method|\/articles\/pkm-method/,
+    await expect(page.locator('.studio-child__frame')).toHaveCount(0);
+    const childEditor = page.getByTestId('studio-child-editor');
+    await expect(childEditor).toBeVisible();
+    await expect(page.getByTestId('studio-child-title-field')).toHaveValue(
+      '我的 PKM 实践：从笔记到知识网络',
     );
+    await expect(childEditor).toContainText('常青笔记');
+
+    const childBlock = childEditor.locator('.studio-block__preview').first();
+    await childBlock.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type('侧栏编辑标记');
+    await expect(childEditor).toContainText('侧栏编辑标记');
+    await expect(editor).not.toContainText('侧栏编辑标记');
+    await expect(editor.getByTestId('studio-embed')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('studio-app')).toBeVisible();
+    await expect(page.getByTestId('studio-child-editor')).toBeVisible();
+    await expect(page.getByTestId('studio-child-title-field')).toHaveValue(
+      '我的 PKM 实践：从笔记到知识网络',
+    );
+    await expect(page.getByTestId('studio-child-editor')).toContainText('侧栏编辑标记');
+    await expect(page.getByTestId('studio-body-zh')).not.toContainText('侧栏编辑标记');
+    await expect(page.getByTestId('studio-body-zh').getByTestId('studio-embed')).toBeVisible();
   });
 });
