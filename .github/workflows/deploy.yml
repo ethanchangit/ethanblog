@@ -2,6 +2,15 @@ name: Deploy to Cloudflare Pages
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Commit SHA selected by Ethan Blog Studio'
+        required: false
+        type: string
+      studio_release_id:
+        description: 'Ethan Blog Studio release request ID'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -13,8 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.expected_sha || github.ref }}
           # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
           fetch-depth: 0
+
+      - name: Verify selected revision
+        if: ${{ inputs.expected_sha != '' }}
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -47,8 +61,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.expected_sha || github.ref }}
           # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
           fetch-depth: 0
+
+      - name: Verify selected revision
+        if: ${{ inputs.expected_sha != '' }}
+        run: test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
 
       - name: Setup Node
         uses: actions/setup-node@v4

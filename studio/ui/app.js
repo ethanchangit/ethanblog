@@ -9,6 +9,8 @@ import { mountBlockEditor, mountCompareEditors } from './block-editor.js';
 import './editor.css';
 
 const root = document.getElementById('studio');
+const ONLINE = Boolean(window.STUDIO_ONLINE);
+const BLOG_ORIGIN = String(window.STUDIO_BLOG_ORIGIN || '');
 
 const state = {
   docs: { articles: [], projects: [], pages: [], blogsRefs: [] },
@@ -28,6 +30,7 @@ const state = {
   linkMode: 'existing',
   git: null,
   commitMessage: '',
+  lastCommitSha: '',
   filter: '',
   linkFilter: '',
   indexList: 'articles',
@@ -214,7 +217,8 @@ function previewSrc() {
 
 function hrefPreview(href) {
   const path = href || '/';
-  return state.lang === 'zh' && path !== '/' ? `/zh${path}` : path;
+  const relative = state.lang === 'zh' && path !== '/' ? `/zh${path}` : path;
+  return BLOG_ORIGIN ? `${BLOG_ORIGIN}${relative}` : relative;
 }
 
 function parseDocOf(of) {
@@ -630,6 +634,7 @@ function persist() {
         indexList: state.indexList,
         bilingual: state.bilingual,
         commitMessage: state.commitMessage,
+        lastCommitSha: state.lastCommitSha,
         child: childSnapshot(),
       }),
     );
@@ -809,6 +814,7 @@ function restoreSession() {
       state.indexList = saved.indexList === 'projects' ? 'projects' : 'articles';
       state.bilingual = Boolean(saved.bilingual);
       state.commitMessage = saved.commitMessage ?? '';
+      state.lastCommitSha = saved.lastCommitSha ?? '';
       if (saved.child?.doc && saved.child.collection && saved.child.id) {
         state.child = {
           collection: saved.child.collection,
@@ -851,6 +857,7 @@ function markDirty() {
 async function refreshLists() {
   state.docs = await api('/docs');
   state.git = await api('/git');
+  if (state.git?.lastUserCommitSha) state.lastCommitSha = state.git.lastUserCommitSha;
 }
 
 async function openDoc(collection, id) {
@@ -892,6 +899,7 @@ async function save(opts = {}) {
         imports: state.doc.imports,
         bodyZh: state.doc.bodyZh,
         bodyEn: state.doc.bodyEn,
+        draftVersion: state.doc.draftVersion ?? 0,
       }),
     });
     state.doc = saved;
@@ -907,6 +915,7 @@ async function save(opts = {}) {
           imports: state.child.doc.imports,
           bodyZh: state.child.doc.bodyZh,
           bodyEn: state.child.doc.bodyEn,
+          draftVersion: state.child.doc.draftVersion ?? 0,
         }),
       });
       state.child = { ...state.child, doc: savedChild, dirty: false };
@@ -1001,8 +1010,9 @@ async function commit() {
       method: 'POST',
       body: JSON.stringify({ message: state.commitMessage }),
     });
+    state.lastCommitSha = state.git.commitSha || state.lastCommitSha;
     state.commitMessage = '';
-    state.status = '已提交到仓库';
+    state.status = ONLINE ? '已提交到 GitHub' : '已提交到仓库';
     render();
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
@@ -1014,7 +1024,26 @@ async function pushRemote() {
   state.error = '';
   try {
     state.git = await api('/git/push', { method: 'POST' });
-    state.status = '已推送到远程（生产仍需手动 Deploy workflow）';
+    state.status = ONLINE ? '内容已经写入 GitHub' : '已推送到远程（生产仍需手动 Deploy workflow）';
+    render();
+  } catch (err) {
+    state.error = err instanceof Error ? err.message : String(err);
+    render();
+  }
+}
+
+async function publishRemote() {
+  state.error = '';
+  try {
+    if (isDirty()) await save();
+    const commitSha = state.lastCommitSha || state.git?.lastUserCommitSha;
+    if (!commitSha) throw new Error('请先提交内容到 GitHub，再发布。');
+    const result = await api('/git/publish', {
+      method: 'POST',
+      body: JSON.stringify({ commitSha }),
+    });
+    state.git = { ...(state.git || {}), release: result.release };
+    state.status = result.release?.status === 'failed' ? '发布触发失败' : '已触发发布，正在等待 GitHub Actions';
     render();
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
@@ -1112,15 +1141,21 @@ function indexAsideHtml() {
             </section>
           </div>
           <section class="shrink-0 pt-4 pb-4">
-            <h2 class="ui-meta mb-2">仓库</h2>
-            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个改动` : ''}</p>` : ''}
+            <h2 class="ui-meta mb-2">${ONLINE ? 'GitHub' : '仓库'}</h2>
+            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个私人草稿改动` : ''}</p>` : ''}
             <label class="mt-3 block"><span class="sr-only">提交说明</span><input class="comment-field" placeholder="提交说明" data-testid="studio-commit-message" data-commit value="${attr(state.commitMessage)}" /></label>
             <div class="mt-3 flex flex-wrap gap-4 text-sm">
-              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-commit" data-action="commit">提交内容</button>
-              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-push" data-action="push">推送远程</button>
+              <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-commit" data-action="commit">${ONLINE ? '提交到 GitHub' : '提交内容'}</button>
+              ${ONLINE ? `<button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-publish" data-action="publish" ${state.lastCommitSha ? '' : 'disabled'}>发布</button>` : `<button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-push" data-action="push">推送远程</button>`}
             </div>
+            ${ONLINE && state.git?.release ? `<p class="mt-3 text-sm text-ink-400">发布：${esc(releaseLabel(state.git.release))}${state.git.release.workflowUrl ? ` · <a class="underline" href="${attr(state.git.release.workflowUrl)}" target="_blank" rel="noreferrer">Actions</a>` : ''}</p>` : ''}
           </section>
         </aside>`;
+}
+
+function releaseLabel(release) {
+  const labels = { dispatching: '触发中', queued: '排队中', building: '验证与构建中', running: '部署中', deployed: '已完成', failed: '失败' };
+  return labels[release?.stage] || labels[release?.status] || '未知状态';
 }
 
 function visibleArticles() {
@@ -1561,8 +1596,8 @@ function render() {
     <div class="studio-shell" data-testid="studio-app">
       <header class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <div class="min-w-0">
-          <p class="ui-meta">本地编辑器</p>
-          <h1 class="truncate text-lg font-semibold text-ink-100">Studio</h1>
+          <p class="ui-meta">${ONLINE ? '在线博客管理后台' : '本地编辑器'}</p>
+          <h1 class="truncate text-lg font-semibold text-ink-100">${ONLINE ? 'Ethan Blog Studio' : 'Studio'}</h1>
         </div>
         <div class="flex flex-wrap items-center justify-end gap-4 text-sm">
           <span class="text-ink-400" data-studio-dirty ${isDirty() ? '' : 'hidden'}>未保存</span>
@@ -1657,6 +1692,7 @@ root.addEventListener('click', (event) => {
     state.linkFilter = '';
     render();
   }   else if (action === 'commit') void commit();
+  else if (action === 'publish') void publishRemote();
   else if (action === 'push') void pushRemote();
 });
 

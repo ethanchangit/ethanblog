@@ -1,5 +1,6 @@
 # Astro build output
 dist/
+studio/online/assets.generated.mjs
 .astro/
 
 # Node

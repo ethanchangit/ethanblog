@@ -7,10 +7,11 @@
     "dev": "astro dev",
     "studio": "astro dev",
     "build": "astro build && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs",
+    "build:studio-site": "node studio/online/build-site.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
-    "test": "node --test studio/*.test.mjs && playwright test",
+    "test": "node --test studio/*.test.mjs studio/online/*.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
     "deploy": "npm run build && wrangler deploy -c workers/guestbook/wrangler.toml && wrangler pages deploy dist --project-name=ethanblog",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
