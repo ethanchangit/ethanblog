@@ -286,5 +286,15 @@ test('MCP pagination reads every numbered line and rejects incomplete lists', as
   const client = { async call(name, args) { return { content: full.slice(args.offset, args.offset + 200).map((line, i) => `${args.offset + i + 1}\t${line}`).join('\n'), totalLines: full.length, hasMore: args.offset + 200 < full.length }; } };
   assert.equal(await readCard(client, 'card'), full.join('\n'));
   await assert.rejects(() => blogCards({ call: async (name) => ({ content: name === 'list_tags' ? '<tag id="blog" name="blog" cardCount="2" />' : '' }) }), /数量/);
+  const blog = 'dba5b41b-67a4-4ca5-a794-2fae3dc51786', ref = '87e9b69a-a568-4d28-bc82-24b7586cd70b', card = '6353c916-e0a9-4a0d-aa07-7a3512b72e92';
+  const calls = [];
+  const listed = await blogCards({ call: async (name, args) => {
+    calls.push(args);
+    return { content: name === 'list_tags' ? `tag "blog" [${blog}] cards: 1\ntag "blog-reference" [${ref}] cards: 0` : `card "标题" [${card}] created: 2026-09-14` };
+  } });
+  assert.equal(listed.tagId, blog);
+  assert.equal(listed.cards[0].title, '标题');
+  assert.equal(calls[0].nameFilter, undefined);
+  assert.equal(calls[0].limit, 100);
   assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
 });

@@ -146,9 +146,45 @@ export function cardId(link) {
   return match[1].toLowerCase();
 }
 
+function tagAttributes(source) {
+  const attrs = {};
+  for (const match of source.matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)) attrs[match[1]] = match[2];
+  for (const match of source.matchAll(/([\w:-]+)\s*=\s*'([^']*)'/g)) if (attrs[match[1]] == null) attrs[match[1]] = match[2];
+  return attrs;
+}
+
+function cardCountOf(text) {
+  return /(?:cardCount|cards)\s*[:=]\s*"?(\d+)/i.exec(text || '')?.[1];
+}
+
+// list_tags has no name filter. Its content is either a tag element or one compact line per tag.
+export function parseTagEntries(content) {
+  const text = String(content || '');
+  const xml = [...text.matchAll(/<tag\b([^>]*?)\/?>/gi)].map((match) => {
+    const attrs = tagAttributes(match[1]);
+    return { id: attrs.id, name: attrs.name, cardCount: attrs.cardCount };
+  }).filter((tag) => tag.id && tag.name);
+  if (xml.length) return xml;
+  return [...text.matchAll(new RegExp(`^(?:tag\\s+)?"([^"]*)"\\s+\\[(${UUID})\\](.*)$`, 'gim'))].map((match) => ({
+    id: match[2], name: match[1], cardCount: cardCountOf(match[3]),
+  })).filter((tag) => tag.name);
+}
+
 export async function taggedCards(client, name) {
-  const tags = await client.call('list_tags', { nameFilter: name });
-  const matches = [...tags.content.matchAll(/<tag\b([^>]+)\/?>/g)].map((m) => Object.fromEntries([...m[1].matchAll(/([\w]+)="([^"]*)"/g)].map((a) => [a[1], a[2]]))).filter((t) => t.name === name);
+  const found = [], seenTags = new Set();
+  for (let offset = 0; offset < 10000;) {
+    const page = await client.call('list_tags', { offset, limit: 100 });
+    const batch = parseTagEntries(page.content).filter((tag) => {
+      if (seenTags.has(tag.id)) return false;
+      seenTags.add(tag.id);
+      return true;
+    });
+    found.push(...batch);
+    if (!/more tags are available/i.test(page.content || '') || !batch.length) break;
+    offset += batch.length;
+    if (offset >= 10000) throw fail('标签过多，请精简后再拉取。');
+  }
+  const matches = found.filter((tag) => tag.name === name);
   if (matches.length !== 1) throw fail(`请在 Heptabase 中保留一个名为 ${name} 的标签。`);
   const tagId = matches[0].id, cards = [], seen = new Set();
   for (let offset = 0; offset < 10000;) {
