@@ -12,7 +12,16 @@ function link(text, href) { return el('a', text, { href, ...(href.startsWith('ht
 function button(text, action, attrs = {}) { const b = el('button', text, { type: 'button', ...attrs }); b.addEventListener('click', () => void run(action)); return b; }
 async function api(path, data) {
   const response = await fetch(`/dashboard/api${path}`, data === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
-  const result = await response.json();
+  let result;
+  try { result = await response.json(); }
+  catch {
+    const message = response.status === 401 ? '登录已过期，请重新输入后台密码。'
+      : response.redirected ? '后台请求被跳转到了其他页面，请刷新后重试。'
+      : !response.ok ? `后台暂时无法完成请求（${response.status}），请稍后重新拉取。`
+      : '后台返回了无法读取的数据，请刷新后重试。';
+    throw Object.assign(new Error(message), { status: response.status });
+  }
+  if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('后台返回了无法读取的数据，请刷新后重试。');
   if (!response.ok) throw Object.assign(new Error(result.error || '操作未完成，请重试。'), { status: response.status });
   return result;
 }
@@ -66,12 +75,12 @@ async function pullUpdates() {
   for (const card of cards) {
     const input = { cardLink: card.cardLink, preparePublish: true, reviewOnly: true, ...(card.linked[0] || {}) };
     try { next.push({ card, input, plan: await api('/heptabase/preview', input), decision: '' }); }
-    catch (error) { next.push({ card, input, error: error.message, decision: '' }); }
+    catch (error) { if (error.status === 401) throw error; next.push({ card, input, error: error.message, decision: '' }); }
   }
   for (const removed of removals) {
     const card = { ...removed, id: removed.cardLink.split('/').pop() }, input = { collection: removed.collection, id: removed.id, cardLink: removed.cardLink };
     try { const plan = await api('/heptabase/removal-preview', input); next.push({ card, input, plan, removal: true, decision: plan.approved ? 'remove' : '' }); }
-    catch (error) { next.push({ card, input, removal: true, error: error.message, decision: '' }); }
+    catch (error) { if (error.status === 401) throw error; next.push({ card, input, removal: true, error: error.message, decision: '' }); }
   }
   items = next; pulled = true; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
   renderList(); await showSelection();

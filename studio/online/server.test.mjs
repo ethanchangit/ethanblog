@@ -5,6 +5,7 @@ import { hash, passwordRecord } from './auth.mjs';
 import { signReceipt } from './release-sync.mjs';
 import { publicationDate } from './card-properties.mjs';
 import { blogCards, readCard, toolResult } from './heptabase.mjs';
+import { fromHeptabase } from './card-content.mjs';
 
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -24,9 +25,29 @@ const grandchild = '122560bd-b99f-4fb9-9fa5-742090feacb1';
 const mention = (id, title) => `<hepta-mention type="card" id="${id}">${title}</hepta-mention>`;
 function graph(f) {
   f.setSource(`# 主文\n\n${mention(child, '子文')}\n\n行内 ${mention(grandchild, '孙文')}。`);
-  f.cardSources.set(child, `# 子文\n\n${mention(grandchild, '孙文')}`);
-  f.cardSources.set(grandchild, `# 孙文\n\n${mention(CARD, '主文')}`);
+  f.cardSources.set(child, `## 子文\n\n${mention(grandchild, '孙文')}`);
+  f.cardSources.set(grandchild, `### 孙文\n\n${mention(CARD, '主文')}`);
 }
+
+test('Heptabase heading levels all supply a title without changing the remaining content', () => {
+  for (let level = 1; level <= 6; level++) {
+    const result = fromHeptabase(`${'#'.repeat(level)} 卡片标题\n\n正文。\n\n## 正文小节\n\n保留文字。`, new Map());
+    assert.equal(result.title, '卡片标题');
+    assert.equal(result.body, '正文。\n\n## 正文小节\n\n保留文字。');
+  }
+  assert.equal(fromHeptabase('## 卡片标题 ##\n\n正文。', new Map()).title, '卡片标题');
+  for (const source of ['普通正文', '# ', '####### 非标题']) assert.throws(() => fromHeptabase(source, new Map()), /标题/);
+});
+
+test('an HTML response from Heptabase becomes an actionable error without leaking its page', async () => {
+  const f = await setup();
+  globalThis.fetch = async (url, options) => new URL(url).pathname === '/mcp'
+    ? new Response('<!DOCTYPE html><html>upstream diagnostic data</html>', { headers: { 'content-type': 'text/html' } })
+    : f.fetcher(url, options);
+  const response = await f.request('/heptabase/cards');
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: 'Heptabase 返回了无法读取的数据，请稍后重新拉取。' });
+});
 
 test('public preview template is served at the directory URL used after deployment', async () => {
   const html = '<!doctype html><title>文章预览</title>';

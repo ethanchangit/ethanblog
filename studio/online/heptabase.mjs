@@ -29,7 +29,12 @@ async function get(env, id) {
 async function providerJson(path, init = {}) {
   const response = await fetchNoRedirect(`${ORIGIN}${path}`, { ...init, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw fail(`Heptabase 连接失败（${response.status}），请重新连接。`, 502);
-  return JSON.parse(await boundedText(response));
+  return providerData(await boundedText(response));
+}
+
+function providerData(text) {
+  try { return JSON.parse(text); }
+  catch { throw fail('Heptabase 返回了无法读取的数据，请稍后重新拉取。', 502); }
 }
 
 export async function connectionStatus(env) {
@@ -96,7 +101,7 @@ export function toolResult(result) {
 }
 
 async function rpcResponse(response, id) {
-  if (!response.headers.get('content-type')?.includes('text/event-stream')) return JSON.parse(await boundedText(response));
+  if (!response.headers.get('content-type')?.includes('text/event-stream')) return providerData(await boundedText(response));
   const reader = response.body.getReader(), decoder = new TextDecoder();
   let buffer = '', size = 0;
   try {
@@ -110,7 +115,7 @@ async function rpcResponse(response, id) {
       while ((boundary = buffer.indexOf('\n\n')) >= 0) {
         const event = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
         const raw = event.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart()).join('\n');
-        if (raw) { const payload = JSON.parse(raw); if (payload.id === id) return payload; }
+        if (raw) { const payload = providerData(raw); if (payload.id === id) return payload; }
       }
     }
     throw fail('Heptabase 响应不完整，请重试。', 502);

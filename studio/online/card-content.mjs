@@ -37,8 +37,11 @@ export function blogReferences(body) {
 
 export function fromHeptabase(source, targets, imports = '') {
   const lines = source.split('\n');
-  if (!/^#(?:\s|$)/.test(lines[0])) throw fail('卡片需要以一级标题开头。');
-  const title = lines.shift().replace(/^#\s*/, '').trim();
+  // Reference cards also use lower-level headings for their title.
+  const heading = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(lines[0]);
+  if (!heading || !heading[1].trim()) throw fail('卡片需要以标题开头。');
+  const title = heading[1].trim();
+  lines.shift();
   let hasBlock = false;
   const body = proseParts(lines.join('\n').trim(), (part) => {
     const tokens = [];

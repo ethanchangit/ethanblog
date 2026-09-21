@@ -18,6 +18,35 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => { process?.kill('SIGTERM'); });
 
+test('预览收到网页错误后显示可读原因，并能重新拉取恢复', async ({ page }) => {
+  await page.goto(url);
+  await page.getByLabel('后台密码').fill('local-test-only-password');
+  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await page.route('**/dashboard/api/heptabase/preview', route => route.fulfill({
+    status: 502, contentType: 'text/html', body: '<!DOCTYPE html><html>private diagnostic details</html>',
+  }));
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.locator('#review-preview')).toHaveText('后台暂时无法完成请求（502），请稍后重新拉取。');
+  await expect(page.locator('[data-review-group=new] .decisions button, [data-review-group=edited] .decisions button')).toHaveCount(0);
+  await expect(page.locator('#studio')).not.toContainText('Unexpected token');
+  await expect(page.locator('#studio')).not.toContainText('private diagnostic details');
+  await page.unroute('**/dashboard/api/heptabase/preview');
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.frameLocator('iframe[title="网站发布样式预览"]').locator('h1')).toHaveText('知识管理，先从连接开始');
+});
+
+test('逐篇拉取时登录过期会回到登录页', async ({ page }) => {
+  await page.goto(url);
+  await page.getByLabel('后台密码').fill('local-test-only-password');
+  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await page.route('**/dashboard/api/heptabase/preview', route => route.fulfill({ status: 401, contentType: 'text/html', body: '<!DOCTYPE html><html>Login required</html>' }));
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.getByLabel('后台密码')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('登录已过期，请重新输入后台密码。');
+});
+
 test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回写和发布完整流程', async ({ page, request }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(url);
