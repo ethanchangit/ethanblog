@@ -3,6 +3,15 @@ const encoder = new TextEncoder();
 const COOKIE = 'studio_session';
 const WEEK = 7 * 24 * 60 * 60;
 export const fail = (message, status = 400) => Object.assign(new Error(message), { status });
+// Workers reject redirect: "error". Stop at the redirect instead of following it with credentials.
+export async function fetchNoRedirect(url, init = {}) {
+  const response = await fetch(url, { ...init, redirect: 'manual' });
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw fail('请求被重定向，已停止。', 502);
+  }
+  return response;
+}
 export const hex = (bytes) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
 export const hash = async (text) => hex(await crypto.subtle.digest('SHA-256', encoder.encode(text)));
 export const randomToken = () => hex(crypto.getRandomValues(new Uint8Array(32)));

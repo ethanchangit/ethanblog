@@ -8,7 +8,7 @@ import {
   validateContentFile,
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
-import { author, login, logout, readJson, requireCsrf, boundedText, fail, hash, withLock } from './auth.mjs';
+import { author, login, logout, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, taggedCards, readCard, cardId } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
@@ -81,7 +81,7 @@ async function githubRequest(env, path, init = {}) {
   headers.set('x-github-api-version', '2022-11-28');
   headers.set('authorization', `Bearer ${token}`);
   headers.set('user-agent', 'ethanblog-dashboard');
-  const response = await fetch(`https://api.github.com${path}`, { ...init, headers, signal: AbortSignal.timeout(20000), redirect: 'error' });
+  const response = await fetchNoRedirect(`https://api.github.com${path}`, { ...init, headers, signal: AbortSignal.timeout(20000) });
   const text = await boundedText(response, 4_000_000);
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = null; }
@@ -952,7 +952,7 @@ export function createHandler(assets = {}) {
       let response;
       if (url.pathname === '/dashboard/api/deployed' && request.method === 'POST') {
         const payload = await verifyReceipt(env, request);
-        const live = await fetch(`${BLOG_URL}/__studio-release.json?check=${Date.now()}`, { signal: AbortSignal.timeout(15000), redirect: 'error', headers: { 'cache-control': 'no-cache' } });
+        const live = await fetchNoRedirect(`${BLOG_URL}/__studio-release.json?check=${Date.now()}`, { signal: AbortSignal.timeout(15000), headers: { 'cache-control': 'no-cache' } });
         if (!live.ok || JSON.parse(await boundedText(live)).commitSha !== payload.commitSha) throw fail('线上版本尚未对应本次发布。', 409);
         const row = await firstRow(env, 'SELECT * FROM studio_releases WHERE commit_sha = ?1', payload.commitSha);
         if (row) {

@@ -1,4 +1,4 @@
-import { boundedText, fail, hash, randomToken, withLock } from './auth.mjs';
+import { boundedText, fail, fetchNoRedirect, hash, randomToken, withLock } from './auth.mjs';
 
 const ORIGIN = 'https://api.heptabase.com';
 const MCP = `${ORIGIN}/mcp`;
@@ -27,7 +27,7 @@ async function get(env, id) {
 }
 
 async function providerJson(path, init = {}) {
-  const response = await fetch(`${ORIGIN}${path}`, { ...init, signal: AbortSignal.timeout(20000), redirect: 'error' });
+  const response = await fetchNoRedirect(`${ORIGIN}${path}`, { ...init, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw fail(`Heptabase 连接失败（${response.status}），请重新连接。`, 502);
   return JSON.parse(await boundedText(response));
 }
@@ -122,7 +122,7 @@ export async function mcpClient(env) {
   let session, version = '2025-03-26', nextId = 1;
   const rpc = async (method, params, notification = false) => {
     const id = notification ? undefined : nextId++;
-    const response = await fetch(MCP, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000), headers: {
+    const response = await fetchNoRedirect(MCP, { method: 'POST', signal: AbortSignal.timeout(30000), headers: {
       authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream',
       'MCP-Protocol-Version': version, ...(session ? { 'Mcp-Session-Id': session } : {}),
     }, body: JSON.stringify({ jsonrpc: '2.0', id, method, params }) });
