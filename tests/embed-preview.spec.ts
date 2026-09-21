@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('article can embed a tweet and a YouTube video together', async ({ page }) => {
-  await page.goto('/articles/embed-preview');
+  await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
 
   const tweet = page.locator('[data-tweet-embed]').filter({ visible: true });
   await expect(tweet).toBeVisible();
@@ -55,8 +55,8 @@ test('article can embed a tweet and a YouTube video together', async ({ page }) 
   await expect(facade).toHaveAttribute('href', 'https://www.youtube.com/watch?v=H35nVgNGyo8');
   await expect(facade).toHaveAttribute(
     'aria-label',
-    'A conversation with Cao Yuan, formerly of DeepMind: AI for Science is breaking out',
+    '对话前DeepMind曹原：AI for Science爆发，一个新时代到来了',
   );
   await expect(video.locator('iframe')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /Watch on YouTube/ }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /在 YouTube 观看/ }).first()).toBeVisible();
 });

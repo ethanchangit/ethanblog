@@ -1,21 +1,6 @@
-/**
- * Chrome-level bilingual layer (zh-CN / en).
- * MDX article/project bodies are not translated here — only shell UI.
- *
- * Shareable Chinese URLs live under `/zh`. That prefix wins over localStorage.
- * Unprefixed URLs still honor localStorage (default English).
- */
-
-import {
-  isLocalizablePath,
-  isZhPath,
-  localeHrefForLang,
-  localizeHref,
-} from '@/lib/locale';
-
+/** Single Chinese edition. Keep the existing component API until i18n is redesigned. */
 export type Lang = 'zh-CN' | 'en';
-
-export const DEFAULT_LANG: Lang = 'en';
+export const DEFAULT_LANG = 'zh-CN' as const;
 export const LANG_STORAGE_KEY = 'lang';
 export const LANG_EVENT = 'ethan:lang';
 
@@ -30,9 +15,9 @@ export const copy = {
     navHome: '首页',
     indexSwitchAria: '文章与项目',
     searchTitle: '搜索',
-    searchDesc: '搜索已发布的文章。',
+    searchDesc: '搜索已发布的文章、项目与引用资料全文。',
     searchLabel: '搜索文章',
-    searchPlaceholder: '标题、摘要或标签',
+    searchPlaceholder: '搜索标题、标签或正文',
     searchEmpty: '没有匹配的文章。',
     themeAria: '切换浅色/深色模式',
     themeTitle: '切换主题',
@@ -173,162 +158,6 @@ export const copy = {
     videoPlayHint: '点击封面播放',
     videoWatchYoutube: '在 YouTube 观看 ↗',
   },
-  en: {
-    navArticles: 'Articles',
-    navProjects: 'Projects',
-    navBlogs: 'Blogs',
-    navTags: 'Tags',
-    navNow: 'Now',
-    navSearch: 'Search',
-    navHome: 'Home',
-    indexSwitchAria: 'Articles and projects',
-    searchTitle: 'Search',
-    searchDesc: 'Search published articles.',
-    searchLabel: 'Search articles',
-    searchPlaceholder: 'Title, summary, or tag',
-    searchEmpty: 'No matching articles.',
-    themeAria: 'Toggle light/dark mode',
-    themeTitle: 'Toggle theme',
-    langAria: 'Choose language',
-    langListAria: 'Language',
-    skipToContent: 'Skip to content',
-    hello: "Hi, I'm",
-    viewWork: 'See projects →',
-    heroBio:
-      'I build native iOS apps, fold LLMs and voice AI into productivity tools, and keep refining how I manage knowledge.',
-    nowAria: 'Now',
-    nowUpdated: 'Updated',
-    nowDoing: 'Building',
-    nowReading: 'Reading',
-    nowThinking: 'Thinking',
-    skillsAria: 'Skills',
-    skillsTitle: 'What I build with',
-    contactAria: 'Contact',
-    contactTitle: 'Want to talk?',
-    contactBody: 'About writing, projects, or anything else — write me.',
-    aboutStack: 'Stack',
-    aboutContact: 'Contact',
-    aboutDoing: 'What I do',
-    signOut: 'Sign out',
-    bookmark: 'Save',
-    bookmarked: 'Saved',
-    bookmarkAria: 'Save this article',
-    unbookmarkAria: 'Remove bookmark',
-    copyUrl: 'COPY URL',
-    copyUrlCopied: 'Copied',
-    copyUrlAria: 'Copy page URL',
-    proficiency: 'proficiency',
-    usedIn: 'Used in',
-    pickSkill: 'Pick a skill to see proficiency and where it shows up.',
-    domainMobile: 'Mobile',
-    domainBackend: 'Backend',
-    domainAI: 'AI',
-    domainTools: 'Tooling',
-    notFoundTitle: 'This page does not exist',
-    notFoundBody: 'It may have moved, or it never existed.',
-    notFoundTry: 'Try one of these:',
-    notFoundAgents: 'ethanchang.io developer resources',
-    notFoundLlms: 'llms.txt',
-    notFoundSitemap: 'Sitemap',
-    notFoundContact: 'Contact',
-    notFoundPrivacy: 'Privacy',
-    backHome: 'Back home',
-    contactPageTitle: 'Contact',
-    contactPageDesc: 'Email hey@ethanchang.io. No tickets, and no form that posts into the void.',
-    privacyTitle: 'Privacy',
-    privacyDesc:
-      'Reading does not need an account. Optional sign-in only syncs bookmarks and progress. Comments go to email, not onto the page.',
-    forAgentsTitle: 'ethanchang.io developer resources',
-    forAgentsDesc:
-      'Markdown at the same URL, llms.txt, RSS, and the interfaces that actually exist. There is no public MCP server.',
-    aboutHowTitle: 'How to read this site',
-    aboutHowArticlesTitle: 'Articles and projects',
-    aboutHowArticlesBody:
-      'Articles are notes I am willing to show people. Projects are a software lineage, not a grid of cards. The Now page is what I am doing lately, not a CV.',
-    aboutHowMachineTitle: 'Machine-readable copies',
-    aboutHowContactTitle: 'Contact and privacy',
-    siteBlog: 'Blog',
-    articlesTitle: 'Articles',
-    articlesDesc: 'Articles.',
-    articlesEarlier: 'Earlier',
-    articlesNewer: 'Newer',
-    articlesPagerAria: 'Article pages',
-    seriesNavAria: 'Series navigation',
-    seriesChapters: 'Chapters',
-    docListAria: 'References',
-    seriesPrev: 'Previous',
-    seriesNext: 'Next',
-    seriesCloseChild: 'Close',
-    tagsTitle: 'Tags',
-    tagsDesc: 'Browse articles by tag.',
-    tagsAll: 'All',
-    tagsDomainsAria: 'Filter by domain',
-    tagsListAria: 'All tags',
-    tagsEmpty: 'No matching tags.',
-    tagsNoDocs: 'No matching documents.',
-    tagPageDesc: 'Articles with this tag.',
-    backToTags: '← All tags',
-    blogsTitle: 'Blogs',
-    blogsDesc: 'A hand-picked list of articles and projects — not a dump of a folder.',
-    blogsLead: 'This is not a mirror of the articles index. Each row is a reference written in MDX.',
-    projectsTitle: 'Projects',
-    projectsH1: 'Projects are a lineage',
-    projectsDesc:
-      'The software I make is not a grid of cards — it is a research line, each project inheriting what the last one proved.',
-    projectsLead:
-      'This is not a portfolio index. Scroll and you will see how the software inherits: the word highlighting that worked in Aletheia is reused in Trace; the card structure honed in Network is reused in Chunk.',
-    projectsLineageH2: 'Timeline: from cards to a container',
-    projectsLineageP:
-      'If each project is an experiment, they are not parallel SKUs but a line of inquiry. First: how to capture. Then: how to read. Finally: what happens when notes pile up.',
-    projectsEdgesIntro: 'Three explicit hand-offs:',
-    projectsArchiveH2: 'Project files',
-    projectsArchiveP: 'Need the repo, stack, or a fuller write-up? Each project still has its own file:',
-    aboutLead: 'Media is our tool; the goal is to deliver true value to others through solving problems.',
-    aboutIos: 'iOS development — native apps in Swift and SwiftUI',
-    aboutAi: 'AI integration — LLMs and voice AI inside productivity tools',
-    aboutPkm: 'Personal knowledge management — tools and methods for catching and organizing thought',
-    labTitle: 'Component lab',
-    labDesc: 'Media component lab',
-    labLead: 'Live demos and QA for the media component library.',
-    updatedPrefix: 'Updated',
-    abstract: 'Abstract',
-    commentsHeading: 'Comments',
-    commentsHint: 'After you send it, it goes to my inbox. It will not appear on this page.',
-    commentsName: 'Name',
-    commentsEmail: 'Email',
-    commentsBody: 'Write a message',
-    commentsSubmit: 'Send',
-    commentsError: 'Could not send. Try again in a moment.',
-    commentsSent: 'Sent to my inbox.',
-    visitSite: 'Visit site ↗',
-    githubRepo: 'GitHub repo ↗',
-    downloads: 'Downloads',
-    techStack: 'Stack',
-    backToArticles: '← Articles',
-    backToProjects: '← Back to projects',
-    expandReading: 'Open full index',
-    collapseReading: 'Show About',
-    statusActive: 'Active',
-    statusShipped: 'Shipped',
-    statusWip: 'In progress',
-    statusArchived: 'Archived',
-    toc: 'Contents',
-    tocAria: 'Table of contents',
-    demoReload: '↻ Reload',
-    demoFullscreen: 'Fullscreen ↗',
-    demoStart: '▶ Start demo',
-    demoSandbox: 'The demo runs in an on-page sandbox',
-    demoNewWindow: 'Open demo in a new window ↗',
-    audioPlay: 'Play',
-    audioPause: 'Pause',
-    audioSeek: 'Click to seek',
-    paramHint: 'Drag the slider →',
-    tweetView: 'View on X',
-    tweetUnavailable: 'Could not load this post.',
-    tweetVerified: 'Verified',
-    videoPlayHint: 'Click the image to play',
-    videoWatchYoutube: 'Watch on YouTube ↗',
-  },
 } as const;
 
 export type CopyKey = keyof typeof copy['zh-CN'];
@@ -347,7 +176,7 @@ export const NOW_VERB_KEYS = {
 } as const satisfies Record<string, CopyKey>;
 
 export function t(lang: Lang, key: CopyKey): string {
-  return copy[lang][key];
+  return copy['zh-CN'][key];
 }
 
 export function tf(lang: Lang, key: CopyKey, vars: Record<string, string | number>): string {
@@ -364,121 +193,28 @@ export function nowVerbKey(verb: string): CopyKey | null {
   return null;
 }
 
-export function resolveLang(stored: string | null): Lang {
-  return stored === 'zh-CN' ? 'zh-CN' : DEFAULT_LANG;
-}
 
-export function getStoredLang(): Lang | null {
-  if (typeof localStorage === 'undefined') return null;
-  const value = localStorage.getItem(LANG_STORAGE_KEY);
-  return value === 'en' || value === 'zh-CN' ? value : null;
-}
-
-export function langFromEnvironment(): Lang {
-  if (typeof location !== 'undefined' && isZhPath(location.pathname)) return 'zh-CN';
-  return resolveLang(getStoredLang());
-}
-
-export function readLang(): Lang {
-  if (typeof document === 'undefined') return DEFAULT_LANG;
-  const attr = document.documentElement.dataset.lang || document.documentElement.lang;
-  if (attr === 'en' || attr === 'zh-CN') return attr;
-  return langFromEnvironment();
-}
-
-function syncChrome(lang: Lang) {
-  document.querySelectorAll('.i18n-zh, .i18n-zh-block, .i18n-zh-only').forEach((el) => {
-    el.setAttribute('aria-hidden', lang === 'en' ? 'true' : 'false');
-  });
-  document.querySelectorAll('.i18n-en, .i18n-en-block, .i18n-en-only').forEach((el) => {
-    el.setAttribute('aria-hidden', lang === 'en' ? 'false' : 'true');
-  });
-  document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach((el) => {
-    const key = el.dataset.i18nAria as CopyKey | undefined;
-    if (key && key in copy['zh-CN']) {
-      el.setAttribute('aria-label', t(lang, key));
-    }
-  });
-  document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach((el) => {
-    const key = el.dataset.i18nPlaceholder as CopyKey | undefined;
-    if (key && key in copy['zh-CN']) {
-      el.placeholder = t(lang, key);
-    }
-  });
-}
-
-function syncDocumentMeta(lang: Lang) {
-  const root = document.documentElement;
-  const title = lang === 'en' ? root.dataset.titleEn : root.dataset.titleZh;
-  if (title) document.title = title;
-  const desc = lang === 'en' ? root.dataset.descEn : root.dataset.descZh;
-  const meta = document.querySelector('meta[name="description"]');
-  if (meta && desc) meta.setAttribute('content', desc);
-}
-
-function syncLocalizedLinks(lang: Lang) {
+export function resolveLang(_stored: string | null): Lang { return 'zh-CN'; }
+export function getStoredLang(): Lang { return 'zh-CN'; }
+export function langFromEnvironment(): Lang { return 'zh-CN'; }
+export function readLang(): Lang { return 'zh-CN'; }
+export function applyLang(_lang: Lang = 'zh-CN') {
   if (typeof document === 'undefined') return;
-  const locale = lang === 'zh-CN' ? 'zh' : 'en';
-  document.querySelectorAll('a[href^="/"]').forEach((el) => {
-    const href = el.getAttribute('href');
-    if (!href || href.startsWith('//')) return;
-    try {
-      const url = new URL(href, document.baseURI);
-      if (!isLocalizablePath(url.pathname)) return;
-      const next = localizeHref(href, locale);
-      if (next !== href) el.setAttribute('href', next);
-    } catch {
-      /* ignore malformed hrefs */
-    }
+  document.documentElement.lang = 'zh-CN';
+  document.documentElement.dataset.lang = 'zh-CN';
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    const key = el.getAttribute('data-i18n-aria') as CopyKey;
+    if (key in copy['zh-CN']) el.setAttribute('aria-label', t('zh-CN', key));
   });
 }
-
-export function applyLang(lang: Lang) {
-  if (typeof document === 'undefined') return;
-  document.documentElement.lang = lang;
-  document.documentElement.dataset.lang = lang;
-  syncChrome(lang);
-  syncDocumentMeta(lang);
-  syncLocalizedLinks(lang);
-  document.dispatchEvent(new CustomEvent<Lang>(LANG_EVENT, { detail: lang }));
-}
-
-function samePathname(a: string, b: string): boolean {
-  return (a.replace(/\/+$/, '') || '/') === (b.replace(/\/+$/, '') || '/');
-}
-
-export function setLang(lang: Lang) {
-  localStorage.setItem(LANG_STORAGE_KEY, lang);
-  applyLang(lang);
-  if (typeof location === 'undefined') return;
-  const nextPath = localeHrefForLang(location.pathname, lang);
-  if (samePathname(nextPath, location.pathname)) return;
-  location.assign(nextPath + location.search + location.hash);
-}
-
-export function toggleLang(): Lang {
-  const next: Lang = readLang() === 'en' ? 'zh-CN' : 'en';
-  setLang(next);
-  return next;
-}
-
 let started = false;
-
 export function initLang() {
-  applyLang(langFromEnvironment());
+  applyLang();
   if (started) return;
   started = true;
-  document.addEventListener('astro:after-swap', () => {
-    applyLang(langFromEnvironment());
-  });
+  document.addEventListener('astro:after-swap', () => applyLang());
 }
-
 export function subscribeLang(cb: (lang: Lang) => void): () => void {
-  if (typeof document === 'undefined') return () => {};
-  cb(readLang());
-  const handler = (event: Event) => {
-    cb((event as CustomEvent<Lang>).detail);
-  };
-  document.addEventListener(LANG_EVENT, handler);
-  return () => document.removeEventListener(LANG_EVENT, handler);
+  cb('zh-CN');
+  return () => {};
 }

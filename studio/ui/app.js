@@ -5,7 +5,7 @@ import { groupedTags, tagGroups } from '@/data/tag-groups';
 import { formatDate } from '@/lib/format';
 import { initTheme, toggleTheme } from '@/lib/theme';
 import { docRefMarkup, ensureMediaImport, hrefForOf } from '../blocks.mjs';
-import { mountBlockEditor, mountCompareEditors } from './block-editor.js';
+import { mountBlockEditor } from './block-editor.js';
 import './editor.css';
 
 const root = document.getElementById('studio');
@@ -28,15 +28,15 @@ const state = {
   linkMode: 'existing',
   git: null,
   commitMessage: '',
+  lastCommitSha: '',
   filter: '',
   linkFilter: '',
   indexList: 'articles',
-  bilingual: false,
   tagsOpen: false,
   tagCatalog: [],
   tagUsed: {},
   tagAdd: [],
-  tagNewGroup: { slug: '', title: '', titleEn: '' },
+  tagNewGroup: { slug: '', title: '' },
   tagSaving: false,
   tagError: '',
   tagCatalogSaved: '',
@@ -53,7 +53,6 @@ function todayIsoLocal() {
 }
 
 let bodyEditor = null;
-let compareEditor = null;
 let childEditor = null;
 
 function esc(value) {
@@ -72,7 +71,7 @@ async function api(path, init) {
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
   return data;
 }
 
@@ -152,44 +151,10 @@ async function createFromMention({ kind, title }) {
   }
 }
 
-function canBilingual() {
-  return Boolean(
-    state.doc
-    && !state.sourceMode
-    && typeof state.doc.bodyZh === 'string'
-    && typeof state.doc.bodyEn === 'string',
-  );
-}
-
-function bilingualOn() {
-  return Boolean(state.bilingual && canBilingual() && !state.child);
-}
-
 function bindBodyEditor() {
   bodyEditor?.destroy();
-  compareEditor?.destroy();
   bodyEditor = null;
-  compareEditor = null;
   if (!state.doc) return;
-  if (bilingualOn()) {
-    const host = root.querySelector('[data-compare-editor]');
-    if (!(host instanceof HTMLElement)) return;
-    compareEditor = mountCompareEditors(host, {
-      zh: state.doc.bodyZh ?? '',
-      en: state.doc.bodyEn ?? '',
-      pages: mentionPages(),
-      currentOf: `${state.doc.collection}/${state.doc.id}`,
-      canCreateChild: canHaveChildren(),
-      pane: mentionPane(),
-      lang: state.lang,
-      onChangeZh: (value) => setBody('bodyZh', value),
-      onChangeEn: (value) => setBody('bodyEn', value),
-      onEnsureImport: ensureStudioMediaImport,
-      onCreate: (input) => createFromMention(input),
-      onOpenEmbed: openChildEditor,
-    });
-    return;
-  }
   const host = root.querySelector('[data-body-editor]');
   if (!(host instanceof HTMLElement)) return;
   const bodyKey = host.dataset.bodyEditor;
@@ -214,7 +179,8 @@ function previewSrc() {
 
 function hrefPreview(href) {
   const path = href || '/';
-  return state.lang === 'zh' && path !== '/' ? `/zh${path}` : path;
+  const relative = path;
+  return relative;
 }
 
 function parseDocOf(of) {
@@ -310,9 +276,8 @@ async function openChildEditor({ of }) {
 function childRailHtml() {
   const item = state.child;
   if (!item) return '';
-  const isEn = state.lang === 'en';
-  const closeLabel = isEn ? 'Close' : '关闭';
-  const previewLabel = isEn ? 'preview in the new tab' : '打开新标签进行预览';
+  const closeLabel = '关闭';
+  const previewLabel = '打开新标签进行预览';
   if (item.loading) {
     return `
     <div class="studio-child" data-testid="studio-child">
@@ -320,7 +285,7 @@ function childRailHtml() {
         <p class="ui-meta">${esc(item.of)}</p>
         <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
       </div>
-      <p class="ui-meta">${isEn ? 'Opening…' : '打开中…'}</p>
+      <p class="ui-meta">打开中…</p>
     </div>`;
   }
   if (item.error || !item.doc) {
@@ -330,12 +295,12 @@ function childRailHtml() {
         <p class="ui-meta">${esc(item.of)}</p>
         <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
       </div>
-      <p class="text-sm text-ink-200" role="alert">${esc(item.error || (isEn ? 'Could not open this page.' : '无法打开这篇页面。'))}</p>
+      <p class="text-sm text-ink-200" role="alert">${esc(item.error || ('无法打开这篇页面。'))}</p>
     </div>`;
   }
   const data = item.doc.frontmatter ?? {};
-  const titleKey = isEn ? 'titleEn' : 'title';
-  const bodyKey = isEn ? 'bodyEn' : 'bodyZh';
+  const titleKey = 'title';
+  const bodyKey = 'bodyZh';
   const src = hrefPreview(item.doc.href || hrefForOf(item.of));
   return `
     <div class="studio-child" data-testid="studio-child">
@@ -346,7 +311,7 @@ function childRailHtml() {
           <button type="button" class="text-sm text-ink-400 underline decoration-ink-500 underline-offset-4" data-action="close-child" data-testid="studio-child-close">${closeLabel}</button>
         </div>
       </div>
-      <label><span class="ui-meta">${isEn ? 'Title' : '标题'}</span><input class="comment-field" data-testid="studio-child-title-field" data-child-fm="${titleKey}" value="${attr(data[titleKey] ?? '')}" /></label>
+      <label><span class="ui-meta">标题</span><input class="comment-field" data-testid="studio-child-title-field" data-child-fm="${titleKey}" value="${attr(data[titleKey] ?? '')}" /></label>
       <div class="studio-editor min-h-0 flex-1 overflow-y-auto" data-testid="studio-child-editor" data-child-body-editor="${bodyKey}"></div>
     </div>`;
 }
@@ -363,13 +328,11 @@ function paintChildRail() {
 function closeChildEditor() {
   if (!state.child) return;
   if (state.child.dirty && !window.confirm('侧栏有未保存的改动，确定关闭？')) return;
-  const restoreBilingual = Boolean(state.bilingual);
   childEditor?.destroy();
   childEditor = null;
   state.child = null;
   persist();
-  if (restoreBilingual) render();
-  else paintChildRail();
+  paintChildRail();
 }
 
 function markChildDirty() {
@@ -408,7 +371,7 @@ function matchesFilter(item) {
   const q = state.filter.trim().toLowerCase();
   if (!q) return true;
   const tags = Array.isArray(item.tags) ? item.tags.join(' ') : '';
-  return [item.id, item.title, item.titleEn, item.description, item.descriptionEn, tags]
+  return [item.id, item.title, item.description, tags]
     .join('\n')
     .toLowerCase()
     .includes(q);
@@ -448,8 +411,8 @@ function tagMatchItems(query, selected) {
   const q = String(query ?? '').trim().toLowerCase();
   const items = [];
   for (const group of groupedTags(allKnownTags())) {
-    const title = state.lang === 'en' ? group.titleEn : group.title;
-    const haystack = [group.title, group.titleEn, title].join('\n').toLowerCase();
+    const title = group.title;
+    const haystack = [group.title, title].join('\n').toLowerCase();
     const groupHit = Boolean(q) && haystack.includes(q);
     for (const tag of group.tags) {
       if (selectedSet.has(tag)) continue;
@@ -460,25 +423,25 @@ function tagMatchItems(query, selected) {
   return items;
 }
 
-function tagChipsHtml(selected, isEn) {
+function tagChipsHtml(selected) {
   if (!selected.length) return '';
   return selected.map((tag) => `
     <li class="studio-tag-chip">
       <span class="ui-tag">${esc(tag)}</span>
-      <button type="button" class="studio-tag-chip__remove" data-action="remove-tag" data-tag="${attr(tag)}" aria-label="${isEn ? `Remove ${esc(tag)}` : `移除 ${esc(tag)}`}">×</button>
+      <button type="button" class="studio-tag-chip__remove" data-action="remove-tag" data-tag="${attr(tag)}" aria-label="${`移除 ${esc(tag)}`}">×</button>
     </li>`).join('');
 }
 
-function tagsListHtml(items, highlight, isEn, query) {
+function tagsListHtml(items, highlight, query) {
   const q = String(query ?? '').trim();
   if (!items.length) {
     if (q) {
       return `<button type="button" class="studio-at-item" role="option" id="studio-tag-opt-0" data-action="add-tag" data-tag="${attr(q)}" data-tag-create="true" data-testid="studio-tag-create" aria-selected="true">
         <span class="studio-at-item__title">${esc(q)}</span>
-        <span class="studio-at-item__meta ui-meta">${isEn ? 'Not in catalog — add anyway' : '不在目录中，仍然添加'}</span>
+        <span class="studio-at-item__meta ui-meta">不在目录中，仍然添加</span>
       </button>`;
     }
-    return `<p class="ui-meta">${isEn ? 'No matching tags.' : '没有匹配的标签。'}</p>`;
+    return `<p class="ui-meta">没有匹配的标签。</p>`;
   }
   const grouped = !q;
   const parts = [];
@@ -489,7 +452,7 @@ function tagsListHtml(items, highlight, isEn, query) {
       parts.push(`<p class="studio-tag-picker__heading ui-meta">${esc(item.title)}</p>`);
     }
     const meta = grouped ? '' : `<span class="studio-at-item__meta ui-meta">${esc(item.title)}</span>`;
-    const optionLabel = isEn ? `${item.tag} (${item.title})` : `${item.tag}（${item.title}）`;
+    const optionLabel = `${item.tag}（${item.title}）`;
     parts.push(`<button type="button" class="studio-at-item" role="option" id="studio-tag-opt-${index}" data-action="add-tag" data-tag="${attr(item.tag)}" data-testid="studio-tag-option" aria-selected="${index === highlight ? 'true' : 'false'}" aria-label="${attr(optionLabel)}">
       <span class="studio-at-item__title">${esc(item.tag)}</span>
       ${meta}
@@ -499,7 +462,6 @@ function tagsListHtml(items, highlight, isEn, query) {
 }
 
 function tagsPickerHtml() {
-  const isEn = state.lang === 'en';
   const selected = selectedTags();
   const items = tagMatchItems(tagQuery, selected);
   if (tagHighlight >= items.length) tagHighlight = Math.max(0, items.length - 1);
@@ -508,11 +470,11 @@ function tagsPickerHtml() {
     : '';
   return `
     <div class="studio-tag-picker" data-tag-picker>
-      <span class="ui-meta" id="studio-tags-label">${isEn ? 'Tags' : '标签'}</span>
-      <ul class="ui-tag-list ui-tag-list--start" data-tag-chips>${tagChipsHtml(selected, isEn)}</ul>
-      <input class="comment-field" type="search" autocomplete="off" data-tags data-testid="studio-tags" role="combobox" aria-labelledby="studio-tags-label" aria-autocomplete="list" aria-expanded="${tagPickerOpen ? 'true' : 'false'}" aria-controls="studio-tag-list" aria-activedescendant="${attr(activedescendant)}" placeholder="${isEn ? 'Search existing tags' : '搜索已有标签'}" value="${attr(tagQuery)}" />
+      <span class="ui-meta" id="studio-tags-label">标签</span>
+      <ul class="ui-tag-list ui-tag-list--start" data-tag-chips>${tagChipsHtml(selected)}</ul>
+      <input class="comment-field" type="search" autocomplete="off" data-tags data-testid="studio-tags" role="combobox" aria-labelledby="studio-tags-label" aria-autocomplete="list" aria-expanded="${tagPickerOpen ? 'true' : 'false'}" aria-controls="studio-tag-list" aria-activedescendant="${attr(activedescendant)}" placeholder="搜索已有标签" value="${attr(tagQuery)}" />
       <div class="studio-tag-picker__list" id="studio-tag-list" data-tag-list role="listbox" aria-labelledby="studio-tags-label" ${tagPickerOpen ? '' : 'hidden'}>
-        ${tagsListHtml(items, tagHighlight, isEn, tagQuery)}
+        ${tagsListHtml(items, tagHighlight, tagQuery)}
       </div>
     </div>`;
 }
@@ -520,16 +482,15 @@ function tagsPickerHtml() {
 function paintTagsPicker() {
   const host = root.querySelector('[data-tag-picker]');
   if (!(host instanceof HTMLElement)) return;
-  const isEn = state.lang === 'en';
   const selected = selectedTags();
   const items = tagMatchItems(tagQuery, selected);
   if (tagHighlight >= items.length) tagHighlight = Math.max(0, items.length - 1);
   const chips = host.querySelector('[data-tag-chips]');
-  if (chips) chips.innerHTML = tagChipsHtml(selected, isEn);
+  if (chips) chips.innerHTML = tagChipsHtml(selected);
   const list = host.querySelector('[data-tag-list]');
   if (list instanceof HTMLElement) {
     list.hidden = !tagPickerOpen;
-    list.innerHTML = tagsListHtml(items, tagHighlight, isEn, tagQuery);
+    list.innerHTML = tagsListHtml(items, tagHighlight, tagQuery);
   }
   const input = host.querySelector('[data-tags]');
   if (input instanceof HTMLInputElement) {
@@ -603,12 +564,10 @@ function setFm(key, value) {
   if (!state.doc) return;
   state.doc = { ...state.doc, frontmatter: { ...state.doc.frontmatter, [key]: value } };
   markDirty();
-  if (key === 'title' || key === 'titleEn') {
-    const lang = key === 'title' ? 'zh' : 'en';
-    const tab = root.querySelector(`[data-lang="${lang}"]`);
-    if (tab) tab.textContent = value || (lang === 'zh' ? '中文' : 'English');
-  }
-}
+  if (key === 'heptabaseStatus') {
+    state.doc.frontmatter.draft = value !== 'published';
+    render();
+  }}
 
 function setBody(which, value) {
   if (!state.doc) return;
@@ -628,8 +587,8 @@ function persist() {
         dirty: state.dirty,
         filter: state.filter,
         indexList: state.indexList,
-        bilingual: state.bilingual,
         commitMessage: state.commitMessage,
+        lastCommitSha: state.lastCommitSha,
         child: childSnapshot(),
       }),
     );
@@ -803,12 +762,12 @@ function restoreSession() {
       state.current = saved.current;
       state.doc = saved.doc;
       state.sourceMode = Boolean(saved.sourceMode);
-      state.lang = saved.lang === 'en' || saved.previewLang === 'en' ? 'en' : 'zh';
+      state.lang = 'zh';
       state.dirty = Boolean(saved.dirty);
       state.filter = saved.filter ?? '';
       state.indexList = saved.indexList === 'projects' ? 'projects' : 'articles';
-      state.bilingual = Boolean(saved.bilingual);
       state.commitMessage = saved.commitMessage ?? '';
+      state.lastCommitSha = saved.lastCommitSha ?? '';
       if (saved.child?.doc && saved.child.collection && saved.child.id) {
         state.child = {
           collection: saved.child.collection,
@@ -851,6 +810,7 @@ function markDirty() {
 async function refreshLists() {
   state.docs = await api('/docs');
   state.git = await api('/git');
+  if (state.git?.lastUserCommitSha) state.lastCommitSha = state.git.lastUserCommitSha;
 }
 
 async function openDoc(collection, id) {
@@ -872,7 +832,7 @@ async function openDoc(collection, id) {
 }
 
 async function save(opts = {}) {
-  if (!state.doc || !state.current || state.saving) return;
+  if (!state.doc || !state.current || state.saving) return false;
   state.saving = true;
   state.error = '';
   const saveBtn = root.querySelector('[data-action="save"]');
@@ -881,6 +841,8 @@ async function save(opts = {}) {
     saveBtn.textContent = '保存中';
   }
   try {
+    const currentKey = `${state.current.collection}/${state.current.id}`;
+    const snapshot = JSON.stringify(state.doc);
     const saved = await api('/doc', {
       method: 'PUT',
       body: JSON.stringify({
@@ -891,12 +853,18 @@ async function save(opts = {}) {
         frontmatter: state.doc.frontmatter,
         imports: state.doc.imports,
         bodyZh: state.doc.bodyZh,
-        bodyEn: state.doc.bodyEn,
+        draftVersion: state.doc.draftVersion ?? 0,
+        remoteCommitSha: state.doc.remoteCommitSha,
+        remoteRaw: state.doc.remoteRaw,
       }),
     });
-    state.doc = saved;
-    state.dirty = false;
+    if (`${state.current?.collection}/${state.current?.id}` !== currentKey) return false;
+    const changed = JSON.stringify(state.doc) !== snapshot;
+    state.doc = changed ? { ...saved, ...state.doc, draftVersion: saved.draftVersion, draftSavedAt: saved.draftSavedAt, remoteCommitSha: saved.remoteCommitSha, remoteRaw: saved.remoteRaw } : saved;
+    state.dirty = changed;
     if (state.child?.doc) {
+      const child = state.child;
+      const childSnapshot = JSON.stringify(child.doc);
       const savedChild = await api('/doc', {
         method: 'PUT',
         body: JSON.stringify({
@@ -906,16 +874,23 @@ async function save(opts = {}) {
           frontmatter: state.child.doc.frontmatter,
           imports: state.child.doc.imports,
           bodyZh: state.child.doc.bodyZh,
-          bodyEn: state.child.doc.bodyEn,
+          draftVersion: state.child.doc.draftVersion ?? 0,
+          remoteCommitSha: state.child.doc.remoteCommitSha,
+          remoteRaw: state.child.doc.remoteRaw,
         }),
       });
-      state.child = { ...state.child, doc: savedChild, dirty: false };
+      if (state.child?.id === child.id && state.child?.collection === child.collection) {
+        const childChanged = JSON.stringify(state.child.doc) !== childSnapshot;
+        state.child = { ...state.child, doc: childChanged ? { ...savedChild, ...state.child.doc, draftVersion: savedChild.draftVersion, draftSavedAt: savedChild.draftSavedAt, remoteCommitSha: savedChild.remoteCommitSha, remoteRaw: savedChild.remoteRaw } : savedChild, dirty: childChanged };
+      }
     }
     persist();
     await refreshLists();
-    state.status = '已保存';
+    state.status = state.dirty || state.child?.dirty ? '保存期间有新编辑，请再次保存' : '已保存';
+    return !state.dirty && !state.child?.dirty;
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
+    return false;
   } finally {
     state.saving = false;
     persist();
@@ -996,12 +971,15 @@ async function copyLinkMarkup(of) {
 async function commit() {
   state.error = '';
   try {
-    if (isDirty()) await save();
+    if (isDirty() && !await save()) return;
     state.git = await api('/git/commit', {
       method: 'POST',
       body: JSON.stringify({ message: state.commitMessage }),
     });
+    state.lastCommitSha = state.git.commitSha || state.lastCommitSha;
     state.commitMessage = '';
+    await refreshLists();
+    if (state.current) await openDoc(state.current.collection, state.current.id);
     state.status = '已提交到仓库';
     render();
   } catch (err) {
@@ -1014,7 +992,7 @@ async function pushRemote() {
   state.error = '';
   try {
     state.git = await api('/git/push', { method: 'POST' });
-    state.status = '已推送到远程（生产仍需手动 Deploy workflow）';
+    state.status = '已推送到远程';
     render();
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
@@ -1024,11 +1002,10 @@ async function pushRemote() {
 
 function itemCard(item, collection) {
   const active = state.current?.id === item.id && state.current?.collection === collection;
-  const en = state.lang === 'en';
-  const title = en && item.titleEn ? item.titleEn : item.title;
-  const description = en && item.descriptionEn ? item.descriptionEn : item.description;
+  const title = item.title;
+  const description = item.description;
   const date = parseIsoDate(item.date);
-  const meta = date ? formatDate(date, en ? 'en' : 'zh-CN') : '';
+  const meta = date ? formatDate(date, 'zh-CN') : '';
   const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
   const indents = ['', 'pl-3', 'pl-6', 'pl-9'];
   const indentClass = indents[Math.min(depthOf(item.id), 3)];
@@ -1036,7 +1013,7 @@ function itemCard(item, collection) {
     <button type="button" class="studio-index-card group" data-open="${collection}:${esc(item.id)}"${item.draft ? ' data-draft' : ''}${active ? ' aria-current="page"' : ''}>
       <div class="flex items-start justify-between gap-3">
         <h3 class="text-lg font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500">${esc(title)}</h3>
-        ${item.draft ? `<span class="ui-badge">${en ? 'Draft' : '草稿'}</span>` : ''}
+        ${item.draft ? `<span class="ui-badge">草稿</span>` : ''}
       </div>
       ${description ? `<p class="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-400 transition-colors group-hover:text-ink-300">${esc(description)}</p>` : ''}
       <div class="mt-auto flex items-center justify-between gap-3 pt-3">
@@ -1113,7 +1090,7 @@ function indexAsideHtml() {
           </div>
           <section class="shrink-0 pt-4 pb-4">
             <h2 class="ui-meta mb-2">仓库</h2>
-            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个改动` : ''}</p>` : ''}
+            ${state.git ? `<p class="text-sm text-ink-400">${esc(state.git.branch)}${state.git.dirty ? ` · ${state.git.files.length} 个私人草稿改动` : ''}</p>` : ''}
             <label class="mt-3 block"><span class="sr-only">提交说明</span><input class="comment-field" placeholder="提交说明" data-testid="studio-commit-message" data-commit value="${attr(state.commitMessage)}" /></label>
             <div class="mt-3 flex flex-wrap gap-4 text-sm">
               <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-commit" data-action="commit">提交内容</button>
@@ -1139,7 +1116,6 @@ function visibleArticles() {
 }
 
 function editorToolbarHtml() {
-  const bilingual = canBilingual();
   return `
     <div class="mb-4 flex flex-wrap items-center gap-4 text-sm">
       <span class="font-mono text-xs text-ink-500">${esc(state.doc.collection)}/${esc(state.doc.id)}</span>
@@ -1147,33 +1123,24 @@ function editorToolbarHtml() {
       ${state.doc.collection !== 'pages' || state.doc.id === 'blogs' ? `
         <button type="button" class="text-ink-200 underline decoration-ink-500 underline-offset-4" data-testid="studio-link" data-action="open-link">插入页面</button>
       ` : ''}
-      ${bilingual ? `
-        <button type="button" class="${state.bilingual ? 'text-ink-100' : 'text-ink-200'} underline decoration-ink-500 underline-offset-4" data-testid="studio-bilingual" data-action="toggle-bilingual" aria-pressed="${state.bilingual ? 'true' : 'false'}">对照翻译</button>
-      ` : ''}
+
     </div>`;
 }
 
 function editorTitleHtml() {
-  const data = fm();
-  const zhTitle = data.title || '中文';
-  const enTitle = data.titleEn || 'English';
-  return `
-    <div class="mb-6 flex min-w-0 gap-8">
-      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'zh' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-zh" data-lang="zh">${esc(zhTitle)}</button>
-      <button type="button" class="truncate text-xl font-semibold ${state.lang === 'en' ? 'text-ink-100 underline decoration-ink-500 underline-offset-8' : 'text-ink-400 hover:text-ink-100'}" data-testid="studio-lang-en" data-lang="en">${esc(enTitle)}</button>
-    </div>`;
+  return `<h2 class="mb-6 truncate text-xl font-semibold text-ink-100">${esc(fm().title || '未命名')}</h2>`;
 }
 
 function editorHtml() {
   if (!state.doc) {
-    return `<p class="max-w-md text-ink-400">选一篇已有文章，或按「新建」。顶部两个标题切换中文 / 英文，一次只写一页。</p>`;
+    return `<p class="max-w-md text-ink-400">选一篇已有文章，或按「新建」。内容会自动保存。</p>`;
   }
   const toolbar = editorToolbarHtml();
   if (state.sourceMode) {
     return `<div class="studio-measure">${toolbar}<textarea class="min-h-0 flex-1 resize-none bg-transparent font-mono text-sm leading-relaxed text-ink-200 outline-none" spellcheck="false" data-testid="studio-source" data-body="raw">${esc(state.doc.raw)}</textarea></div>`;
   }
-  const bodyKey = state.lang === 'en' ? 'bodyEn' : 'bodyZh';
-  const testId = state.lang === 'en' ? 'studio-body-en' : 'studio-body-zh';
+  const bodyKey = 'bodyZh';
+  const testId = 'studio-body-zh';
   return `
     <div class="studio-measure">
     ${editorTitleHtml()}
@@ -1182,29 +1149,12 @@ function editorHtml() {
     </div>`;
 }
 
-function compareColumnsHtml() {
-  const data = fm();
-  const zhTitle = data.title || '中文';
-  const enTitle = data.titleEn || 'English';
-  return `
-    <div class="studio-doc-head">
-      <p class="mb-6 truncate text-xl font-semibold text-ink-100">${esc(zhTitle)}</p>
-      ${editorToolbarHtml()}
-    </div>
-    <div class="studio-rail-head">
-      <p class="mb-6 truncate text-xl font-semibold text-ink-400">${esc(enTitle)}</p>
-      <p class="ui-meta">逐段对照，点一段即可改</p>
-    </div>
-    <div class="studio-compare" data-compare-editor data-testid="studio-compare"></div>`;
-}
-
 function resizeHandleHtml(edge, label) {
   return `<button type="button" class="studio-resize studio-resize--${edge}" data-studio-resize="${edge}" aria-label="${label}"></button>`;
 }
 
 function columnsHtml() {
   const handles = `${resizeHandleHtml('index', '调整目录与正文宽度')}${resizeHandleHtml('rail', '调整正文与侧栏宽度')}`;
-  if (bilingualOn()) return `${handles}${compareColumnsHtml()}`;
   return `
         ${handles}
         <section class="studio-doc">${editorHtml()}</section>
@@ -1216,13 +1166,12 @@ function metaHtml() {
     return `<p class="text-sm text-ink-500">${state.doc ? '源码模式在中间改 frontmatter。' : '打开一篇文档后，标题、摘要、日期、标签在这里改。'}</p>`;
   }
   const data = fm();
-  const isEn = state.lang === 'en';
   const src = previewSrc();
   return `
     <div class="flex min-h-0 flex-col gap-4 overflow-y-auto">
-      <p class="ui-meta">${isEn ? 'English metadata' : '页面信息'}</p>
-      <label><span class="ui-meta">${isEn ? 'Title' : '标题'}</span><input class="comment-field" data-testid="studio-title" data-fm="${isEn ? 'titleEn' : 'title'}" value="${attr(isEn ? data.titleEn : data.title)}" /></label>
-      <label><span class="ui-meta">${isEn ? 'Description' : '摘要'}</span><input class="comment-field" data-fm="${isEn ? 'descriptionEn' : 'description'}" value="${attr(isEn ? data.descriptionEn : data.description)}" /></label>
+      <p class="ui-meta">页面信息</p>
+      <label><span class="ui-meta">标题</span><input class="comment-field" data-testid="studio-title" data-fm="title" value="${attr(data.title)}" /></label>
+      <label><span class="ui-meta">摘要</span><input class="comment-field" data-fm="description" value="${attr(data.description)}" /></label>
       ${state.doc.collection !== 'pages' && data.slot !== 'project' ? `
         <label><span class="ui-meta">日期</span><input class="comment-field" type="date" data-fm="date" value="${attr(String(data.date ?? '').slice(0, 10))}" /></label>
       ` : ''}
@@ -1236,7 +1185,8 @@ function metaHtml() {
         <label><span class="ui-meta">仓库 URL</span><input class="comment-field" data-fm="repo" value="${attr(data.repo)}" /></label>
       ` : ''}
       ${state.doc.collection !== 'pages' ? `
-        <label class="inline-flex items-center gap-2 text-sm text-ink-400"><input type="checkbox" data-fm="draft" ${data.draft ? 'checked' : ''}/> 草稿</label>
+        <label><span class="ui-meta">Heptabase card link · 必填</span><input class="comment-field" data-fm="heptabaseCardLink" placeholder="heptabase://card/…" value="${attr(data.heptabaseCardLink)}" required /></label>
+        <label><span class="ui-meta">写作状态</span><select class="comment-field" data-fm="heptabaseStatus">${['new', 'writing', 'block', 'published'].map(value => `<option value="${value}" ${value === (data.draft ? data.heptabaseStatus === 'published' ? 'writing' : data.heptabaseStatus || 'writing' : 'published') ? 'selected' : ''}>${{ new: 'new · 新建', writing: 'writing · 写作中', block: 'block · 暂停', published: 'published · 准备发布 / 已发布' }[value]}</option>`).join('')}</select></label>
         <div class="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label="收录到">
           ${['article', 'project', 'library'].map((kind) => {
             const current = collectionKind();
@@ -1248,7 +1198,7 @@ function metaHtml() {
         </div>
       ` : ''}
       ${state.doc.imports ? `<label><span class="ui-meta">imports</span><textarea class="comment-field comment-field--body min-h-16 font-mono" spellcheck="false" data-body="imports">${esc(state.doc.imports)}</textarea></label>` : ''}
-      <a class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">${isEn ? 'preview in the new tab' : '打开新标签进行预览'}</a>
+      <a class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4" href="${attr(src)}" target="_blank" rel="noreferrer">打开新标签进行预览</a>
     </div>`;
 }
 
@@ -1257,27 +1207,23 @@ function cloneJson(value) {
 }
 
 function tagsCopy() {
-  const en = state.lang === 'en';
   return {
-    button: en ? 'Tags' : '标签',
-    title: en ? 'Tags' : '标签',
-    hint: en
-      ? 'Edit the /tags groups. Ungrouped tags go under Other. Save writes src/data/tag-groups.ts; article frontmatter is unchanged.'
-      : '这里改 /tags 的分组目录。未分组会进「其他」。保存写入 tag-groups.ts，不改文章标签。',
-    ungrouped: en ? 'Ungrouped' : '未分组',
-    addTag: en ? 'Add tag' : '添加标签',
-    addGroup: en ? 'Add group' : '添加分组',
-    remove: en ? 'Remove' : '移除',
-    deleteGroup: en ? 'Delete group' : '删除分组',
-    save: en ? 'Save' : '保存',
-    cancel: en ? 'Cancel' : '取消',
-    saving: en ? 'Saving…' : '保存中',
-    titleZh: en ? 'Title (zh)' : '中文名',
-    titleEn: en ? 'Title (en)' : '英文名',
+    button: '标签',
+    title: '标签',
+    hint: '这里改 /tags 的分组目录。未分组会进「其他」。保存写入 tag-groups.ts，不改文章标签。',
+    ungrouped: '未分组',
+    addTag: '添加标签',
+    addGroup: '添加分组',
+    remove: '移除',
+    deleteGroup: '删除分组',
+    save: '保存',
+    cancel: '取消',
+    saving: '保存中',
+    titleZh: '中文名',
     slug: 'slug',
-    confirmClose: en ? 'Discard unsaved tag catalog changes?' : '放弃未保存的标签目录改动？',
-    confirmDelete: en ? 'Delete this group? Its tags become ungrouped; articles stay the same.' : '删除这个分组？里面的标签会变成未分组，文章不会改。',
-    saved: en ? 'Tags saved' : '标签已保存',
+    confirmClose: '放弃未保存的标签目录改动？',
+    confirmDelete: '删除这个分组？里面的标签会变成未分组，文章不会改。',
+    saved: '标签已保存',
   };
 }
 
@@ -1312,7 +1258,7 @@ async function openTags() {
     state.tagCatalog = cloneJson(data.groups ?? []);
     state.tagUsed = data.used ?? {};
     state.tagAdd = state.tagCatalog.map(() => '');
-    state.tagNewGroup = { slug: '', title: '', titleEn: '' };
+    state.tagNewGroup = { slug: '', title: '' };
     state.tagCatalogSaved = JSON.stringify(state.tagCatalog);
     state.tagsOpen = true;
     state.createOpen = false;
@@ -1392,20 +1338,19 @@ function addCatalogGroup() {
   const copy = tagsCopy();
   const slug = state.tagNewGroup.slug.trim();
   const title = state.tagNewGroup.title.trim();
-  const titleEn = state.tagNewGroup.titleEn.trim();
-  if (!slug || !title || !titleEn) {
-    state.tagError = state.lang === 'en' ? 'Fill slug, Chinese title, and English title.' : '请填写 slug、中文名和英文名';
+  if (!slug || !title) {
+    state.tagError = '请填写 slug 和名称';
     render();
     return;
   }
   if (state.tagCatalog.some((group) => group.slug === slug)) {
-    state.tagError = state.lang === 'en' ? 'That slug is already used.' : '这个 slug 已经存在';
+    state.tagError = '这个 slug 已经存在';
     render();
     return;
   }
-  state.tagCatalog.push({ slug, title, titleEn, tags: [] });
+  state.tagCatalog.push({ slug, title, tags: [] });
   state.tagAdd.push('');
-  state.tagNewGroup = { slug: '', title: '', titleEn: '' };
+  state.tagNewGroup = { slug: '', title: '' };
   state.tagError = '';
   state.tagsFocus = { kind: 'add', index: state.tagCatalog.length - 1 };
   render();
@@ -1437,7 +1382,6 @@ function tagsDialogHtml() {
         <button type="button" class="text-sm text-ink-500 hover:text-ink-200" data-action="catalog-remove-group" data-group-index="${gi}">${esc(copy.deleteGroup)}</button>
       </div>
       <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleZh)}</span><input class="comment-field" data-catalog-field="title" data-group-index="${gi}" value="${attr(group.title)}" /></label>
-      <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleEn)}</span><input class="comment-field" data-catalog-field="titleEn" data-group-index="${gi}" value="${attr(group.titleEn)}" /></label>
       <label class="mt-3 block"><span class="ui-meta">${esc(copy.slug)}</span><input class="comment-field" data-catalog-field="slug" data-group-index="${gi}" value="${attr(group.slug)}" /></label>
       <ul class="mt-4">
         ${group.tags.map((tag, ti) => `
@@ -1471,7 +1415,6 @@ function tagsDialogHtml() {
             <p class="ui-meta">${esc(copy.addGroup)}</p>
             <label class="mt-3 block"><span class="ui-meta">${esc(copy.slug)}</span><input class="comment-field" data-catalog-new="slug" data-testid="studio-tag-group-slug" value="${attr(state.tagNewGroup.slug)}" /></label>
             <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleZh)}</span><input class="comment-field" data-catalog-new="title" value="${attr(state.tagNewGroup.title)}" /></label>
-            <label class="mt-3 block"><span class="ui-meta">${esc(copy.titleEn)}</span><input class="comment-field" data-catalog-new="titleEn" value="${attr(state.tagNewGroup.titleEn)}" /></label>
             <div class="mt-4">
               <button type="button" class="text-sm text-ink-200 underline decoration-ink-500 underline-offset-4 hover:text-ink-100" data-action="catalog-add-group" data-testid="studio-tag-group-add">${esc(copy.addGroup)}</button>
             </div>
@@ -1508,7 +1451,6 @@ function dialogHtml() {
     if (!linkQuery) return true;
     const path = `${item.collection}/${item.id}`;
     return item.title.toLowerCase().includes(linkQuery)
-      || String(item.titleEn ?? '').toLowerCase().includes(linkQuery)
       || path.toLowerCase().includes(linkQuery);
   });
   const tabClass = (active) => active
@@ -1561,7 +1503,7 @@ function render() {
     <div class="studio-shell" data-testid="studio-app">
       <header class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <div class="min-w-0">
-          <p class="ui-meta">本地编辑器</p>
+          <p class="ui-meta">本地迁移工具</p>
           <h1 class="truncate text-lg font-semibold text-ink-100">Studio</h1>
         </div>
         <div class="flex flex-wrap items-center justify-end gap-4 text-sm">
@@ -1574,7 +1516,7 @@ function render() {
         </div>
       </header>
       ${state.error ? `<p class="shrink-0 px-4 text-sm text-ink-200 sm:px-6" role="alert">${esc(state.error)}</p>` : ''}
-      <div class="studio-columns${bilingualOn() ? ' studio-columns--compare' : ''}">
+      <div class="studio-columns">
         ${indexAsideHtml()}
         ${columnsHtml()}
       </div>
@@ -1593,7 +1535,6 @@ root.addEventListener('click', (event) => {
   const open = target.dataset.open;
   const createKind = target.dataset.createKind;
   const link = target.dataset.link;
-  const lang = target.dataset.lang;
   if (open) {
     const [collection, ...rest] = open.split(':');
     void openDoc(collection, rest.join(':'));
@@ -1611,10 +1552,6 @@ root.addEventListener('click', (event) => {
     render();
   } else if (action === 'collection-kind' && target.dataset.kind) {
     setCollectionKind(target.dataset.kind);
-  } else if (lang) {
-    state.lang = lang === 'en' ? 'en' : 'zh';
-    persist();
-    render();
   } else if (action === 'save') void save();
   else if (action === 'open-tags') void openTags();
   else if (action === 'close-tags') closeTags();
@@ -1627,12 +1564,6 @@ root.addEventListener('click', (event) => {
   else if (action === 'theme') toggleTheme();
   else if (action === 'toggle-source') {
     state.sourceMode = !state.sourceMode;
-    if (state.sourceMode) state.bilingual = false;
-    persist();
-    render();
-  } else if (action === 'toggle-bilingual') {
-    if (!canBilingual()) return;
-    state.bilingual = !state.bilingual;
     persist();
     render();
   } else if (action === 'open-link') {
@@ -1656,7 +1587,8 @@ root.addEventListener('click', (event) => {
     state.linkOpen = false;
     state.linkFilter = '';
     render();
-  }   else if (action === 'commit') void commit();
+  }
+  else if (action === 'commit') void commit();
   else if (action === 'push') void pushRemote();
 });
 
@@ -1687,7 +1619,7 @@ root.addEventListener('input', (event) => {
   if (target.dataset.catalogField) {
     const group = state.tagCatalog[Number(target.dataset.groupIndex)];
     const field = target.dataset.catalogField;
-    if (group && (field === 'slug' || field === 'title' || field === 'titleEn')) {
+    if (group && (field === 'slug' || field === 'title')) {
       group[field] = target.value;
     }
     return;
@@ -1704,7 +1636,7 @@ root.addEventListener('input', (event) => {
   }
   if (target.dataset.catalogNew) {
     const field = target.dataset.catalogNew;
-    if (field === 'slug' || field === 'title' || field === 'titleEn') {
+    if (field === 'slug' || field === 'title') {
       state.tagNewGroup[field] = target.value;
     }
     return;
@@ -1813,9 +1745,9 @@ root.addEventListener('keydown', (event) => {
 window.addEventListener('resize', applyColumnLayout);
 
 initTheme();
-restoreSession();
-refreshLists()
-  .then(() => render())
+Promise.resolve()
+  .then(() => { restoreSession(); return refreshLists(); })
+  .then(render)
   .catch((err) => {
     state.error = err instanceof Error ? err.message : String(err);
     render();

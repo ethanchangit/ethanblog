@@ -8,42 +8,29 @@ import Nav from '@/components/shell/Nav.astro';
 import Footer from '@/components/shell/Footer.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
-import { isZhPath, stripLocalePrefix, withLocalePrefix } from '@/lib/locale';
+import { stripLocalePrefix } from '@/lib/locale';
 import { markdownAssetPath } from '@/lib/accept';
 import { siteJsonLd } from '@/lib/agent';
 
 interface Props {
   title?: string;
-  titleEn?: string;
   description?: string;
-  descriptionEn?: string;
   ogImage?: string;
   split?: boolean;
 }
 
 const {
   title,
-  titleEn,
   description = site.description,
-  descriptionEn = site.descriptionEn ?? site.description,
   ogImage = '/og-default.svg',
   split = false,
 } = Astro.props;
 const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — 博客`;
-const pageTitleEn = (titleEn ?? title)
-  ? `${titleEn ?? title} · ${site.title}`
-  : `${site.title} — Blog`;
-const lang =
-  Astro.locals.lang ??
-  (Astro.currentLocale === 'zh' || isZhPath(Astro.url.pathname) ? 'zh-CN' : 'en');
-const locale = Astro.locals.locale ?? (lang === 'zh-CN' ? 'zh' : 'en');
-const pageTitle = lang === 'en' ? pageTitleEn : pageTitleZh;
-const pageDescription = lang === 'en' ? descriptionEn : description;
-const canonicalPath = withLocalePrefix(stripLocalePrefix(Astro.url.pathname), locale);
+const lang = 'zh-CN';
+const pageTitle = pageTitleZh;
+const pageDescription = description;
+const canonicalPath = stripLocalePrefix(Astro.url.pathname);
 const canonical = new URL(canonicalPath, site.url);
-const unprefixedPath = stripLocalePrefix(canonicalPath);
-const enUrl = new URL(unprefixedPath, site.url);
-const zhUrl = new URL(withLocalePrefix(unprefixedPath, 'zh'), site.url);
 const markdownUrl = new URL(markdownAssetPath(canonicalPath), site.url);
 const jsonLd = siteJsonLd();
 ---
@@ -54,9 +41,7 @@ const jsonLd = siteJsonLd();
   data-lang={lang}
   class:list={[split && 'reading-split']}
   data-title-zh={pageTitleZh}
-  data-title-en={pageTitleEn}
   data-desc-zh={description}
-  data-desc-en={descriptionEn}
 >
   <head>
     <meta charset="utf-8" />
@@ -70,22 +55,15 @@ const jsonLd = siteJsonLd();
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme =
             stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-          var path = location.pathname;
-          var fromUrl = path === '/zh' || path.indexOf('/zh/') === 0;
-          var lang = fromUrl ? 'zh-CN' : localStorage.getItem('lang') === 'zh-CN' ? 'zh-CN' : 'en';
-          if (fromUrl) {
-            try {
-              localStorage.setItem('lang', 'zh-CN');
-            } catch (err) {}
-          }
+          var lang = 'zh-CN';
           root.dataset.theme = theme;
           root.lang = lang;
           root.dataset.lang = lang;
           var title =
-            lang === 'en' ? root.getAttribute('data-title-en') : root.getAttribute('data-title-zh');
+            root.getAttribute('data-title-zh');
           if (title) doc.title = title;
           var desc =
-            lang === 'en' ? root.getAttribute('data-desc-en') : root.getAttribute('data-desc-zh');
+            root.getAttribute('data-desc-zh');
           var meta = doc.querySelector('meta[name="description"]');
           if (meta && desc) meta.setAttribute('content', desc);
           var themeColor = doc.querySelector('meta#theme-color');
@@ -101,8 +79,8 @@ const jsonLd = siteJsonLd();
           });
         } catch (e) {
           document.documentElement.dataset.theme = 'light';
-          document.documentElement.lang = 'en';
-          document.documentElement.dataset.lang = 'en';
+          document.documentElement.lang = 'zh-CN';
+          document.documentElement.dataset.lang = 'zh-CN';
         }
       }
     </script>
@@ -110,9 +88,6 @@ const jsonLd = siteJsonLd();
     <title>{pageTitle}</title>
     <meta name="description" content={pageDescription} />
     <link rel="canonical" href={canonical} />
-    <link rel="alternate" hreflang="en" href={enUrl} />
-    <link rel="alternate" hreflang="zh-CN" href={zhUrl} />
-    <link rel="alternate" hreflang="x-default" href={enUrl} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     <link rel="alternate" type="text/markdown" href={markdownUrl} />

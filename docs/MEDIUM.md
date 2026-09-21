@@ -234,8 +234,7 @@ npm run validate:content && npm run check && npm run build && npm run test
 ```
 
 `validate:content`（`scripts/validate-story.mjs`）查的是 schema 查不到的创作规约：
-**定稿双语硬门**（`titleEn`/`descriptionEn`；正文必须有
-`<div data-lang-split></div>` 及之后的英文副本）、`slot: article | project`、注水指令、Astro 组件误加指令、
+**单版本内容检查**（主标题、摘要和正文；不要求翻译）、`slot: article | project`、注水指令、Astro 组件误加指令、
 RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名、barrel 导入。
 error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工作台）。
 
@@ -264,9 +263,7 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 ---
 slot: article
 title: "……"
-titleEn: "……"
 description: "……（≤80 字摘要）"
-descriptionEn: "……"
 date: 2026-07-03
 updated: 2026-08-18   # 可选；有修订时才写
 tags: []
@@ -274,7 +271,7 @@ draft: true
 ---
 ```
 
-正文中英之间插一行 `<div data-lang-split></div>`。图片放 `public/media/articles/<slug>/`。
+只写一份正文，不插入语言分隔标记。图片放 `public/media/articles/<slug>/`。
 
 **项目**（放 `src/content/projects/<slug>.mdx`；同一套字段，`slot` 决定出现在 `/projects`）：
 
@@ -282,9 +279,7 @@ draft: true
 ---
 slot: project
 title: "……"
-titleEn: "……"          # 标题已是英文时可省略
 description: "……"
-descriptionEn: "……"
 draft: true
 # 以下均可选
 status: wip
@@ -305,9 +300,7 @@ demo:
 ---
 slot: article
 title: "…… · 第 1 页"
-titleEn: "… · Part 1"
 description: "……"
-descriptionEn: "……"
 date: 2026-08-19
 order: 1          # 子页「上一篇 / 下一篇」顺序
 draft: true
@@ -316,7 +309,7 @@ draft: true
 
 总览是旁边那份 `src/content/articles/<hub>.mdx`（不要用 `index.mdx`）。子文 id 含 `/`，默认不进索引；不必写 `listed: false`。若要把一篇顶层文章藏起来，写 `listed: false`。
 
-总览正文的篇目列表要手写（中英两份各放一份；卡片标题/摘要/日期本身已双语）：
+总览正文的篇目列表要手写（只写一份；引用资料会随主文章发布，全文搜索也收录）：
 
 ```mdx
 import { DocList, DocRef } from '@/components/media';

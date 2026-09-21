@@ -4,24 +4,21 @@
  * 分栏阅读时浮在阅读区右侧（.reading-rail）；窄屏随 rail 一起隐藏。
  * 无 JS 时靠 :target 标明当前条；有 JS 时按阅读栏滚动位置写 aria-current。
  */
-import Bi from '@/components/shell/Bi.astro';
 import type { TocHeading } from '@/lib/toc';
 import { tocEntries } from '@/lib/toc';
 
 interface Props {
   headings: TocHeading[];
-  headingsEn?: TocHeading[];
 }
 
-const { headings, headingsEn = [] } = Astro.props as Props;
+const { headings } = Astro.props as Props;
 const items = tocEntries(headings);
-const enItems = tocEntries(headingsEn);
 
 function attr(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-const activeCss = [...items, ...enItems]
+const activeCss = items
   .map((h) => {
     const id = attr(h.slug);
     return `html:not([data-toc-ready]) body:has([id="${id}"]:target) nav.toc a[href="#${id}"]`;
@@ -31,40 +28,16 @@ const activeCss = [...items, ...enItems]
 
 {
   items.length > 0 && (
-    <nav class="toc" aria-label="Table of contents" data-i18n-aria="tocAria">
+    <nav class="toc" aria-label="目录" data-i18n-aria="tocAria">
       {activeCss && (
         <Fragment
           set:html={`<style>${activeCss}{color:var(--color-ink-200);text-decoration-color:var(--color-ink-500)}</style>`}
         />
       )}
       <ul>
-        {items.map((h, i) => {
-          const en = enItems[i];
-          return (
-            <li>
-              {en ? (
-                <>
-                  <span class="i18n-zh-only">
-                    <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
-                      <span class="toc-label">{h.text}</span>
-                    </a>
-                  </span>
-                  <span class="i18n-en-only">
-                    <a href={'#' + en.slug} data-depth={en.depth} title={en.text}>
-                      <span class="toc-label">{en.text}</span>
-                    </a>
-                  </span>
-                </>
-              ) : (
-                <a href={'#' + h.slug} data-depth={h.depth} title={h.text}>
-                  <span class="toc-label">
-                    <Bi zh={h.text} />
-                  </span>
-                </a>
-              )}
-            </li>
-          );
-        })}
+        {items.map((h) => (
+          <li><a href={'#' + h.slug} data-depth={h.depth} title={h.text}><span class="toc-label">{h.text}</span></a></li>
+        ))}
       </ul>
     </nav>
   )

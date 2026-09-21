@@ -21,9 +21,9 @@ const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
 
 const timelineItems = projects.map((project) => ({
   title: project.data.title,
-  titleEn: project.data.titleEn,
+  titleEn: project.data.title,
   body: project.data.description,
-  bodyEn: project.data.descriptionEn,
+  bodyEn: project.data.description,
   href: lp(projectHref(project.id)),
   icon: lineageIcons[project.id],
 }));
@@ -67,7 +67,7 @@ const timelineItems = projects.map((project) => ({
             {' → '}
             <a href={lp(projectHref(edge.to))}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
             {'：'}
-            <Bi zh={edge.carries} en={edge.carriesEn} />
+            <Bi zh={edge.carries} />
           </li>
         ))
       }

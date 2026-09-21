@@ -24,8 +24,9 @@ test.describe('Dual viewport screenshots', () => {
     for (const pageInfo of PAGES) {
       test(`${pageInfo.name} @ ${viewport.name}`, async ({ page }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
-        await page.goto(pageInfo.route);
-        await page.waitForLoadState('networkidle');
+        await page.goto(pageInfo.route, { waitUntil: 'domcontentloaded' });
+        await expect(page.locator('main')).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
 
         const file = path.join(
           SCREENSHOT_DIR,

@@ -45,11 +45,8 @@ export function docCardProps(entry: DocEntry) {
   return {
     href: docHref(entry),
     title: entry.data.title,
-    titleEn: entry.data.titleEn,
     description: entry.data.description,
-    descriptionEn: entry.data.descriptionEn,
     meta: undefined as string | undefined,
-    metaEn: undefined as string | undefined,
     tags: entry.data.tags,
   };
 }
@@ -60,17 +57,13 @@ export function articleCardProps(entry: PublishedArticle) {
     throw new Error(`slot: article 条目缺少 date：${entry.id}`);
   }
   const dateZh = formatDate(date, 'zh-CN');
-  const dateEn = formatDate(date, 'en');
   return {
     href: docHref(entry),
     title: entry.data.title,
-    titleEn: entry.data.titleEn,
     description: entry.data.description,
-    descriptionEn: entry.data.descriptionEn,
     meta: dateZh,
-    metaEn: dateEn,
     tags: entry.data.tags,
-    haystack: [entry.data.title, entry.data.titleEn ?? '', ...entry.data.tags]
+    haystack: [entry.data.title, ...entry.data.tags]
       .join('\n')
       .toLowerCase(),
   };

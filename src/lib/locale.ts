@@ -1,7 +1,4 @@
-/**
- * URL-level locale. English stays unprefixed; Chinese is `/zh` and `/zh/…`
- * so a shared link opens the Chinese site without relying on localStorage.
- */
+/** Canonical pages are Chinese; old /zh URLs remain redirect aliases. */
 
 export const ZH_PREFIX = '/zh';
 export type UrlLocale = 'en' | 'zh';
@@ -25,11 +22,11 @@ export function isZhPath(pathname: string): boolean {
 }
 
 export function localeFromPath(pathname: string): UrlLocale {
-  return isZhPath(pathname) ? 'zh' : 'en';
+  return 'zh';
 }
 
 export function langFromPath(pathname: string): 'zh-CN' | 'en' {
-  return isZhPath(pathname) ? 'zh-CN' : 'en';
+  return 'zh-CN';
 }
 
 export function stripLocalePrefix(pathname: string): string {
@@ -47,9 +44,7 @@ export function pagePath(pathname: string): string {
 
 export function withLocalePrefix(pathname: string, locale: string | undefined): string {
   const path = stripLocalePrefix(pathname || '/');
-  const zh = locale === 'zh' || locale === 'zh-CN';
-  if (!zh) return path;
-  return path === '/' ? ZH_PREFIX : `${ZH_PREFIX}${path}`;
+  return path;
 }
 
 export function isLocalizablePath(pathname: string): boolean {

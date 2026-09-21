@@ -6,9 +6,9 @@ import SearchFilter from '@/components/shell/SearchFilter.astro';
 import { copy } from '@/lib/i18n';
 import { SEARCH_PATH } from '@/lib/routes';
 import { matchesQuery, searchCardProps } from '@/lib/search';
-import { publishedArticles } from '@/lib/tags';
+import { loadDocs } from '@/lib/docs';
 
-const articles = await publishedArticles();
+const articles = await loadDocs();
 const cards = articles.map(searchCardProps);
 const q = Astro.url.searchParams.get('q') ?? '';
 const lp = Astro.locals.localePath;
@@ -16,9 +16,7 @@ const lp = Astro.locals.localePath;
 
 <Base
   title={copy['zh-CN'].searchTitle}
-  titleEn={copy.en.searchTitle}
   description={copy['zh-CN'].searchDesc}
-  descriptionEn={copy.en.searchDesc}
 >
   <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-search-index>
     <header class="mb-10">
@@ -37,11 +35,8 @@ const lp = Astro.locals.localePath;
             <Card
               href={lp(card.href)}
               title={card.title}
-              titleEn={card.titleEn}
               description={card.description}
-              descriptionEn={card.descriptionEn}
               meta={card.meta}
-              metaEn={card.metaEn}
               tags={card.tags}
             />
           </div>

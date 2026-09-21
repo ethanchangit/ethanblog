@@ -60,6 +60,9 @@ const port = portFromArgs(process.argv.slice(2));
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  if ((url.pathname === '/zh' || url.pathname.startsWith('/zh/')) && !url.pathname.endsWith('.md') && preferredType(req.headers.accept ?? null) !== 'text/markdown') {
+    res.writeHead(301, { location: (url.pathname.slice(3) || '/') + url.search }); res.end(); return;
+  }
 
   if (shouldNegotiate(url.pathname) && req.method !== 'OPTIONS') {
     const chosen = preferredType(req.headers.accept ?? null);

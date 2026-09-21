@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('VerdictTable（裁决表）', () => {
   test('渲染语义表格：列头、行头、三种裁决符号', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('verdict-table');
     await section.scrollIntoViewIfNeeded();
 
@@ -20,14 +20,14 @@ test.describe('VerdictTable（裁决表）', () => {
   });
 
   test('零 JS 组件：不产生岛屿', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const islands = page.getByTestId('verdict-table').locator('astro-island');
     await expect(islands).toHaveCount(0);
   });
 
   test('窄屏（390px）表格自身横滚，页面不横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('verdict-table');
     await section.scrollIntoViewIfNeeded();
     await expect(section.locator('table.vt-table')).toBeVisible();

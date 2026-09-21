@@ -46,6 +46,10 @@
   --color-accent-800: rgb(21 94 117);
   --color-accent-900: rgb(22 78 99);
 
+  /* Semantic review marks; not decorative surfaces. */
+  --color-accent-deletion: var(--theme-accent-deletion);
+  --color-accent-insertion: var(--theme-accent-insertion);
+
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, "PingFang SC",
     "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
@@ -69,6 +73,8 @@
   --theme-ink-400: rgb(115 115 115);
   --theme-ink-500: rgb(140 140 140);
   --theme-ink-600: rgb(163 163 163);
+  --theme-accent-deletion: rgb(153 27 27);
+  --theme-accent-insertion: rgb(22 101 52);
 }
 
 /* Dark — pure #191919 canvas (night) */
@@ -87,6 +93,8 @@
   --theme-ink-400: rgb(148 163 184);
   --theme-ink-500: rgb(100 116 139);
   --theme-ink-600: rgb(71 85 105);
+  --theme-accent-deletion: rgb(252 165 165);
+  --theme-accent-insertion: rgb(134 239 172);
 }
 
 @layer base {
@@ -545,50 +553,9 @@
     border: 0;
   }
 
-  /* Bilingual chrome: Chinese copy is in the DOM, hidden until html[data-lang='zh-CN'].
-   * .i18n-zh 里 <a> 要紧贴前后汉字（写信到<a>联系</a>）；源码空格/换行会变成「写信到 联系」。
-   * 英文链接前后可以留空格。 */
-  .i18n-zh {
-    display: none;
-  }
-  html[data-lang='zh-CN'] .i18n-zh {
-    display: inline;
-  }
-  html[data-lang='zh-CN'] .i18n-en {
-    display: none;
-  }
-
-  /* MDX body wrappers: display:contents so prose styles still hit headings/paragraphs. */
-  .i18n-zh-block {
-    display: none;
-  }
-  .i18n-en-block {
-    display: contents;
-  }
-  /* No English replica: keep the Chinese body visible in English mode. */
-  .i18n-zh-block:not(:has(+ .i18n-en-block)) {
-    display: contents;
-  }
-  html[data-lang='zh-CN'] .i18n-zh-block {
-    display: contents;
-  }
-  html[data-lang='zh-CN'] .i18n-en-block {
-    display: none;
-  }
-
-  /* Paired sections (TOC, etc.): hide the inactive language as a unit. */
-  .i18n-zh-only {
-    display: none;
-  }
-  .i18n-en-only {
-    display: contents;
-  }
-  html[data-lang='zh-CN'] .i18n-zh-only {
-    display: contents;
-  }
-  html[data-lang='zh-CN'] .i18n-en-only {
-    display: none;
-  }
+  /* Chinese shell wrappers retain layout semantics without a language switch. */
+  .i18n-zh { display: inline; }
+  .i18n-zh-block, .i18n-zh-only { display: contents; }
 }
 
 /* Long-form prose — tuned for Chinese + English mixed text */
@@ -1780,4 +1747,3 @@
     height: calc(3.75rem + env(safe-area-inset-top, 0px));
   }
 }
-

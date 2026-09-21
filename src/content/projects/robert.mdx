@@ -1,17 +1,21 @@
 ---
-slot: project
+slot: "project"
 title: "Robert"
 description: "带 robert agent 的个人上下文管理器"
-descriptionEn: "A personal context manager with a robert agent"
-status: active
+status: "active"
 order: 40
-stack: ["SwiftUI", "GRDB", "LLM", "Cloudflare Workers"]
-platforms: ["iOS 17+"]
+stack:
+  - "SwiftUI"
+  - "GRDB"
+  - "LLM"
+  - "Cloudflare Workers"
+platforms:
+  - "iOS 17+"
 repo: "https://github.com/ethanchangit/robert"
-featured: true
 demo:
   src: "/demos/robert/"
   height: "520px"
+featured: true
 ---
 
 import { InteractiveDemo } from '@/components/media';
@@ -38,30 +42,4 @@ import { InteractiveDemo } from '@/components/media';
   title="Robert · 交互原型"
   height="520px"
   caption="演示包展示的是早期交互切片，核心方向是 agent 辅助的上下文整理。"
-/>
-
-<div data-lang-split></div>
-
-My fourth project. The name is a butler’s name — I wanted it to be a personal context manager.
-
-In parallel with desktop [Networks](/projects/network), Robert puts **voice** at the front door, inspired by flomo but with even less friction: voice in, Whisper transcribes, block-level cards out. The easier capture is, the more ideas you keep.
-
-One lives in the pocket, one on the desk, on the same line of inquiry: how knowledge flows in as **blocks**, not as documents dumped into folders. That low-friction capture later fed [Chunk](/projects/chunk).
-
-## Structure
-
-The note structure follows Networks: a note can have several parent cards; each note is both a folder and a document. You store in it, and you navigate with it.
-
-## The robert agent
-
-Several parents is too much flexibility. Matching them by hand is like finding one folder, except now you must find several — a lot of resistance and fatigue.
-
-So we introduced a robert agent: an async confirmation loop, so the system and the user agree on what to keep. Each evening the agent takes some of the context you gave it, explores structure against what it already knows. Say you already have a “programming notes” card, and today you wrote five notes on programming. After reading them, the agent remembers “programming notes” and asks: should these five become children of that card?
-
-<InteractiveDemo
-  client:visible
-  src="/demos/robert/"
-  title="Robert · interaction prototype"
-  height="520px"
-  caption="The demo pack is an early slice; the direction is agent-assisted context."
 />

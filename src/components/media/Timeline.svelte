@@ -86,7 +86,7 @@
         ? 'underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500 group-aria-[current=page]:decoration-ink-500'
         : ''}"
     >
-      <BiText zh={item.title} en={item.titleEn} />
+      <BiText zh={item.title} />
     </h4>
     {#if item.body}
       <p
@@ -94,7 +94,7 @@
           ? 'transition-colors group-hover:text-ink-300'
           : ''}"
       >
-        <BiText zh={item.body} en={item.bodyEn} />
+        <BiText zh={item.body} />
       </p>
     {/if}
   </div>
@@ -125,6 +125,6 @@
     {/each}
   </ol>
   {#if caption}
-    <figcaption class="media-caption"><BiText zh={caption} en={captionEn} /></figcaption>
+    <figcaption class="media-caption"><BiText zh={caption} /></figcaption>
   {/if}
 </figure>

@@ -5,7 +5,6 @@ import svelte from '@astrojs/svelte';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkSourceView } from './plugins/remark-source-view.mjs';
-import { remarkLangSplit } from './plugins/remark-lang-split.mjs';
 import { studioIntegration } from './studio/plugin.mjs';
 
 // https://astro.build/config
@@ -34,7 +33,7 @@ export default defineConfig({
     },
     '/zh/about': {
       status: 301,
-      destination: '/zh',
+      destination: '/',
     },
     '/articles/1': {
       status: 301,
@@ -46,14 +45,14 @@ export default defineConfig({
     },
     '/zh/articles/1': {
       status: 301,
-      destination: '/zh/articles',
+      destination: '/articles',
     },
     '/zh/articles/2': {
       status: 301,
-      destination: '/zh/articles',
+      destination: '/articles',
     },
   },
-  integrations: [mdx({ remarkPlugins: [remarkSourceView, remarkLangSplit] }), svelte(), studioIntegration()],
+  integrations: [mdx({ remarkPlugins: [remarkSourceView] }), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
   },

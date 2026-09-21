@@ -95,10 +95,10 @@
 
 <section id="comments" class="not-prose" aria-labelledby="comments-heading">
   <h2 id="comments-heading" class="ui-section-label">
-    <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsHeading')}</span><span class="i18n-en">{label('en', 'commentsHeading')}</span>
+    <span class="i18n-zh">{label('zh-CN', 'commentsHeading')}</span>
   </h2>
   <p class="ui-meta mt-2">
-    <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsHint')}</span><span class="i18n-en">{label('en', 'commentsHint')}</span>
+    <span class="i18n-zh">{label('zh-CN', 'commentsHint')}</span>
   </p>
 
   <form class="comment-form" method="POST" action="/api/comments" onsubmit={onSubmit}>
@@ -113,7 +113,7 @@
     <div class="comment-compose-foot">
       <label class="comment-compose-name">
         <span class="sr-only">
-          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsName')}</span><span class="i18n-en">{label('en', 'commentsName')}</span>
+          <span class="i18n-zh">{label('zh-CN', 'commentsName')}</span>
         </span>
         <input
           class="comment-field comment-field--name"
@@ -128,7 +128,7 @@
       </label>
       <label class="comment-compose-email">
         <span class="sr-only">
-          <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsEmail')}</span><span class="i18n-en">{label('en', 'commentsEmail')}</span>
+          <span class="i18n-zh">{label('zh-CN', 'commentsEmail')}</span>
         </span>
         <input
           class="comment-field comment-field--email"
@@ -142,13 +142,13 @@
         />
       </label>
       <button type="submit" class="comment-send" disabled={busy}>
-        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsSubmit')}</span><span class="i18n-en">{label('en', 'commentsSubmit')}</span>
+        <span class="i18n-zh">{label('zh-CN', 'commentsSubmit')}</span>
       </button>
     </div>
 
     <label class="comment-compose-body">
       <span class="sr-only">
-        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsBody')}</span><span class="i18n-en">{label('en', 'commentsBody')}</span>
+        <span class="i18n-zh">{label('zh-CN', 'commentsBody')}</span>
       </span>
       <textarea
         class="comment-field comment-field--body"
@@ -165,11 +165,11 @@
 
     {#if error}
       <p class="ui-meta" role="alert">
-        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsError')}</span><span class="i18n-en">{label('en', 'commentsError')}</span>
+        <span class="i18n-zh">{label('zh-CN', 'commentsError')}</span>
       </p>
     {:else if sent}
       <p class="ui-meta" role="status">
-        <span class="i18n-zh" aria-hidden="true">{label('zh-CN', 'commentsSent')}</span><span class="i18n-en">{label('en', 'commentsSent')}</span>
+        <span class="i18n-zh">{label('zh-CN', 'commentsSent')}</span>
       </p>
     {/if}
   </form>

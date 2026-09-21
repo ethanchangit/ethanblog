@@ -97,16 +97,16 @@ function applyIndexPageMeta(kind: IndexKind) {
   const titleKey = kind === 'projects' ? 'projectsTitle' : kind === 'blogs' ? 'blogsTitle' : 'articlesTitle';
   const descKey = kind === 'projects' ? 'projectsDesc' : kind === 'blogs' ? 'blogsDesc' : 'articlesDesc';
   document.documentElement.setAttribute('data-title-zh', `${copy['zh-CN'][titleKey]} · ${site.title}`);
-  document.documentElement.setAttribute('data-title-en', `${copy.en[titleKey]} · ${site.title}`);
+  document.documentElement.setAttribute('data-title-en', `${copy['zh-CN'][titleKey]} · ${site.title}`);
   document.documentElement.setAttribute('data-desc-zh', copy['zh-CN'][descKey]);
-  document.documentElement.setAttribute('data-desc-en', copy.en[descKey]);
+  document.documentElement.setAttribute('data-desc-en', copy['zh-CN'][descKey]);
 }
 
 function applyHomePageMeta() {
   document.documentElement.setAttribute('data-title-zh', `${site.title} — ${copy['zh-CN'].siteBlog}`);
-  document.documentElement.setAttribute('data-title-en', `${site.title} — ${copy.en.siteBlog}`);
+  document.documentElement.setAttribute('data-title-en', `${site.title} — ${copy['zh-CN'].siteBlog}`);
   document.documentElement.setAttribute('data-desc-zh', profile.bio);
-  document.documentElement.setAttribute('data-desc-en', profile.bioEn);
+  document.documentElement.setAttribute('data-desc-en', profile.bio);
 }
 
 function syncExpandedChrome(shell: HTMLElement) {

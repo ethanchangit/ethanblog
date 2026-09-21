@@ -30,9 +30,7 @@ const showRail = hasToc(zhHeadings);
 <ReadingShell
   kind="project"
   title={project.data.title}
-  titleEn={project.data.titleEn}
   description={project.data.description}
-  descriptionEn={project.data.descriptionEn ?? project.data.description}
   currentId={project.id}
   showRail={showRail}
 >
@@ -40,6 +38,6 @@ const showRail = hasToc(zhHeadings);
     <Content />
   </Doc>
   <Fragment slot="rail">
-    <Toc headings={zhHeadings} headingsEn={enHeadings} />
+    <Toc headings={zhHeadings} />
   </Fragment>
 </ReadingShell>

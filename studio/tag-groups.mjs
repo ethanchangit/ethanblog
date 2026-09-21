@@ -114,7 +114,6 @@ function parseGroupObject(objSrc) {
   return {
     slug: pickProp(objSrc, 'slug').trim(),
     title: pickProp(objSrc, 'title').trim(),
-    titleEn: pickProp(objSrc, 'titleEn').trim(),
     tags: pickTags(objSrc),
   };
 }
@@ -152,7 +151,7 @@ export function serializeTagGroups(groups) {
   if (!groups.length) return '[\n]';
   const blocks = groups.map((group) => {
     const tags = group.tags.map((tag) => JSON.stringify(tag)).join(', ');
-    return `  {\n    slug: ${JSON.stringify(group.slug)},\n    title: ${JSON.stringify(group.title)},\n    titleEn: ${JSON.stringify(group.titleEn)},\n    tags: [${tags}],\n  }`;
+    return `  {\n    slug: ${JSON.stringify(group.slug)},\n    title: ${JSON.stringify(group.title)},\n    tags: [${tags}],\n  }`;
   });
   return `[\n${blocks.join(',\n')},\n]`;
 }
@@ -177,13 +176,12 @@ export function normalizeTagGroups(input) {
     if (!raw || typeof raw !== 'object') throw new Error('不合法的分组');
     const slug = String(raw.slug ?? '').trim();
     const title = String(raw.title ?? '').trim();
-    const titleEn = String(raw.titleEn ?? '').trim();
-    if (!slug || !title || !titleEn) throw new Error('请填写分组的 slug、中文名和英文名');
+    if (!slug || !title) throw new Error('请填写分组的 slug 和名称');
     if (!SLUG_RE.test(slug) || slug.length > 48) throw new Error(`不合法的分组 slug：${slug}`);
     if (RESERVED_SLUGS.has(slug)) throw new Error(`不合法的分组 slug：${slug}（all / other 是保留名）`);
     if (slugs.has(slug)) throw new Error(`不合法的分组 slug：${slug} 重复了`);
     slugs.add(slug);
-    if (title.length > 80 || titleEn.length > 80) throw new Error('分组名太长');
+    if (title.length > 80) throw new Error('分组名太长');
     const tags = [];
     const list = Array.isArray(raw.tags) ? raw.tags : [];
     for (const item of list) {
@@ -194,7 +192,7 @@ export function normalizeTagGroups(input) {
       tagsSeen.add(tag);
       tags.push(tag);
     }
-    groups.push({ slug, title, titleEn, tags });
+    groups.push({ slug, title, tags });
   }
   return groups;
 }

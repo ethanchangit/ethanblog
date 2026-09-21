@@ -1,0 +1,22 @@
+---
+// An empty, public-safe template. Private card text is inserted only inside the
+// authenticated dashboard's sandboxed frame, never into a public preview URL.
+import Doc from '@/layouts/Doc.astro';
+import Card from '@/components/shell/Card.astro';
+import '@/styles/global.css';
+import type { DocEntry } from '@/lib/docs';
+export const prerender = true;
+const doc: DocEntry = { id: 'preview', collection: 'articles', data: {
+  slot: 'article', title: '文章预览', description: '', date: new Date('2026-01-01'),
+  tags: ['预览'], draft: true, order: 99, stack: [], platforms: [], downloads: [], screenshots: [], featured: false,
+} };
+---
+<!doctype html>
+<html lang="zh-CN"><head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width" />
+  <meta name="robots" content="noindex, nofollow" /><meta name="referrer" content="no-referrer" />
+  <title>文章预览</title>
+</head><body>
+  <Doc doc={doc} preview><div data-preview-body></div></Doc>
+  <template id="reference-template"><Card href="/articles/preview" title="引用资料" description="摘要" meta="日期" tags={['标签']} /></template>
+</body></html>

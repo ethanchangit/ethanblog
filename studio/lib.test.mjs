@@ -83,7 +83,7 @@ describe('studio lib', () => {
     assert.throws(() => resolveDocPath('/tmp/repo', 'articles', '../x'));
   });
 
-  it('roundtrips bilingual MDX', () => {
+  it('saves only the primary version and drops retired English', () => {
     const raw = serializeMdx({
       frontmatter: { slot: 'article', title: '测试', date: '2026-08-22', draft: true },
       imports: '',
@@ -94,8 +94,8 @@ describe('studio lib', () => {
     assert.equal(parsed.frontmatter.slot, 'article');
     assert.equal(parsed.frontmatter.draft, true);
     assert.equal(parsed.bodyZh, '中文**段**。');
-    assert.equal(parsed.bodyEn, 'English paragraph.');
-    assert.match(raw, /<div data-lang-split><\/div>/);
+    assert.equal(parsed.bodyEn, undefined);
+    assert.doesNotMatch(raw, /data-lang-split|English paragraph/);
   });
 
   it('creates article, project, and child pages on an ordinary article', async () => {
@@ -165,7 +165,7 @@ describe('studio lib', () => {
     const next = addDocRefToRaw(raw, 'articles/pkm-method');
     assert.match(next, /import \{ DocList, DocRef \} from '@\/components\/media';/);
     assert.deepEqual(listDocRefs(next), ['articles/pkm-method']);
-    assert.equal((next.match(/<DocRef /g) || []).length, 2);
+    assert.equal((next.match(/<DocRef /g) || []).length, 1);
     const stripped = removeDocRefFromRaw(next, 'articles/pkm-method');
     assert.equal(listDocRefs(stripped).length, 0);
   });
@@ -190,7 +190,7 @@ describe('studio lib', () => {
       const doc = await readDoc(root, 'articles', 'edit-me');
       assert.equal(doc.frontmatter.title, '改过的标题');
       assert.equal(doc.bodyZh, '## 一节\n\n正文。');
-      assert.equal(doc.bodyEn, '## A section\n\nBody.');
+      assert.equal(doc.bodyEn, undefined);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

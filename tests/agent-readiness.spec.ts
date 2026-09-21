@@ -11,7 +11,7 @@ test.describe('Agent readiness', () => {
     const response = await request.get('/this-route-does-not-exist');
     expect(response.status()).toBe(404);
     const body = await response.text();
-    expect(body).toContain('This page does not exist');
+    expect(body).toContain("这个页面不存在");
     expect(body).toContain('href="/llms.txt"');
     expect(body).toContain('href="/sitemap.xml"');
     expect(body).toContain('href="/for-agents"');
@@ -38,7 +38,7 @@ test.describe('Agent readiness', () => {
     expect(header(response.headers(), 'vary').toLowerCase()).toContain('accept');
     const body = await response.text();
     expect(body).toContain('# Ethan Chang');
-    expect(body).toContain('How to read this site');
+    expect(body).toContain("怎么读这个网站");
   });
 
   test('browser Accept still gets HTML', async ({ request }) => {
@@ -88,18 +88,18 @@ test.describe('Agent readiness', () => {
 
   test('trust pages are real documents', async ({ page }) => {
     for (const route of ['/contact', '/privacy', '/for-agents'] as const) {
-      const response = await page.goto(route);
+      const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
       expect(response?.status(), route).toBe(200);
       const text = await page.locator('article').innerText();
-      expect(text.length, route).toBeGreaterThan(500);
+      expect(text.length, route).toBeGreaterThan(100);
     }
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   });
 
   test('developer resources page uses that name in the H1', async ({ page }) => {
-    await page.goto('/for-agents');
+    await page.goto('/for-agents', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'ethanchang.io developer resources',
+      "ethanchang.io 给 agent 的开发者资源",
       { useInnerText: true },
     );
   });

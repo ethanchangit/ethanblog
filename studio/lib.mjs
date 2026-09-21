@@ -6,77 +6,40 @@ import { execFile } from 'node:child_process';
 import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { MEDIA_IMPORT, ensureMediaImport } from './blocks.mjs';
+import {
+  COLLECTIONS,
+  LANG_SPLIT,
+  addDocRefToRaw as coreAddDocRefToRaw,
+  isSafeDocRef,
+  isSafeId,
+  listDocRefs,
+  parseMdx,
+  pickFrontmatter,
+  publicHref,
+  removeDocRefFromRaw,
+  serializeMdx,
+  slugify,
+  todayIso,
+} from './core.mjs';
 
 const execFileAsync = promisify(execFile);
 
-export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
 export { MEDIA_IMPORT, ensureMediaImport };
-export const LANG_SPLIT = '<div data-lang-split></div>';
-
-const CANONICAL_KEYS = [
-  'slot',
-  'title',
-  'titleEn',
-  'description',
-  'descriptionEn',
-  'date',
-  'updated',
-  'tags',
-  'draft',
-  'listed',
-  'status',
-  'order',
-  'stack',
-  'platforms',
-  'repo',
-  'homepage',
-  'downloads',
-  'screenshots',
-  'demo',
-  'featured',
-];
-
-const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
-const DOCREF_RE = /<DocRef\s+of=["']([^"']+)["']\s*\/>/g;
-const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
-
-export function todayIso(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-export function slugify(input, fallbackDate = new Date()) {
-  const ascii = String(input ?? '')
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  if (ascii) return ascii;
-  return `draft-${todayIso(fallbackDate)}`;
-}
-
-export function isSafeId(collection, id) {
-  if (!COLLECTIONS.has(collection)) return false;
-  if (typeof id !== 'string' || id.length === 0 || id.length > 120) return false;
-  if (id.includes('..') || id.includes('\\') || path.isAbsolute(id)) return false;
-  if (collection === 'pages') return id === 'blogs';
-  return ID_RE.test(id);
-}
-
-export function isSafeDocRef(of) {
-  if (typeof of !== 'string') return false;
-  const match = /^(articles|projects)\/(.+)$/.exec(of.trim());
-  if (!match) return false;
-  return OF_RE.test(match[2]) && isSafeId(match[1], match[2]);
-}
-
+export {
+  COLLECTIONS,
+  LANG_SPLIT,
+  isSafeDocRef,
+  isSafeId,
+  listDocRefs,
+  parseMdx,
+  pickFrontmatter,
+  publicHref,
+  removeDocRefFromRaw,
+  serializeMdx,
+  slugify,
+  todayIso,
+};
 export function resolveDocPath(root, collection, id) {
   if (!isSafeId(collection, id)) {
     throw new Error(`不合法的文档 id：${collection}/${id}`);
@@ -88,80 +51,6 @@ export function resolveDocPath(root, collection, id) {
     throw new Error('路径越界');
   }
   return file;
-}
-
-export function publicHref(collection, id) {
-  if (collection === 'pages' && id === 'blogs') return '/blogs';
-  if (collection === 'projects') return `/projects/${id}`;
-  return `/articles/${id}`;
-}
-
-export function parseMdx(raw) {
-  const text = String(raw ?? '');
-  const split = /^---\n([\s\S]*?)\n---\n?/.exec(text);
-  let frontmatter = {};
-  let body = text;
-  if (split) {
-    frontmatter = parseYaml(split[1]) ?? {};
-    if (frontmatter && typeof frontmatter !== 'object') frontmatter = {};
-    body = text.slice(split[0].length);
-  }
-  const lines = body.split('\n');
-  const importLines = [];
-  let i = 0;
-  while (i < lines.length && (lines[i].trim() === '' || /^\s*import\s/.test(lines[i]))) {
-    if (/^\s*import\s/.test(lines[i])) importLines.push(lines[i].trim());
-    i += 1;
-  }
-  const rest = lines.slice(i).join('\n');
-  const parts = rest.split(/<div\s+data-lang-split\b[^>]*>(?:\s*<\/div>)?/);
-  return {
-    frontmatter,
-    imports: importLines.join('\n'),
-    bodyZh: (parts[0] ?? '').trim(),
-    bodyEn: (parts.slice(1).join(LANG_SPLIT) ?? '').trim(),
-    raw: text,
-  };
-}
-
-function omitEmpty(value, key) {
-  if (value === undefined || value === null) return true;
-  if (value === '') return true;
-  if (Array.isArray(value) && value.length === 0) return true;
-  if (key === 'draft' && value === false) return true;
-  if (key === 'featured' && value === false) return true;
-  return false;
-}
-
-export function pickFrontmatter(data) {
-  const src = data && typeof data === 'object' ? data : {};
-  const out = {};
-  for (const key of CANONICAL_KEYS) {
-    if (omitEmpty(src[key], key)) continue;
-    out[key] = src[key];
-  }
-  for (const [key, value] of Object.entries(src)) {
-    if (key in out) continue;
-    if (CANONICAL_KEYS.includes(key)) continue;
-    if (omitEmpty(value, key)) continue;
-    out[key] = value;
-  }
-  return out;
-}
-
-export function serializeMdx({ frontmatter, imports, bodyZh, bodyEn }) {
-  const yaml = stringifyYaml(pickFrontmatter(frontmatter), {
-    lineWidth: 0,
-    defaultStringType: 'QUOTE_DOUBLE',
-    defaultKeyType: 'PLAIN',
-  }).trimEnd();
-  const importBlock = imports?.trim() ? `${imports.trim()}\n\n` : '';
-  const zh = (bodyZh ?? '').trim();
-  const en = (bodyEn ?? '').trim();
-  const body = en
-    ? `${importBlock}${zh}\n\n${LANG_SPLIT}\n\n${en}\n`
-    : `${importBlock}${zh ? `${zh}\n` : ''}`;
-  return `---\n${yaml}\n---\n\n${body}`;
 }
 
 async function walkMdx(dir, prefix = '') {
@@ -192,9 +81,7 @@ function summarize(collection, id, parsed, file) {
     id,
     file,
     title: data.title ?? id,
-    titleEn: data.titleEn ?? '',
     description: data.description ?? '',
-    descriptionEn: data.descriptionEn ?? '',
     tags: Array.isArray(data.tags) ? data.tags : [],
     draft: Boolean(data.draft),
     listed: data.listed,
@@ -264,7 +151,6 @@ export async function saveDoc(root, payload) {
           frontmatter: payload.frontmatter ?? {},
           imports: payload.imports ?? '',
           bodyZh: payload.bodyZh ?? '',
-          bodyEn: payload.bodyEn ?? '',
         });
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, raw.endsWith('\n') ? raw : `${raw}\n`);
@@ -282,7 +168,6 @@ function articleTemplate({ title, date }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写中文正文。',
-    bodyEn: 'Write the English copy here.',
   });
 }
 
@@ -297,7 +182,6 @@ function projectTemplate({ title }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写项目说明。',
-    bodyEn: 'Write the project notes here.',
   });
 }
 
@@ -313,7 +197,6 @@ function childTemplate({ title, date, order, slot }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写这一页。',
-    bodyEn: 'Write this page here.',
   });
 }
 
@@ -403,53 +286,11 @@ export async function nextChildNumber(root, collection, parentId) {
   return max + 1;
 }
 
-export function listDocRefs(raw) {
-  const refs = [];
-  const seen = new Set();
-  const text = String(raw ?? '');
-  for (const match of text.matchAll(DOCREF_RE)) {
-    const of = match[1];
-    if (!seen.has(of)) {
-      seen.add(of);
-      refs.push(of);
-    }
-  }
-  return refs;
-}
-
-function insertRefInSection(section, of, pane) {
-  if (new RegExp(`<DocRef\\s+of=["']${of}["']`).test(section)) return section;
-  const refLine = `  <DocRef of="${of}" />`;
-  const close = section.lastIndexOf('</DocList>');
-  if (close !== -1) {
-    const before = section.slice(0, close).trimEnd();
-    const after = section.slice(close);
-    return `${before}\n${refLine}\n${after}`;
-  }
-  const open = pane === 'series' ? '<DocList pane="series">' : '<DocList>';
-  const block = `\n\n${open}\n${refLine}\n</DocList>`;
-  return `${section.trimEnd()}${block}`;
-}
-
 export function addDocRefToRaw(raw, of, { pane } = {}) {
   if (!isSafeDocRef(of)) throw new Error(`不合法的引用：${of}`);
   const parsed = parseMdx(raw);
   parsed.imports = ensureMediaImport(parsed.imports);
-  parsed.bodyZh = insertRefInSection(parsed.bodyZh, of, pane);
-  if (parsed.bodyEn) parsed.bodyEn = insertRefInSection(parsed.bodyEn, of, pane);
-  return serializeMdx(parsed);
-}
-
-export function removeDocRefFromRaw(raw, of) {
-  const parsed = parseMdx(raw);
-  const strip = (section) =>
-    section
-      .replace(new RegExp(`\\n?\\s*<DocRef\\s+of=["']${of}["']\\s*/>\\s*`, 'g'), '\n')
-      .replace(/<DocList(?:\s+pane="series")?>\s*<\/DocList>/g, '')
-      .trim();
-  parsed.bodyZh = strip(parsed.bodyZh);
-  if (parsed.bodyEn) parsed.bodyEn = strip(parsed.bodyEn);
-  return serializeMdx(parsed);
+  return coreAddDocRefToRaw(serializeMdx(parsed), of, { pane });
 }
 
 export async function setBlogsRef(root, of, present) {

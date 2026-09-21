@@ -9,33 +9,28 @@ export const ALL_GROUP = 'all';
 export interface TagGroup {
   slug: string;
   title: string;
-  titleEn: string;
   tags: string[];
 }
 
 export const FALLBACK_GROUP = {
   slug: 'other',
   title: '其他',
-  titleEn: 'Other',
-} as const satisfies Pick<TagGroup, 'slug' | 'title' | 'titleEn'>;
+} as const satisfies Pick<TagGroup, 'slug' | 'title'>;
 
 export const tagGroups: TagGroup[] = [
   {
     slug: 'writing',
     title: '写作与知识',
-    titleEn: 'Writing & knowledge',
     tags: ['知识管理', 'PKM', '笔记方法论', 'Heptabase', 'Obsidian', '深度学习'],
   },
   {
     slug: 'software',
     title: '软件与项目',
-    titleEn: 'Software & projects',
     tags: ['软件开发', '个人项目', '网站'],
   },
   {
     slug: 'media',
     title: '媒介与研究',
-    titleEn: 'Media & research',
     tags: ['超媒体', '动态媒介', '媒介引擎', '研究线', '宣言'],
   },
 ];

@@ -33,11 +33,8 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
               <Card
                 href={lp(card.href)}
                 title={card.title}
-                titleEn={card.titleEn}
                 description={card.description}
-                descriptionEn={card.descriptionEn}
                 meta={card.meta}
-                metaEn={card.metaEn}
                 tags={card.tags}
                 current={entry.id === activeId}
               />

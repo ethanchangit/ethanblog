@@ -15,15 +15,14 @@ import { docJsonLd } from '@/lib/agent';
 
 interface Props {
   doc: DocEntry;
+  preview?: boolean;
 }
 
-const { doc } = Astro.props;
+const { doc, preview = false } = Astro.props;
 const {
   slot,
   title,
-  titleEn,
   description,
-  descriptionEn,
   date,
   updated,
   tags,
@@ -40,13 +39,13 @@ const canonicalUrl = new URL(
     localizeHref(Astro.url.pathname, Astro.locals.locale),
   site.url,
 ).href;
-const series = isArticle ? await seriesContext(doc) : null;
+const series = isArticle && !preview ? await seriesContext(doc) : null;
 const jsonLd = docJsonLd(doc);
 ---
 
-<script is:inline type="application/ld+json" set:html={jsonLd} />
+{!preview && <script is:inline type="application/ld+json" set:html={jsonLd} />}
 
-{isArticle && <ReadingProgress client:load slug={slug} />}
+{isArticle && !preview && <ReadingProgress client:load slug={slug} />}
 
 <div class="article-shell relative px-4 pt-8 pb-14 sm:px-6">
   <header class="article-lede">
@@ -64,23 +63,23 @@ const jsonLd = docJsonLd(doc);
               </span>
             )}
           </div>
-          <BookmarkButton client:load slug={slug} />
+          {!preview && <BookmarkButton client:load slug={slug} />}
         </div>
       )
     }
     <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
-      <Bi zh={title} en={titleEn} />
+      <Bi zh={title} />
     </h1>
     {series && <SeriesNav series={series} part="parent" />}
   </header>
 
-  <CopyUrl client:visible url={canonicalUrl} />
+  {!preview && <CopyUrl client:visible url={canonicalUrl} />}
 
   <div class="article-body-row relative mt-8">
     <article class="article-page">
       <header class="article-dek">
         <p class="article-dek-text">
-          <Bi zh={description} en={descriptionEn} />
+          <Bi zh={description} />
         </p>
         {isArticle ? (
           <TagList tags={tags} />
@@ -155,7 +154,7 @@ const jsonLd = docJsonLd(doc);
             )
           }
           {series && <SeriesNav series={series} part="pager" />}
-          {isArticle && <ArticleComments client:visible slug={slug} />}
+          {isArticle && !preview && <ArticleComments client:visible slug={slug} />}
         </footer>
       </div>
     </article>

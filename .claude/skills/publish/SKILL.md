@@ -43,7 +43,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ### 6. 写 frontmatter
 - `description` ≤80 字，可检验的陈述句（渲染成摘要块 + RSS，别写悬念句）
-- **定稿必须双语**：`titleEn` + `descriptionEn`（文章必填 `titleEn`；项目可省略若标题已是英文），正文用 `<div data-lang-split></div>` 切开中英；草稿可暂缺（`validate:content` 对 draft 降级）
+- **仅保留主版本**：中文写作，不创建英文标题、摘要或正文副本。技术名词、代码和引用保留原文。新建或更新文章必须关联真实 `heptabaseCardLink`。
 - **`slot`**：`article` 或 `project`，决定出现在 `/articles` 还是 `/projects`。不要写进 topical `tags`。
 - 系列子文靠目录嵌套（`<hub>/<n>.mdx`），不必写 `listed: false`；顶层文章要藏起来才写 `listed: false`。
 - `draft: true`

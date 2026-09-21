@@ -7,12 +7,9 @@ import { copy } from '@/lib/i18n';
 
 <Base
   title={copy['zh-CN'].forAgentsTitle}
-  titleEn={copy.en.forAgentsTitle}
   description={copy['zh-CN'].forAgentsDesc}
-  descriptionEn={copy.en.forAgentsDesc}
 >
   <AgentProse
     zh={liteMarkdownHtml(forAgentsMarkdown('zh'))}
-    en={liteMarkdownHtml(forAgentsMarkdown('en'))}
   />
 </Base>

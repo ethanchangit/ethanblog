@@ -14,13 +14,14 @@ const docSchema = z
   .object({
     slot: z.enum(['article', 'project']),
     title: z.string(),
-    titleEn: z.string().optional(),
     description: z.string(),
-    descriptionEn: z.string().optional(),
     date: z.coerce.date().optional(),
     updated: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
+    // Legacy pages can still build; every new Studio submission requires this link.
+    heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),
@@ -59,9 +60,7 @@ const pages = defineCollection({
   loader: glob({ pattern: '**/*.mdx', base: './src/content/pages' }),
   schema: z.object({
     title: z.string(),
-    titleEn: z.string(),
     description: z.string(),
-    descriptionEn: z.string().optional(),
   }),
 });
 

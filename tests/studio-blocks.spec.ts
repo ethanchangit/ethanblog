@@ -8,7 +8,7 @@ test.describe('Studio 块编辑器 / @ [[', () => {
 
   test('斜杠改块、@ 插入行内链接、[[ 插入 embed 并在侧栏编辑', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto('/studio');
+    await page.goto('/studio', { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('studio-app')).toBeVisible();
 
     await page.getByTestId('studio-filter').fill('dummy-2026-01');

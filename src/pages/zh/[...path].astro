@@ -10,7 +10,7 @@ export async function getStaticPaths() {
 
 const rest = Astro.params.path;
 if (!rest) {
-  return Astro.rewrite('/');
+  return Astro.redirect('/', 301);
 }
-return Astro.rewrite(`/${rest}`);
+return Astro.redirect(encodeURI(`/${rest}`), 301);
 ---
