@@ -86,10 +86,11 @@ export async function fixture(assets = {}) {
             status: { name: 'Status', type: 'select', options: ['new', 'writing', 'block', 'review', 'published'].map((name) => ({ id: name, name })) },
             date: { name: 'Publish Date', type: 'date' },
             tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity'].map((name) => ({ id: name, name })) },
+            type: { name: 'Blog Type', type: 'select', options: ['Blog', 'Project'].map((name) => ({ id: name, name })) },
           } } };
           else if (name === 'edit_card_properties') {
             for (const edit of args.edits) {
-              const values = properties.get(edit.cardId) || {}; const key = { status: 'Status', date: 'Publish Date', tags: 'Tag' }[edit.propertyId];
+              const values = properties.get(edit.cardId) || {}; const key = { status: 'Status', date: 'Publish Date', tags: 'Tag', type: 'Blog Type' }[edit.propertyId];
               if (edit.value === null) delete values[key]; else values[key] = edit.value;
               properties.set(edit.cardId, values);
             }
@@ -110,7 +111,8 @@ export async function fixture(assets = {}) {
             if (missingCards.has(args.objectId)) return Response.json({ jsonrpc: '2.0', id: body.id, result: { structuredContent: { status: 'failed', failureReasonCode: 'objectNotFound', content: 'Object not found.' } } });
             const lines = (args.objectId === CARD ? source : cardSources.get(args.objectId)).split('\n');
             const values = properties.get(args.objectId);
-            const metadata = values ? '--- Databases ---\n- tag "blog" [blog-id]\n' + Object.entries(values).map(([k, v]) => `  - ${JSON.stringify(k)}: ${JSON.stringify(v)}\n`).join('') : '';
+            const shown = values ? { 'Blog Type': 'Blog', ...values } : null;
+            const metadata = shown ? '--- Databases ---\n- tag "blog" [blog-id]\n' + Object.entries(shown).filter(([, v]) => v != null).map(([k, v]) => `  - ${JSON.stringify(k)}: ${JSON.stringify(v)}\n`).join('') : '';
             content = { content: `card "测试文章" [${args.objectId}] ${lines.length} lines\n` + metadata + lines.slice(args.offset, args.offset + args.limit).map((l, i) => `${args.offset + i + 1}\t${l}`).join('\n'), totalLines: lines.length, hasMore: args.offset + args.limit < lines.length };
           } else if (name === 'edit_object_content') {
             const old = args.objectId === CARD ? source : cardSources.get(args.objectId);

@@ -259,7 +259,7 @@ test('first association exports one existing page and retries without creating d
   const request = { collection: 'articles', id: 'example', documentHash: await hash(raw) };
   const doc = await jsonOk(f.request('/heptabase/export', 'POST', request));
   const id = doc.frontmatter.heptabaseCardLink.split('/').pop();
-  assert.equal(f.properties.get(id).Status, 'writing'); assert.match(f.cardSources.get(id), /中文正文。/);
+  assert.equal(f.properties.get(id).Status, 'writing'); assert.equal(f.properties.get(id)['Blog Type'], 'Blog'); assert.match(f.cardSources.get(id), /中文正文。/);
   await jsonOk(f.request('/heptabase/export', 'POST', request));
   assert.equal(f.calls.filter(c => c.body?.params?.name === 'create_object').length, 1);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
@@ -279,6 +279,27 @@ test('protected regions stop sync without silently losing or executing content',
   const f = await setup(); f.setSource('# 标题\n\n<hepta-embed id="private" />');
   assert.equal((await f.request('/heptabase/preview', 'POST', input)).status, 400);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 0);
+});
+
+test('Blog Type routes a card to articles or projects and is stored when creating one', async () => {
+  const f = await setup();
+  f.properties.get(CARD)['Blog Type'] = 'Project';
+  const denied = await f.request('/heptabase/preview', 'POST', input);
+  assert.equal(denied.status, 400);
+  assert.match((await denied.json()).error, /Project/);
+  f.remote(article.replace(`heptabaseCardLink: ${LINK}\n`, ''));
+  const plan = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: LINK, preparePublish: true }));
+  assert.equal(plan.changes[0].path, `src/content/projects/hepta-${CARD}.mdx`);
+  assert.equal(plan.changes[0].afterProperties.slot, 'project');
+  f.properties.get(CARD)['Blog Type'] = null;
+  assert.equal((await f.request('/heptabase/preview', 'POST', { cardLink: LINK, preparePublish: true })).status, 400);
+  const project = '---\nslot: project\ntitle: 旧项目\ndescription: 摘要\nstatus: active\n---\n\n项目正文。\n';
+  f.remote(project, 'src/content/projects/legacy.mdx');
+  const raw = (await jsonOk(f.request('/doc?collection=projects&id=legacy'))).raw;
+  const doc = await jsonOk(f.request('/heptabase/export', 'POST', { collection: 'projects', id: 'legacy', documentHash: await hash(raw) }));
+  const id = doc.frontmatter.heptabaseCardLink.split('/').pop();
+  assert.equal(f.properties.get(id)['Blog Type'], 'Project');
+  assert.equal(doc.frontmatter.slot, 'project');
 });
 
 test('MCP pagination reads every numbered line and rejects incomplete lists', async () => {

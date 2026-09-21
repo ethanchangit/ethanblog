@@ -132,7 +132,8 @@ async function showSelection() {
   for (const [value, text] of [['preview', item.removal ? '现有页面' : '发布预览'], ['diff', '段落对比']]) tabs.append(button(text, async () => { mode = value; await showSelection(); }, { 'aria-pressed': String(mode === value) }));
   bar.append(tabs);
   if (!item.removal || item.plan.reason !== 'deleted') bar.append(link('在 Heptabase 打开 ↗', card.cardLink));
-  pane.append(bar, el('p', `${card.mainArticle ? 'blog' : 'page · 不出现在博客列表'} / ${card.title}`, { class: 'muted preview-caption' }));
+  const pageKind = card.afterProperties?.slot === 'project' ? 'project' : 'blog';
+  pane.append(bar, el('p', `${card.mainArticle ? pageKind : 'page · 不出现在博客列表'} / ${card.title}`, { class: 'muted preview-caption' }));
   if (item.removal) {
     pane.append(el('p', `${item.plan.reasonLabel}。下方是将被撤下的现有内容，不是准备重新发布的版本。`, { class: 'removal-notice' }));
     if (item.plan.blockers.length) pane.append(el('p', `仍被这些文章引用：${item.plan.blockers.map(b => b.title).join('、')}。先在 Heptabase 移除引用并审核更新，或先撤下引用它的文章，再重新拉取。`, { role: 'alert' }));
@@ -154,9 +155,15 @@ async function showSelection() {
     scope.append(el('p', `审核「${title(item)}」时，会同时确认 ${refs.length} 个引用资料页可以公开。引用资料不单独设置通过或拒绝。`));
     if (refs.some(c => !c.referenceTagged)) scope.append(button('标记引用资料为 #blog-reference', async () => { await api('/heptabase/mark-references', selection(item)); refs.forEach(c => c.referenceTagged = true); await showSelection(); notice('引用已标记。请确认这些资料不含私人内容。'); }));
     if (!item.card.linked.length) {
-      const select = el('select', null, { 'aria-label': '关联已有文章' }); select.append(el('option', '新建文章（若已有文章，可在此关联）', { value: '' }));
-      docs.filter(d => !d.heptabaseCardLink).forEach(d => select.append(el('option', d.title, { value: `${d.collection}/${d.id}` })));
-      select.addEventListener('change', () => void run(async () => { const [collection, ...parts] = select.value.split('/'); item.input.collection = collection || 'articles'; item.input.id = parts.join('/') || undefined; item.plan = await api('/heptabase/preview', item.input); renderList(); await showSelection(); })); scope.append(select);
+      const kind = item.card.properties?.type === 'project' ? 'projects' : 'articles';
+      const select = el('select', null, { 'aria-label': kind === 'projects' ? '关联已有项目' : '关联已有文章' });
+      select.append(el('option', kind === 'projects' ? '新建项目页（若已有项目页，可在此关联）' : '新建文章（若已有文章，可在此关联）', { value: '' }));
+      docs.filter(d => !d.heptabaseCardLink && d.collection === kind).forEach(d => select.append(el('option', d.title, { value: `${d.collection}/${d.id}` })));
+      select.addEventListener('change', () => void run(async () => {
+        if (!select.value) { delete item.input.collection; delete item.input.id; }
+        else { const [collection, ...parts] = select.value.split('/'); item.input.collection = collection; item.input.id = parts.join('/'); }
+        item.plan = await api('/heptabase/preview', item.input); renderList(); await showSelection();
+      })); scope.append(select);
     }
     pane.append(scope);
   }

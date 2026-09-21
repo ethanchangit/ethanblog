@@ -8,9 +8,22 @@ export async function blogSchema(client, tagId) {
     if (matches.length !== 1) throw fail(`blog 表格需要一个 ${names[0]} 字段（${type}）。`);
     return matches[0];
   };
-  const schema = { tagId, status: field(['status'], 'select'), date: field(['publish date', 'published date'], 'date'), tags: field(['tag', 'tags'], 'multiSelect') };
+  const schema = {
+    tagId,
+    status: field(['status'], 'select'),
+    date: field(['publish date', 'published date'], 'date'),
+    tags: field(['tag', 'tags'], 'multiSelect'),
+    type: field(['blog type'], 'select'),
+  };
   for (const name of ['new', 'writing', 'block', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
+  for (const name of ['blog', 'project']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
   return schema;
+}
+
+export function collectionForBlogType(type) {
+  if (type === 'blog') return 'articles';
+  if (type === 'project') return 'projects';
+  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog 或 Project）。');
 }
 
 export function propertiesFromRead(content, schema) {
@@ -31,7 +44,10 @@ export function propertiesFromRead(content, schema) {
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw fail('发布日期无法识别。');
   const tags = values[schema.tags.name] ?? [];
   if (!Array.isArray(tags) || tags.some((t) => typeof t !== 'string')) throw fail('Heptabase Tag 应是多选标签。');
-  return { member, status, date, tags: [...new Set(tags)].sort() };
+  const typeValue = values[schema.type.name];
+  const type = typeValue == null || typeValue === '' ? null : String(typeValue).trim().toLowerCase();
+  if (type && !['blog', 'project'].includes(type)) throw fail('Blog Type 选项尚未对应。');
+  return { member, status, date, tags: [...new Set(tags)].sort(), type };
 }
 
 export async function readProperties(client, cardId, schema) {
@@ -53,11 +69,16 @@ export async function writeProperties(client, id, schema, desired) {
   }
   if (desired.date !== undefined) edits.push({ cardId: id, propertyId: schema.date.id, type: 'date', value: desired.date ? { start: `${desired.date}T00:00:00.000Z` } : null });
   if (desired.tags !== undefined) edits.push({ cardId: id, propertyId: schema.tags.id, type: 'multiSelect', value: desired.tags });
+  if (desired.type !== undefined) {
+    const option = schema.type.options.find((o) => o.name.trim().toLowerCase() === desired.type);
+    if (!option) throw fail('目标 Blog Type 选项不存在。');
+    edits.push({ cardId: id, propertyId: schema.type.id, type: 'select', value: option.name });
+  }
   if (!edits.length) return;
   const result = await client.call('edit_card_properties', { tagId: schema.tagId, edits });
   if (!result.results || result.results.length !== edits.length || result.results.some((r) => r.status !== 'success')) throw fail('Heptabase 属性没有全部写入，请重新比较后补齐。', 502);
   const actual = await readProperties(client, id, schema);
-  for (const key of ['status', 'date', 'tags']) {
+  for (const key of ['status', 'date', 'tags', 'type']) {
     if (desired[key] === undefined) continue;
     const expected = key === 'tags' ? [...desired.tags].sort() : desired[key];
     if (JSON.stringify(actual[key]) !== JSON.stringify(expected)) throw fail('Heptabase 属性核验不一致，请重新比较。', 409);
