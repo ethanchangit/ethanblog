@@ -1,35 +1,35 @@
 import { test, expect } from '@playwright/test';
 
-const PKM = 'My PKM practice: from notes to a knowledge network';
-const PLACEHOLDER = 'Placeholder 2026-05';
+const PKM = "我的 PKM 实践：从笔记到知识网络";
+const PLACEHOLDER = "占位 2026-05";
 
 test.describe('站点搜索', () => {
   test('导航最右侧是搜索图标，点击进入 /search', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const nav = page.locator('header.site-nav');
     const search = nav.locator('a[href="/search"]');
     await expect(search).toBeVisible();
-    await expect(search).toHaveAttribute('aria-label', 'Search');
-    await expect(search).not.toContainText('Search');
+    await expect(search).toHaveAttribute('aria-label', "搜索");
+    await expect(search).not.toContainText("搜索");
 
     const items = nav.locator('ul > li');
     await expect(items.last().locator('a[href="/search"]')).toHaveCount(1);
 
     await search.click();
     await expect(page).toHaveURL(/\/search\/?$/);
-    await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "搜索", exact: true })).toBeVisible();
     await expect(page.getByTestId('site-search')).toBeVisible();
   });
 
   test('无查询时列出已发布文章，不含草稿', async ({ page }) => {
-    await page.goto('/search');
+    await page.goto('/search', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
     await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeVisible();
     await expect(page.getByRole('heading', { name: '页面即房间：一篇你读着读着就动手改写了的文章' })).toHaveCount(0);
   });
 
   test('输入关键字即时过滤标题、标签与摘要', async ({ page }) => {
-    await page.goto('/search');
+    await page.goto('/search', { waitUntil: 'domcontentloaded' });
     await page.getByTestId('site-search').fill('PKM');
 
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
@@ -37,15 +37,15 @@ test.describe('站点搜索', () => {
   });
 
   test('GET ?q= 过滤结果并回填输入框', async ({ page }) => {
-    await page.goto('/search?q=Obsidian');
+    await page.goto('/search?q=Obsidian', { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('site-search')).toHaveValue('Obsidian');
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
     await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeHidden();
   });
 
   test('无匹配时显示空状态', async ({ page }) => {
-    await page.goto('/search?q=zzz-no-such-article');
-    await expect(page.getByText('No matching articles.')).toBeVisible();
+    await page.goto('/search?q=zzz-no-such-article', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByText("没有匹配的文章。")).toBeVisible();
     await expect(page.getByRole('heading', { name: PKM })).toBeHidden();
   });
 });
@@ -54,10 +54,18 @@ test.describe('站点搜索（无 JS）', () => {
   test.use({ javaScriptEnabled: false });
 
   test('输入框仍在，表单可 GET', async ({ page }) => {
-    await page.goto('/search');
+    await page.goto('/search', { waitUntil: 'domcontentloaded' });
     const input = page.getByTestId('site-search');
     await expect(input).toBeVisible();
     await expect(page.locator('form[role="search"]')).toHaveAttribute('method', 'get');
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
   });
+});
+
+// Reference-only documents are searchable but stay out of the blog feed.
+test('全文搜索收录隐藏资料正文，而文章列表不收录', async ({ page }) => {
+  await page.goto('/search?q=' + encodeURIComponent('读者从总览进来'), { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('a[href="/articles/series-demo/1"]')).toBeVisible();
+  await page.goto('/articles', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
 });

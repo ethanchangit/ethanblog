@@ -22,9 +22,7 @@ const lp = Astro.locals.localePath;
 
 <Base
   title={copy['zh-CN'].tagsTitle}
-  titleEn={copy.en.tagsTitle}
   description={copy['zh-CN'].tagsDesc}
-  descriptionEn={copy.en.tagsDesc}
 >
   <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-tag-index>
     <header class="mb-8">
@@ -57,7 +55,7 @@ const lp = Astro.locals.localePath;
               class="ui-tag-link"
               data-tag-group-select={group.slug}
             >
-              <Bi zh={group.title} en={group.titleEn} />
+              <Bi zh={group.title} />
             </a>
           ))
         }
@@ -92,11 +90,8 @@ const lp = Astro.locals.localePath;
               <Card
                 href={lp(card.href)}
                 title={card.title}
-                titleEn={card.titleEn}
                 description={card.description}
-                descriptionEn={card.descriptionEn}
                 meta={card.meta}
-                metaEn={card.metaEn}
                 tags={card.tags}
               />
             </div>

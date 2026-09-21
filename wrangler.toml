@@ -4,7 +4,7 @@ compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare D1 + KV bindings for ethanblog Pages project.
-# CI runs scripts/ensure-d1.sh before deploy to verify/create resources.
+# CI applies versioned migrations before deploying the tested build.
 [[d1_databases]]
 binding = "DB"
 database_name = "ethanblog"

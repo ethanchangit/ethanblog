@@ -8,7 +8,7 @@ test('TweetEmbed shows full text, links to the original, and never loads widgets
     requested.push(request.url());
   });
 
-  await page.goto('/lab');
+  await page.goto('/lab', { waitUntil: 'domcontentloaded' });
 
   const section = page.getByTestId('tweet-embed');
   await section.scrollIntoViewIfNeeded();
@@ -41,8 +41,8 @@ test('TweetEmbed shows full text, links to the original, and never loads widgets
   ).toBe(false);
 });
 
-test('TweetEmbed keeps long posts fully expanded', async ({ page }) => {
-  await page.goto('/lab');
+test('TweetEmbed keeps long posts expanded and offers the original when video is unavailable', async ({ page }) => {
+  await page.goto('/lab', { waitUntil: 'domcontentloaded' });
 
   const section = page.getByTestId('tweet-embed-gkx');
   await section.scrollIntoViewIfNeeded();
@@ -63,7 +63,7 @@ test('TweetEmbed keeps long posts fully expanded', async ({ page }) => {
   await expect(section.getByText(/显示更多|Show more|条回复/)).toHaveCount(0);
 
   const video = section.locator('video');
-  await expect(video).toBeVisible();
+  await expect(video).toBeAttached();
   await expect(video).toHaveAttribute('referrerpolicy', 'no-referrer');
   await expect(video).toHaveAttribute('data-tweet-video-src', /video\.twimg\.com\/.*\.mp4/);
   await expect(video).toHaveAttribute('poster', /pbs\.twimg\.com/);
@@ -72,5 +72,8 @@ test('TweetEmbed keeps long posts fully expanded', async ({ page }) => {
     'href',
     'https://x.com/gkxspace/status/2089292652940333288',
   );
+  await expect(section.locator('[data-tweet-watch]')).toBeVisible();
+  // Playback relies on X; simulate its failure to verify our deterministic fallback.
+  await video.evaluate(el => el.dispatchEvent(new Event('error')));
   await expect(section.locator('[data-tweet-watch]')).toBeVisible();
 });

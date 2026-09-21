@@ -95,8 +95,8 @@
     />
   </svg>
   {#if copied}
-    <span class="i18n-zh" aria-hidden="true">{t('zh-CN', 'copyUrlCopied')}</span><span class="i18n-en" aria-hidden="true">{t('en', 'copyUrlCopied')}</span>
+    <span class="i18n-zh">{t('zh-CN', 'copyUrlCopied')}</span>
   {:else}
-    <span class="i18n-zh" aria-hidden="true">{t('zh-CN', 'copyUrl')}</span><span class="i18n-en" aria-hidden="true">{t('en', 'copyUrl')}</span>
+    <span class="i18n-zh">{t('zh-CN', 'copyUrl')}</span>
   {/if}
 </button>

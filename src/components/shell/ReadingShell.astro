@@ -10,9 +10,7 @@ interface Props {
   kind: 'article' | 'project' | 'home' | 'index';
   indexList?: 'articles' | 'projects';
   title?: string;
-  titleEn?: string;
   description: string;
-  descriptionEn?: string;
   currentId?: string;
   showRail?: boolean;
 }
@@ -21,9 +19,7 @@ const {
   kind,
   indexList,
   title,
-  titleEn,
   description,
-  descriptionEn,
   currentId,
   showRail = false,
 } = Astro.props;
@@ -40,7 +36,7 @@ const backKey: CopyKey = kind === 'project' || listKind === 'projects' ? 'backTo
 const showProjects = listKind === 'projects';
 ---
 
-<Base split title={title} titleEn={titleEn} description={description} descriptionEn={descriptionEn}>
+<Base split title={title} description={description}>
   <div class="reading-shell" data-reading-shell={kind}>
     <aside
       class="reading-index"

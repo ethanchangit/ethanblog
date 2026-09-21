@@ -14,7 +14,7 @@ async function hydrateGarden(page: Page): Promise<Locator> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/lab');
+  await page.goto('/lab', { waitUntil: 'domcontentloaded' });
 });
 
 test('renders 3 rule rows, each with an enable checkbox', async ({ page }) => {
@@ -60,7 +60,7 @@ test('unchecking a rule undoes its applied effect', async ({ page }) => {
 
 test('renders rule rows under prefers-reduced-motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/lab');
+  await page.goto('/lab', { waitUntil: 'domcontentloaded' });
 
   const section = await hydrateGarden(page);
   await expect(section.locator('.rg-row')).toHaveCount(3);

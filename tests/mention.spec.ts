@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Mention（正文 ↔ 媒介块双向高亮）', () => {
   test('悬停正文词语，两侧同时点亮；移开后熄灭', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('mention');
     await section.scrollIntoViewIfNeeded();
 
@@ -14,13 +14,13 @@ test.describe('Mention（正文 ↔ 媒介块双向高亮）', () => {
     await expect(target).toHaveClass(/mention-active/);
 
     // 移开到无关区域
-    await page.getByRole('heading', { name: 'Component lab' }).hover();
+    await page.getByRole('heading', { name: "组件试验场" }).hover();
     await expect(mention).not.toHaveClass(/mention-active/);
     await expect(target).not.toHaveClass(/mention-active/);
   });
 
   test('悬停媒介块一侧，正文词语同步点亮（双向）', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('mention');
     await section.scrollIntoViewIfNeeded();
 
@@ -29,7 +29,7 @@ test.describe('Mention（正文 ↔ 媒介块双向高亮）', () => {
   });
 
   test('键盘可用：Tab 聚焦点亮，Enter 把目标滚进视野', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('mention');
     await section.scrollIntoViewIfNeeded();
 

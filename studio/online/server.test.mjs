@@ -1,213 +1,279 @@
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
-import { createHandler } from './server.mjs';
+import { fixture, article, PATH, LINK, CARD, PASSWORD } from './test-fixtures.mjs';
+import { hash, passwordRecord } from './auth.mjs';
+import { signReceipt } from './release-sync.mjs';
+import { publicationDate } from './card-properties.mjs';
+import { blogCards, readCard, toolResult } from './heptabase.mjs';
 
-const article = `---
-slot: article
-title: "真实文章"
-description: "用于在线 Studio 集成测试。"
-titleEn: "Real article"
-descriptionEn: "An integration fixture."
-date: 2026-09-20
-tags: [测试]
-draft: true
-customField: "保留字段"
----
-
-import X from '../components/X.astro';
-
-# 中文正文
-
-<CustomComponent value="keep" />
-
-<div data-lang-split></div>
-
-# English body
-`;
-
-const blogs = `---
-slot: page
-title: "博客"
----
-
-<DocList>
-  <DocRef of="articles/real-article" />
-</DocList>
-`;
-
-const tags = `export const tagGroups = [{ slug: "writing", title: "写作", titleEn: "Writing", tags: ["测试"] }];\n`;
-
-function encoded(value) {
-  return Buffer.from(value, 'utf8').toString('base64');
+const nativeFetch = globalThis.fetch;
+afterEach(() => { globalThis.fetch = nativeFetch; });
+async function setup() { const f = await fixture(); globalThis.fetch = f.fetcher; await f.login(); await f.connect(); return f; }
+async function jsonOk(response) { const r = await response; const body = await r.json(); assert.equal(r.status, 200, JSON.stringify(body)); return body; }
+const input = { cardLink: LINK, collection: 'articles', id: 'example', preparePublish: true };
+const preview = (f, extra = {}) => jsonOk(f.request('/heptabase/preview', 'POST', { ...input, ...extra }));
+const selection = (plan, extra = {}) => ({ ...input, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, ...extra });
+async function prepare(f, extra = {}) {
+  const plan = await preview(f, extra);
+  return jsonOk(f.request('/heptabase/apply', 'POST', selection(plan, { ...extra, confirmPublic: true, resolveConflict: true })));
+}
+const submit = (f) => jsonOk(f.request('/git/commit', 'POST', { message: '更新测试文章' }));
+const gitWrites = f => f.calls.filter(c => c.url.startsWith('https://api.github.com') && c.method !== 'GET' && !c.url.endsWith('/graphql'));
+const child = '9732c208-c3b1-4a7b-a922-0c3483475d6b';
+const grandchild = '122560bd-b99f-4fb9-9fa5-742090feacb1';
+const mention = (id, title) => `<hepta-mention type="card" id="${id}">${title}</hepta-mention>`;
+function graph(f) {
+  f.setSource(`# 主文\n\n${mention(child, '子文')}\n\n行内 ${mention(grandchild, '孙文')}。`);
+  f.cardSources.set(child, `# 子文\n\n${mention(grandchild, '孙文')}`);
+  f.cardSources.set(grandchild, `# 孙文\n\n${mention(CARD, '主文')}`);
 }
 
-class FakeD1 {
-  constructor() {
-    this.rows = [];
-    this.releases = [];
-  }
-
-  prepare(sql) {
-    return new FakeStatement(this, sql);
-  }
-}
-
-class FakeStatement {
-  constructor(db, sql) {
-    this.db = db;
-    this.sql = sql;
-    this.args = [];
-  }
-
-  bind(...args) {
-    this.args = args;
-    return this;
-  }
-
-  matchingDrafts() {
-    const [userId, repository, branch, fourth] = this.args;
-    const isStateQuery = this.sql.includes('AND state = ?4');
-    const state = isStateQuery ? fourth : undefined;
-    const path = isStateQuery ? undefined : fourth;
-    return this.db.rows.filter((row) => row.user_id === userId && row.repository === repository && row.branch === branch
-      && (state === undefined || row.state === state) && (path === undefined || row.path === path));
-  }
-
-  async all() {
-    if (this.sql.includes('FROM studio_drafts')) return { results: this.matchingDrafts() };
-    if (this.sql.includes('FROM studio_releases')) return { results: this.db.releases };
-    return { results: [] };
-  }
-
-  async first() {
-    if (this.sql.includes('FROM studio_drafts')) {
-      const rows = this.matchingDrafts();
-      return rows[0] ?? null;
-    }
-    if (this.sql.includes('FROM studio_releases')) return this.db.releases[0] ?? null;
-    return null;
-  }
-
-  async run() {
-    if (this.sql.includes('INSERT INTO studio_drafts')) {
-      const [userId, repository, branch, path, raw, baseCommitSha, baseRaw, version, savedAt] = this.args;
-      const existing = this.db.rows.find((row) => row.user_id === userId && row.repository === repository && row.branch === branch && row.path === path);
-      const row = {
-        ...(existing ?? { user_id: userId, repository, branch, path }),
-        raw, base_commit_sha: baseCommitSha, base_raw: baseRaw, version, state: 'draft', saved_at: savedAt, updated_at: savedAt,
-      };
-      if (existing) Object.assign(existing, row); else this.db.rows.push(row);
-    }
-    if (this.sql.includes('UPDATE studio_drafts')) {
-      const [submittedSha, updatedAt, userId, repository, branch, path] = this.args;
-      const row = this.db.rows.find((item) => item.user_id === userId && item.repository === repository && item.branch === branch && item.path === path);
-      if (row) Object.assign(row, { state: 'submitted', submitted_commit_sha: submittedSha, updated_at: updatedAt });
-    }
-    return { success: true };
-  }
-}
-
-function githubFixture() {
-  let revision = 'c1';
-  let currentArticle = article;
-  globalThis.fetch = async (input) => {
-    const url = new URL(input);
-    const path = url.pathname;
-    if (path.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: revision } });
-    if (path.endsWith('/git/commits/c1') || path.endsWith('/git/commits/c2')) return Response.json({ tree: { sha: 'tree-sha' } });
-    if (path.includes('/git/trees/')) {
-      return Response.json({ tree: [
-        { path: 'src/content/articles/real-article.mdx', type: 'blob', sha: 'article-sha' },
-        { path: 'src/content/pages/blogs.mdx', type: 'blob', sha: 'blogs-sha' },
-        { path: 'src/data/tag-groups.ts', type: 'blob', sha: 'tags-sha' },
-      ] });
-    }
-    if (path.endsWith('/git/blobs/article-sha')) return Response.json({ content: encoded(currentArticle) });
-    if (path.endsWith('/git/blobs/blogs-sha')) return Response.json({ content: encoded(blogs) });
-    if (path.endsWith('/git/blobs/tags-sha')) return Response.json({ content: encoded(tags) });
-    return Response.json({ message: 'not found' }, { status: 404 });
-  };
-  return {
-    setRemote(nextRevision, nextArticle) { revision = nextRevision; currentArticle = nextArticle; },
-  };
-}
-
-function env(db) {
-  return {
-    DB: db,
-    GITHUB_TOKEN: 'test-token-not-returned',
-    STUDIO_ALLOWED_USER_EMAILS: 'owner@example.com',
-  };
-}
-
-function request(path, init = {}, email = 'owner@example.com') {
-  return new Request(`https://studio.example${path}`, {
-    ...init,
-    headers: {
-      'oai-authenticated-user-id': 'owner-id',
-      'oai-authenticated-user-email': email,
-      ...(init.headers ?? {}),
-    },
-  });
-}
-
-afterEach(() => {
-  delete globalThis.fetch;
+test('password login cannot be replaced by ChatGPT headers; cookies, CSRF, logout and rotation', async () => {
+  const f = await fixture(); globalThis.fetch = f.fetcher;
+  assert.equal((await f.request('/docs', 'GET', undefined, { 'oai-authenticated-user-id': 'owner' })).status, 401);
+  assert.equal((await f.request('/login', 'POST', { password: 'wrong' })).status, 401);
+  const login = await f.login(); assert.match(login.headers.get('set-cookie'), /HttpOnly; SameSite=Lax/);
+  assert.equal((await f.request('/session')).status, 200);
+  assert.equal((await f.request('/heptabase/apply', 'POST', {}, { origin: 'https://attacker.test' })).status, 403);
+  await f.request('/logout', 'POST', {});
+  assert.equal((await f.request('/session')).status, 401);
+  await f.login(); f.env.STUDIO_PASSWORD_HASH = await passwordRecord(PASSWORD + '-changed');
+  assert.equal((await f.request('/session')).status, 401);
+  assert.equal(f.calls.length, 0);
 });
 
-test('rejects missing and non-author identities before GitHub access', async () => {
-  const handler = createHandler({});
-  const noIdentity = await handler(new Request('https://studio.example/__studio/api/docs'), env(new FakeD1()));
-  assert.equal(noIdentity.status, 401);
-  const nonAuthor = await handler(request('/__studio/api/docs', {}, 'other@example.com'), env(new FakeD1()));
-  assert.equal(nonAuthor.status, 403);
+test('rate limits guesses and rejects cross-origin login', async () => {
+  const f = await fixture();
+  assert.equal((await f.request('/login', 'POST', { password: PASSWORD }, { origin: 'https://attacker.test' })).status, 403);
+  for (let i = 0; i < 10; i++) assert.equal((await f.request('/login', 'POST', { password: 'wrong' })).status, 401);
+  assert.equal((await f.request('/login', 'POST', { password: PASSWORD })).status, 429);
 });
 
-test('reads GitHub content and persists versioned private drafts', async () => {
-  const db = new FakeD1();
-  githubFixture();
-  const handler = createHandler({});
-  const listed = await handler(request('/__studio/api/docs'), env(db));
-  assert.equal(listed.status, 200);
-  const listPayload = await listed.json();
-  assert.equal(listPayload.articles[0].id, 'real-article');
-
-  const saved = await handler(request('/__studio/api/doc', {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', origin: 'https://studio.example' },
-    body: JSON.stringify({ collection: 'articles', id: 'real-article', sourceMode: true, raw: article.replace('真实文章', '私人草稿'), draftVersion: 0 }),
-  }), env(db));
-  assert.equal(saved.status, 200);
-  const savedPayload = await saved.json();
-  assert.equal(savedPayload.hasPrivateDraft, true);
-  assert.equal(savedPayload.draftVersion, 1);
-
-  const stale = await handler(request('/__studio/api/doc', {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', origin: 'https://studio.example' },
-    body: JSON.stringify({ collection: 'articles', id: 'real-article', sourceMode: true, raw: article, draftVersion: 0 }),
-  }), env(db));
-  assert.equal(stale.status, 409);
+test('publication-only dashboard has no editing, create, link, directory or tag editor APIs', async () => {
+  const f = await setup();
+  for (const [path, method] of [['/doc', 'PUT'], ['/create', 'POST'], ['/link', 'POST'], ['/blogs', 'PUT'], ['/tag-groups', 'PUT']]) {
+    assert.equal((await f.request(path, method, {})).status, 404);
+  }
+  assert.equal((await f.request('/heptabase/preview', 'POST', { ...input, direction: 'push' })).status, 400);
+  const docs = await jsonOk(f.request('/docs'));
+  assert.equal(docs.articles[0].id, 'example');
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 0);
 });
 
-test('does not overwrite a changed remote file and does not expose draft text', async () => {
-  const db = new FakeD1();
-  const fixture = githubFixture();
-  const handler = createHandler({});
-  await handler(request('/__studio/api/doc', {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json', origin: 'https://studio.example' },
-    body: JSON.stringify({ collection: 'articles', id: 'real-article', sourceMode: true, raw: article.replace('真实文章', '私人草稿'), draftVersion: 0 }),
-  }), env(db));
-  fixture.setRemote('c2', article.replace('真实文章', '其他工具的修改'));
-  const response = await handler(request('/__studio/api/git/commit', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', origin: 'https://studio.example' },
-    body: JSON.stringify({ message: '测试冲突' }),
-  }), env(db));
-  assert.equal(response.status, 409);
-  const payload = await response.json();
-  assert.equal(payload.conflicts[0].path, 'src/content/articles/real-article.mdx');
-  assert.equal('draftRaw' in payload.conflicts[0], false);
-  assert.equal('remoteRaw' in payload.conflicts[0], false);
+test('Heptabase OAuth is session-bound and tokens are encrypted, never returned with card data', async () => {
+  const f = await fixture(); globalThis.fetch = f.fetcher; await f.login();
+  assert.equal((await jsonOk(f.request('/heptabase/status'))).connected, false);
+  const start = await jsonOk(f.request('/heptabase/connect', 'POST', {}));
+  await f.request('/logout', 'POST', {}); await f.login();
+  assert.equal((await f.request(`/heptabase/callback?state=${new URL(start.url).searchParams.get('state')}&code=x`)).status, 400);
+  assert.equal((await f.connect()).status, 303);
+  assert.equal((await jsonOk(f.request('/heptabase/status'))).connected, true);
+  assert.ok(!JSON.stringify(f.DB.sqlite.prepare('SELECT value FROM studio_connections').all()).includes('private-access-token'));
+  f.properties.get(CARD).Status = 'review';
+  const cards = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(cards.cards[0].linked[0].id, 'example');
+  assert.ok(!JSON.stringify(cards).includes('private-access-token'));
+});
+
+test('pull removes English copies, preserves metadata and does not touch GitHub or Heptabase text', async () => {
+  const f = await setup(); const before = f.refs.get('main');
+  const doc = await prepare(f, { preparePublish: false });
+  assert.equal(doc.bodyEn, undefined); assert.ok(!doc.raw.includes('English body.'));
+  assert.equal(doc.frontmatter.customField, '保留字段'); assert.equal(doc.frontmatter.draft, true);
+  assert.equal(doc.bodyZh, '来自 Heptabase 的正文。');
+  assert.equal(f.refs.get('main'), before); assert.equal(gitWrites(f).length, 0);
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_object_content').length, 0);
+  assert.equal((await f.request('/git/commit', 'POST', { message: '更新' })).status, 409);
+});
+
+test('status mapping, existing publication date and tags follow the database', async () => {
+  const f = await setup();
+  for (const status of ['new', 'writing', 'block', 'published']) {
+    f.properties.set(CARD, { Status: status, 'Publish Date': { start: '2024-02-01T00:00:00.000Z' }, Tag: ['Mission', 'AI Native'] });
+    const doc = await prepare(f, { preparePublish: false });
+    assert.equal(Boolean(doc.frontmatter.draft), status !== 'published');
+    assert.equal(doc.frontmatter.date, '2024-02-01'); assert.equal(doc.frontmatter.heptabaseStatus, status);
+    assert.deepEqual(doc.frontmatter.tags, ['AI Native', 'Mission']);
+  }
+});
+
+test('privacy confirmation and exact preview are required before saving', async () => {
+  const f = await setup(); const plan = await preview(f);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan))).status, 409);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true, planHash: 'wrong' }))).status, 409);
+  f.setSource('# 修改后\n\n不能套用旧的审查。');
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 0);
+  assert.equal(gitWrites(f).length, 0);
+});
+
+test('prepare-publish cannot be smuggled into a draft preview', async () => {
+  const f = await setup(); const plan = await preview(f, { preparePublish: false });
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
+});
+
+test('recursive mentions deduplicate cycles; only non-blog cards receive the reference tag', async () => {
+  const f = await setup(); graph(f);
+  f.properties.set(child, { Status: 'writing', Tag: ['Mission'] });
+  const plan = await preview(f);
+  assert.equal(plan.references.length, 2); assert.match(plan.next, /DocList pane="embed"/); assert.match(plan.next, /data-doc-mention/);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
+  const marked = await jsonOk(f.request('/heptabase/mark-references', 'POST', selection(plan)));
+  assert.equal(marked.marked, 1); assert.deepEqual([...f.referenceCards], [grandchild]);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
+  await prepare(f);
+  const read = id => jsonOk(f.request(`/doc?collection=articles&id=${id}`));
+  const reference = await read(`hepta-${grandchild}`), mainChild = await read(`hepta-${child}`);
+  assert.equal(reference.frontmatter.listed, false); assert.equal(reference.frontmatter.draft, undefined);
+  assert.equal(mainChild.frontmatter.listed, true); assert.match(reference.bodyZh, /articles\/example/);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 3);
+  await submit(f);
+});
+
+test('reference tags alone are not consent, and failed or stale tagging cannot prepare publication', async () => {
+  const f = await setup(); graph(f); const plan = await preview(f);
+  f.referenceCards.add(child); f.referenceCards.add(grandchild);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan))).status, 409);
+  f.cardSources.set(child, '# 已变化\n\n私人资料');
+  assert.equal((await f.request('/heptabase/mark-references', 'POST', selection(plan))).status, 409);
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'update_database_card_membership').length, 0);
+});
+
+test('approved source, properties, graph, raw snapshot and reference tags are rechecked before any GitHub upload', async () => {
+  for (const change of ['source', 'properties', 'reference', 'raw', 'tag']) {
+    const f = await setup(); graph(f); f.referenceCards.add(child); f.referenceCards.add(grandchild); await prepare(f);
+    if (change === 'source') f.setSource('# 更新\n\n私人信息');
+    if (change === 'properties') f.properties.get(CARD).Tag = ['Mission'];
+    if (change === 'reference') f.cardSources.set(grandchild, '# 新引用\n\n私人信息');
+    if (change === 'raw') f.DB.sqlite.prepare('UPDATE studio_drafts SET raw = raw || ? WHERE path = ?').run('\n私人信息', PATH);
+    if (change === 'tag') f.referenceCards.delete(grandchild);
+    const response = await f.request('/git/commit', 'POST', { message: '更新' });
+    assert.equal(response.status, 409, change); assert.equal(gitWrites(f).length, 0, change);
+  }
+});
+
+test('reviewed snapshots persist, reject stale reviews, retain history and roll back failed batches', async () => {
+  const f = await setup(); await prepare(f); const plan = await preview(f);
+  await prepare(f);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 200);
+  // Unchanged content can be reviewed again; a changed snapshot cannot.
+  f.setSource('# 新版\n\n新正文'); await prepare(f);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
+  const before = f.DB.sqlite.prepare('SELECT raw FROM studio_drafts WHERE path = ?').get(PATH).raw;
+  f.setSource('# 再一版\n\n整批应回滚');
+  f.DB.sqlite.exec("CREATE TRIGGER fail_review BEFORE UPDATE ON studio_reviews BEGIN SELECT RAISE(ABORT, 'test rollback'); END");
+  const next = await preview(f);
+  assert.equal((await f.request('/heptabase/apply', 'POST', selection(next, { confirmPublic: true }))).status, 500);
+  assert.equal(f.DB.sqlite.prepare('SELECT raw FROM studio_drafts WHERE path = ?').get(PATH).raw, before);
+  assert.ok(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_draft_history').get().n > 0);
+});
+
+test('submit never overwrites changes made directly in GitHub or leaks content in conflict errors', async () => {
+  const f = await setup(); await prepare(f); f.remote(article.replace('中文正文。', '别人更新。'));
+  const response = await f.request('/git/commit', 'POST', { message: '更新' });
+  assert.equal(response.status, 409); assert.ok(!(await response.text()).includes('来自 Heptabase 的正文'));
+  assert.equal(gitWrites(f).length, 0);
+});
+
+test('required and one-to-one card link is enforced even for corrupted stored snapshots', async () => {
+  const f = await setup(); await prepare(f);
+  const row = f.DB.sqlite.prepare('SELECT raw FROM studio_drafts WHERE path = ?').get(PATH);
+  f.DB.sqlite.prepare('UPDATE studio_drafts SET raw = ? WHERE path = ?').run(row.raw.replace(/^heptabaseCardLink:.*\n/m, ''), PATH);
+  assert.equal((await f.request('/git/commit', 'POST', { message: '更新' })).status, 400);
+  assert.equal(gitWrites(f).length, 0);
+  f.remote(article, 'src/content/articles/duplicate.mdx');
+  assert.equal((await f.request('/heptabase/preview', 'POST', input)).status, 400);
+});
+
+test('submission creates only a PR; publish needs exact review, trusted checks and fresh private-source review', async () => {
+  const f = await setup(); const main = f.refs.get('main'); await prepare(f); const result = await submit(f);
+  assert.equal(f.refs.get('main'), main); assert.ok(result.pullRequest.url);
+  assert.equal((await jsonOk(f.request('/git'))).dirty, false);
+  const review = await jsonOk(f.request('/git/review')); assert.equal(review.changes[0].path, PATH);
+  assert.equal((await f.request('/git/publish', 'POST', { ...review, commitSha: 'outdated' })).status, 409);
+  f.setSource('# 审查后变化\n\n不能继续合并');
+  assert.equal((await f.request('/git/publish', 'POST', review)).status, 409);
+  f.failChecks(); assert.equal((await f.request('/git/publish', 'POST', review)).status, 409);
+  assert.equal(f.refs.get('main'), main);
+});
+
+test('merge is not published until Actions and live version match; next release starts from main', async () => {
+  const f = await setup(); await prepare(f); await submit(f);
+  const review = await jsonOk(f.request('/git/review'));
+  const merged = await jsonOk(f.request('/git/publish', 'POST', review));
+  assert.notEqual(merged.release.status, 'succeeded'); assert.notEqual(f.refs.get('main'), review.baseSha);
+  f.deploy(); assert.equal((await jsonOk(f.request('/git'))).release.status, 'succeeded');
+  assert.equal((await jsonOk(f.request('/git/publish', 'POST', review))).release.id, merged.release.id);
+  assert.equal(f.calls.filter(c => c.url.endsWith('/merge')).length, 1);
+  f.setSource('# 测试文章\n\n下一版'); await prepare(f); await submit(f);
+});
+
+test('lost PR response is retryable without another commit or lost reviewed snapshot', async () => {
+  const f = await setup(); await prepare(f); f.dropPr();
+  assert.equal((await f.request('/git/commit', 'POST', { message: '更新' })).status, 502);
+  const created = f.refs.get('codex/studio-content');
+  const result = await submit(f); assert.equal(result.commitSha, created);
+  assert.equal(f.calls.filter(c => c.method === 'POST' && c.url.endsWith('/git/commits')).length, 1);
+});
+
+test('verified publication writes status and first date only; receipt is authenticated and expiring', async () => {
+  const f = await setup(); await prepare(f); await submit(f);
+  await jsonOk(f.request('/git/publish', 'POST', await jsonOk(f.request('/git/review'))));
+  assert.equal(f.properties.get(CARD).Status, 'new');
+  const payload = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: Date.now() });
+  const receipt = signature => f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: payload, headers: { 'x-studio-signature': signature } }), f.env);
+  assert.equal((await receipt('0'.repeat(64))).status, 403);
+  const signature = await signReceipt(f.env.STUDIO_SECRET, payload); assert.equal((await receipt(signature)).status, 409);
+  f.deploy(); await jsonOk(receipt(signature));
+  assert.equal(f.properties.get(CARD).Status, 'published');
+  assert.equal(f.properties.get(CARD)['Publish Date'].start.slice(0, 10), publicationDate());
+  f.properties.get(CARD)['Publish Date'] = { start: '2025-02-03T00:00:00.000Z' };
+  await jsonOk(receipt(signature)); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2025-02-03T00:00:00.000Z');
+  const expired = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: 1 });
+  assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: expired, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, expired) } }), f.env)).status, 403);
+  assert.equal(publicationDate(new Date('2026-09-20T21:30:00Z')), '2026-09-21');
+});
+
+test('writeback respects pre-existing dates and concurrent status edits', async () => {
+  const f = await setup(); f.properties.get(CARD)['Publish Date'] = { start: '2024-02-01T00:00:00.000Z' };
+  await prepare(f); await submit(f); await jsonOk(f.request('/git/publish', 'POST', await jsonOk(f.request('/git/review'))));
+  f.properties.get(CARD).Status = 'block'; f.deploy();
+  const result = await jsonOk(f.request('/git'));
+  assert.equal(result.release.status, 'succeeded'); assert.equal(result.release.heptabase.pending, 1);
+  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2024-02-01T00:00:00.000Z');
+});
+
+test('first association exports one existing page and retries without creating duplicate cards', async () => {
+  const f = await setup(); const raw = article.replace(`heptabaseCardLink: ${LINK}\n`, ''); f.remote(raw);
+  const request = { collection: 'articles', id: 'example', documentHash: await hash(raw) };
+  const doc = await jsonOk(f.request('/heptabase/export', 'POST', request));
+  const id = doc.frontmatter.heptabaseCardLink.split('/').pop();
+  assert.equal(f.properties.get(id).Status, 'writing'); assert.match(f.cardSources.get(id), /中文正文。/);
+  await jsonOk(f.request('/heptabase/export', 'POST', request));
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'create_object').length, 1);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
+});
+
+test('unknown card-creation outcome and unknown tag options cannot silently duplicate or lose data', async () => {
+  const f = await setup(); const raw = article.replace(`heptabaseCardLink: ${LINK}\n`, ''); f.remote(raw);
+  f.DB.sqlite.prepare('INSERT INTO studio_card_exports (path, source, started_at) VALUES (?, ?, ?)').run(PATH, raw, new Date().toISOString());
+  assert.equal((await f.request('/heptabase/export', 'POST', { collection: 'articles', id: 'example', documentHash: await hash(raw) })).status, 409);
+  f.remote(raw.replace('customField:', 'tags: [未知标签]\ncustomField:'));
+  const doc = await jsonOk(f.request('/doc?collection=articles&id=example'));
+  assert.equal((await f.request('/heptabase/export', 'POST', { collection: 'articles', id: 'example', documentHash: await hash(doc.raw) })).status, 400);
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'create_object').length, 0);
+});
+
+test('protected regions stop sync without silently losing or executing content', async () => {
+  const f = await setup(); f.setSource('# 标题\n\n<hepta-embed id="private" />');
+  assert.equal((await f.request('/heptabase/preview', 'POST', input)).status, 400);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 0);
+});
+
+test('MCP pagination reads every numbered line and rejects incomplete lists', async () => {
+  const full = Array.from({ length: 451 }, (_, i) => `line ${i + 1}`);
+  const client = { async call(name, args) { return { content: full.slice(args.offset, args.offset + 200).map((line, i) => `${args.offset + i + 1}\t${line}`).join('\n'), totalLines: full.length, hasMore: args.offset + 200 < full.length }; } };
+  assert.equal(await readCard(client, 'card'), full.join('\n'));
+  await assert.rejects(() => blogCards({ call: async (name) => ({ content: name === 'list_tags' ? '<tag id="blog" name="blog" cardCount="2" />' : '' }) }), /数量/);
+  assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
 });

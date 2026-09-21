@@ -6,7 +6,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('home is the about page', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     expect(new URL(page.url()).pathname).toBe('/');
     await expect(page.locator('header.site-nav')).toBeVisible();
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
@@ -16,8 +16,8 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('lab page renders all component sections', async ({ page }) => {
-    await page.goto('/lab');
-    await expect(page.getByRole('heading', { name: 'Component lab' })).toBeVisible();
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: "组件试验场" })).toBeVisible();
 
     for (const testId of [
       'param-slider',
@@ -35,7 +35,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('ScrollScene degrades to static sections without breaking', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('scroll-scene');
     await section.scrollIntoViewIfNeeded();
 
@@ -45,7 +45,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('Timeline remains readable with reduced motion', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('timeline');
     await section.scrollIntoViewIfNeeded();
 
@@ -55,7 +55,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('StatCounter shows final values immediately', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('stat-counter');
     await section.scrollIntoViewIfNeeded();
 
@@ -64,7 +64,7 @@ test.describe('prefers-reduced-motion', () => {
   });
 
   test('article page renders with reduced motion', async ({ page }) => {
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('article')).toBeVisible();
     await expect(page.locator('h1').first()).toBeVisible();
   });

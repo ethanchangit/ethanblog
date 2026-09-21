@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const onlineRoot = path.join(repo, 'studio/online');
-const clientOut = path.join(repo, 'dist/client');
-const serverOut = path.join(repo, 'dist/server');
+const clientOut = path.join(repo, '.studio-build/client');
+const serverOut = path.join(repo, '.studio-build/server');
 
 async function files(dir, prefix = '') {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -24,6 +24,7 @@ async function files(dir, prefix = '') {
 
 await viteBuild({
   root: onlineRoot,
+  base: '/dashboard/',
   configFile: false,
   plugins: [tailwindcss()],
   resolve: { alias: { '@': path.join(repo, 'src') } },
@@ -35,6 +36,8 @@ await viteBuild({
 });
 
 const assets = {};
+// Built by Astro from the real Doc and Card components, not a second layout.
+assets['preview.html'] = { text: await readFile(path.join(repo, 'dist/dashboard/preview/index.html'), 'utf8') };
 for (const item of await files(clientOut)) {
   const bytes = await readFile(item.full);
   assets[item.relative] = /\.(?:woff2?|png|jpg|jpeg|gif|webp|ico)$/i.test(item.relative)

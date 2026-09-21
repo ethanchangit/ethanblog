@@ -85,7 +85,7 @@ export function parseTagGroupsSource(source) {
     if (body[i] === '{') {
       const end = findMatching(body, i, '{', '}');
       const src = body.slice(i, end + 1);
-      groups.push({ slug: pickProp(src, 'slug').trim(), title: pickProp(src, 'title').trim(), titleEn: pickProp(src, 'titleEn').trim(), tags: pickTags(src) });
+      groups.push({ slug: pickProp(src, 'slug').trim(), title: pickProp(src, 'title').trim(), tags: pickTags(src) });
       i = end + 1;
     } else i += 1;
   }
@@ -93,7 +93,7 @@ export function parseTagGroupsSource(source) {
 }
 
 export function serializeTagGroups(groups) {
-  const blocks = groups.map((group) => `  {\n    slug: ${JSON.stringify(group.slug)},\n    title: ${JSON.stringify(group.title)},\n    titleEn: ${JSON.stringify(group.titleEn)},\n    tags: [${group.tags.map((tag) => JSON.stringify(tag)).join(', ')}],\n  }`);
+  const blocks = groups.map((group) => `  {\n    slug: ${JSON.stringify(group.slug)},\n    title: ${JSON.stringify(group.title)},\n    tags: [${group.tags.map((tag) => JSON.stringify(tag)).join(', ')}],\n  }`);
   return `[` + (blocks.length ? `\n${blocks.join(',\n')},\n` : '\n') + `]`;
 }
 
@@ -116,12 +116,11 @@ export function normalizeTagGroups(input) {
     if (!raw || typeof raw !== 'object') throw new Error('不合法的分组');
     const slug = String(raw.slug ?? '').trim();
     const title = String(raw.title ?? '').trim();
-    const titleEn = String(raw.titleEn ?? '').trim();
-    if (!slug || !title || !titleEn) throw new Error('请填写分组的 slug、中文名和英文名');
+    if (!slug || !title) throw new Error('请填写分组的 slug 和名称');
     if (!SLUG_RE.test(slug) || slug.length > 48 || RESERVED_SLUGS.has(slug)) throw new Error(`不合法的分组 slug：${slug}`);
     if (slugs.has(slug)) throw new Error(`不合法的分组 slug：${slug} 重复了`);
     slugs.add(slug);
-    if (title.length > 80 || titleEn.length > 80) throw new Error('分组名太长');
+    if (title.length > 80) throw new Error('分组名太长');
     const tags = [];
     for (const item of Array.isArray(raw.tags) ? raw.tags : []) {
       const tag = String(item ?? '').trim();
@@ -131,7 +130,7 @@ export function normalizeTagGroups(input) {
       tagsSeen.add(tag);
       tags.push(tag);
     }
-    groups.push({ slug, title, titleEn, tags });
+    groups.push({ slug, title, tags });
   }
   return groups;
 }

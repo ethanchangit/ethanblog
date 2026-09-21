@@ -4,16 +4,13 @@ import Bi from '@/components/shell/Bi.astro';
 interface Props {
   href: string;
   title: string;
-  titleEn?: string;
   description?: string;
-  descriptionEn?: string;
   meta?: string;
-  metaEn?: string;
   badge?: { text: string; textEn?: string; accent?: boolean };
   tags?: string[];
   current?: boolean;
 }
-const { href, title, titleEn, description, descriptionEn, meta, metaEn, badge, tags = [], current = false } = Astro.props;
+const { href, title, description, meta, badge, tags = [], current = false } = Astro.props;
 ---
 
 <a
@@ -23,25 +20,25 @@ const { href, title, titleEn, description, descriptionEn, meta, metaEn, badge, t
 >
   <div class="flex items-start justify-between gap-3">
     <h3 class="text-lg font-semibold text-ink-100 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-ink-500 group-aria-[current=page]:decoration-ink-500">
-      <Bi zh={title} en={titleEn} />
+      <Bi zh={title} />
     </h3>
     {
       badge && (
         <span class:list={['ui-badge', badge.accent && 'ui-badge--active']}>
-          <Bi zh={badge.text} en={badge.textEn} />
+          <Bi zh={badge.text} />
         </span>
       )
     }
   </div>
   {description && (
     <p class="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-400 transition-colors group-hover:text-ink-300">
-      <Bi zh={description} en={descriptionEn} />
+      <Bi zh={description} />
     </p>
   )}
   <div class="mt-auto flex items-center justify-between gap-3 pt-3">
     {meta && (
       <p class="ui-meta transition-colors group-hover:text-ink-300">
-        <Bi zh={meta} en={metaEn} />
+        <Bi zh={meta} />
       </p>
     )}
     {

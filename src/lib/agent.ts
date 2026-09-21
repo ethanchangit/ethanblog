@@ -97,7 +97,7 @@ export function mdxBodyToMarkdown(body: string, lang: AgentLang): string {
   if (parts.length === 1) return (parts[0] ?? '').trim();
   const zh = (parts[0] ?? '').trim();
   const en = parts.slice(1).join('\n').trim();
-  return lang === 'zh' ? zh : en || zh;
+  return zh;
 }
 
 async function entrySource(entry: DocEntry): Promise<string> {
@@ -113,9 +113,9 @@ async function entrySource(entry: DocEntry): Promise<string> {
 }
 
 export async function docMarkdown(entry: DocEntry, lang: AgentLang): Promise<string> {
-  const title = lang === 'zh' ? entry.data.title : (entry.data.titleEn ?? entry.data.title);
+  const title = entry.data.title;
   const description =
-    lang === 'zh' ? entry.data.description : (entry.data.descriptionEn ?? entry.data.description);
+    entry.data.description;
   const body = mdxBodyToMarkdown(await entrySource(entry), lang);
   const lines = [`# ${title}`, '', description];
   if (body) lines.push('', body);
@@ -128,10 +128,10 @@ const twitterUrl =
   profile.socials.find((s) => s.icon === 'twitter')?.url ?? 'https://twitter.com/ethanchang_';
 
 function homeMarkdown(lang: AgentLang): string {
-  const doing = lang === 'zh' ? copy['zh-CN'] : copy.en;
-  const lead = lang === 'zh' ? copy['zh-CN'].aboutLead : copy.en.aboutLead;
-  const skillLines = skills.map((s) => `- ${lang === 'zh' ? s.name : (s.nameEn ?? s.name)}`);
-  if (lang === 'zh') {
+  const doing = copy['zh-CN'];
+  const lead = copy['zh-CN'].aboutLead;
+  const skillLines = skills.map((s) => `- ${s.name}`);
+
     return `# ${profile.name} · ${profile.chineseName}
 
 ${lead}
@@ -156,35 +156,10 @@ ${lead}
 
 ${skillLines.join('\n')}
 `;
-  }
-  return `# ${profile.name} · ${profile.chineseName}
-
-${lead}
-
-## What I do
-
-- ${doing.aboutIos}
-- ${doing.aboutAi}
-- ${doing.aboutPkm}
-
-## How to read this site
-
-### Articles and projects
-
-Essays live at ${ARTICLES_PATH}. Software lineage lives at ${PROJECTS_PATH}. The living status page is ${NOW_PATH}: what I am doing lately, not a CV.
-
-### Machine-readable copies
-
-The same URL serves Markdown when the client sends \`Accept: text/markdown\`. Start at [/llms.txt](/llms.txt). The machine-readable stack is documented at [ethanchang.io developer resources](${FOR_AGENTS_PATH}). Write to [${CONTACT_PATH}](${CONTACT_PATH}). Privacy is at [${PRIVACY_PATH}](${PRIVACY_PATH}).
-
-## Stack
-
-${skillLines.join('\n')}
-`;
 }
 
 export function contactMarkdown(lang: AgentLang): string {
-  if (lang === 'zh') {
+
     return `# 联系
 
 这是 Ethan Chang（张峻源）的个人博客。要讨论文章、项目、纠错或转载，请写信到 [${profile.email}](mailto:${profile.email})。
@@ -195,21 +170,10 @@ export function contactMarkdown(lang: AgentLang): string {
 
 如果你是 agent：先读 [/llms.txt](/llms.txt) 和 [${FOR_AGENTS_PATH}](${FOR_AGENTS_PATH})，再决定要不要写信。
 `;
-  }
-  return `# Contact
-
-This is Ethan Chang's personal blog. For essays, projects, corrections, or reuse, email [${profile.email}](mailto:${profile.email}).
-
-There is no public office, no ticket queue, and no form that posts into the void. Email is the inbox. GitHub is [${githubUrl}](${githubUrl}). X is [${twitterUrl}](${twitterUrl}).
-
-The comment box at the bottom of an article goes to the same inbox and is not published on the page. GitHub / Google sign-in exists only for optional bookmarks and reading progress — it is not a product identity platform.
-
-If you are an agent: read [/llms.txt](/llms.txt) and [ethanchang.io developer resources](${FOR_AGENTS_PATH}) before you write.
-`;
 }
 
 export function privacyMarkdown(lang: AgentLang): string {
-  if (lang === 'zh') {
+
     return `# 隐私
 
 ethanchang.io 是一份个人博客。默认情况下，阅读文章不需要账号，我也不在页面上放第三方广告或分析像素。托管在 Cloudflare 上，因此边缘会有常规的请求日志（IP、User-Agent、路径）用于安全和性能；这些日志由 Cloudflare 按其政策处理，我不用它们做营销画像。
@@ -222,23 +186,10 @@ ethanchang.io 是一份个人博客。默认情况下，阅读文章不需要账
 
 要删除账号数据，写信到 ${profile.email}，说明是 GitHub 还是 Google 登录。我会删掉对应的会话、收藏和进度。
 `;
-  }
-  return `# Privacy
-
-ethanchang.io is a personal blog. Reading does not require an account. There are no third-party ads or analytics pixels on the pages. The site is hosted on Cloudflare, so the edge keeps ordinary request logs (IP, user-agent, path) for security and performance. Cloudflare handles those logs under its own policy; I do not use them to build a marketing profile.
-
-Optional sign-in uses GitHub or Google OAuth. After you sign in, Cloudflare D1 stores the session and any bookmarks or reading progress you choose to sync. Stay signed out and none of that is written. There are no highlights, no public reading ranks, and no sale of progress data.
-
-Comments on an article are emailed to ${profile.email}. The message, the name, and the address you leave are for a reply, not for publication. Do not put passwords or secrets in a comment.
-
-\`Accept: text/markdown\`, [/llms.txt](/llms.txt), and [/rss.xml](/rss.xml) exist so agents and readers can fetch pages that are already public. They do not open a second, private dataset.
-
-To delete account data, email ${profile.email} and say whether you signed in with GitHub or Google. I will delete the matching session, bookmarks, and progress.
-`;
 }
 
 export function forAgentsMarkdown(lang: AgentLang): string {
-  if (lang === 'zh') {
+
     return `# ethanchang.io 给 agent 的开发者资源
 
 这不是 SaaS，也没有对外 MCP 服务器。给 agent 用的表面就是这份博客已经公开的内容栈。
@@ -267,51 +218,15 @@ export function forAgentsMarkdown(lang: AgentLang): string {
 
 写信：[${CONTACT_PATH}](${CONTACT_PATH})。隐私：[${PRIVACY_PATH}](${PRIVACY_PATH})。身份页是 \`/\`。
 `;
-  }
-  return `# ethanchang.io developer resources
-
-This is a publication, not a SaaS, and it does not run a public MCP server. The surface for agents is the machine-readable copy of pages that already exist for humans.
-
-## Markdown at the same URL
-
-Send \`Accept: text/markdown\` to an HTML document. The response is \`Content-Type: text/markdown; charset=utf-8\` and \`Vary\` includes \`Accept\`. A browser \`Accept: text/html, …, */*\` still gets HTML. A client that rejects both HTML and Markdown gets 406.
-
-Sibling files also exist: \`/index.md\`, \`/articles/<slug>.md\`, \`/projects/<slug>.md\`.
-
-## Discovery
-
-- [/llms.txt](/llms.txt) — when to use this site, and the main doors
-- [/llms-full.txt](/llms-full.txt) — published essays and projects concatenated
-- [/sitemap.xml](/sitemap.xml)
-- [/rss.xml](/rss.xml)
-- [/robots.txt](/robots.txt)
-- [/openapi.json](/openapi.json) — the interfaces that actually exist
-- [/.well-known/api-catalog](/.well-known/api-catalog) — RFC 9727 catalog
-
-## Real interfaces that are not a product
-
-\`POST /api/comments\` emails a note to the inbox and does not publish it. \`GET /api/me\`, \`/api/bookmarks\`, and \`/api/progress\` need a session so a signed-in reader can sync bookmarks and progress. There is no public write API, no webhook hub, and no OAuth platform for third-party apps. Do not invent an MCP server to chase a score.
-
-## For humans
-
-Email: [${CONTACT_PATH}](${CONTACT_PATH}). Privacy: [${PRIVACY_PATH}](${PRIVACY_PATH}). The identity page is \`/\`.
-`;
 }
 
 function nowMarkdown(lang: AgentLang): string {
-  if (lang === 'zh') {
+
     return `# Now
 
 这是一页 Now：最近在做什么。格式来自 https://nownownow.com/about。
 
 完整句子在 [${NOW_PATH}](${NOW_PATH})。这里只声明它存在，好让 agent 不必把首页误当成状态页。
-`;
-  }
-  return `# Now
-
-This is a Now page: what I am doing lately. The format comes from https://nownownow.com/about.
-
-The living sentences are on [${NOW_PATH}](${NOW_PATH}). This file exists so an agent does not have to treat the identity page as a status page.
 `;
 }
 
@@ -325,46 +240,40 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
   const [articles, projects] = await Promise.all([docsBySlot('article'), docsBySlot('project')]);
   const pages: MarkdownPage[] = [];
 
-  const staticPages: { path: string; en: string; zh: string }[] = [
-    { path: '/', en: homeMarkdown('en'), zh: homeMarkdown('zh') },
-    { path: NOW_PATH, en: nowMarkdown('en'), zh: nowMarkdown('zh') },
-    { path: CONTACT_PATH, en: contactMarkdown('en'), zh: contactMarkdown('zh') },
-    { path: PRIVACY_PATH, en: privacyMarkdown('en'), zh: privacyMarkdown('zh') },
-    { path: FOR_AGENTS_PATH, en: forAgentsMarkdown('en'), zh: forAgentsMarkdown('zh') },
+  const staticPages: { path: string; zh: string }[] = [
+    { path: '/', zh: homeMarkdown('zh') },
+    { path: NOW_PATH, zh: nowMarkdown('zh') },
+    { path: CONTACT_PATH, zh: contactMarkdown('zh') },
+    { path: PRIVACY_PATH, zh: privacyMarkdown('zh') },
+    { path: FOR_AGENTS_PATH, zh: forAgentsMarkdown('zh') },
     {
       path: ARTICLES_PATH,
-      en: shortIndexMarkdown('Articles', copy.en.articlesDesc, ARTICLES_PATH),
       zh: shortIndexMarkdown('文章', copy['zh-CN'].articlesDesc, ARTICLES_PATH),
     },
     {
       path: PROJECTS_PATH,
-      en: shortIndexMarkdown('Projects', copy.en.projectsDesc, PROJECTS_PATH),
       zh: shortIndexMarkdown('项目', copy['zh-CN'].projectsDesc, PROJECTS_PATH),
     },
     {
       path: BLOGS_PATH,
-      en: shortIndexMarkdown('Blogs', copy.en.blogsDesc, BLOGS_PATH),
       zh: shortIndexMarkdown('博客', copy['zh-CN'].blogsDesc, BLOGS_PATH),
     },
     {
       path: SEARCH_PATH,
-      en: shortIndexMarkdown('Search', copy.en.searchDesc, SEARCH_PATH),
       zh: shortIndexMarkdown('搜索', copy['zh-CN'].searchDesc, SEARCH_PATH),
     },
     {
       path: TAGS_PATH,
-      en: shortIndexMarkdown('Tags', copy.en.tagsDesc, TAGS_PATH),
       zh: shortIndexMarkdown('标签', copy['zh-CN'].tagsDesc, TAGS_PATH),
     },
     {
       path: '/lab',
-      en: shortIndexMarkdown('Component lab', copy.en.labDesc, '/lab'),
       zh: shortIndexMarkdown('组件试验场', copy['zh-CN'].labDesc, '/lab'),
     },
   ];
 
   for (const page of staticPages) {
-    pages.push({ slug: page.path === '/' ? 'index' : page.path.slice(1), body: page.en });
+    pages.push({ slug: page.path === '/' ? 'index' : page.path.slice(1), body: page.zh });
     pages.push({
       slug: page.path === '/' ? 'zh' : `zh${page.path}`,
       body: page.zh,
@@ -374,12 +283,12 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
   for (const entry of articles) {
     if (/^\d+$/.test(entry.id)) continue;
     const href = docHref(entry);
-    pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'en') });
+    pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
     pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
   for (const entry of projects) {
     const href = docHref(entry);
-    pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'en') });
+    pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
     pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
 
@@ -413,7 +322,7 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
 
   const urls: { loc: string; lastmod?: string }[] = [];
   for (const path of [...paths].sort()) {
-    for (const locale of ['en', 'zh'] as const) {
+    for (const locale of ['zh'] as const) {
       const loc = new URL(withLocalePrefix(path, locale), site.url).href;
       const iso = lastmod.get(path);
       urls.push(iso ? { loc, lastmod: iso } : { loc });
@@ -430,9 +339,9 @@ export async function buildLlmsTxt(): Promise<string> {
   const articleLines = articles
     .filter((entry) => !entry.id.startsWith('dummy-'))
     .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0))
-    .map((entry) => `- [${entry.data.titleEn ?? entry.data.title}](${site.url}${docHref(entry)})`);
+    .map((entry) => `- [${entry.data.title ?? entry.data.title}](${site.url}${docHref(entry)})`);
   const projectLines = projects.map(
-    (entry) => `- [${entry.data.titleEn ?? entry.data.title}](${site.url}${docHref(entry)})`,
+    (entry) => `- [${entry.data.title ?? entry.data.title}](${site.url}${docHref(entry)})`,
   );
 
   return `# Ethan Chang
@@ -479,7 +388,7 @@ export async function buildLlmsFull(): Promise<string> {
     '',
   ];
   for (const entry of [...articles.filter(isIndexed), ...projects]) {
-    parts.push('---', '', await docMarkdown(entry, 'en'), '');
+    parts.push('---', '', await docMarkdown(entry, 'zh'), '');
   }
   return parts.join('\n');
 }
@@ -617,7 +526,7 @@ export function siteJsonLd(): string {
         '@id': `${site.url}/#website`,
         url: site.url,
         name: site.title,
-        description: site.descriptionEn,
+        description: site.description,
         inLanguage: ['en', 'zh-CN'],
         publisher: { '@id': `${site.url}/#person` },
         potentialAction: {
@@ -633,10 +542,10 @@ export function siteJsonLd(): string {
         alternateName: profile.chineseName,
         url: site.url,
         email: profile.email,
-        description: profile.bioEn,
+        description: profile.bio,
         jobTitle: 'iOS developer',
         sameAs,
-        knowsAbout: skills.map((s) => s.nameEn ?? s.name),
+        knowsAbout: skills.map((s) => s.name ?? s.name),
         contactPoint: {
           '@type': 'ContactPoint',
           email: profile.email,
@@ -654,8 +563,8 @@ export function docJsonLd(entry: DocEntry): string {
   const data = {
     '@context': 'https://schema.org',
     '@type': entry.data.slot === 'project' ? 'SoftwareApplication' : 'BlogPosting',
-    headline: entry.data.titleEn ?? entry.data.title,
-    description: entry.data.descriptionEn ?? entry.data.description,
+    headline: entry.data.title ?? entry.data.title,
+    description: entry.data.description ?? entry.data.description,
     url,
     datePublished: entry.data.date?.toISOString(),
     dateModified: (entry.data.updated ?? entry.data.date)?.toISOString(),

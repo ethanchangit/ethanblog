@@ -81,9 +81,7 @@ function summarize(collection, id, parsed, file) {
     id,
     file,
     title: data.title ?? id,
-    titleEn: data.titleEn ?? '',
     description: data.description ?? '',
-    descriptionEn: data.descriptionEn ?? '',
     tags: Array.isArray(data.tags) ? data.tags : [],
     draft: Boolean(data.draft),
     listed: data.listed,
@@ -153,7 +151,6 @@ export async function saveDoc(root, payload) {
           frontmatter: payload.frontmatter ?? {},
           imports: payload.imports ?? '',
           bodyZh: payload.bodyZh ?? '',
-          bodyEn: payload.bodyEn ?? '',
         });
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, raw.endsWith('\n') ? raw : `${raw}\n`);
@@ -171,7 +168,6 @@ function articleTemplate({ title, date }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写中文正文。',
-    bodyEn: 'Write the English copy here.',
   });
 }
 
@@ -186,7 +182,6 @@ function projectTemplate({ title }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写项目说明。',
-    bodyEn: 'Write the project notes here.',
   });
 }
 
@@ -202,7 +197,6 @@ function childTemplate({ title, date, order, slot }) {
     },
     imports: '',
     bodyZh: '在这里用 Markdown 写这一页。',
-    bodyEn: 'Write this page here.',
   });
 }
 

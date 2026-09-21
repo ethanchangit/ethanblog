@@ -17,7 +17,7 @@ const lp = Astro.locals.localePath;
   part === 'parent' && isChapter && hub && (
     <p class="mt-3" data-series="parent">
       <a href={lp(docHref(hub))} class="ui-link-subtle">
-        <Bi zh={hub.data.title} en={hub.data.titleEn} />
+        <Bi zh={hub.data.title} />
       </a>
     </p>
   )

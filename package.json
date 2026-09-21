@@ -6,14 +6,14 @@
   "scripts": {
     "dev": "astro dev",
     "studio": "astro dev",
-    "build": "astro build && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs",
-    "build:studio-site": "node studio/online/build-site.mjs",
+    "build": "astro build && node studio/online/build-site.mjs && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs && node scripts/release-manifest.mjs",
+    "build:dashboard": "node studio/online/build-site.mjs",
+    "dashboard:password": "node studio/online/password.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
     "test": "node --test studio/*.test.mjs studio/online/*.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
-    "deploy": "npm run build && wrangler deploy -c workers/guestbook/wrangler.toml && wrangler pages deploy dist --project-name=ethanblog",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
   },
   "dependencies": {
@@ -34,7 +34,13 @@
     "tailwindcss": "^4.1.0",
     "three": "^0.185.1",
     "typescript": "^5.8.0",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "unified": "^11.0.5",
+    "remark-parse": "^11.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-rehype": "^11.1.2",
+    "rehype-stringify": "^10.0.1",
+    "remark-smartypants": "^3.0.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260703.1",

@@ -7,9 +7,7 @@ import { copy } from '@/lib/i18n';
 
 <Base
   title={copy['zh-CN'].privacyTitle}
-  titleEn={copy.en.privacyTitle}
   description={copy['zh-CN'].privacyDesc}
-  descriptionEn={copy.en.privacyDesc}
 >
-  <AgentProse zh={liteMarkdownHtml(privacyMarkdown('zh'))} en={liteMarkdownHtml(privacyMarkdown('en'))} />
+  <AgentProse zh={liteMarkdownHtml(privacyMarkdown('zh'))} />
 </Base>

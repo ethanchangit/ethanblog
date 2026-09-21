@@ -10,7 +10,7 @@ export function docHref(entry: Pick<DocEntry, 'id' | 'data'>): string {
 }
 
 /**
- * `/articles`、标签、搜索、RSS 收不收录。
+ * `/articles`、标签、RSS 收不收录。全文搜索单独包含所有已发布资料。
  * 默认：id 含 `/` 的是系列子文，不进索引。`listed: false` 可藏顶层文；`listed: true` 可把子文放进索引。
  */
 export function isIndexed(entry: Pick<DocEntry, 'id' | 'data'>): boolean {

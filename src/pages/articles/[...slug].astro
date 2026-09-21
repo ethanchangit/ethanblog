@@ -38,9 +38,7 @@ const Content = rendered.Content;
 <ReadingShell
   kind="article"
   title={article.data.title}
-  titleEn={article.data.titleEn}
   description={article.data.description}
-  descriptionEn={article.data.descriptionEn ?? article.data.description}
   currentId={article.id}
   showRail={showRail}
 >
@@ -48,6 +46,6 @@ const Content = rendered.Content;
     <Content />
   </Doc>
   <Fragment slot="rail">
-    <Toc headings={zhHeadings} headingsEn={enHeadings} />
+    <Toc headings={zhHeadings} />
   </Fragment>
 </ReadingShell>

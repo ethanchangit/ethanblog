@@ -4,25 +4,25 @@ const FINAL = '/articles/pkm-method/';
 
 test.describe('Article 论文化接口（T2）', () => {
   test('定稿页无摘要小标，无页眉作者行', async ({ page }) => {
-    const response = await page.goto(FINAL);
+    const response = await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
 
     const header = page.locator('article header');
     await expect(header.locator('.article-dek-label')).toHaveCount(0);
     await expect(header.getByText('摘要', { exact: true })).toHaveCount(0);
-    await expect(header.getByText('Abstract', { exact: true })).toHaveCount(0);
+    await expect(header.getByText("摘要", { exact: true })).toHaveCount(0);
     await expect(header.locator('.article-dek-text')).toBeVisible();
     await expect(header.getByText(/文 \//)).toHaveCount(0);
   });
 
   test('摘要是导语档：字号行距与正文不同，底下有发丝线', async ({ page }) => {
-    await page.goto(FINAL);
+    await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
     const dek = page.locator('header.article-dek');
     await expect(dek.locator('.article-dek-label')).toHaveCount(0);
     await expect(dek.locator('.article-dek-text')).toBeVisible();
-    await expect(dek.locator('.i18n-en').first()).toHaveText(
-      'The personal knowledge system I run in Obsidian: three layers, naming rules, and a bias toward links.',
+    await expect(dek.locator('.article-dek-text')).toHaveText(
+      "分享我在 Obsidian 中实践的个人知识管理系统，包含三层架构、命名规范和链接原则",
     );
 
     const styles = await page.evaluate(() => {
@@ -62,9 +62,9 @@ test.describe('Article 论文化接口（T2）', () => {
   });
 
   test('标题下可复制规范 URL，且在摘要之上', async ({ page }) => {
-    await page.goto(FINAL);
+    await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
-    const copy = page.getByRole('button', { name: 'Copy page URL' });
+    const copy = page.getByRole('button', { name: "复制本页链接" });
     const island = page.locator('astro-island').filter({ has: copy });
     await expect(copy).toBeVisible();
     await expect(island).not.toHaveAttribute('ssr');
@@ -91,7 +91,7 @@ test.describe('Article 论文化接口（T2）', () => {
     });
 
     await copy.click();
-    await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+    await expect(page.getByRole('button', { name: "已复制" })).toBeVisible();
 
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedUrl?: string }).__copiedUrl,
@@ -103,14 +103,14 @@ test.describe('Article 论文化接口（T2）', () => {
 
   test('1440×900 下第三栏目录可见、H3 有缩进、可点锚点', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(FINAL);
+    await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
     const toc = page.locator('nav.toc');
     await expect(toc).toBeVisible();
-    await expect(toc).toHaveAttribute('aria-label', 'Table of contents');
+    await expect(toc).toHaveAttribute('aria-label', "目录");
     await expect(toc.locator('.toc-title')).toHaveCount(0);
     await expect(toc.getByText('目录', { exact: true })).toHaveCount(0);
-    await expect(toc.getByText('Contents', { exact: true })).toHaveCount(0);
+    await expect(toc.getByText("目录", { exact: true })).toHaveCount(0);
     await expect(page.locator('[data-reading-rail]')).toBeVisible();
 
     const firstLabel = toc.locator('a .toc-label').filter({ visible: true }).first();
@@ -133,14 +133,14 @@ test.describe('Article 论文化接口（T2）', () => {
 
   test('390×844 下左栏与目录都隐藏，只显示正文，无横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(FINAL);
+    await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
     await expect(page.locator('details.toc-mobile')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
     await expect(page.locator('.article-body-row > details')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
+    await expect(page.getByRole('link', { name: "← 文章" })).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
 
     const stacked = await page.evaluate(() => {
@@ -163,7 +163,7 @@ test.describe('Article 论文化接口（T2）', () => {
 
   test('1024×800 下目录在正文右侧第三栏，不进正文，标签可截断', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 800 });
-    await page.goto(FINAL);
+    await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
     const toc = page.locator('nav.toc');
     await expect(toc).toBeVisible();

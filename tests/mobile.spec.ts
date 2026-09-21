@@ -43,7 +43,7 @@ test.describe('手机阅读', () => {
       await page.setViewportSize(vp);
 
       for (const route of ROUTES) {
-        await page.goto(route);
+        await page.goto(route, { waitUntil: 'domcontentloaded' });
         await expect(page.locator('main')).toBeVisible();
         await expectNoPageOverflow(page);
 
@@ -55,17 +55,14 @@ test.describe('手机阅读', () => {
         expectTap(await box(page, 'header.site-nav a[href="/now"]'), `${route} now`);
         expectTap(await box(page, 'header.site-nav a[href="/search"]'), `${route} search`);
         expectTap(await box(page, 'footer.site-footer button.theme-toggle'), `${route} theme`);
-        expectTap(
-          await box(page, 'footer.site-footer button[aria-haspopup="listbox"]'),
-          `${route} lang`,
-        );
+        await expect(page.locator('footer.site-footer button[aria-haspopup="listbox"]')).toHaveCount(0);
       }
     });
   }
 
   test('首页列表不再裁成桌面窗格，文档可滚', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     await expect(index).toBeVisible();
     const maxH = await index.evaluate((el) => getComputedStyle(el).maxHeight);
@@ -89,12 +86,12 @@ test.describe('手机阅读', () => {
 
   test('长文不显示 TOC，返回键靠左，列表与正文不同时出现', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/articles/heptabase-method');
+    await page.goto('/articles/heptabase-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Contents' })).toHaveCount(0);
-    const back = page.getByRole('link', { name: '← Articles' });
+    await expect(page.getByRole('link', { name: "目录" })).toHaveCount(0);
+    const back = page.getByRole('link', { name: "← 文章" });
     await expect(back).toBeVisible();
     const nav = await page.locator('header.site-nav').boundingBox();
     const backBox = await back.boundingBox();
@@ -109,25 +106,25 @@ test.describe('手机阅读', () => {
 
   test('文章列表页窄屏只显示列表', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/articles');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
-    await expect(page.getByRole('link', { name: '← Articles' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: "← 文章" })).toHaveCount(0);
   });
 
   test('iPad 横屏仍是三栏，目录在右', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 820 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
     await expect(page.locator('[data-reading-rail] nav.toc').filter({ visible: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: '← Articles' })).toBeHidden();
+    await expect(page.getByRole('link', { name: "← 文章" })).toBeHidden();
   });
 
   test('留言发送键不掉出视口宽，热区够点', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const send = page.locator('.comment-send');
     await send.scrollIntoViewIfNeeded();
     await expect(send).toBeVisible();
@@ -140,7 +137,7 @@ test.describe('手机阅读', () => {
 
   test('embed 页推文与视频不撑出页面', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/articles/embed-preview');
+    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-tweet-embed]').filter({ visible: true })).toBeVisible();
     await expect(page.locator('[data-video-embed]').filter({ visible: true })).toBeVisible();
     await expectNoPageOverflow(page);
@@ -151,11 +148,11 @@ test.describe('手机阅读', () => {
 
   test('横屏 667 可滚且不横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 667, height: 375 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expectNoPageOverflow(page);
     const html = await page.evaluate(() => getComputedStyle(document.documentElement).overflow);
     expect(html).not.toBe('hidden');
-    await expect(page.getByRole('link', { name: '← Articles' })).toBeVisible();
+    await expect(page.getByRole('link', { name: "← 文章" })).toBeVisible();
     const scrolled = await page.evaluate(() => {
       window.scrollTo({ top: 200, behavior: 'instant' });
       return window.scrollY > 0;
@@ -166,19 +163,20 @@ test.describe('手机阅读', () => {
   test('reduced-motion 下导航仍可点', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expectNoPageOverflow(page);
     await page.locator('header.site-nav a[href="/tags"]').click();
     await expect(page).toHaveURL(/\/tags\/?$/);
-    await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "标签" })).toBeVisible();
   });
 
-  test('双语 chrome 窄屏只显示当前语言', async ({ page }) => {
+  test('窄屏只保留中文版', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const tags = page.locator('header.site-nav a[href="/tags"]');
-    await expect(tags).toHaveText('Tags', { useInnerText: true });
+    await expect(tags).toHaveText("标签", { useInnerText: true });
     const zhHidden = await tags.locator('.i18n-zh').evaluate((el) => getComputedStyle(el).display);
-    expect(zhHidden).toBe('none');
+    expect(zhHidden).not.toBe('none');
+    await expect(tags.locator('.i18n-en')).toHaveCount(0);
   });
 });

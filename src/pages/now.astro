@@ -3,7 +3,7 @@ import Base from '@/layouts/Base.astro';
 import DateText from '@/components/shell/DateText.astro';
 import I18n from '@/components/shell/I18n.astro';
 import NowPanel from '@/components/home/NowPanel.astro';
-import { nowIntro, nowIntroEn, nowUpdated } from '@/data/profile';
+import { nowIntro, nowUpdated } from '@/data/profile';
 import { copy } from '@/lib/i18n';
 
 const [year, month, day] = nowUpdated.split('-').map(Number);
@@ -13,9 +13,7 @@ const nowAboutHref = 'https://nownownow.com/about';
 
 <Base
   title={copy['zh-CN'].navNow}
-  titleEn={copy.en.navNow}
   description={nowIntro}
-  descriptionEn={nowIntroEn}
 >
   <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
     <header class="mb-10">
@@ -27,14 +25,12 @@ const nowAboutHref = 'https://nownownow.com/about';
 
     <div class="prose-site">
       <p>
-        <span class="i18n-zh" aria-hidden="true">这是一页 Now：最近在做什么。这种格式来自<a href={nowAboutHref} target="_blank" rel="noopener noreferrer">nownownow.com</a>。</span>
-        <span class="i18n-en">
-          This is a Now page: what I'm doing lately. The format comes from <a href={nowAboutHref} target="_blank" rel="noopener noreferrer">nownownow.com</a>.
-        </span>
+        <span class="i18n-zh">这是一页 Now：最近在做什么。这种格式来自<a href={nowAboutHref} target="_blank" rel="noopener noreferrer">nownownow.com</a>。</span>
+
       </p>
       <p>
-        <span class="i18n-zh" aria-hidden="true">{nowIntro}</span>
-        <span class="i18n-en">{nowIntroEn}</span>
+        <span class="i18n-zh">{nowIntro}</span>
+
       </p>
     </div>
 

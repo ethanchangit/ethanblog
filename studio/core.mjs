@@ -7,8 +7,8 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
-  'slot', 'title', 'titleEn', 'description', 'descriptionEn', 'date', 'updated',
-  'tags', 'draft', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
+  'slot', 'title', 'description', 'date', 'updated',
+  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
@@ -76,7 +76,6 @@ export function parseMdx(raw) {
     frontmatter,
     imports: importLines.join('\n'),
     bodyZh: (parts[0] ?? '').trim(),
-    bodyEn: (parts.slice(1).join(LANG_SPLIT) ?? '').trim(),
     raw: text,
   };
 }
@@ -96,13 +95,14 @@ export function pickFrontmatter(data) {
     if (!omitEmpty(src[key], key)) out[key] = src[key];
   }
   for (const [key, value] of Object.entries(src)) {
+    if (key === 'titleEn' || key === 'descriptionEn') continue;
     if (key in out || CANONICAL_KEYS.includes(key) || omitEmpty(value, key)) continue;
     out[key] = value;
   }
   return out;
 }
 
-export function serializeMdx({ frontmatter, imports, bodyZh, bodyEn }) {
+export function serializeMdx({ frontmatter, imports, bodyZh }) {
   const yaml = stringifyYaml(pickFrontmatter(frontmatter), {
     lineWidth: 0,
     defaultStringType: 'QUOTE_DOUBLE',
@@ -110,10 +110,7 @@ export function serializeMdx({ frontmatter, imports, bodyZh, bodyEn }) {
   }).trimEnd();
   const importBlock = imports?.trim() ? `${imports.trim()}\n\n` : '';
   const zh = (bodyZh ?? '').trim();
-  const en = (bodyEn ?? '').trim();
-  const body = en
-    ? `${importBlock}${zh}\n\n${LANG_SPLIT}\n\n${en}\n`
-    : `${importBlock}${zh ? `${zh}\n` : ''}`;
+  const body = `${importBlock}${zh ? `${zh}\n` : ''}`;
   return `---\n${yaml}\n---\n\n${body}`;
 }
 
@@ -145,7 +142,6 @@ export function addDocRefToRaw(raw, of, { pane } = {}) {
   if (!isSafeDocRef(of)) throw new Error(`不合法的引用：${of}`);
   const parsed = parseMdx(raw);
   parsed.bodyZh = insertRefInSection(parsed.bodyZh, of, pane);
-  if (parsed.bodyEn) parsed.bodyEn = insertRefInSection(parsed.bodyEn, of, pane);
   return serializeMdx(parsed);
 }
 
@@ -156,28 +152,27 @@ export function removeDocRefFromRaw(raw, of) {
     .replace(/<DocList(?:\s+pane="series")?>\s*<\/DocList>/g, '')
     .trim();
   parsed.bodyZh = strip(parsed.bodyZh);
-  if (parsed.bodyEn) parsed.bodyEn = strip(parsed.bodyEn);
   return serializeMdx(parsed);
 }
 
 export function createArticleRaw({ title, date = todayIso() }) {
   return serializeMdx({
     frontmatter: { slot: 'article', title, description: '草稿摘要，发布前改成可检验的陈述句。', date, draft: true },
-    imports: '', bodyZh: '在这里用 Markdown 写中文正文。', bodyEn: 'Write the English copy here.',
+    imports: '', bodyZh: '在这里用 Markdown 写正文。',
   });
 }
 
 export function createProjectRaw({ title }) {
   return serializeMdx({
     frontmatter: { slot: 'project', title, description: '草稿摘要，发布前改成可检验的陈述句。', draft: true, status: 'wip' },
-    imports: '', bodyZh: '在这里用 Markdown 写项目说明。', bodyEn: 'Write the project notes here.',
+    imports: '', bodyZh: '在这里用 Markdown 写项目说明。',
   });
 }
 
 export function createChildRaw({ title, date = todayIso(), order, slot = 'article' }) {
   return serializeMdx({
     frontmatter: { slot, title, description: '草稿摘要，发布前改成可检验的陈述句。', date, order, draft: true },
-    imports: '', bodyZh: '在这里用 Markdown 写这一页。', bodyEn: 'Write this page here.',
+    imports: '', bodyZh: '在这里用 Markdown 写这一页。',
   });
 }
 
@@ -186,16 +181,14 @@ export function validateContentFile(filePath, raw) {
   if (filePath === 'src/data/tag-groups.ts') return parsed;
   const fm = parsed.frontmatter;
   if (!fm || typeof fm !== 'object') throw new Error(`frontmatter 无法解析：${filePath}`);
+  if (filePath === 'src/content/pages/blogs.mdx') return parsed;
+  if (!/^heptabase:\/\/card\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fm.heptabaseCardLink || '')) {
+    throw new Error(`请先填写有效的 Heptabase card link：${filePath}`);
+  }
   if (!['article', 'project'].includes(fm.slot)) throw new Error(`slot 必须是 article 或 project：${filePath}`);
   if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
   if (!String(fm.description ?? '').trim()) throw new Error(`缺少 description：${filePath}`);
   if (fm.slot === 'article' && !fm.date) throw new Error(`文章缺少 date：${filePath}`);
-  if (!fm.draft) {
-    if (!String(fm.titleEn ?? '').trim() || !String(fm.descriptionEn ?? '').trim()) {
-      throw new Error(`定稿缺少英文标题或摘要：${filePath}`);
-    }
-    if (!parsed.bodyEn) throw new Error(`定稿缺少 lang split 后的英文正文：${filePath}`);
-  }
   for (const ref of listDocRefs(raw)) {
     if (!isSafeDocRef(ref)) throw new Error(`引用路径不合法：${ref}`);
   }

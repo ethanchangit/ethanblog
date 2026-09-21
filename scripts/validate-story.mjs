@@ -127,11 +127,6 @@ function fmField(frontmatter, key) {
   return (m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim();
 }
 
-function englishAfterSplit(bodyText) {
-  const m = /<div\s+data-lang-split\b[^>]*>(?:\s*<\/div>)?/.exec(bodyText);
-  if (!m) return '';
-  return bodyText.slice(m.index + m[0].length).trim();
-}
 
 const results = [];
 
@@ -156,15 +151,6 @@ function validateFile(file) {
 
   if (slot !== 'article' && slot !== 'project') {
     errors.push('必须有 slot: article 或 slot: project（决定出现在 /articles 还是 /projects；不要写进 topical tags）');
-  }
-
-  // --- 双语硬门（定稿必须中英齐全；草稿跳过） ---
-  if (slot === 'article' && !fmField(frontmatter, 'titleEn')) {
-    errors.push('定稿必须有 titleEn');
-  }
-  if (!fmField(frontmatter, 'descriptionEn')) errors.push('定稿必须有 descriptionEn');
-  if (!englishAfterSplit(bodyText)) {
-    errors.push('定稿必须有英文正文：在 <div data-lang-split></div> 之后写 EN 副本');
   }
 
   // --- frontmatter 规约 ---

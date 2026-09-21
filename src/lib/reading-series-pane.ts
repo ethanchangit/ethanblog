@@ -49,7 +49,7 @@ function adoptHeadAssets(fromDoc: Document) {
 }
 
 function isHubView(): boolean {
-  return !!document.querySelector('[data-reading-doc] [data-series="hub-inline"]');
+  return !!document.querySelector('[data-reading-doc] [data-series="hub-inline"], [data-reading-doc] [data-doc-mention]');
 }
 
 function seriesPaneActive(): boolean {
@@ -119,15 +119,7 @@ function createChildCloseButton(): HTMLButtonElement {
   button.setAttribute('data-reading-child-close', '');
   button.setAttribute('data-i18n-aria', 'seriesCloseChild');
   button.setAttribute('aria-label', t(readLang(), 'seriesCloseChild'));
-  const zh = document.createElement('span');
-  zh.className = 'i18n-zh';
-  zh.setAttribute('aria-hidden', 'true');
-  zh.textContent = t('zh-CN', 'seriesCloseChild');
-  const en = document.createElement('span');
-  en.className = 'i18n-en';
-  en.textContent = t('en', 'seriesCloseChild');
-  button.appendChild(zh);
-  button.appendChild(en);
+  button.textContent = t('zh-CN', 'seriesCloseChild');
   return button;
 }
 
@@ -244,7 +236,7 @@ function interceptTarget(link: HTMLAnchorElement): 'open' | 'close' | null {
   const inIndex = !!link.closest('[data-reading-index]');
   if (inIndex) return null;
 
-  const inInline = !!link.closest('[data-reading-doc] [data-series="hub-inline"]');
+  const inInline = !!link.closest('[data-reading-doc] [data-series="hub-inline"], [data-reading-doc] [data-doc-mention]');
   const inChild = !!link.closest('[data-reading-child]');
   if (!inInline && !inChild) return null;
 
@@ -260,6 +252,7 @@ function interceptTarget(link: HTMLAnchorElement): 'open' | 'close' | null {
   const path = pagePath(url.pathname);
   if (path === hub) return 'close';
   if (inChild) {
+    if (link.closest('[data-series="hub-inline"], [data-doc-mention]') && isArticleOrProjectPath(path)) return 'open';
     if (isChapterOfHub(path, hub)) return 'open';
     return null;
   }

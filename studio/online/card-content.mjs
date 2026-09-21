@@ -1,0 +1,93 @@
+import { fail } from './auth.mjs';
+import { cardId } from './heptabase.mjs';
+import { ensureMediaImport } from '../blocks.mjs';
+
+// Do not turn code examples into links, dependencies, or executable MDX.
+export function proseParts(text, transform) {
+  const code = /^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$|`+[^`\n]*`+/gm;
+  let offset = 0, out = '';
+  for (const match of text.matchAll(code)) { out += transform(text.slice(offset, match.index)) + match[0]; offset = match.index + match[0].length; }
+  return out + transform(text.slice(offset));
+}
+const mention = /<hepta-mention\s+type="([^"]+)"\s+id="([^"]+)"\s*>([\s\S]*?)<\/hepta-mention>|\[([^\]\n]*)\]\(heptabase:\/\/card\/([0-9a-f-]+)\)/g;
+const escapeText = (s) => s.replace(/[<>{}]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '{': '&#123;', '}': '&#125;' })[c]);
+const unescapeText = (s) => s.replace(/&(lt|gt|amp|quot|#123|#125);/g, (_, c) => ({ lt: '<', gt: '>', amp: '&', quot: '"', '#123': '{', '#125': '}' })[c]);
+
+export function references(source) {
+  const refs = new Map();
+  proseParts(source, (part) => {
+    for (const match of part.matchAll(mention)) {
+      if (match[1] && match[1] !== 'card') throw fail(`暂不能发布 ${match[1]} 类型的 mention。请先转成文字卡片，未忽略这条引用。`);
+      const id = cardId(`heptabase://card/${match[2] || match[5]}`);
+      refs.set(id, { id, title: match[3] || match[4] });
+    }
+    return part;
+  });
+  return [...refs.values()];
+}
+
+export function blogReferences(body) {
+  const paths = new Set();
+  proseParts(body, (part) => {
+    for (const m of part.matchAll(/<DocRef\s+of=["']([^"']+)["']\s*\/>|<a\s+href="\/([^"]+)"\s+data-doc-mention\b/g)) paths.add(m[1] || m[2]);
+    return part;
+  });
+  return [...paths];
+}
+
+export function fromHeptabase(source, targets, imports = '') {
+  const lines = source.split('\n');
+  if (!/^#(?:\s|$)/.test(lines[0])) throw fail('卡片需要以一级标题开头。');
+  const title = lines.shift().replace(/^#\s*/, '').trim();
+  let hasBlock = false;
+  const body = proseParts(lines.join('\n').trim(), (part) => {
+    const tokens = [];
+    let text = part.replace(mention, (whole, type, mentionId, label, linkLabel, linkId, offset) => {
+      if (type && type !== 'card') throw fail(`暂不能发布 ${type} 类型的 mention。`);
+      const id = cardId(`heptabase://card/${mentionId || linkId}`);
+      const target = targets.get(id);
+      if (!target) throw fail('引用的卡片尚未完整读取，未继续发布。');
+      const lineStart = part.lastIndexOf('\n', offset - 1) + 1;
+      const end = part.indexOf('\n', offset + whole.length);
+      const standalone = !part.slice(lineStart, offset).trim() && !part.slice(offset + whole.length, end < 0 ? part.length : end).trim();
+      const of = `${target.collection}/${target.id}`;
+      hasBlock ||= standalone;
+      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="/${of}" data-doc-mention>${escapeText(label || linkLabel || target.title)}</a>`;
+      return `\u0001${tokens.push(markup) - 1}\u0002`;
+    });
+    // Preserve the text of colors; other protected objects require explicit handling.
+    text = text.replace(/<hepta-color\s+[^>]*>([\s\S]*?)<\/hepta-color>/g, '$1');
+    if (/<\/?hepta-/.test(text)) throw fail('卡片包含暂不能安全转换的嵌入或复杂表格，未丢弃内容。');
+    text = escapeText(text).replace(/^(import|export)\s/gm, (_, word) => `&#${word.charCodeAt(0)};${word.slice(1)} `);
+    return text.replace(/\u0001(\d+)\u0002/g, (_, i) => tokens[Number(i)]);
+  });
+  return { title, body, imports: hasBlock ? ensureMediaImport(imports) : imports };
+}
+
+export function toHeptabase(parsed, docs) {
+  const byPath = new Map(docs.map((d) => [`${d.collection}/${d.id}`, d]));
+  const token = (path, label) => {
+    const doc = byPath.get(path);
+    if (!doc?.heptabaseCardLink) throw fail(`请先为被引用的 ${path} 连接 Heptabase 卡片。`);
+    return `<hepta-mention type="card" id="${cardId(doc.heptabaseCardLink)}">${label || doc.title}</hepta-mention>`;
+  };
+  let body = proseParts(parsed.bodyZh, (part) => {
+    let text = part.replace(/<DocList(?:\s+[^>]*)?>\s*([\s\S]*?)\s*<\/DocList>/g, (_, children) => {
+      const refs = [...children.matchAll(/<DocRef\s+of=["']([^"']+)["']\s*\/>/g)];
+      if (children.replace(/<DocRef\s+of=["'][^"']+["']\s*\/>/g, '').trim()) throw fail('引用区有其他内容，未改写。');
+      return refs.map((m) => token(m[1])).join('\n\n');
+    });
+    text = text.replace(/<a\s+href="\/(articles\/[^" ]+|projects\/[^" ]+)"\s+data-doc-mention\s*>([\s\S]*?)<\/a>/g, (_, path, label) => token(path, unescapeText(label)));
+    return unescapeText(text);
+  });
+  // Existing arbitrary MDX is kept byte-for-byte in a standard code fence when it
+  // cannot be represented as native Heptabase prose. No component is discarded.
+  let needsArchive = false;
+  proseParts(body, (part) => { needsArchive ||= /<\/?[A-Za-z]|^import\s|^export\s/m.test(part.replace(mention, '')); return part; });
+  if (needsArchive) {
+    const raw = [parsed.imports, parsed.bodyZh].filter(Boolean).join('\n\n');
+    const fence = '`'.repeat(Math.max(3, ...[...raw.matchAll(/`+/g)].map((m) => m[0].length + 1)));
+    body = `${fence}mdx\n${raw}\n${fence}`;
+  }
+  return `# ${parsed.frontmatter.title}\n\n${body.trim()}`;
+}

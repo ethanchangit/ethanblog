@@ -62,7 +62,7 @@ async function expectKeptShell(page: Page, kind: 'index' | 'home' | 'article' | 
   await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-keep', '1');
 }
 
-async function expectExpandedIndex(page: Page, heading: 'Articles' | 'Projects', homeHref = '/') {
+async function expectExpandedIndex(page: Page, heading: "文章" | "项目", homeHref = '/') {
   const index = page.locator('[data-reading-index]');
   await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
   await expect(index.getByRole('heading', { level: 1, name: heading })).toBeVisible();
@@ -264,21 +264,21 @@ async function expectTightSplitInset(page: Page) {
 test.describe('分栏阅读', () => {
   test('/ 是左栏索引 + 中栏 About，列表无选中', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
 
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'home');
     await expect(index).toBeVisible();
-    await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(index.locator('[data-reading-index-switch] a')).toHaveCount(1);
     await expect(index.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
     await expect(doc.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
-    await expect(doc.getByRole('heading', { name: 'What I do' })).toBeVisible();
+    await expect(doc.getByRole('heading', { name: "我在做什么" })).toBeVisible();
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/tags"]')).toBeVisible();
@@ -293,7 +293,7 @@ test.describe('分栏阅读', () => {
 
   test('首页点卡片把 About 换成文章，左栏仍在并标当前项', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     await index.locator('a[href="/articles/pkm-method"]').click({ force: true });
@@ -301,7 +301,7 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
+      "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
     await expect(index).toBeVisible();
@@ -313,13 +313,13 @@ test.describe('分栏阅读', () => {
 
   test('首页点「项目」只换左栏，中栏仍是 About', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
-    await index.locator('[data-reading-index-switch]').getByRole('link', { name: 'Projects' }).click();
+    await index.locator('[data-reading-index-switch]').getByRole('link', { name: "项目" }).click();
 
     await expect(page).toHaveURL((url) => url.pathname === '/');
-    await expect(index.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
@@ -327,12 +327,12 @@ test.describe('分栏阅读', () => {
 
   test('/articles 未点开是展开的索引壳', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     const switcher = page.locator('[data-reading-index-switch]');
-    await expect(page.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
     await expect(switcher.getByRole('heading', { level: 1 })).toHaveCount(1);
-    await expect(switcher.getByRole('heading', { name: 'Projects' })).toHaveCount(0);
+    await expect(switcher.getByRole('heading', { name: "项目" })).toHaveCount(0);
     await expect(switcher.locator('a[href="/projects"]')).toBeVisible();
     await expect(switcher.locator('a[href="/blogs"]')).toHaveCount(0);
     await expect(switcher.locator('a')).toHaveCount(1);
@@ -347,7 +347,7 @@ test.describe('分栏阅读', () => {
     await expect(index.locator('[data-reading-expand]')).toBeHidden();
     const collapse = index.locator('[data-reading-collapse]');
     await expect(collapse).toHaveAttribute('href', '/');
-    await expect(collapse).toHaveAttribute('aria-label', 'Show About');
+    await expect(collapse).toHaveAttribute('aria-label', "收起至首页");
     await expect(collapse).toHaveCSS('opacity', '0');
     await revealReadingCollapse(index);
     await expectCollapseAtHeadingEnd(index);
@@ -355,9 +355,9 @@ test.describe('分栏阅读', () => {
 
   test('/projects 未点开显示收起，不显示展开', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/projects');
+    await page.goto('/projects', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
@@ -373,14 +373,14 @@ test.describe('分栏阅读', () => {
 
   test('文章页左栏是完整索引，中栏是正文，长文第三栏是目录', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
     const rail = page.locator('[data-reading-rail]');
 
     await expect(index).toBeVisible();
-    await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
@@ -393,7 +393,7 @@ test.describe('分栏阅读', () => {
     await expect(index.locator('a[href="/articles/pkm-method"] p').first()).toBeVisible();
 
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
+      "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
     await expect(rail).toBeVisible();
@@ -402,7 +402,7 @@ test.describe('分栏阅读', () => {
 
   test('heptabase 长文左栏是完整卡片，目录在第三栏不悬挂', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/heptabase-method');
+    await page.goto('/articles/heptabase-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const rail = page.locator('[data-reading-rail]');
@@ -452,7 +452,7 @@ test.describe('分栏阅读', () => {
 
   test('短文没有第三栏', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/embed-preview');
+    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
@@ -463,12 +463,12 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const rem = await rootRem(page);
 
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const home = await measureReadingPanes(page);
     expect(home).not.toBeNull();
     expectIndexAtMost(home!.indexWidth, rem);
 
-    await page.goto('/articles/embed-preview');
+    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
     const noToc = await measureReadingPanes(page);
     expect(noToc).not.toBeNull();
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
@@ -476,7 +476,7 @@ test.describe('分栏阅读', () => {
     expectArticleCenteredInRemaining(noToc!);
     expect(Math.abs(noToc!.indexWidth - home!.indexWidth)).toBeLessThan(2);
 
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const withToc = await measureReadingSplit(page);
     expect(withToc).not.toBeNull();
     expectIndexAtMost(withToc!.indexWidth, rem);
@@ -495,13 +495,13 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1600, height: 720 });
     const rem = await rootRem(page);
 
-    await page.goto('/articles/embed-preview');
+    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
     const noToc = await measureReadingPanes(page);
     expect(noToc).not.toBeNull();
     expectLockedArticleMeasure(noToc!, rem);
     expectFixedIndexWidth(noToc!.indexWidth, rem);
 
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const withToc = await measureReadingSplit(page);
     expect(withToc).not.toBeNull();
     expectLockedArticleMeasure(withToc!, rem);
@@ -514,7 +514,7 @@ test.describe('分栏阅读', () => {
   test('分栏点无目录文章再点有目录文章，左栏宽度不变', async ({ page }) => {
     for (const width of [1280, 1600] as const) {
       await page.setViewportSize({ width, height: 720 });
-      await page.goto('/articles/embed-preview');
+      await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
       const index = page.locator('[data-reading-index]');
       const before = await measureReadingPanes(page);
       expect(before).not.toBeNull();
@@ -532,7 +532,7 @@ test.describe('分栏阅读', () => {
 
   test('768 宽两栏按比例收，目录收起且不横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 800 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
@@ -552,15 +552,16 @@ test.describe('分栏阅读', () => {
   test('三栏只竖滚，触控板左右微移不动', async ({ page }) => {
     for (const width of [768, 1280, 1512] as const) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto('/articles/pkm-method');
+      await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
       await expectPanesDoNotMicroScroll(page);
     }
   });
 
   test('gutter 能滚正文，滚动条在视口右边', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/embed-preview');
+    // The 24 / 42 / 24 rem tracks consume narrow desktops completely; test a real gutter.
+    await page.setViewportSize({ width: 1760, height: 720 });
+    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
     const pos = await measureReadingPanes(page);
     expect(pos).not.toBeNull();
     expectDocIsPageScroll(pos!);
@@ -612,7 +613,7 @@ test.describe('分栏阅读', () => {
 
   test('合集正文列出篇目，点开会进第三栏；子页不进左栏索引', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/series-demo');
+    await page.goto('/articles/series-demo', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
@@ -620,7 +621,7 @@ test.describe('分栏阅读', () => {
     const rail = page.locator('[data-reading-rail]');
     await expect(index.locator('a[href="/articles/series-demo"] h3')).toBeVisible();
     await expect(index.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
-    await expect(rail).toHaveCount(0);
+    await expect(rail.locator('[data-reading-child], nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
     await expect(listing.locator('a[href="/articles/series-demo/1"] h3')).toBeVisible();
     await expect(listing.locator('a[href="/articles/series-demo/2"] h3')).toBeVisible();
@@ -629,9 +630,9 @@ test.describe('分栏阅读', () => {
     const part2 = listing.locator('a[href="/articles/series-demo/2"]');
     await part1.click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText("这是我们 blog 发布一篇合集的样子", inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
-      'Series demo · Part 1',
+      "系列演示 · 第 1 页",
       inner,
     );
     await expect(rail).toHaveAttribute('data-reading-child-open', '');
@@ -643,7 +644,7 @@ test.describe('分栏阅读', () => {
     );
     const close = dateRow.locator('[data-reading-child-close]');
     await expect(close).toBeVisible();
-    await expect(close).toHaveText('Close', inner);
+    await expect(close).toHaveText("关闭", inner);
     await expect(dateRow.locator('time.ui-meta')).toBeVisible();
     const dateBox = await dateRow.locator('time.ui-meta').boundingBox();
     const closeBox = await close.boundingBox();
@@ -663,7 +664,7 @@ test.describe('分栏阅读', () => {
 
   test('总览正文点篇目在第三栏打开，换篇不换总览', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/series-demo');
+    await page.goto('/articles/series-demo', { waitUntil: 'domcontentloaded' });
 
     const doc = page.locator('[data-reading-doc]');
     const rail = page.locator('[data-reading-rail]');
@@ -671,9 +672,9 @@ test.describe('分栏阅读', () => {
 
     await listing.locator('a[href="/articles/series-demo/1"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText("这是我们 blog 发布一篇合集的样子", inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
-      'Series demo · Part 1',
+      "系列演示 · 第 1 页",
       inner,
     );
     await expect(rail.locator('nav.reading-series')).toHaveCount(0);
@@ -681,9 +682,9 @@ test.describe('分栏阅读', () => {
 
     await listing.locator('a[href="/articles/series-demo/2"]').click();
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText("这是我们 blog 发布一篇合集的样子", inner);
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
-      'Series demo · Part 2',
+      "系列演示 · 第 2 页",
       inner,
     );
     await expect(listing.locator('a[href="/articles/series-demo/2"]')).toHaveAttribute(
@@ -693,20 +694,20 @@ test.describe('分栏阅读', () => {
 
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
-    await expect(rail).toHaveCount(0);
+    await expect(rail.locator('[data-reading-child], nav.toc')).toHaveCount(0);
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
-    await expect(doc.locator('.article-lede h1')).toHaveText('A demo of a series of content', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText("这是我们 blog 发布一篇合集的样子", inner);
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
   });
 
   test('第三栏打开子文时 Escape 只收起子文，不关总览', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/series-demo');
+    await page.goto('/articles/series-demo', { waitUntil: 'domcontentloaded' });
     await page
       .locator('[data-reading-doc] .article-shell [data-series="hub-inline"]:visible a[href="/articles/series-demo/1"]')
       .click();
     await expect(page.locator('[data-reading-child] .article-lede h1')).toHaveText(
-      'Series demo · Part 1',
+      "系列演示 · 第 1 页",
       inner,
     );
     await expect(page.locator('[data-reading-rail] nav.reading-series')).toHaveCount(0);
@@ -718,21 +719,21 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
     await expect(page.locator('[data-reading-shell]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'A demo of a series of content',
+      "这是我们 blog 发布一篇合集的样子",
       inner,
     );
   });
 
   test('项目页左栏是完整项目页', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/projects/aletheia');
+    await page.goto('/projects/aletheia', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
-    await expect(index.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
-    await expect(index.getByRole('heading', { name: 'Timeline: from cards to a container' })).toBeVisible();
+    await expect(index.getByRole('heading', { name: "时间线：从卡片到容器" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
-    await expect(index.getByText('Three explicit hand-offs:')).toBeVisible();
+    await expect(index.getByText("三条明确的能力传递：")).toBeVisible();
     await expect(
       index.locator('[data-tl-item] a[href="/projects/aletheia"]'),
     ).toHaveAttribute('aria-current', 'page');
@@ -744,7 +745,7 @@ test.describe('分栏阅读', () => {
 
   test('项目页有标题时目录浮在阅读区右侧', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/projects/aletheia');
+    await page.goto('/projects/aletheia', { waitUntil: 'domcontentloaded' });
 
     const rail = page.locator('[data-reading-rail]');
     await expect(rail.locator('nav.toc')).toBeVisible();
@@ -763,7 +764,7 @@ test.describe('分栏阅读', () => {
 
   test('左栏点另一个项目只换正文，时间线滚动保留', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 560 });
-    await page.goto('/projects/aletheia');
+    await page.goto('/projects/aletheia', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const before = await index.evaluate((el: HTMLElement) => {
@@ -785,7 +786,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText('Networks', inner);
     await expect(index).toHaveAttribute('data-keep-index', '1');
     expect(await index.evaluate((el: HTMLElement) => el.scrollTop)).toBe(before);
-    await expect(index.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     await expect(
       index.locator('[data-tl-item] a[href="/projects/network"]'),
     ).toHaveAttribute('aria-current', 'page');
@@ -793,7 +794,7 @@ test.describe('分栏阅读', () => {
 
   test('点当前文章不换页也不滚左栏', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 560 });
-    await page.goto('/articles/heptabase-method');
+    await page.goto('/articles/heptabase-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const card = index.locator('a[href="/articles/heptabase-method"]');
@@ -814,7 +815,7 @@ test.describe('分栏阅读', () => {
 
     await expect(page).toHaveURL(/\/articles\/heptabase-method\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'How I use Heptabase for deep learning',
+      "我是如何使用 Heptabase 进行深度学习的",
       inner,
     );
     await expect(index).toHaveAttribute('data-keep-index', '1');
@@ -828,7 +829,7 @@ test.describe('分栏阅读', () => {
 
   test('左栏点另一篇只换正文和目录，左栏滚动保留', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 560 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
@@ -855,7 +856,7 @@ test.describe('分栏阅读', () => {
     });
     await expect(page).toHaveURL(/\/articles\/heptabase-method\/?$/);
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      'How I use Heptabase for deep learning',
+      "我是如何使用 Heptabase 进行深度学习的",
       inner,
     );
     await expect(index.locator('a[href="/articles/heptabase-method"]')).toHaveAttribute(
@@ -874,7 +875,7 @@ test.describe('分栏阅读', () => {
 
   test('从长文点短文只换正文，目录栏拿掉，左栏不动', async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 560 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     await expect(page.locator('[data-reading-rail] nav.toc')).toBeVisible();
@@ -897,13 +898,13 @@ test.describe('分栏阅读', () => {
 
   test('左栏点合集总览在中栏打开，不进第三栏', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     await index.locator('a[href="/articles/series-demo"]').click({ force: true });
     await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(
-      'A demo of a series of content',
+      "这是我们 blog 发布一篇合集的样子",
       inner,
     );
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
@@ -918,21 +919,21 @@ test.describe('分栏阅读', () => {
 
   test('左栏一次列出全部文章，点更早的卡片只换正文', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const doc = page.locator('[data-reading-doc]');
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
+      "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
-    await expect(index.getByRole('link', { name: 'Earlier' })).toHaveCount(0);
+    await expect(index.getByRole('link', { name: "更早" })).toHaveCount(0);
     await expect(index.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
     await expect(index.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
 
     await index.locator('a[href="/articles/dummy-2026-01"]').click({ force: true });
     await expect(page).toHaveURL(/\/articles\/dummy-2026-01\/?$/);
-    await expect(doc.locator('.article-lede h1')).toHaveText('Placeholder 2026-01', inner);
+    await expect(doc.locator('.article-lede h1')).toHaveText("占位 2026-01", inner);
     await expect(index.locator('a[href="/articles/dummy-2026-01"]')).toHaveAttribute(
       'aria-current',
       'page',
@@ -942,7 +943,7 @@ test.describe('分栏阅读', () => {
 
   test('分栏点左栏标题「项目」只换左栏，正文与 URL 不变', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const switcher = index.locator('[data-reading-index-switch]');
@@ -951,44 +952,44 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
     await expect(page.locator('header.site-nav a[href="/projects"]')).toBeHidden();
 
-    await switcher.getByRole('link', { name: 'Projects' }).click();
+    await switcher.getByRole('link', { name: "项目" }).click();
 
     await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
     await expect(page.locator('[data-reading-shell]')).toBeVisible();
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
+      "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
-    await expect(index.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
     await expect(switcher.locator('h1')).toHaveAttribute('aria-current', 'page');
 
-    await switcher.getByRole('link', { name: 'Articles' }).click();
+    await switcher.getByRole('link', { name: "文章" }).click();
     await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
     await expect(doc.locator('.article-lede h1')).toHaveText(
-      'My PKM practice: from notes to a knowledge network',
+      "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
-    await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
     await expect(index.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
   });
 
   test('窄屏从文章回列表再切项目', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/articles/pkm-method');
-    await page.getByRole('link', { name: '← Articles' }).click();
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name: "← 文章" }).click();
     await expect(page).toHaveURL(/\/articles\/?$/);
-    await page.locator('[data-reading-index-switch]').getByRole('link', { name: 'Projects' }).click();
+    await page.locator('[data-reading-index-switch]').getByRole('link', { name: "项目" }).click();
     await expect(page).toHaveURL(/\/projects\/?$/);
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
   });
 
   test('窄屏只显示正文和返回', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    const back = page.getByRole('link', { name: '← Articles' });
+    const back = page.getByRole('link', { name: "← 文章" });
     await expect(back).toBeVisible();
     const navBox = await page.locator('header.site-nav').boundingBox();
     const backBox = await back.boundingBox();
@@ -1000,14 +1001,14 @@ test.describe('分栏阅读', () => {
     expect(titleBox!.y).toBeGreaterThan(backBox!.y);
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Contents' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: "目录" })).toHaveCount(0);
     expect(backBox!.x).toBeLessThan(48);
     expect(Math.abs(backBox!.x - titleBox!.x)).toBeLessThan(8);
   });
 
   test('分栏点 EthanChang 回到首页 About', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     await expect(index.locator('a[href="/articles/pkm-method"]')).toHaveAttribute(
       'aria-current',
@@ -1018,14 +1019,14 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'home');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
-    await expect(index.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
   });
 
   test('从文章列表点 EthanChang 进分栏首页', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await markReadingShell(page);
 
@@ -1038,11 +1039,11 @@ test.describe('分栏阅读', () => {
 
   test('分栏点展开进入完整文章列表', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     const expand = index.locator('[data-reading-expand]');
     await expect(expand).toHaveAttribute('href', '/articles');
-    await expect(expand).toHaveAttribute('aria-label', 'Open full index');
+    await expect(expand).toHaveAttribute('aria-label', "展开完整列表");
     await expect(expand).toHaveCSS('opacity', '0');
     await expect(page.locator('[data-reading-doc] [data-reading-expand]')).toHaveCount(0);
     await expect(index.locator('[data-reading-collapse]')).toBeHidden();
@@ -1060,12 +1061,12 @@ test.describe('分栏阅读', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/articles');
     await expectKeptShell(page, 'index');
-    await expectExpandedIndex(page, 'Articles');
+    await expectExpandedIndex(page, "文章");
   });
 
   test('分栏从项目展开进入完整项目列表', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/projects/aletheia');
+    await page.goto('/projects/aletheia', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     const expand = await revealReadingExpand(index);
     await expect(expand).toHaveAttribute('href', '/projects');
@@ -1074,18 +1075,18 @@ test.describe('分栏阅读', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expectKeptShell(page, 'index');
-    await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
   });
 
   test('左栏换成项目后展开进完整项目列表', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await page
       .locator('[data-reading-index] [data-reading-index-switch]')
-      .getByRole('link', { name: 'Projects' })
+      .getByRole('link', { name: "项目" })
       .click();
     const index = page.locator('[data-reading-index]');
-    await expect(index.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
     const expand = await revealReadingExpand(index);
     await expect(expand).toHaveAttribute('href', '/projects');
     await markReadingShell(page);
@@ -1097,7 +1098,7 @@ test.describe('分栏阅读', () => {
 
   test('首页展开打开完整文章列表', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'home');
     const expand = await revealReadingExpand(index);
@@ -1111,7 +1112,7 @@ test.describe('分栏阅读', () => {
 
   test('文章页展开后再收起回到 About，不整页刷新', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await markReadingShell(page);
     const expand = await revealReadingExpand(page.locator('[data-reading-index]'));
     await expand.click();
@@ -1133,7 +1134,7 @@ test.describe('分栏阅读', () => {
 
   test('展开后点文章|项目只换索引，不刷新', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await markReadingShell(page);
     const expand = await revealReadingExpand(page.locator('[data-reading-index]'));
     await expand.click();
@@ -1141,17 +1142,17 @@ test.describe('分栏阅读', () => {
 
     await page
       .locator('[data-reading-index] [data-reading-index-switch]')
-      .getByRole('link', { name: 'Projects' })
+      .getByRole('link', { name: "项目" })
       .click();
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expectKeptShell(page, 'index');
-    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
   });
 
   test('展开尊重 reduced motion，立刻铺满', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const expand = await revealReadingExpand(page.locator('[data-reading-index]'));
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/articles');
@@ -1164,7 +1165,7 @@ test.describe('分栏阅读', () => {
 
   test('文章列表收起回到首页 About', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await markReadingShell(page);
     const collapse = await revealReadingCollapse(page.locator('[data-reading-index]'));
     await expect(collapse).toHaveAttribute('href', '/');
@@ -1182,7 +1183,7 @@ test.describe('分栏阅读', () => {
 
   test('项目列表收起回到首页 About', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/projects');
+    await page.goto('/projects', { waitUntil: 'domcontentloaded' });
     await markReadingShell(page);
     const collapse = await revealReadingCollapse(page.locator('[data-reading-index]'));
     await expect(collapse).toHaveAttribute('href', '/');
@@ -1193,14 +1194,15 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-index]')).toBeVisible();
   });
 
-  test('/zh/articles 收起指向 /zh', async ({ page }) => {
+  test('旧 /zh/articles 回到中文路径，收起指向首页', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/zh/articles');
+    await page.goto('/zh/articles', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(url => url.pathname === '/articles');
     await markReadingShell(page);
     const collapse = await revealReadingCollapse(page.locator('[data-reading-index]'));
-    await expect(collapse).toHaveAttribute('href', '/zh');
+    await expect(collapse).toHaveAttribute('href', '/');
     await collapse.click();
-    await expect(page).toHaveURL((url) => url.pathname === '/zh');
+    await expect(page).toHaveURL((url) => url.pathname === '/');
     await expectKeptShell(page, 'home');
     await expect(page.locator('[data-about-panel]')).toBeVisible();
     await expect(page.locator('[data-reading-index]')).toBeVisible();
@@ -1208,7 +1210,7 @@ test.describe('分栏阅读', () => {
 
   test('Escape 关闭正文回到首页', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-doc]')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page).toHaveURL((url) => url.pathname === '/');
@@ -1222,7 +1224,7 @@ test.describe('分栏关闭（无 JS）', () => {
 
   test('左栏卡片仍是指向文章的真实链接', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const card = page.locator('[data-reading-index] a[href="/articles/heptabase-method"]');
     await expect(card).toHaveAttribute('href', '/articles/heptabase-method');
     await card.click();
@@ -1232,11 +1234,11 @@ test.describe('分栏关闭（无 JS）', () => {
 
   test('左栏标题钉在栏顶，年份从下方滚过', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 560 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
     const heading = index.locator('.reading-index-heading');
-    await expect(heading.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(heading.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
 
     const rest = await page.evaluate(() => {
       const pane = document.querySelector('[data-reading-index]');
@@ -1286,7 +1288,7 @@ test.describe('分栏关闭（无 JS）', () => {
 
   test('展开是指向完整索引的真实链接', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles/pkm-method');
+    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
     const index = page.locator('[data-reading-index]');
     const expand = await revealReadingExpand(index);
     await expect(expand).toHaveAttribute('href', '/articles');
@@ -1294,12 +1296,12 @@ test.describe('分栏关闭（无 JS）', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/articles');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.getByRole('heading', { level: 1, name: 'Articles' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
   });
 
   test('收起是指向首页的真实链接', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto('/articles');
+    await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     const collapse = await revealReadingCollapse(page.locator('[data-reading-index]'));
     await expect(collapse).toHaveAttribute('href', '/');
     await collapse.click();

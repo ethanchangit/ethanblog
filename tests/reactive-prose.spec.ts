@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('反应式散文（Var + Calc）', () => {
   test('SSR 初值：正文数字与计算结果直接可读', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('reactive-prose');
     await expect(section).toContainText('10 张卡片');
     await expect(section).toContainText('3650 张');
@@ -17,7 +17,7 @@ test.describe('反应式散文（Var + Calc）', () => {
   });
 
   test('键盘调整 Var，跨岛屿联动 Calc 立即重算', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('reactive-prose');
     await section.scrollIntoViewIfNeeded();
 
@@ -36,7 +36,7 @@ test.describe('反应式散文（Var + Calc）', () => {
   });
 
   test('Shift + 方向键 = 十倍步长，且 clamp 在 max', async ({ page }) => {
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('reactive-prose');
     await section.scrollIntoViewIfNeeded();
     const slider = section.locator('[role="slider"]');
@@ -55,7 +55,7 @@ test.describe('反应式散文（Var + Calc）', () => {
 
   test('reduced-motion 下渲染与键盘交互不受影响', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto('/lab');
+    await page.goto('/lab', { waitUntil: 'domcontentloaded' });
     const section = page.getByTestId('reactive-prose');
     await section.scrollIntoViewIfNeeded();
     const slider = section.locator('[role="slider"]');

@@ -5,14 +5,14 @@ const PROJECT = '/projects/aletheia/';
 
 test.describe('文章留言', () => {
   test('定稿页文末是发信表单，不是留言板', async ({ page }) => {
-    const response = await page.goto(FINAL);
+    const response = await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
 
     const comments = page.locator('#comments');
     await expect(comments).toBeVisible();
-    await expect(comments.getByRole('heading', { name: 'Comments', exact: true })).toBeVisible();
+    await expect(comments.getByRole('heading', { name: "留言", exact: true })).toBeVisible();
     await expect(
-      comments.getByText('After you send it, it goes to my inbox. It will not appear on this page.'),
+      comments.getByText("写完会发到我的邮箱，不会出现在这页上。"),
     ).toBeVisible();
     await expect(comments.getByText('No comments yet.')).toHaveCount(0);
     await expect(comments.getByText('还没有人留言')).toHaveCount(0);
@@ -25,7 +25,7 @@ test.describe('文章留言', () => {
     await expect(comments.locator('input[name="name"]')).toBeVisible();
     await expect(comments.locator('input[name="email"]')).toBeVisible();
     await expect(comments.locator('textarea[name="body"]')).toBeVisible();
-    await expect(comments.getByRole('button', { name: 'Send' })).toBeVisible();
+    await expect(comments.getByRole('button', { name: "发送" })).toBeVisible();
     await expect(comments.locator('form')).toHaveAttribute('action', '/api/comments');
     await expect(comments.locator('form')).toHaveAttribute('method', /post/i);
     await expect(comments.locator('input[name="slug"]')).toHaveValue('pkm-method');
@@ -45,7 +45,7 @@ test.describe('文章留言', () => {
     expect(footBox!.y).toBeLessThan(bodyBox!.y);
     await expect(foot.locator('input[name="name"]')).toBeVisible();
     await expect(foot.locator('input[name="email"]')).toBeVisible();
-    await expect(foot.getByRole('button', { name: 'Send' })).toBeVisible();
+    await expect(foot.getByRole('button', { name: "发送" })).toBeVisible();
 
     const footer = page.locator('article footer');
     await expect(footer.getByText('请这样引用')).toHaveCount(0);
@@ -53,10 +53,10 @@ test.describe('文章留言', () => {
   });
 
   test('首页和项目页没有留言表单', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#comments')).toHaveCount(0);
 
-    const project = await page.goto(PROJECT);
+    const project = await page.goto(PROJECT, { waitUntil: 'domcontentloaded' });
     expect(project?.status()).toBe(200);
     await expect(page.locator('#comments')).toHaveCount(0);
   });

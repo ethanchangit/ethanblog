@@ -1,21 +1,21 @@
-import { articleCardProps, type PublishedArticle } from '@/lib/tags';
+import { docCardProps } from '@/lib/tags';
+import type { DocEntry } from '@/lib/docs';
 
-/** Title, English title, descriptions, and tags — enough for this small corpus. */
-export function searchHaystack(entry: PublishedArticle): string {
+/** Index all published documents, including reference-only pages and body text. */
+export function searchHaystack(entry: DocEntry): string {
   return [
     entry.data.title,
-    entry.data.titleEn ?? '',
     entry.data.description,
-    entry.data.descriptionEn ?? '',
     ...entry.data.tags,
+    (entry.body ?? '').replace(/^import .*$/gm, '').replace(/<[^>]*>/g, ' '),
   ]
     .join('\n')
     .toLowerCase();
 }
 
-export function searchCardProps(entry: PublishedArticle) {
+export function searchCardProps(entry: DocEntry) {
   return {
-    ...articleCardProps(entry),
+    ...docCardProps(entry),
     haystack: searchHaystack(entry),
   };
 }
