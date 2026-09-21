@@ -60,7 +60,7 @@ Cloudflare production 需要：
 | Secret | 用途与权限 |
 | --- | --- |
 | `GITHUB_TOKEN` | 仅授权 `ethanchangit/ethanblog` 的 fine-grained PAT：Contents、Pull requests 读写，Actions 只读。不要复用本机或聊天插件的宽权限凭证。Actions 自带的同名令牌不适用，因为它创建的更新不能正常触发后续工作流。 |
-| `STUDIO_PASSWORD_HASH` | 在本机运行 `npm run dashboard:password` 设置至少 12 个字符的密码。只上传加盐摘要，明文不显示、不保存。换密码使旧登录失效。 |
+| `STUDIO_PASSWORD_HASH` | 在本机运行 `npm run dashboard:password` 设置至少 10 个字符的密码。只上传加盐摘要，明文不显示、不保存。换密码使旧登录失效。 |
 | `STUDIO_SECRET` | 随机 32 字节密钥的 Base64，用于加密 Heptabase 授权和验证发布回执；同时保存到 GitHub Actions 同名 Secret。 |
 
 任何密钥都不能进入代码、聊天、普通配置或不可信 PR 预览。正式配置前必须经站点所有者确认。建议保护 `main`、禁止强制推送并要求最新 `verify` 检查；`production` 可要求人工审批。

@@ -975,8 +975,9 @@ export function createHandler(assets = {}) {
         return html ? new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'no-referrer', 'content-security-policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" } }) : new Response('Not found', { status: 404 });
       }
       const key = url.pathname.replace(/^\/dashboard\//, '');
-      const value = assets[key];
-      if (value != null) return new Response(value, { headers: { 'content-type': contentType(key), 'cache-control': key.includes('-') ? 'public, max-age=31536000, immutable' : 'no-store' } });
+      const assetKey = key === 'preview' || key === 'preview/' || key === 'preview/index.html' ? 'preview.html' : key;
+      const value = assets[assetKey];
+      if (value != null) return new Response(value, { headers: { 'content-type': contentType(assetKey), 'cache-control': assetKey.includes('-') ? 'public, max-age=31536000, immutable' : 'no-store' } });
       return new Response('Not found', { status: 404 });
     } catch (error) {
       const status = Number(error?.status) || 500;

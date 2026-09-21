@@ -7,7 +7,7 @@ if (!process.stdin.isTTY) throw new Error('请在自己的终端运行此命令�
 const silent = new Writable({ write(_chunk, _encoding, next) { next(); } });
 const input = createInterface({ input: process.stdin, output: silent, terminal: true });
 const question = (label) => new Promise((resolve) => { process.stdout.write(label); input.question('', (value) => { process.stdout.write('\n'); resolve(value); }); });
-const first = await question('设定后台密码（至少 12 个字符，不回显）：');
+const first = await question('设定后台密码（至少 10 个字符，不回显）：');
 const second = await question('再次输入：');
 input.close();
 if (first !== second) throw new Error('两次密码不同。');

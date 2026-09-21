@@ -39,7 +39,7 @@ export function requireCsrf(request) {
 }
 
 export async function passwordRecord(password, salt = randomToken()) {
-  if (typeof password !== 'string' || password.length < 12 || password.length > 256) throw fail('密码需要 12 至 256 个字符。');
+  if (typeof password !== 'string' || password.length < 10 || password.length > 256) throw fail('密码需要 10 至 256 个字符。');
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations: 100000 }, key, 256);
   return `pbkdf2-sha256:100000:${salt}:${hex(bits)}`;
@@ -47,7 +47,7 @@ export async function passwordRecord(password, salt = randomToken()) {
 
 async function verifyPassword(password, record) {
   if (!/^pbkdf2-sha256:100000:[a-f0-9]{64}:[a-f0-9]{64}$/.test(record)) throw fail('后台密码尚未配置。', 503);
-  if (typeof password !== 'string' || password.length < 12 || password.length > 256) return false;
+  if (typeof password !== 'string' || password.length < 10 || password.length > 256) return false;
   const candidate = await passwordRecord(password, record.split(':')[2]);
   // Fixed-size digest comparison, no early exit based on matching characters.
   let difference = 0;

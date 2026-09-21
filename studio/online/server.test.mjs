@@ -28,6 +28,17 @@ function graph(f) {
   f.cardSources.set(grandchild, `# 孙文\n\n${mention(CARD, '主文')}`);
 }
 
+test('public preview template is served at the directory URL used after deployment', async () => {
+  const html = '<!doctype html><title>文章预览</title>';
+  const f = await fixture({ 'preview.html': html });
+  for (const path of ['/dashboard/preview/', '/dashboard/preview', '/dashboard/preview/index.html', '/dashboard/preview.html']) {
+    const response = await f.handler(new Request(`https://ethanchang.io${path}`));
+    assert.equal(response.status, 200, path);
+    assert.match(response.headers.get('content-type'), /text\/html/);
+    assert.equal(await response.text(), html);
+  }
+});
+
 test('password login cannot be replaced by ChatGPT headers; cookies, CSRF, logout and rotation', async () => {
   const f = await fixture(); globalThis.fetch = f.fetcher;
   assert.equal((await f.request('/docs', 'GET', undefined, { 'oai-authenticated-user-id': 'owner' })).status, 401);
