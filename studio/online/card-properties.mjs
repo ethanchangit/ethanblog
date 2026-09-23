@@ -23,7 +23,8 @@ export async function blogSchema(client, tagId) {
 export function collectionForBlogType(type) {
   if (type === 'blog') return 'articles';
   if (type === 'project') return 'projects';
-  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog 或 Project）。');
+  if (type === 'page') return 'pages';
+  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog、Project 或 Page）。');
 }
 
 export function propertiesFromRead(content, schema) {
@@ -46,7 +47,8 @@ export function propertiesFromRead(content, schema) {
   if (!Array.isArray(tags) || tags.some((t) => typeof t !== 'string')) throw fail('Heptabase Tag 应是多选标签。');
   const typeValue = values[schema.type.name];
   const type = typeValue == null || typeValue === '' ? null : String(typeValue).trim().toLowerCase();
-  if (type && !['blog', 'project'].includes(type)) throw fail('Blog Type 选项尚未对应。');
+  const typeNames = schema.type.options.map((option) => option.name.trim().toLowerCase());
+  if (type && (!typeNames.includes(type) || !['blog', 'project', 'page'].includes(type))) throw fail('Blog Type 选项尚未对应。');
   return { member, status, date, tags: [...new Set(tags)].sort(), type };
 }
 

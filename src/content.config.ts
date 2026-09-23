@@ -61,6 +61,11 @@ const pages = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
+    slot: z.literal('page').optional(),
+    date: z.coerce.date().optional(),
+    updated: z.coerce.date().optional(),
+    heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
   }),
 });
 

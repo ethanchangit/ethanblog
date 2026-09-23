@@ -52,7 +52,7 @@
 Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站与已发布内容的真源。后台把已审查的内容做成 PR，合并进 `main` 后由 Actions 部署。后台不直接改 `main`。
 
 - 文章：`src/content/articles/<slug>.mdx`，`slot: article`，必须有 `date`。项目：`src/content/projects/<slug>.mdx`，`slot: project`。schema 在 `src/content.config.ts`。`slot` 决定进 `/articles` 还是 `/projects`，不是 topical `tags`。
-- `src/content/pages/` 只有手写目录 `blogs.mdx`。首页 about、Now、联系、隐私等站点页由 Astro 路由和 `src/data/profile.ts` 维护，不从 Heptabase 拉取。
+- `src/content/pages/` 有手写目录 `blogs.mdx`，以及关于、Now、联系、隐私四份发布副本（`about.mdx`、`now.mdx`、`contact.mdx`、`privacy.mdx`）。这四页的正文只来自 Heptabase 里 Blog Type 为 Page 的 `#blog` 卡片；路由只渲染这些副本。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
 ### `#blog` 与 `#blog-reference`
@@ -60,7 +60,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 拉取读 Heptabase 里准确名为 `blog` 的标签数据库。
 
 - 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`block`、`review`、`published`，各一个。`published` 表示已通过审核，不表示网站已上线。
-- `Blog Type` 只有 `Blog` 和 `Project`。Blog 进文章页，Project 进项目页。没选就停止，不按标题猜测。
+- `Blog Type` 有 `Blog`、`Project` 和 `Page`。Blog 进文章页，Project 进项目页，Page 只对应关于、Now、联系、隐私。没选就停止，不按标题猜测。
 - 主卡片递归提到、且自己不在 `#blog` 里的卡片，后台称为 page：`listed: false`，列在该主卡片下方，不单独通过或拒绝。发布前必须带上标签 `blog-reference`（`#blog-reference`）。标签只用于回到 Heptabase 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
 - 被提到的另一张 `#blog` 卡片仍是主卡片，必须单独通过或拒绝，不会被标成 `#blog-reference`。
 

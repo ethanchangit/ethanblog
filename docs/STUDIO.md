@@ -6,7 +6,7 @@
 
 - **Heptabase 是写作来源。** 读取准确名为 `blog` 的标签数据库。审核入口只拉取 `Status = review` 的主文章；`new`、`writing`、`block` 不进入审核清单。大小写兼容，但每个状态只能有一个选项。`published` 表示已通过审核，是否真正上线另看发布进度。
 - **GitHub 是网站、已审查内容与发布历史的唯一真源。** 提交只创建或更新内容 PR；经过检查和明确确认后合并到 `main`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages。pull request 只跑 `verify`。在 `main` 上 `workflow_dispatch` 也会部署。
-- 首页 about、Now、联系、隐私留在 Astro 路由和 `src/data/profile.ts`，不从 `#blog` 拉取。`#blog` 的 Blog Type 只有 Blog 和 Project。
+- 首页 about、Now、联系、隐私来自 `#blog` 里 Blog Type 为 Page 的卡片。发布副本在 `src/content/pages/`，路由只渲染这份副本。Blog Type 还有 Blog 和 Project。
 - **Cloudflare 私有存储只保留待提交快照、审查记录、授权和发布进度。** 拉取或保存审查结果不会直接更新网站。后台不会直接覆盖 `main`。
 - 每篇文章或项目用真实的 `heptabaseCardLink: heptabase://card/<uuid>` 一对一关联，不靠标题猜测。历史文章可以继续展示，但更新前需要关联；不能编造链接。
 - 当前只有一份正文，不要求中英双语。英文版副本已移除，中文正文中的英文名称、引用和代码不受影响。
@@ -29,7 +29,7 @@
 
 ## 撤下文章
 
-在 Heptabase 将关联文章移出 `#blog`，或直接删除源卡片，下次「拉取最新更新」会把它列入 **Deleted articles**。这项检查不要求卡片仍为 Review，也包括已经通过审核、尚未上线的新文章。没有关联源卡片的旧文章不会因为拉取结果里找不到它而被删除。
+在 Heptabase 将关联文章移出 `#blog`，或直接删除源卡片，下次「拉取最新更新」会把它列入 **Deleted articles**。关于、Now、联系、隐私同样：卡片离开 `#blog` 或被删除就进入这份清单。只挂在 `#blog-reference`、且 `listed: false` 的资料，在卡片离开 `#blog-reference` 且不在 `#blog`、或卡片被删除时撤下；仍被任一标签收着就保留。这项检查不要求卡片仍为 Review，也包括已经通过审核、尚未上线的新文章。没有关联源卡片的旧文章不会因为拉取结果里找不到它而被删除。权限、网络或不完整列表不当作删除。
 
 1. 点击待删除文章，右侧显示现有内容和删除原因。下方列出会一起撤下的专属引用资料；仍被其他页面使用的资料会保留。
 2. 点击 ✓，核对完整删除清单并明确确认；点击 × 仅表示本轮暂不删除，不改 Heptabase 属性。撤下流程不会删除或改写 Heptabase 源卡片，不会把状态改为 Block。
