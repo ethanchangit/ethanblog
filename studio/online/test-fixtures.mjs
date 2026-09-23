@@ -59,7 +59,7 @@ export async function fixture(assets = {}) {
   function commit(treeSha, parents = []) { const sha = digest([treeSha, parents]); commits.set(sha, { tree: { sha: treeSha }, parents: parents.map((sha) => ({ sha })) }); return sha; }
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
   let pr = null, checksPass = true, liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
-  const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
+  const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
   const calls = [];
   function filesFor(sha) { return trees.get(commits.get(sha).tree.sha); }
   const changedFiles = () => {
@@ -86,7 +86,7 @@ export async function fixture(assets = {}) {
             status: { name: 'Status', type: 'select', options: ['new', 'writing', 'block', 'review', 'published'].map((name) => ({ id: name, name })) },
             date: { name: 'Publish Date', type: 'date' },
             tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity'].map((name) => ({ id: name, name })) },
-            type: { name: 'Blog Type', type: 'select', options: ['Blog', 'Project'].map((name) => ({ id: name, name })) },
+            type: { name: 'Blog Type', type: 'select', options: ['Blog', 'Project', 'Page', 'Reference'].map((name) => ({ id: name, name })) },
           } } };
           else if (name === 'edit_card_properties') {
             for (const edit of args.edits) {
@@ -96,7 +96,15 @@ export async function fixture(assets = {}) {
             }
             content = { results: args.edits.map((e) => ({ cardId: e.cardId, propertyId: e.propertyId, status: 'success' })) };
           }
-          else if (name === 'list_cards') content = { content: 'Cards:\n' + [...(args.tagIds[0] === 'reference-id' ? referenceCards : properties.keys())].map(id => `card ${JSON.stringify((id === CARD ? source : cardSources.get(id) || '# 测试文章').split('\n')[0].replace(/^# /, ''))} [${id}] created: 2026-09-21T00:00:00Z; updated: 2026-09-21T00:00:00Z`).join('\n') };
+          else if (name === 'list_cards') {
+            const ids = args.cardIds?.length ? args.cardIds : [...(args.tagIds?.[0] === 'reference-id' ? referenceCards : properties.keys())];
+            content = { content: 'Cards:\n' + ids.map(id => {
+              const title = (id === CARD ? source : cardSources.get(id) || '# 测试文章').split('\n')[0].replace(/^# /, '');
+              const stamp = timestamps.get(id) || { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z' };
+              const meta = [stamp.created ? `created: ${stamp.created}` : '', stamp.updated ? `updated: ${stamp.updated}` : ''].filter(Boolean).join('; ');
+              return `card ${JSON.stringify(title)} [${id}]${meta ? ` ${meta}` : ''}`;
+            }).join('\n') };
+          }
           else if (name === 'create_object') {
             const id = crypto.randomUUID(); cardSources.set(id, args.content); content = { objectId: id, url: `heptabase://card/${id}` };
           }
@@ -185,7 +193,7 @@ export async function fixture(assets = {}) {
     const state = new URL(start.url).searchParams.get('state');
     return request(`/heptabase/callback?state=${state}&code=test-code`);
   }
-  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, referenceCards, missingCards,
+  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, referenceCards, missingCards, timestamps,
     source: () => source, setSource: (text) => { source = text; },
     failChecks: () => { checksPass = false; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },

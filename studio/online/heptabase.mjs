@@ -197,7 +197,8 @@ export async function taggedCards(client, name) {
     const rows = [...page.content.matchAll(new RegExp(`^(\\w+) "(.*)" \\[(${UUID})\\](.*)$`, 'gm'))];
     for (const [, type, title, id, metadata] of rows) {
       if (seen.has(id)) throw fail('读取卡片时列表发生变化，请重新拉取。', 409);
-      seen.add(id); cards.push({ id, type, title, created: /created: ([^;\s]+)/.exec(metadata)?.[1] || '', cardLink: `heptabase://card/${id}` });
+      const stamps = cardStamps(metadata);
+      seen.add(id); cards.push({ id, type, title, created: stamps.created, updated: stamps.updated, cardLink: `heptabase://card/${id}` });
     }
     if (!page.content.includes('More cards are available.')) break;
     if (!rows.length) throw fail('Heptabase 返回了无法识别的卡片列表。', 502);
@@ -209,6 +210,30 @@ export async function taggedCards(client, name) {
 }
 
 export const blogCards = (client) => taggedCards(client, 'blog');
+
+export function cardStamps(metadata) {
+  return {
+    created: /(?:^|[;\s])created: ([^;\s]+)/.exec(metadata || '')?.[1] || '',
+    updated: /(?:^|[;\s])updated: ([^;\s]+)/.exec(metadata || '')?.[1] || '',
+  };
+}
+
+export function parseCardList(content) {
+  const rows = [...String(content || '').matchAll(new RegExp(`^(\\w+) "(.*)" \\[(${UUID})\\](.*)$`, 'gm'))];
+  return rows.map(([, type, title, id, metadata]) => ({ id, type, title, ...cardStamps(metadata), cardLink: `heptabase://card/${id}` }));
+}
+
+export async function cardTimestamps(client, ids) {
+  const wanted = [...new Set(ids)].filter(Boolean);
+  const found = new Map();
+  for (let index = 0; index < wanted.length; index += 100) {
+    const batch = wanted.slice(index, index + 100);
+    const page = await client.call('list_cards', { cardIds: batch, include: ['timestamps'], limit: 100 });
+    for (const card of parseCardList(page.content)) found.set(card.id, { created: card.created, updated: card.updated });
+    if (batch.some((id) => !found.has(id))) throw fail('Heptabase 没有返回卡片的创建时间，未改用今天的日期。', 502);
+  }
+  return found;
+}
 
 export async function readCard(client, id) {
   // Public read_object currently provides Hepta Markdown and line numbers, not

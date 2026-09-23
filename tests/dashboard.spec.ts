@@ -122,9 +122,9 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(dialog.getByRole('alert')).toHaveText('请先确认这篇博客和所有引用都可以公开。');
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: '确认通过并回写' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('#blog-reference');
+  await expect(dialog.getByRole('alert')).toContainText('Reference');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
-  await page.getByRole('button', { name: '标记引用资料为 #blog-reference' }).click();
+  await page.getByRole('button', { name: '标记引用资料为 Reference' }).click();
   await page.getByRole('button', { name: '通过「将笔记变成可以分享的文章」', exact: true }).click();
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: '确认通过并回写' }).click();
@@ -242,6 +242,7 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   const group = page.locator('[data-review-group=removed]');
   await expect(group.getByRole('heading')).toHaveText('Deleted articles · 2');
   await expect(group).toContainText('已移出 #blog'); await expect(group).toContainText('Heptabase 卡片已删除');
+  await expect(group.getByRole('button', { name: '仅由旧笔记引用的资料', exact: true })).toHaveCount(1);
   await expect(group.locator('.references .decisions')).toHaveCount(0);
   await page.getByRole('button', { name: '已经不再公开的旧笔记', exact: true }).click();
   await expect(page.frameLocator('iframe').locator('h1')).toHaveText('已经不再公开的旧笔记');

@@ -52,17 +52,17 @@
 Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站与已发布内容的真源。后台把已审查的内容做成 PR，合并进 `main` 后由 Actions 部署。后台不直接改 `main`。
 
 - 文章：`src/content/articles/<slug>.mdx`，`slot: article`，必须有 `date`。项目：`src/content/projects/<slug>.mdx`，`slot: project`。schema 在 `src/content.config.ts`。`slot` 决定进 `/articles` 还是 `/projects`，不是 topical `tags`。
-- `src/content/pages/` 有手写目录 `blogs.mdx`，以及关于、Now、联系、隐私四份发布副本（`about.mdx`、`now.mdx`、`contact.mdx`、`privacy.mdx`）。这四页的正文只来自 Heptabase 里 Blog Type 为 Page 的 `#blog` 卡片；路由只渲染这些副本。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
+- `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于、Now、联系、隐私仍用原来的地址（`/`、`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/pages/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
-### `#blog` 与 `#blog-reference`
+### `#blog`
 
-拉取读 Heptabase 里准确名为 `blog` 的标签数据库。
+拉取读 Heptabase 里准确名为 `blog` 的标签数据库。引用资料不再使用单独的 `#blog-reference` 标签。
 
 - 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`block`、`review`、`published`，各一个。`published` 表示已通过审核，不表示网站已上线。
-- `Blog Type` 有 `Blog`、`Project` 和 `Page`。Blog 进文章页，Project 进项目页，Page 只对应关于、Now、联系、隐私。没选就停止，不按标题猜测。
-- 主卡片递归提到、且自己不在 `#blog` 里的卡片，后台称为 page：`listed: false`，列在该主卡片下方，不单独通过或拒绝。发布前必须带上标签 `blog-reference`（`#blog-reference`）。标签只用于回到 Heptabase 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
-- 被提到的另一张 `#blog` 卡片仍是主卡片，必须单独通过或拒绝，不会被标成 `#blog-reference`。
+- `Blog Type` 有 `Blog`、`Project`、`Page` 和 `Reference`。Blog 和 Reference 进文章页，Project 进项目页，Page 进站点页。项目、博客和 Reference 随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。Reference 用 Blog Type 的 Reference 选项区分，不靠第二个标签。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。
+- 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
+- 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
 
 ### `/dashboard`
 
@@ -71,7 +71,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
 1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
-2. 主卡片上 ✓ / ×。通过则回写 `published`；Publish Date 为空时补当天（默认时区 `Africa/Dar_es_Salaam`），已有日期保留。此时只是「已通过，待发布」。拒绝则回写 `block`，不改日期，也不改线上旧文。
+2. 主卡片上 ✓ / ×。通过则回写 `published`。Publish Date 或创建时间已有则原样保留；两样都空时才补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。拒绝则回写 `block`，不改日期，也不改线上旧文。
 3. 「提交通过的更新到 GitHub」只提交已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
 5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。

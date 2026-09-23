@@ -5,6 +5,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
+export const PAGE_CAP = 4;
 export const CORE_PAGE_IDS = new Set(['about', 'now', 'contact', 'privacy']);
 export const CORE_PAGE_BY_TITLE = new Map([
   ['关于', 'about'],
@@ -14,14 +15,38 @@ export const CORE_PAGE_BY_TITLE = new Map([
   ['隐私', 'privacy'],
 ]);
 
+export function pageIdFromPath(filePath) {
+  const match = /^src\/content\/pages\/([a-z0-9]+(?:-[a-z0-9]+)*)\.mdx$/.exec(filePath || '');
+  if (!match || match[1] === 'blogs') return null;
+  return match[1];
+}
+
 export function corePageIdFromPath(filePath) {
-  const match = /^src\/content\/pages\/(about|now|contact|privacy)\.mdx$/.exec(filePath || '');
-  return match ? match[1] : null;
+  const id = pageIdFromPath(filePath);
+  return id && CORE_PAGE_IDS.has(id) ? id : null;
+}
+
+export function pageHref(id) {
+  if (id === 'about') return '/';
+  if (CORE_PAGE_IDS.has(id)) return `/${id}`;
+  return `/pages/${id}`;
+}
+
+// At most PAGE_CAP site pages. A title that already owns /, /now, /contact, or /privacy
+// keeps that address; another card with the same title gets its own URL.
+export function pageReviewNote(id, { displaced = false, canonicalTitle = '', choiceRequired = false } = {}) {
+  const href = pageHref(id);
+  const rest = '项目、博客和 Reference 随卡片增加，没有上限。';
+  const place = displaced
+    ? `「${canonicalTitle}」这个地址已经连着另一张卡片，这张新页面会单独出现在 ${href}，不会替换或丢掉原来的页面。`
+    : `确认发布后，这张页面出现在 ${href}。`;
+  if (choiceRequired) return `站点页面最多显示 ${PAGE_CAP} 页。现在超过 ${PAGE_CAP} 张，请在审核清单里选择留下哪几页。未勾选的不会悄悄去掉。${rest}${place}`;
+  return `站点页面最多显示 ${PAGE_CAP} 页。现在不超过 ${PAGE_CAP} 张，全部发布，不需要挑选。${rest}${place}`;
 }
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
-  'slot', 'title', 'description', 'date', 'updated',
-  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
+  'slot', 'title', 'description', 'date', 'created', 'updated',
+  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
@@ -51,20 +76,20 @@ export function slugify(input, fallbackDate = new Date()) {
 export function isSafeId(collection, id) {
   if (!COLLECTIONS.has(collection)) return false;
   if (typeof id !== 'string' || id.length === 0 || id.length > 120) return false;
-  if (collection === 'pages') return id === 'blogs' || CORE_PAGE_IDS.has(id);
+  if (collection === 'pages') return id === 'blogs' || ID_RE.test(id);
   return ID_RE.test(id);
 }
 
 export function isSafeDocRef(of) {
   if (typeof of !== 'string') return false;
-  const match = /^(articles|projects)\/(.+)$/.exec(of.trim());
-  return Boolean(match && OF_RE.test(match[2]) && isSafeId(match[1], match[2]));
+  const match = /^(articles|projects|pages)\/(.+)$/.exec(of.trim());
+  if (!match || match[2] === 'blogs') return false;
+  return Boolean(OF_RE.test(match[2]) && isSafeId(match[1], match[2]));
 }
 
 export function publicHref(collection, id) {
   if (collection === 'pages' && id === 'blogs') return '/blogs';
-  if (collection === 'pages' && id === 'about') return '/';
-  if (collection === 'pages' && CORE_PAGE_IDS.has(id)) return `/${id}`;
+  if (collection === 'pages') return pageHref(id);
   if (collection === 'projects') return `/projects/${id}`;
   return `/articles/${id}`;
 }
@@ -200,7 +225,7 @@ export function validateContentFile(filePath, raw) {
   if (!/^heptabase:\/\/card\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fm.heptabaseCardLink || '')) {
     throw new Error(`请先填写有效的 Heptabase card link：${filePath}`);
   }
-  if (corePageIdFromPath(filePath)) {
+  if (pageIdFromPath(filePath)) {
     if (fm.slot !== 'page') throw new Error(`slot 必须是 page：${filePath}`);
     if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
     if (!String(fm.description ?? '').trim()) throw new Error(`缺少 description：${filePath}`);

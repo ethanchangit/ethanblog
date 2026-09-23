@@ -16,12 +16,14 @@ const docSchema = z
     title: z.string(),
     description: z.string(),
     date: z.coerce.date().optional(),
+    created: z.coerce.date().optional(),
     updated: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
     // 历史页可以没有链接继续构建。经后台新建或更新时必须是真实的 heptabase://card/<uuid>。
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseType: z.enum(['blog', 'project', 'page', 'reference']).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),
@@ -63,9 +65,12 @@ const pages = defineCollection({
     description: z.string(),
     slot: z.literal('page').optional(),
     date: z.coerce.date().optional(),
+    created: z.coerce.date().optional(),
     updated: z.coerce.date().optional(),
+    draft: z.boolean().optional(),
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseType: z.enum(['blog', 'project', 'page', 'reference']).optional(),
   }),
 });
 

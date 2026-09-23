@@ -1,6 +1,6 @@
 import { boundedText, fail, withLock } from './auth.mjs';
-import { blogCards, mcpClient } from './heptabase.mjs';
-import { blogSchema, publicationDate, readProperties, writeProperties } from './card-properties.mjs';
+import { blogCards, cardTimestamps, mcpClient } from './heptabase.mjs';
+import { blogSchema, dateFromCard, publicationDate, readProperties, writeProperties } from './card-properties.mjs';
 
 export async function prepareWriteback(env, releaseId, cards) {
   if (!cards.length) return;
@@ -29,10 +29,12 @@ export async function completeWriteback(env, releaseId) {
         const current = await readProperties(client, row.card_id, schema);
         if (!current.member) throw fail('卡片已移出 #blog，未改写属性。');
         if (current.status !== row.expected_status && current.status !== 'published') throw fail('发布过程中 Status 又被修改，未覆盖你的新标记。');
-        const date = row.published_date || publicationDate(new Date(), env.STUDIO_TIMEZONE || 'Africa/Dar_es_Salaam');
-        // Persist the initial day before the external write, including timeout retries.
+        const stamps = (await cardTimestamps(client, [row.card_id])).get(row.card_id);
+        const copied = dateFromCard({ publishDate: current.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE || 'Africa/Dar_es_Salaam' });
+        const date = copied.date || row.published_date || publicationDate(new Date(), env.STUDIO_TIMEZONE || 'Africa/Dar_es_Salaam');
+        // Persist the day taken from the card before the external write, including timeout retries.
         await env.DB.prepare('UPDATE studio_release_cards SET published_date = ?1 WHERE release_id = ?2 AND card_id = ?3').bind(date, releaseId, row.card_id).run();
-        const desired = { status: 'published', ...(!current.date ? { date } : {}) };
+        const desired = { status: 'published', ...(!current.date && copied.invented ? { date } : {}) };
         await writeProperties(client, row.card_id, schema, desired);
         await env.DB.prepare('UPDATE studio_release_cards SET completed = 1, error = NULL WHERE release_id = ?1 AND card_id = ?2').bind(releaseId, row.card_id).run();
       } catch (error) {
