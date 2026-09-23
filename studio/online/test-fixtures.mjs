@@ -242,5 +242,6 @@ export async function fixture(assets = {}) {
     failChecks: () => { checksPass = false; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },
     remote(raw, path = PATH, branch = 'main') { const parent = refs.get(branch); refs.set(branch, commit(tree({ ...filesFor(parent), [path]: blob(raw) }), [parent])); },
+    text(path, branch = 'codex/studio-content') { const sha = filesFor(refs.get(branch))[path]; return sha ? blobs.get(sha) : null; },
   };
 }

@@ -418,6 +418,7 @@ test('more than four page cards require a choice and do not drop the extras', as
   assert.match((await tooMany.json()).error, /最多留下 4 页/);
   const choice = await jsonOk(f.request('/heptabase/page-choice', 'POST', { keep: [...kept.map(([id]) => id), fresh] }));
   assert.deepEqual(choice.keep, [...kept.map(([id]) => id), fresh].sort());
+  assert.deepEqual(choice.order, [kept[0][0], kept[1][0], kept[2][0], fresh]);
   assert.equal(choice.removals.length, 1);
   assert.equal(choice.removals[0].title, '隐私');
   assert.equal(f.properties.has(dropped[0]), true);
@@ -429,12 +430,42 @@ test('more than four page cards require a choice and do not drop the extras', as
   await jsonOk(f.request('/git/commit', 'POST', { message: '留下四页' }));
   const files = f.filesFor(f.refs.get('codex/studio-content'));
   assert.equal(files['src/content/pages/privacy.mdx'], undefined);
+  assert.match(f.text('src/data/page-order.ts'), /'about',\n {2}'now',\n {2}'contact',\n {2}'hepta-55555555-5555-4555-8555-555555555555',/);
   assert.equal(['about', 'now', 'contact'].every(slug => Boolean(files[`src/content/pages/${slug}.mdx`])), true);
   const doc = await jsonOk(f.request(`/doc?collection=pages&id=hepta-${fresh}`));
   assert.match(doc.raw, /读书笔记/);
   assert.match(doc.raw, /2026-09-21/);
   assert.match(doc.raw, /created: "2026-09-21T00:00:00Z"/);
   assert.equal((await f.request('/doc?collection=pages&id=privacy')).status, 404);
+});
+
+test('four site pages can be reordered on review and the nav file keeps that order', async () => {
+  const f = await setup();
+  const pages = [
+    ['11111111-1111-4111-8111-111111111111', '关于', 'about'],
+    ['22222222-2222-4222-8222-222222222222', 'Now', 'now'],
+    ['33333333-3333-4333-8333-333333333333', '联系', 'contact'],
+    ['44444444-4444-4444-8444-444444444444', '隐私', 'privacy'],
+  ];
+  for (const [id, title, slug] of pages) {
+    f.properties.set(id, { Status: 'published', 'Blog Type': 'Page', 'Publish Date': { start: '2026-09-21T00:00:00.000Z' } });
+    f.cardSources.set(id, `# ${title}\n\n${title}页。`);
+    f.remote(`---\nslot: page\ntitle: ${title}\ndescription: ${title}\ndate: 2026-09-21\nheptabaseCardLink: heptabase://card/${id}\n---\n\n${title}页。\n`, `src/content/pages/${slug}.mdx`);
+  }
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.pageSet.choiceRequired, false);
+  assert.deepEqual(listed.pageSet.order, pages.map(([id]) => id));
+  const reversed = [...pages].reverse().map(([id]) => id);
+  const saved = await jsonOk(f.request('/heptabase/page-choice', 'POST', { keep: pages.map(([id]) => id), order: reversed }));
+  assert.deepEqual(saved.order, reversed);
+  assert.equal(saved.removals.length, 0);
+  const again = await jsonOk(f.request('/heptabase/cards'));
+  assert.deepEqual(again.pageSet.order, reversed);
+  const wrong = await f.request('/heptabase/page-choice', 'POST', { keep: pages.map(([id]) => id), order: reversed.slice(1) });
+  assert.equal(wrong.status, 400);
+  await jsonOk(f.request('/git/commit', 'POST', { message: '调整导航顺序' }));
+  assert.match(f.text('src/data/page-order.ts'), /'privacy',\n {2}'contact',\n {2}'now',\n {2}'about',/);
+  assert.match(f.text('src/content/pages/about.mdx'), /关于页/);
 });
 
 test('MCP pagination reads every numbered line and rejects incomplete lists', async () => {

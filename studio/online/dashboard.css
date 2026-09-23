@@ -31,6 +31,8 @@ label { display: block; line-height: 1.9; margin: 16px 0; }
 .page-choice fieldset { border: 0; margin: 0; padding: 0; }
 .page-choice legend { padding: 0; }
 .page-choice label { display: block; margin: 10px 0; }
+.page-choice .page-order { margin-top: 8px; }
+.page-choice .page-order button { margin-left: 12px; }
 .review-group ol { list-style: decimal; padding-left: 24px; }
 .review-group ol > li { padding-left: 3px; margin: 22px 0 30px; }
 .review-group li::marker { color: var(--color-ink-400); font-size: 13px; }

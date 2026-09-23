@@ -37,6 +37,9 @@ test('超过 4 张站点页时要在审核清单里选择留下哪几页', async
   await group.getByRole('checkbox', { name: /隐私/ }).click();
   await expect(group.getByRole('checkbox', { name: /隐私/ })).not.toBeChecked();
   await expect(page.locator('#notice')).toContainText('站点页面最多留下 4 页');
+  await expect(page.getByRole('list', { name: '导航顺序' })).toContainText('读书笔记');
+  await page.getByRole('button', { name: '把「读书笔记」上移' }).click();
+  await expect(page.getByRole('list', { name: '导航顺序' }).locator('li')).toHaveText([/关于/, /Now/, /读书笔记/, /联系/]);
   await page.getByRole('button', { name: '通过「读书笔记」', exact: true }).click();
   await expect(page.locator('#notice')).toContainText('请先在审核清单里选择留下哪几页');
   await page.getByRole('button', { name: '确认留下这些页面' }).click();

@@ -52,7 +52,7 @@
 Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站与已发布内容的真源。后台把已审查的内容做成 PR，合并进 `main` 后由 Actions 部署。后台不直接改 `main`。
 
 - 文章：`src/content/articles/<slug>.mdx`，`slot: article`，必须有 `date`。项目：`src/content/projects/<slug>.mdx`，`slot: project`。schema 在 `src/content.config.ts`。`slot` 决定进 `/articles` 还是 `/projects`，不是 topical `tags`。
-- `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于、Now、联系、隐私仍用原来的地址（`/`、`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/pages/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
+- `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于、Now、联系、隐私仍用原来的地址（`/`、`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。每次审核都可以用上移、下移排列这几页，确认后写入 `src/data/page-order.ts`，导航按这个顺序显示。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/pages/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
 ### `#blog`
@@ -78,7 +78,7 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 
 撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。只撤下该文和专属引用，仍被其他页面使用的资料保留，并阻止剩余页面出现断链。不删除、不改写 Heptabase 源卡片。
 
-后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/blogs.mdx` 和 `src/data/tag-groups.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
+后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/` 下的 MDX、`src/data/tag-groups.ts` 和 `src/data/page-order.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
 
 ## 开发与部署
 

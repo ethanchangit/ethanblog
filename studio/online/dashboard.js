@@ -6,7 +6,7 @@ const root = document.querySelector('#studio');
 document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const stages = { merging: '正在合并', queued: '等待部署', building: '正在检查和部署', verifying: '正在确认线上版本', deployed: '已上线', failed: '发布失败' };
 let docs = [], items = [], selected, git, connected = false, loading = false, pulled = false, localPreview = false, localOpen = false, booted = false, mode = 'preview', template, timer;
-let pageSet = null, pageChoice = null, pageKeepDraft = new Set();
+let pageSet = null, pageChoice = null, pageKeepDraft = new Set(), pageOrderDraft = [], pageOrderAck = false;
 let clearMoveLines = () => {};
 function el(tag, text, attrs = {}) { const n = document.createElement(tag); if (text != null) n.textContent = text; for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v); return n; }
 function link(text, href) { return el('a', text, { href, ...(href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }); }
@@ -105,7 +105,7 @@ async function pullUpdates() {
   } while (payload.partial && ++guard < 40);
   if (payload.partial) throw new Error('拉取没有完成，请稍后重新拉取。');
   const { cards, removals = [], pageSet: pages = null } = payload, next = [];
-  pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || []);
+  pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || (pages?.choiceRequired ? [] : pages?.order || [])); pageOrderDraft = [...(pageChoice?.order || pages?.order || [])]; pageOrderAck = false;
   for (const card of cards) {
     const input = { cardLink: card.cardLink, preparePublish: true, reviewOnly: true, ...(card.linked[0] || {}) };
     try { next.push({ card, input, plan: await api('/heptabase/preview', input), decision: '' }); }
@@ -164,37 +164,61 @@ function renderList() {
     section.append(group.length ? ol : el('p', '这一组没有待审文章。', { class: 'muted' })); list.append(section);
   }
 }
+function syncPageOrder(id, checked) {
+  if (checked) { pageKeepDraft.add(id); if (!pageOrderDraft.includes(id)) pageOrderDraft.push(id); }
+  else { pageKeepDraft.delete(id); pageOrderDraft = pageOrderDraft.filter(item => item !== id); }
+}
 function renderPageChoice(list) {
-  if (!pageSet?.choiceRequired) return;
+  if (!pageSet?.cards?.length) return;
   const section = el('section', null, { class: 'review-group page-choice', 'data-review-group': 'pages' });
   section.append(el('h2', '站点页面'));
-  section.append(el('p', `站点页面最多显示 4 页。现在有 ${pageSet.cards.length} 张 Page 卡片，请选择留下哪几页。未勾选的不会悄悄去掉：已经在网站上的，要等你确认发布后才撤下；还没上线的，这次不会发布。项目、博客和 Reference 没有上限。`, { class: 'muted group-caption' }));
-  const field = el('fieldset');
-  field.append(el('legend', '留下哪几页'));
-  for (const card of pageSet.cards) {
-    const box = el('input', null, { type: 'checkbox', id: `keep-${card.id}`, value: card.id });
-    box.checked = pageKeepDraft.has(card.id);
-    box.addEventListener('change', () => {
-      if (box.checked) pageKeepDraft.add(card.id); else pageKeepDraft.delete(card.id);
-      if (pageKeepDraft.size > 4) { pageKeepDraft.delete(card.id); box.checked = false; notice('站点页面最多留下 4 页。', true); }
-    });
-    const label = el('label', null, { for: `keep-${card.id}` });
-    label.append(box, document.createTextNode(`${card.title}${card.onSite ? ' · 已在网站上' : ' · 尚未上线'}`));
-    field.append(label);
+  if (pageSet.choiceRequired) section.append(el('p', `站点页面最多显示 4 页。现在有 ${pageSet.cards.length} 张 Page 卡片，请选择留下哪几页。未勾选的不会悄悄去掉：已经在网站上的，要等你确认发布后才撤下；还没上线的，这次不会发布。项目、博客和 Reference 没有上限。勾选之后，用上移和下移排列导航顺序。`, { class: 'muted group-caption' }));
+  else section.append(el('p', '这几页都会留在导航上。用上移和下移排列顺序。确认后，下次发布时导航按这个顺序显示。', { class: 'muted group-caption' }));
+  if (pageSet.choiceRequired) {
+    const field = el('fieldset');
+    field.append(el('legend', '留下哪几页'));
+    for (const card of pageSet.cards) {
+      const box = el('input', null, { type: 'checkbox', id: `keep-${card.id}`, value: card.id });
+      box.checked = pageKeepDraft.has(card.id);
+      box.addEventListener('change', () => {
+        syncPageOrder(card.id, box.checked);
+        if (pageKeepDraft.size > 4) { syncPageOrder(card.id, false); notice('站点页面最多留下 4 页。', true); }
+        renderList();
+      });
+      const label = el('label', null, { for: `keep-${card.id}` });
+      label.append(box, document.createTextNode(`${card.title}${card.onSite ? ' · 已在网站上' : ' · 尚未上线'}`));
+      field.append(label);
+    }
+    section.append(field);
   }
+  const order = el('ol', null, { class: 'page-order', 'aria-label': '导航顺序' });
+  if (!pageOrderDraft.length) order.append(el('li', pageSet.choiceRequired ? '先勾选要留下的页面。' : '没有可排列的站点页。', { class: 'muted' }));
+  pageOrderDraft.forEach((id, index) => {
+    const card = pageSet.cards.find(item => item.id === id); if (!card) return;
+    const li = el('li');
+    li.append(document.createTextNode(card.title));
+    if (index > 0) li.append(button('上移', () => { const next = [...pageOrderDraft]; const [item] = next.splice(index, 1); next.splice(index - 1, 0, item); pageOrderDraft = next; renderList(); }, { 'aria-label': `把「${card.title}」上移` }));
+    if (index < pageOrderDraft.length - 1) li.append(button('下移', () => { const next = [...pageOrderDraft]; const [item] = next.splice(index, 1); next.splice(index + 1, 0, item); pageOrderDraft = next; renderList(); }, { 'aria-label': `把「${card.title}」下移` }));
+    order.append(li);
+  });
   const ack = el('input', null, { type: 'checkbox', id: 'page-choice-ack' });
+  ack.checked = pageOrderAck;
+  ack.addEventListener('change', () => { pageOrderAck = ack.checked; });
   const ackLabel = el('label', null, { for: 'page-choice-ack' });
-  ackLabel.append(ack, document.createTextNode('我确认就留下勾选的页面。'));
-  section.append(field, ackLabel, button('确认留下这些页面', applyPageChoice));
+  ackLabel.append(ack, document.createTextNode(pageSet.choiceRequired ? '我确认就留下勾选的页面。' : '我确认导航按这个顺序。'));
+  section.append(order, ackLabel, button(pageSet.choiceRequired ? '确认留下这些页面' : '确认这个顺序', applyPageChoice));
   list.append(section);
 }
 async function applyPageChoice() {
-  if (!document.querySelector('#page-choice-ack')?.checked) throw new Error('请先确认就留下勾选的页面。');
-  const keep = [...pageKeepDraft];
+  if (!pageOrderAck) throw new Error(pageSet?.choiceRequired ? '请先确认就留下勾选的页面。' : '请先确认导航顺序。');
+  const keep = pageSet.choiceRequired ? [...pageKeepDraft] : pageSet.cards.map(card => card.id);
+  const order = pageOrderDraft.filter(id => keep.includes(id));
+  for (const id of keep) if (!order.includes(id)) order.push(id);
   if (keep.length > 4) throw new Error('站点页面最多留下 4 页。');
-  const result = await api('/heptabase/page-choice', { keep });
-  pageChoice = { keep: result.keep };
+  const result = await api('/heptabase/page-choice', { keep, order });
+  pageChoice = { keep: result.keep, order: result.order };
   pageKeepDraft = new Set(result.keep);
+  pageOrderDraft = [...result.order];
   items = items.filter(item => !item.capped);
   for (const removed of result.removals) {
     const card = { ...removed, id: removed.cardLink.split('/').pop() }, input = { collection: removed.collection, id: removed.id, cardLink: removed.cardLink };
@@ -202,7 +226,8 @@ async function applyPageChoice() {
     items.push({ card, input, plan, removal: true, capped: true, decision: plan.approved ? 'remove' : '' });
   }
   renderList(); await showSelection(); git = await api('/git'); await renderRelease();
-  notice(`已记下留下的 ${result.keep.length} 页。未选中且已在网站上的页面进入待删除，网站还没变。`);
+  const names = result.order.map(id => pageSet.cards.find(card => card.id === id)?.title).filter(Boolean).join('、');
+  notice(pageSet.choiceRequired ? `已记下留下的 ${result.keep.length} 页。导航顺序：${names}。未选中且已在网站上的页面进入待删除，网站还没变。` : `已记下导航顺序：${names}。网站要等这次提交发布后才改。`);
 }
 async function showSelection() {
   clearMoveLines();
