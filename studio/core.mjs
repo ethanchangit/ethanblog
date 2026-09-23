@@ -6,6 +6,41 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
 export const PAGE_CAP = 4;
+export const PAGE_ORDER_PATH = 'src/data/page-order.ts';
+const DEFAULT_PAGE_RANK = new Map([['about', 0], ['now', 1], ['contact', 2], ['privacy', 3]]);
+const PAGE_ORDER_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function defaultPageOrder(pages) {
+  return [...pages].sort((a, b) => {
+    const rank = (page) => (DEFAULT_PAGE_RANK.has(page.pageId) ? DEFAULT_PAGE_RANK.get(page.pageId) : 100);
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return String(a.title || '').localeCompare(String(b.title || ''), 'zh') || String(a.id).localeCompare(String(b.id));
+  }).map((page) => page.id);
+}
+
+export function pageOrderSource(pageIds) {
+  if (!Array.isArray(pageIds) || pageIds.length > PAGE_CAP || new Set(pageIds).size !== pageIds.length || pageIds.some((id) => !PAGE_ORDER_ID.test(id))) {
+    throw new Error('导航顺序不合法。');
+  }
+  const lines = pageIds.map((id) => `  '${id}',`).join('\n');
+  return `/** 导航上站点页的顺序。每次审核可以调整，最多 ${PAGE_CAP} 页。 */\nexport const pageOrder = [\n${lines}${lines ? '\n' : ''}] as const;\n`;
+}
+
+export function parsePageOrderSource(raw) {
+  const text = String(raw ?? '');
+  const prefix = `/** 导航上站点页的顺序。每次审核可以调整，最多 ${PAGE_CAP} 页。 */\nexport const pageOrder = [\n`;
+  const suffix = '] as const;\n';
+  if (!text.startsWith(prefix) || !text.endsWith(suffix)) throw new Error('导航顺序文件无法读取。');
+  const body = text.slice(prefix.length, -suffix.length);
+  const ids = body ? body.split('\n').filter(Boolean).map((line) => {
+    const match = /^ {2}'([a-z0-9]+(?:-[a-z0-9]+)*)',$/.exec(line);
+    if (!match) throw new Error('导航顺序文件无法读取。');
+    return match[1];
+  }) : [];
+  if (pageOrderSource(ids) !== text) throw new Error('导航顺序文件无法读取。');
+  return ids;
+}
 export const CORE_PAGE_IDS = new Set(['about', 'now', 'contact', 'privacy']);
 export const CORE_PAGE_BY_TITLE = new Map([
   ['关于', 'about'],

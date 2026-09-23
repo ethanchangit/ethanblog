@@ -4,7 +4,11 @@ import {
   isSafeId,
   listDocRefs,
   PAGE_CAP,
+  PAGE_ORDER_PATH,
+  defaultPageOrder,
   pageHref,
+  pageOrderSource,
+  parsePageOrderSource,
   pageIdFromPath,
   pageReviewNote,
   parseMdx,
@@ -25,7 +29,7 @@ const DEFAULT_BRANCH = 'main';
 const WORKFLOW_PATH = '.github/workflows/deploy.yml';
 const BLOG_URL = 'https://ethanchang.io';
 const CONTENT_BRANCH = 'codex/studio-content';
-const ALLOWED_CONTENT = /^(src\/content\/(articles|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*\.mdx|src\/content\/pages\/[a-z0-9]+(?:-[a-z0-9]+)*\.mdx|src\/data\/tag-groups\.ts)$/;
+const ALLOWED_CONTENT = /^(src\/content\/(articles|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*\.mdx|src\/content\/pages\/[a-z0-9]+(?:-[a-z0-9]+)*\.mdx|src\/data\/tag-groups\.ts|src\/data\/page-order\.ts)$/;
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -366,6 +370,7 @@ async function commitDrafts(env, identity, input) {
     try {
       if (row.raw && row.path.endsWith('.mdx')) validateContentFile(row.path, row.raw);
       if (row.path === 'src/data/tag-groups.ts') parseTagGroupsSource(row.raw);
+      if (row.path === PAGE_ORDER_PATH) parsePageOrderSource(row.raw);
     } catch (error) { throw fail(error.message); }
   }
   const linked = new Map();
@@ -526,9 +531,10 @@ async function loadPageCards(client, schema, cards, published) {
     const properties = await readProperties(client, card.id, schema);
     if (!properties.member || properties.type !== 'page') continue;
     const path = pageFileFor(published, card);
+    const pageId = path ? pageIdFromPath(path) : null;
     pages.push({
-      id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path), path,
-      href: path ? pageHref(pageIdFromPath(path)) : null,
+      id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path), path, pageId,
+      href: pageId ? pageHref(pageId) : null,
     });
   }
   pages.sort((a, b) => a.title.localeCompare(b.title, 'zh') || a.id.localeCompare(b.id));
@@ -540,7 +546,7 @@ async function storedPageChoice(env) {
   if (!row) return null;
   try {
     const payload = JSON.parse(row.payload);
-    if (!Array.isArray(payload.seen) || !Array.isArray(payload.keep)) return null;
+    if (!Array.isArray(payload.seen) || !Array.isArray(payload.keep) || !Array.isArray(payload.order)) return null;
     return payload;
   } catch { return null; }
 }
@@ -550,7 +556,9 @@ function choiceMatches(choice, pages) {
   const seen = pages.map(page => page.id).sort();
   const stored = [...choice.seen].sort();
   const keep = [...new Set(choice.keep)];
-  return seen.join() === stored.join() && keep.length === choice.keep.length && keep.length <= PAGE_CAP && keep.every(id => seen.includes(id));
+  const order = choice.order;
+  const sameOrder = order.length === keep.length && new Set(order).size === order.length && order.every(id => keep.includes(id));
+  return seen.join() === stored.join() && keep.length === choice.keep.length && keep.length <= PAGE_CAP && keep.every(id => seen.includes(id)) && sameOrder;
 }
 
 async function publishedFiles(env, state) {
@@ -612,7 +620,7 @@ async function assertReviewed(env, state, rows) {
   await assertRemovals(env, state, rows);
   const client = await mcpClient(env);
   const { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-  const pending = rows.filter(row => row.raw && row.path !== BLOG_INDEX), seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
+  const pending = rows.filter(row => row.raw && row.path !== BLOG_INDEX && row.path !== PAGE_ORDER_PATH), seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
   while (pending.length) {
     const row = pending.shift(); if (seen.has(row.path)) continue; seen.add(row.path);
     if (seen.size > 200) throw fail('发布范围超过 200 张卡片，请拆分审查。');
@@ -722,10 +730,18 @@ async function heptabaseCards(env, identity) {
   }
   const pages = pageCandidates.map(card => {
     const path = pageFileFor(published, card);
-    return { id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path) };
+    const pageId = path ? pageIdFromPath(path) : null;
+    return { id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path), path, pageId, href: pageId ? pageHref(pageId) : null };
   }).sort((a, b) => a.title.localeCompare(b.title, 'zh') || a.id.localeCompare(b.id));
   const stored = await storedPageChoice(env);
-  const pageSet = { cap: PAGE_CAP, choiceRequired: pages.length > PAGE_CAP, cards: pages, choice: choiceMatches(stored, pages) ? { keep: stored.keep } : null };
+  const matched = choiceMatches(stored, pages);
+  const pageSet = {
+    cap: PAGE_CAP,
+    choiceRequired: pages.length > PAGE_CAP,
+    cards: pages,
+    order: matched ? stored.order : (pages.length <= PAGE_CAP ? defaultPageOrder(pages) : []),
+    choice: matched ? { keep: stored.keep, order: stored.order } : null,
+  };
   if (pageSet.choice) {
     for (const plan of await removalDecisions(env)) {
       if (plan.reason !== 'capped' || pageSet.choice.keep.includes(plan.id)) continue;
@@ -1068,6 +1084,10 @@ async function restoreRemoval(env, identity, id, lease) {
   return true;
 }
 
+function permutation(order, ids) {
+  return Array.isArray(order) && order.length === ids.length && new Set(order).size === order.length && order.every(id => ids.includes(id));
+}
+
 async function choosePages(env, identity, input) {
   return withLock(env, 'publication', async lease => {
     if (!Array.isArray(input.keep) || input.keep.some(id => typeof id !== 'string')) throw fail('请选择要留下的站点页面。');
@@ -1079,15 +1099,42 @@ async function choosePages(env, identity, input) {
     const schema = await blogSchema(client, tagId);
     const state = await branchState(env);
     const pages = await loadPageCards(client, schema, cards, await publishedFiles(env, state));
-    if (pages.length <= PAGE_CAP) throw fail(`现在不超过 ${PAGE_CAP} 张站点页，会全部发布，不需要挑选。`);
+    const selecting = pages.length > PAGE_CAP;
     const ids = new Set(pages.map(page => page.id));
-    if (keep.some(id => !ids.has(id))) throw fail('只能从 Page 卡片里选择留下的页面。');
+    let order;
+    if (!selecting) {
+      if (!Array.isArray(input.order)) throw fail(`现在不超过 ${PAGE_CAP} 张站点页，会全部发布，不需要挑选。`);
+      order = input.order;
+      if (!permutation(order, pages.map(page => page.id))) throw fail('导航顺序要包含全部站点页，且每页只出现一次。');
+    } else {
+      if (keep.some(id => !ids.has(id))) throw fail('只能从 Page 卡片里选择留下的页面。');
+      const kept = pages.filter(page => keep.includes(page.id));
+      order = Array.isArray(input.order) ? input.order : defaultPageOrder(kept);
+      if (!permutation(order, keep)) throw fail('导航顺序要和留下的页面一致，且每页只出现一次。');
+    }
+    const keptIds = selecting ? keep : pages.map(page => page.id);
     for (const plan of await removalDecisions(env)) {
-      if (plan.reason === 'capped' && keep.includes(plan.id)) await restoreRemoval(env, identity, plan.id, lease);
+      if (plan.reason === 'capped' && keptIds.includes(plan.id)) await restoreRemoval(env, identity, plan.id, lease);
     }
     const seen = pages.map(page => page.id).sort();
+    const docs = await listDocs(env, identity, state);
+    const targets = new Map();
+    const slugs = [];
+    for (const id of order) {
+      const card = pages.find(page => page.id === id);
+      const assigned = card.pageId ? { id: card.pageId } : assignPageId(card.title, card.id, docs.sitePages, targets);
+      targets.set(id, { collection: 'pages', id: assigned.id });
+      slugs.push(assigned.id);
+    }
     await lease();
-    await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'page-cap', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'page-cap', status = 'complete', payload = excluded.payload, created_at = excluded.created_at", PAGE_CHOICE_ID, JSON.stringify({ seen, keep: [...keep].sort() }), new Date().toISOString());
+    await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'page-cap', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'page-cap', status = 'complete', payload = excluded.payload, created_at = excluded.created_at", PAGE_CHOICE_ID, JSON.stringify({ seen, keep: [...keptIds].sort(), order }), new Date().toISOString());
+    const existing = await draftFor(env, identity, PAGE_ORDER_PATH);
+    await upsertDraft(env, identity, state, PAGE_ORDER_PATH, pageOrderSource(slugs), {
+      baseCommitSha: state.commitSha,
+      baseRaw: await readBlob(env, state, PAGE_ORDER_PATH),
+      expectedVersion: existing?.state === 'draft' ? existing.version : 0,
+    });
+    if (!selecting) return { cap: PAGE_CAP, keep: [...keptIds].sort(), order, seen, removals: [] };
     for (const page of pages) {
       if (!page.onSite || keep.includes(page.id)) continue;
       const plan = await removalPlan(env, identity, { collection: 'pages', id: pageIdFromPath(page.path), cardLink: page.cardLink }, 'capped');
@@ -1112,7 +1159,7 @@ async function choosePages(env, identity, input) {
     const removals = (await removalDecisions(env)).filter(plan => plan.reason === 'capped' && !keep.includes(plan.id)).map(plan => ({
       ...pathDoc(plan.filePath), cardLink: `heptabase://card/${plan.id}`, title: plan.graph[0].parsed.frontmatter.title, reason: plan.reason, reasonLabel: plan.reasonLabel,
     }));
-    return { cap: PAGE_CAP, keep: [...keep].sort(), seen, removals };
+    return { cap: PAGE_CAP, keep: [...keep].sort(), order, seen, removals };
   });
 }
 
