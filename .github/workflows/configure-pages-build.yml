@@ -1,0 +1,72 @@
+name: Configure Pages git build
+
+# One-shot: Cloudflare Pages git builds read the build command from the
+# project build_config, not from wrangler.toml. This job sets that command
+# with the repository's existing Cloudflare credentials, then this file is
+# removed. It only runs for the branch that introduces the fix.
+on:
+  pull_request:
+
+jobs:
+  configure:
+    if: github.head_ref == 'cursor/pages-git-build-command-325e'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Set the Pages build command
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node --input-type=module <<'EOF'
+          const token = process.env.CLOUDFLARE_API_TOKEN || "";
+          const account = process.env.CLOUDFLARE_ACCOUNT_ID || "";
+          if (!token || !account) {
+            console.error("CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not available to this job.");
+            process.exit(1);
+          }
+          const project = "ethanblog";
+          const url = `https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/${project}`;
+          const headers = {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          };
+          const summarize = (config) => ({
+            build_command: config?.build_command ?? null,
+            destination_dir: config?.destination_dir ?? null,
+            root_dir: config?.root_dir ?? null,
+            build_caching: config?.build_caching ?? null,
+          });
+          const get = async () => {
+            const response = await fetch(url, { headers });
+            const body = await response.json();
+            if (!response.ok || !body.success) {
+              console.error(JSON.stringify({ status: response.status, errors: body.errors, messages: body.messages }));
+              process.exit(1);
+            }
+            return body.result;
+          };
+          const before = await get();
+          console.log("before", JSON.stringify(summarize(before.build_config)));
+          const buildConfig = {
+            ...(before.build_config || {}),
+            build_command: "npm ci && npm run build",
+            destination_dir: "dist",
+          };
+          const response = await fetch(url, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify({ build_config: buildConfig }),
+          });
+          const body = await response.json();
+          if (!response.ok || !body.success) {
+            console.error(JSON.stringify({ status: response.status, errors: body.errors, messages: body.messages }));
+            process.exit(1);
+          }
+          const after = summarize(body.result.build_config);
+          console.log("after", JSON.stringify(after));
+          const outputDir = after.destination_dir === "./dist" ? "dist" : after.destination_dir;
+          if (after.build_command !== "npm ci && npm run build" || outputDir !== "dist") {
+            console.error("Pages project build_config did not stick.");
+            process.exit(1);
+          }
+        EOF
