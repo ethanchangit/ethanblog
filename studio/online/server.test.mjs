@@ -4,7 +4,7 @@ import { fixture, article, PATH, LINK, CARD, PASSWORD } from './test-fixtures.mj
 import { hash, passwordRecord } from './auth.mjs';
 import { signReceipt } from './release-sync.mjs';
 import { publicationDate } from './card-properties.mjs';
-import { blogCards, readCard, toolResult } from './heptabase.mjs';
+import { blogCards, listContinueOffset, readCard, toolResult } from './heptabase.mjs';
 import { fromHeptabase } from './card-content.mjs';
 
 const nativeFetch = globalThis.fetch;
@@ -485,6 +485,41 @@ test('MCP pagination reads every numbered line and rejects incomplete lists', as
   assert.equal(calls[0].limit, 100);
   assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
   assert.throws(() => toolResult({ isError: true, content: [{ type: 'text', text: 'The object was not found.' }] }), (error) => error.heptabaseReason === 'objectNotFound');
+});
+
+test('list_cards follows output-budget offsets and retries a changing cardCount', async () => {
+  assert.equal(listContinueOffset('More cards are available.', 49), 49);
+  assert.equal(listContinueOffset('Output budget reached. Call list_cards with offset 49 to continue from the first omitted card.', 49), 49);
+  assert.equal(listContinueOffset('Cards:\ncard "a" [6353c916-e0a9-4a0d-aa07-7a3512b72e92]', 1), null);
+
+  const blog = 'dba5b41b-67a4-4ca5-a794-2fae3dc51786';
+  const ids = [
+    '6353c916-e0a9-4a0d-aa07-7a3512b72e92',
+    '87e9b69a-a568-4d28-bc82-24b7586cd70b',
+    '9732c208-c3b1-4a7b-a922-0c3483475d6b',
+  ];
+  const cardLine = (id, title) => `card "${title}" [${id}] created: 2026-09-14`;
+  const offsets = [];
+  let attempts = 0;
+  const listed = await blogCards({
+    call: async (name, args) => {
+      if (name === 'list_tags') {
+        attempts++;
+        return { content: `<tag id="${blog}" name="blog" cardCount="${attempts === 1 ? 2 : 3}" />` };
+      }
+      offsets.push(args.offset);
+      if (args.offset === 0) {
+        return {
+          content: `Cards:\n${cardLine(ids[0], '一')}\n${cardLine(ids[1], '二')}\nOutput budget reached. Call list_cards with offset 2 to continue from the first omitted card.`,
+        };
+      }
+      return { content: `Cards:\n${cardLine(ids[2], '三')}` };
+    },
+  });
+  assert.equal(attempts, 2);
+  assert.deepEqual(offsets, [0, 2, 0, 2]);
+  assert.equal(listed.cards.length, 3);
+  assert.deepEqual(listed.cards.map((card) => card.title), ['一', '二', '三']);
 });
 
 test('summary fills the preview slot and an empty summary does not copy the first paragraph', async () => {
