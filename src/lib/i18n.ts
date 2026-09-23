@@ -10,7 +10,6 @@ export const copy = {
     navProjects: '项目',
     navBlogs: '博客',
     navTags: '标签',
-    navAbout: '关于',
     navNow: '现在',
     navContact: '联系',
     navPrivacy: '隐私',

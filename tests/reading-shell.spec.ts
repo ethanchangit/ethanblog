@@ -282,7 +282,8 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/tags"]')).toBeVisible();
-    await expect(page.locator('header.site-nav [data-page-station]')).toHaveText(['关于', '现在', '联系', '隐私']);
+    await expect(page.locator('header.site-nav [data-page-station]')).toHaveText(['EthanChang', '现在', '联系', '隐私']);
+    await expect(page.locator('header.site-nav a[href="/"]')).toHaveCount(1);
     await expect(page.locator('header.site-nav a[href="/now"]')).toBeVisible();
     const expand = index.locator('[data-reading-expand]');
     await expect(expand).toHaveAttribute('href', '/articles');
@@ -1016,7 +1017,7 @@ test.describe('分栏阅读', () => {
       'page',
     );
 
-    await page.getByRole('link', { name: '首页', exact: true }).click();
+    await page.locator('header.site-nav a[href="/"]').click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'home');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
@@ -1031,7 +1032,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await markReadingShell(page);
 
-    await page.getByRole('link', { name: '首页', exact: true }).click();
+    await page.locator('header.site-nav a[href="/"]').click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expectKeptShell(page, 'home');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
