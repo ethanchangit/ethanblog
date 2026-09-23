@@ -14,17 +14,18 @@ export async function blogSchema(client, tagId) {
     date: field(['publish date', 'published date'], 'date'),
     tags: field(['tag', 'tags'], 'multiSelect'),
     type: field(['blog type'], 'select'),
+    summary: field(['summary'], 'text'),
   };
   for (const name of ['new', 'writing', 'block', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
-  for (const name of ['blog', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
+  for (const name of ['article', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
   return schema;
 }
 
 export function collectionForBlogType(type) {
-  if (type === 'blog' || type === 'reference') return 'articles';
+  if (type === 'article' || type === 'reference') return 'articles';
   if (type === 'project') return 'projects';
   if (type === 'page') return 'pages';
-  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog、Project、Page 或 Reference）。');
+  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Article、Project、Page 或 Reference）。');
 }
 
 export function propertiesFromRead(content, schema) {
@@ -48,8 +49,11 @@ export function propertiesFromRead(content, schema) {
   const typeValue = values[schema.type.name];
   const type = typeValue == null || typeValue === '' ? null : String(typeValue).trim().toLowerCase();
   const typeNames = schema.type.options.map((option) => option.name.trim().toLowerCase());
-  if (type && (!typeNames.includes(type) || !['blog', 'project', 'page', 'reference'].includes(type))) throw fail('Blog Type 选项尚未对应。');
-  return { member, status, date, tags: [...new Set(tags)].sort(), type };
+  if (type && (!typeNames.includes(type) || !['article', 'project', 'page', 'reference'].includes(type))) throw fail('Blog Type 选项尚未对应。');
+  const summaryValue = values[schema.summary.name];
+  if (summaryValue != null && typeof summaryValue !== 'string') throw fail('Summary 应是一段文字。');
+  const summary = typeof summaryValue === 'string' ? summaryValue.trim() : '';
+  return { member, status, date, tags: [...new Set(tags)].sort(), type, summary };
 }
 
 export async function readProperties(client, cardId, schema) {

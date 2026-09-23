@@ -3,7 +3,11 @@ import { boundedText, fail, fetchNoRedirect, hash, randomToken, withLock } from 
 const ORIGIN = 'https://api.heptabase.com';
 const MCP = `${ORIGIN}/mcp`;
 const encoder = new TextEncoder();
-const b64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const b64 = (bytes) => {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+};
 const unb64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 const b64url = (bytes) => b64(bytes).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 
@@ -90,14 +94,27 @@ async function accessToken(env) {
   });
 }
 
+function toolText(result, data) {
+  return [data?.failureReasonCode, data?.content, ...(Array.isArray(result?.content) ? result.content.map((part) => part?.text || '') : [])].filter(Boolean).join('\n');
+}
+
 export function toolResult(result) {
   let data = result.structuredContent;
   if (!data) {
     const text = (result.content || []).filter((p) => p.type === 'text').map((p) => p.text).join('\n');
     try { data = JSON.parse(text); } catch { data = { content: text }; }
   }
+  const missing = /objectNotFound|object was not found|对象不存在/i.test(toolText(result, data));
+  if (missing) throw Object.assign(fail('Heptabase 卡片已不存在。', 404), { heptabaseReason: 'objectNotFound' });
   if (result.isError || data.status === 'failed') throw Object.assign(fail('Heptabase 未能完成操作，请检查连接和卡片权限。', 502), { heptabaseReason: data.status === 'failed' ? data.failureReasonCode : undefined });
   return data;
+}
+
+const pullKey = (sessionId) => `pull:${sessionId}`;
+export const readPullScan = (env, sessionId) => get(env, pullKey(sessionId));
+export async function writePullScan(env, sessionId, data) { await put(env, pullKey(sessionId), data); }
+export async function clearPullScan(env, sessionId) {
+  await env.DB.prepare('DELETE FROM studio_connections WHERE id = ?1').bind(pullKey(sessionId)).run();
 }
 
 async function rpcResponse(response, id) {

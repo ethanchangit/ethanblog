@@ -50,9 +50,9 @@ test('edited approval preserves existing publication day', async () => {
 test('tag-only approval stages exact new tags while keeping body and date; rejection leaves public tags alone', async () => {
   for (const which of ['approve', 'reject']) {
     const f = await setup();
-    const frontmatter = { slot: 'article', title: '测试文章', description: '摘要', date: '2023-01-02', created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z', tags: ['Mission', 'AI Native'], heptabaseCardLink: LINK };
+    const frontmatter = { slot: 'article', title: '测试文章', description: '摘要', date: '2023-01-02', created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z', tags: ['Mission', 'AI Native'], heptabaseType: 'article', heptabaseCardLink: LINK };
     f.remote(serializeMdx({ frontmatter, bodyZh: '标签更新，正文不动。' })); f.setSource('# 测试文章\n\n标签更新，正文不动。');
-    f.properties.set(CARD, { Status: 'review', 'Publish Date': { start: '2023-01-02T00:00:00Z' }, Tag: ['Mission', 'Productivity'] });
+    f.properties.set(CARD, { Status: 'review', 'Publish Date': { start: '2023-01-02T00:00:00Z' }, Tag: ['Mission', 'Productivity'], Summary: '摘要' });
     const main = f.refs.get('main'), plan = await preview(f), change = plan.changes[0];
     assert.equal(onlyTagsChanged(change), true);
     assert.deepEqual(tagDiff(change.beforeProperties.tags, change.afterProperties.tags), { added: ['Productivity'], removed: ['AI Native'], unchanged: ['Mission'] });

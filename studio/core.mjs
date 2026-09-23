@@ -121,6 +121,7 @@ export function parseMdx(raw) {
 }
 
 function omitEmpty(value, key) {
+  if (key === 'description' && value === '') return false;
   if (value === undefined || value === null || value === '') return true;
   if (Array.isArray(value) && value.length === 0) return true;
   if (key === 'draft' && value === false) return true;
@@ -228,12 +229,12 @@ export function validateContentFile(filePath, raw) {
   if (pageIdFromPath(filePath)) {
     if (fm.slot !== 'page') throw new Error(`slot 必须是 page：${filePath}`);
     if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
-    if (!String(fm.description ?? '').trim()) throw new Error(`缺少 description：${filePath}`);
+    if (fm.description != null && typeof fm.description !== 'string') throw new Error(`description 无法读取：${filePath}`);
     return parsed;
   }
   if (!['article', 'project'].includes(fm.slot)) throw new Error(`slot 必须是 article 或 project：${filePath}`);
   if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
-  if (!String(fm.description ?? '').trim()) throw new Error(`缺少 description：${filePath}`);
+  if (fm.description != null && typeof fm.description !== 'string') throw new Error(`description 无法读取：${filePath}`);
   if (fm.slot === 'article' && !fm.date) throw new Error(`文章缺少 date：${filePath}`);
   for (const ref of listDocRefs(raw)) {
     if (!isSafeDocRef(ref)) throw new Error(`引用路径不合法：${ref}`);
