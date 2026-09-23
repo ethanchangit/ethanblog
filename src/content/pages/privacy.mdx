@@ -1,0 +1,20 @@
+---
+slot: "page"
+title: "隐私"
+description: "阅读不需要账号。可选登录只同步收藏和进度。留言发到邮箱，不出现在页面上。"
+date: "2026-09-23"
+heptabaseCardLink: "heptabase://card/2bc1fe70-6d1f-4d13-9752-b82d2d3d9b11"
+heptabaseStatus: "published"
+---
+
+# 隐私
+
+ethanchang.io 是一份个人博客。默认情况下，阅读文章不需要账号，我也不在页面上放第三方广告或分析像素。托管在 Cloudflare 上，因此边缘会有常规的请求日志（IP、User-Agent、路径）用于安全和性能；这些日志由 Cloudflare 按其政策处理，我不用它们做营销画像。
+
+可选登录走 GitHub 或 Google OAuth。登录后，Cloudflare D1 会保存会话，以及你选择同步的收藏和阅读进度。不登录就不写这些记录。没有标注、没有公开的阅读排行、没有把进度卖给任何人。
+
+文章页的留言会发到 hey@ethanchang.io。留言正文和你留下的名字、邮箱只用于回复，不会出现在站点上。不要在留言里放密码或密钥。
+
+站点提供 `Accept: text/markdown`、[/llms.txt](/llms.txt)、[/rss.xml](/rss.xml) 给 agent 和订阅器用。它们读取的是已经公开的页面，不另开一套私人数据。
+
+要删除账号数据，写信到 hey@ethanchang.io，说明是 GitHub 还是 Google 登录。我会删掉对应的会话、收藏和进度。

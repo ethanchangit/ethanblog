@@ -4,6 +4,7 @@
  * This is a publication, not a product API — do not invent MCP/OAuth/webhooks.
  */
 import { readFile } from 'node:fs/promises';
+import { getEntry } from 'astro:content';
 import { profile, site, skills } from '@/data/profile';
 import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
 import { copy } from '@/lib/i18n';
@@ -100,16 +101,21 @@ export function mdxBodyToMarkdown(body: string, lang: AgentLang): string {
   return zh;
 }
 
-async function entrySource(entry: DocEntry): Promise<string> {
-  const withMeta = entry as DocEntry & { body?: string; filePath?: string };
-  if (withMeta.filePath) {
+type SourcedEntry = { body?: string; filePath?: string };
+
+async function sourcedBody(entry: SourcedEntry): Promise<string> {
+  if (entry.filePath) {
     try {
-      return stripFrontmatter(await readFile(withMeta.filePath, 'utf8'));
+      return stripFrontmatter(await readFile(entry.filePath, 'utf8'));
     } catch {
       /* fall through */
     }
   }
-  return withMeta.body ?? '';
+  return entry.body ?? '';
+}
+
+async function entrySource(entry: DocEntry): Promise<string> {
+  return sourcedBody(entry as DocEntry & SourcedEntry);
 }
 
 export async function docMarkdown(entry: DocEntry, lang: AgentLang): Promise<string> {
@@ -122,70 +128,21 @@ export async function docMarkdown(entry: DocEntry, lang: AgentLang): Promise<str
   return `${lines.join('\n').trim()}\n`;
 }
 
-const githubUrl =
-  profile.socials.find((s) => s.icon === 'github')?.url ?? 'https://github.com/ethanchangit';
-const twitterUrl =
-  profile.socials.find((s) => s.icon === 'twitter')?.url ?? 'https://twitter.com/ethanchang_';
+const CORE_PAGE_IDS = ['about', 'now', 'contact', 'privacy'] as const;
 
-function homeMarkdown(lang: AgentLang): string {
-  const doing = copy['zh-CN'];
-  const lead = copy['zh-CN'].aboutLead;
-  const skillLines = skills.map((s) => `- ${s.name}`);
-
-    return `# ${profile.name} · ${profile.chineseName}
-
-${lead}
-
-## 我在做什么
-
-- ${doing.aboutIos}
-- ${doing.aboutAi}
-- ${doing.aboutPkm}
-
-## 怎么读这个网站
-
-### 文章和项目
-
-文章在 ${ARTICLES_PATH}，项目在 ${PROJECTS_PATH}。Now 页是 ${NOW_PATH}：最近在做什么，不是简历。
-
-### 给机器看的副本
-
-同一 URL 在 \`Accept: text/markdown\` 时返回 Markdown。目录在 [/llms.txt](/llms.txt)，开发者资源在 [${FOR_AGENTS_PATH}](${FOR_AGENTS_PATH})。写信用 [${CONTACT_PATH}](${CONTACT_PATH})，隐私说明在 [${PRIVACY_PATH}](${PRIVACY_PATH})。
-
-## 技术栈
-
-${skillLines.join('\n')}
-`;
+async function corePageMarkdown(
+  id: (typeof CORE_PAGE_IDS)[number],
+): Promise<string | null> {
+  const entry = await getEntry('pages', id);
+  if (!entry) return null;
+  const body = (await sourcedBody(entry)).trim();
+  return body || null;
 }
 
-export function contactMarkdown(lang: AgentLang): string {
-
-    return `# 联系
-
-这是 Ethan Chang（张峻源）的个人博客。要讨论文章、项目、纠错或转载，请写信到 [${profile.email}](mailto:${profile.email})。
-
-我不住在一个对公众开放的办公室里，所以这里没有街道地址、没有工单系统、也没有会把信发进虚空的表单。邮件就是收件箱。GitHub 是 [${githubUrl}](${githubUrl})，X 是 [${twitterUrl}](${twitterUrl})。
-
-留言功能（文章页底部）同样送到这个邮箱，不会出现在页面上。登录（GitHub / Google）只为可选的收藏和阅读进度，不是对外产品账号体系。
-
-如果你是 agent：先读 [/llms.txt](/llms.txt) 和 [${FOR_AGENTS_PATH}](${FOR_AGENTS_PATH})，再决定要不要写信。
-`;
-}
-
-export function privacyMarkdown(lang: AgentLang): string {
-
-    return `# 隐私
-
-ethanchang.io 是一份个人博客。默认情况下，阅读文章不需要账号，我也不在页面上放第三方广告或分析像素。托管在 Cloudflare 上，因此边缘会有常规的请求日志（IP、User-Agent、路径）用于安全和性能；这些日志由 Cloudflare 按其政策处理，我不用它们做营销画像。
-
-可选登录走 GitHub 或 Google OAuth。登录后，Cloudflare D1 会保存会话，以及你选择同步的收藏和阅读进度。不登录就不写这些记录。没有标注、没有公开的阅读排行、没有把进度卖给任何人。
-
-文章页的留言会发到 ${profile.email}。留言正文和你留下的名字、邮箱只用于回复，不会出现在站点上。不要在留言里放密码或密钥。
-
-站点提供 \`Accept: text/markdown\`、[/llms.txt](/llms.txt)、[/rss.xml](/rss.xml) 给 agent 和订阅器用。它们读取的是已经公开的页面，不另开一套私人数据。
-
-要删除账号数据，写信到 ${profile.email}，说明是 GitHub 还是 Google 登录。我会删掉对应的会话、收藏和进度。
-`;
+async function homeMarkdown(): Promise<string> {
+  const body = await corePageMarkdown('about');
+  const heading = `# ${profile.name} · ${profile.chineseName}`;
+  return body ? `${heading}\n\n${body}\n` : `${heading}\n`;
 }
 
 export function forAgentsMarkdown(lang: AgentLang): string {
@@ -220,15 +177,6 @@ export function forAgentsMarkdown(lang: AgentLang): string {
 `;
 }
 
-function nowMarkdown(lang: AgentLang): string {
-
-    return `# Now
-
-这是一页 Now：最近在做什么。格式来自 https://nownownow.com/about。
-
-完整句子在 [${NOW_PATH}](${NOW_PATH})。这里只声明它存在，好让 agent 不必把首页误当成状态页。
-`;
-}
 
 function shortIndexMarkdown(title: string, description: string, path: string): string {
   return `# ${title}\n\n${description}\n\nHTML: ${path}\n`;
@@ -240,11 +188,17 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
   const [articles, projects] = await Promise.all([docsBySlot('article'), docsBySlot('project')]);
   const pages: MarkdownPage[] = [];
 
+  const [about, nowPage, contactPage, privacyPage] = await Promise.all([
+    homeMarkdown(),
+    corePageMarkdown('now'),
+    corePageMarkdown('contact'),
+    corePageMarkdown('privacy'),
+  ]);
   const staticPages: { path: string; zh: string }[] = [
-    { path: '/', zh: homeMarkdown('zh') },
-    { path: NOW_PATH, zh: nowMarkdown('zh') },
-    { path: CONTACT_PATH, zh: contactMarkdown('zh') },
-    { path: PRIVACY_PATH, zh: privacyMarkdown('zh') },
+    { path: '/', zh: about },
+    ...(nowPage ? [{ path: NOW_PATH, zh: `${nowPage}\n` }] : []),
+    ...(contactPage ? [{ path: CONTACT_PATH, zh: `${contactPage}\n` }] : []),
+    ...(privacyPage ? [{ path: PRIVACY_PATH, zh: `${privacyPage}\n` }] : []),
     { path: FOR_AGENTS_PATH, zh: forAgentsMarkdown('zh') },
     {
       path: ARTICLES_PATH,
@@ -297,14 +251,19 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
 
 export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]> {
   const [articles, projects] = await Promise.all([docsBySlot('article'), docsBySlot('project')]);
+  const [nowPage, contactPage, privacyPage] = await Promise.all([
+    corePageMarkdown('now'),
+    corePageMarkdown('contact'),
+    corePageMarkdown('privacy'),
+  ]);
   const paths = new Set<string>([
     '/',
     ARTICLES_PATH,
     PROJECTS_PATH,
     BLOGS_PATH,
-    NOW_PATH,
-    CONTACT_PATH,
-    PRIVACY_PATH,
+    ...(nowPage ? [NOW_PATH] : []),
+    ...(contactPage ? [CONTACT_PATH] : []),
+    ...(privacyPage ? [PRIVACY_PATH] : []),
     FOR_AGENTS_PATH,
     SEARCH_PATH,
     TAGS_PATH,

@@ -1,6 +1,7 @@
 ---
 slot: "article"
 heptabaseCardLink: "heptabase://card/d2dd0208-ae82-47ff-9c13-fef6dfe74d72"
+heptabaseStatus: "published"
 title: "页面即房间：一篇你读着读着就动手改写了的文章"
 description: "把 Realtalk 的 Claim/When/Wish 搬进一张网页：规则可读、可改、可组合。这篇文章讲动态媒介，而它本身就是一个动态媒介——读到最后，你会发现自己已经编了程。"
 date: "2026-07-03"
@@ -9,7 +10,6 @@ tags:
   - "Realtalk"
   - "RuleGarden"
   - "宣言"
-draft: true
 ---
 
 import { RuleGarden, RuleTarget, ParamSlider, SideNote } from '@/components/media';
@@ -46,6 +46,7 @@ Realtalk 的空间性看起来无法搬进屏幕——我们没有那张桌子�
   rules={[
     { id: 'act2-r1', when: { kind: 'enters-view', target: 'reactive-box' }, wish: { kind: 'tint', target: 'reactive-box', tone: 'accent' } },
     { id: 'act2-r2', when: { kind: 'hover', target: 'first-object' }, wish: { kind: 'highlight', target: 'reactive-box' } },
+    { id: 'act3-r1', when: { kind: 'click', target: 'first-object' }, wish: { kind: 'count', target: 'click-counter' } },
   ]}
   caption="规则就写在它作用的对象旁边——Realtalk 的可见性原则：程序印在物体上。"
 />
@@ -62,13 +63,7 @@ Realtalk 的空间性看起来无法搬进屏幕——我们没有那张桌子�
 下面这条规则本想数它被点击的次数，但目标槽选错了对象。
 展开词槽，把它修好——然后点几下徽标试试。
 
-<RuleGarden
-  title="一条等你修理的规则"
-  rules={[
-    { id: 'act3-r1', when: { kind: 'click', target: 'first-object' }, wish: { kind: 'count', target: 'click-counter' } },
-  ]}
-  caption="修理即编程：你刚才改的不是设置，是程序的语义。"
-/>
+修理即编程：你刚才改的不是设置，是程序的语义。
 
 ## 第四幕：你现在是作者
 

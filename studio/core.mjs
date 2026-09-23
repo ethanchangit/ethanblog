@@ -5,6 +5,19 @@
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export const COLLECTIONS = new Set(['articles', 'projects', 'pages']);
+export const CORE_PAGE_IDS = new Set(['about', 'now', 'contact', 'privacy']);
+export const CORE_PAGE_BY_TITLE = new Map([
+  ['关于', 'about'],
+  ['Now', 'now'],
+  ['now', 'now'],
+  ['联系', 'contact'],
+  ['隐私', 'privacy'],
+]);
+
+export function corePageIdFromPath(filePath) {
+  const match = /^src\/content\/pages\/(about|now|contact|privacy)\.mdx$/.exec(filePath || '');
+  return match ? match[1] : null;
+}
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
   'slot', 'title', 'description', 'date', 'updated',
@@ -38,7 +51,7 @@ export function slugify(input, fallbackDate = new Date()) {
 export function isSafeId(collection, id) {
   if (!COLLECTIONS.has(collection)) return false;
   if (typeof id !== 'string' || id.length === 0 || id.length > 120) return false;
-  if (collection === 'pages') return id === 'blogs';
+  if (collection === 'pages') return id === 'blogs' || CORE_PAGE_IDS.has(id);
   return ID_RE.test(id);
 }
 
@@ -50,6 +63,8 @@ export function isSafeDocRef(of) {
 
 export function publicHref(collection, id) {
   if (collection === 'pages' && id === 'blogs') return '/blogs';
+  if (collection === 'pages' && id === 'about') return '/';
+  if (collection === 'pages' && CORE_PAGE_IDS.has(id)) return `/${id}`;
   if (collection === 'projects') return `/projects/${id}`;
   return `/articles/${id}`;
 }
@@ -184,6 +199,12 @@ export function validateContentFile(filePath, raw) {
   if (filePath === 'src/content/pages/blogs.mdx') return parsed;
   if (!/^heptabase:\/\/card\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fm.heptabaseCardLink || '')) {
     throw new Error(`请先填写有效的 Heptabase card link：${filePath}`);
+  }
+  if (corePageIdFromPath(filePath)) {
+    if (fm.slot !== 'page') throw new Error(`slot 必须是 page：${filePath}`);
+    if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
+    if (!String(fm.description ?? '').trim()) throw new Error(`缺少 description：${filePath}`);
+    return parsed;
   }
   if (!['article', 'project'].includes(fm.slot)) throw new Error(`slot 必须是 article 或 project：${filePath}`);
   if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);

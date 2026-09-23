@@ -1,8 +1,6 @@
 /**
- * 站点与个人资料的单一数据源。
- * 首页（身份）、/now、导航、RSS 都从这里读取 —— 改这里即可全站生效。
- * 更新 Now 页：只改 nowIntro / now / nowUpdated（不要另写一份 MDX）。
- * 「什么是 Now 页」的格式说明（含 nownownow.com 链接）写在 src/pages/now.astro，不放这里。
+ * 站点身份：名字、邮箱、社交链接和技能。
+ * 关于、Now、联系、隐私的正文在 Heptabase，发布副本是 src/content/pages/。
  */
 
 export const site = {
@@ -44,20 +42,3 @@ export const skills: Skill[] = [
   { name: '语音 AI（Whisper）', domain: 'AI', level: 76, projects: ['robert'] },
   { name: '知识管理方法论', domain: 'AI', level: 88, projects: ['maker-plan', 'network', 'trace'] },
 ];
-
-export interface NowItem {
-  verb: string; // 正在做 / 正在读 / 正在想
-  text: string;
-}
-
-/** 给一年没见的朋友的那几句：这一章在做什么，不是简历。 */
-export const nowIntro =
-  '眼下主要在写这个博客，把笔记和项目页打磨成我真正愿意给人看的样子。一边用 Heptabase 做深度学习的长期实践，一边在想语音输入能不能把「记下来」这件事的摩擦力降下去。';
-
-export const now: NowItem[] = [
-  { verb: '正在做', text: '写博客，打磨笔记与项目页', },
-  { verb: '正在读', text: 'Heptabase 深度学习工作流的长期实践笔记', },
-  { verb: '正在想', text: '语音优先的笔记输入如何降低记录的摩擦力', },
-];
-
-export const nowUpdated = '2026-08-21';

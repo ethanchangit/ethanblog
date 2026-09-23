@@ -1,13 +1,18 @@
 ---
+import { getEntry, render } from 'astro:content';
 import Base from '@/layouts/Base.astro';
-import AgentProse from '@/components/shell/AgentProse.astro';
-import { contactMarkdown, liteMarkdownHtml } from '@/lib/agent';
 import { copy } from '@/lib/i18n';
+
+const contact = await getEntry('pages', 'contact');
+if (!contact) return new Response(null, { status: 404 });
+const { Content } = await render(contact);
 ---
 
 <Base
-  title={copy['zh-CN'].contactPageTitle}
-  description={copy['zh-CN'].contactPageDesc}
+  title={contact.data.title || copy['zh-CN'].contactPageTitle}
+  description={contact.data.description}
 >
-  <AgentProse zh={liteMarkdownHtml(contactMarkdown('zh'))} />
+  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 prose-site">
+    <Content />
+  </article>
 </Base>

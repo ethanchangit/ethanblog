@@ -114,6 +114,30 @@ test('deletion is rechecked before public upload and merge; newly incoming links
   }
 });
 
+test('core pages and reference-only pages drop when the card leaves its tag or is deleted', async () => {
+  const about = 'a51ada66-ee0b-4759-9b1f-830c8374fcae';
+  const aboutPath = 'src/content/pages/about.mdx';
+  const aboutRaw = `---\nslot: page\ntitle: 关于\ndescription: 关于\nheptabaseCardLink: heptabase://card/${about}\n---\n\n正文。\n`;
+  for (const deleted of [false, true]) {
+    const f = await setup();
+    f.remote(aboutRaw, aboutPath);
+    f.cardSources.set(about, '# 关于\n\n正文。');
+    f.remote(raw(REF, '资料', '正文', false), refPath(REF));
+    f.cardSources.set(REF, '# 资料\n\n正文');
+    if (deleted) { f.missingCards.add(about); f.missingCards.add(REF); }
+    const listed = await ok(f.request('/heptabase/cards'));
+    const reasons = Object.fromEntries(listed.removals.map((item) => [item.id, item.reason]));
+    assert.equal(reasons.about, deleted ? 'deleted' : 'untagged');
+    assert.equal(reasons[`hepta-${REF}`], deleted ? 'deleted' : 'untagged');
+  }
+  const f = await setup();
+  f.remote(raw(REF, '资料', '正文', false), refPath(REF));
+  f.cardSources.set(REF, '# 资料\n\n正文');
+  f.referenceCards.add(REF);
+  const listed = await ok(f.request('/heptabase/cards'));
+  assert.equal(listed.removals.some((item) => item.id === `hepta-${REF}`), false);
+});
+
 test('reference becoming a blog cannot be swept away with its former parent', async () => {
   const f = await setup(); f.remote(raw(CARD, '主文', docRef(REF))); f.remote(raw(REF, '资料', '正文', false), refPath(REF));
   await ok(approve(f, await preview(f))); f.properties.set(REF, { Status: 'review' }); f.cardSources.set(REF, '# 资料\n\n正文');
