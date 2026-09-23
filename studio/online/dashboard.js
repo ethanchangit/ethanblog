@@ -18,12 +18,16 @@ function button(text, action, attrs = {}) {
   b.addEventListener('click', () => void run(action));
   return b;
 }
+function pageIsLocal() {
+  const host = location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+}
 async function api(path, data) {
   const response = await fetch(`/dashboard/api${path}`, data === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
   let result;
   try { result = await response.json(); }
   catch {
-    const message = response.status === 401 ? '登录已过期，请重新输入后台密码。'
+    const message = response.status === 401 ? (pageIsLocal() ? '本地后台请求被拒绝，请刷新后重试。' : '登录已过期，请重新输入后台密码。')
       : response.redirected ? '后台请求被跳转到了其他页面，请刷新后重试。'
       : !response.ok ? `后台暂时无法完成请求（${response.status}），请稍后重新拉取。`
       : '后台返回了无法读取的数据，请刷新后重试。';
@@ -35,22 +39,25 @@ async function api(path, data) {
 }
 function notice(text, error = false) {
   const node = document.querySelector('dialog[open] .status') || document.querySelector('#notice');
-  if (node) { node.textContent = text; node.setAttribute('role', error ? 'alert' : 'status'); }
+  if (node) { node.textContent = text; node.setAttribute('role', error ? 'alert' : 'status'); return; }
+  if (!pageIsLocal() || !root) return;
+  root.replaceChildren(el('p', text, { id: 'notice', class: 'status', role: error ? 'alert' : 'status' }));
 }
 async function run(action) {
   if (loading) return; loading = true;
   document.querySelectorAll('button').forEach(b => b.disabled = true);
   try { await action(); } catch (error) {
-    if (error.status === 401) { closeDialog(); showLogin(booted ? error.message : ''); }
+    if (error.status === 401 && !pageIsLocal()) { closeDialog(); showLogin(booted ? error.message : ''); }
     else notice(error.message, true);
   } finally { loading = false; document.querySelectorAll('button').forEach(b => b.disabled = false); }
 }
 function showLogin(message = '') {
+  if (pageIsLocal()) { localOpen = true; notice(message || '本地后台请求被拒绝，请刷新后重试。', true); return; }
   clearTimeout(timer); clearMoveLines(); root.replaceChildren(); items = []; selected = null; pulled = false;
   const form = el('form', null, { class: 'login' });
   const password = el('input', null, { id: 'password', type: 'password', autocomplete: 'current-password', required: '', minlength: '12', maxlength: '256' });
   form.append(el('h1', 'Ethan 的发布后台'), el('p', '在 Heptabase 写作，在这里审查和发布。', { class: 'muted' }), el('label', '后台密码', { for: 'password' }), password, el('button', '进入发布后台', { type: 'submit' }), el('p', message, { id: 'notice', class: 'status', role: message ? 'alert' : 'status' }));
-  form.addEventListener('submit', event => { event.preventDefault(); booted = true; void run(async () => { await api('/login', { password: password.value }); const session = await api('/session'); localPreview = session.localPreview; localOpen = session.localOpen === true; password.value = ''; await refresh(); }); });
+  form.addEventListener('submit', event => { event.preventDefault(); booted = true; void run(async () => { await api('/login', { password: password.value }); const session = await api('/session'); localPreview = session.localPreview; localOpen = pageIsLocal() || session.localOpen === true; password.value = ''; await refresh(); }); });
   root.append(form); password.focus();
 }
 function closeDialog() { document.querySelector('dialog')?.close(); document.querySelector('dialog')?.remove(); }
@@ -466,6 +473,6 @@ void run(async () => {
   const session = await api('/session');
   booted = true;
   localPreview = session.localPreview;
-  localOpen = session.localOpen === true;
+  localOpen = pageIsLocal() || session.localOpen === true;
   await refresh();
 });

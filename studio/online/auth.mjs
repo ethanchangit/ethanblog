@@ -73,17 +73,18 @@ async function sessionId(request) {
   return value && /^[a-f0-9]{64}$/.test(value) ? hash(value) : null;
 }
 
-function devLoopback(request, env) {
-  // Boolean true is set only by the local dev server. A Cloudflare var is a string and does not match.
-  if (env.STUDIO_DEV_OPEN !== true) return false;
+// Local dev, preview, and tests use these hosts. Production traffic uses ethanchang.io.
+// A Cloudflare env var cannot open that host, and a string flag is not consulted here.
+export function loopbackRequest(request) {
   try {
-    const hostname = new URL(request.url).hostname;
+    // Node's URL.hostname keeps the brackets on IPv6 (::1 is "[::1]" here).
+    const hostname = new URL(request.url).hostname.replace(/^\[|\]$/g, '');
     return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
   } catch { return false; }
 }
 
 export async function author(request, env) {
-  if (devLoopback(request, env)) return { id: 'owner', sessionId: 'local-dev' };
+  if (loopbackRequest(request)) return { id: 'owner', sessionId: 'local-dev' };
   if (!env.DB || !env.STUDIO_PASSWORD_HASH) throw fail('后台尚未完成密码与存储配置。', 503);
   const id = await sessionId(request);
   if (!id) throw fail('请先输入后台密码。', 401);
@@ -95,6 +96,7 @@ export async function author(request, env) {
 
 export async function login(request, env) {
   requireCsrf(request);
+  if (loopbackRequest(request)) return Response.json({ ok: true });
   if (!env.DB || !env.STUDIO_PASSWORD_HASH) throw fail('后台尚未完成密码与存储配置。', 503);
   const window = Math.floor(Date.now() / 300000);
   const key = await hash(`${request.headers.get('cf-connecting-ip') || 'local'}:${window}`);

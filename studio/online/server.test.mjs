@@ -29,17 +29,29 @@ function graph(f) {
   f.cardSources.set(grandchild, `### 孙文\n\n${mention(CARD, '主文')}`);
 }
 
-test('loopback dev open skips the password; production and string flags do not', async () => {
+test('loopback requests skip the password; production and env flags do not', async () => {
   const f = await fixture();
-  f.env.STUDIO_DEV_OPEN = true;
-  const open = await f.handler(new Request('http://127.0.0.1:4321/dashboard/api/session'), f.env);
-  assert.equal(open.status, 200);
-  assert.equal((await open.json()).localOpen, true);
-  assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/session'), f.env)).status, 401);
-  f.env.STUDIO_DEV_OPEN = 'true';
-  assert.equal((await f.handler(new Request('http://127.0.0.1:4321/dashboard/api/session'), f.env)).status, 401);
-  delete f.env.STUDIO_DEV_OPEN;
-  assert.equal((await f.handler(new Request('http://localhost:4321/dashboard/api/session'), f.env)).status, 401);
+  globalThis.fetch = f.fetcher;
+  for (const origin of ['http://127.0.0.1:4321', 'http://localhost:4321', 'http://[::1]:4321']) {
+    const open = await f.handler(new Request(`${origin}/dashboard/api/session`), f.env);
+    assert.equal(open.status, 200, origin);
+    assert.equal(open.headers.get('set-cookie'), null, origin);
+    const body = await open.json();
+    assert.equal(body.localOpen, true, origin);
+    assert.equal(body.authenticated, true, origin);
+    const docs = await f.handler(new Request(`${origin}/dashboard/api/docs`), f.env);
+    assert.equal(docs.status, 200, origin);
+    const login = await f.handler(new Request(`${origin}/dashboard/api/login`, {
+      method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ password: 'not-the-password' }),
+    }), f.env);
+    assert.equal(login.status, 200, origin);
+  }
+  for (const flag of [true, 'true', undefined]) {
+    if (flag === undefined) delete f.env.STUDIO_DEV_OPEN;
+    else f.env.STUDIO_DEV_OPEN = flag;
+    assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/session'), f.env)).status, 401, String(flag));
+    assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/docs'), f.env)).status, 401, String(flag));
+  }
 });
 
 test('Heptabase heading levels all supply a title without changing the remaining content', () => {

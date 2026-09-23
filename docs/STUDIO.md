@@ -96,18 +96,18 @@ npm run dev
 
 同一进程的 http://localhost:4321/studio 只能改本机文件。它不是写作应用，生产构建不注入、不部署。
 
-内存验收（带测试密码，不连接真实 GitHub 或 Heptabase）：
+内存验收（不连接真实 GitHub 或 Heptabase）：
 
 ```sh
 npm run build
 node studio/online/preview.mjs
 ```
 
-默认 http://localhost:4350/dashboard。进程打印的测试密码不能用于生产。
+默认 http://localhost:4350/dashboard。本机打开不要求后台密码。生产 https://ethanchang.io/dashboard 仍要密码。
 
 ## 故障和恢复
 
-- 生产未配置密码、存储或 GitHub 时明确提示，不会在生产打开无密码后台。本地 `astro dev` 的免密码只在 `STUDIO_DEV_OPEN === true` 且主机是 localhost、127.0.0.1 或 `::1` 时成立。Cloudflare 上的字符串环境变量不会打开这扇门。
+- 生产未配置密码、存储或 GitHub 时明确提示，不会在生产打开无密码后台。请求主机是 localhost、127.0.0.1 或 `::1` 时不检查密码，也不需要会话 cookie。其他主机，包括 https://ethanchang.io，仍要密码。Cloudflare 上的环境变量不能把生产后台打开。
 - 生产登录过期时重新输入密码；连续错误尝试会暂时限制。
 - 隐私审查失效：重新拉取，检查完整引用范围，再确认。只把 Blog Type 标成 Reference 还不够，仍要明确确认可以公开。
 - 两边都有改动：比较后明确确认采用 Heptabase 的版本。GitHub 上的修改不会被悄悄覆盖。

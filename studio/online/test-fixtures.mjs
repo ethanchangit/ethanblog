@@ -226,8 +226,10 @@ export async function fixture(assets = {}) {
     throw new Error(`Unexpected request: ${method} ${url}`);
   };
   let cookie = '';
+  // Production host, so these calls still pass through the password. Loopback is covered separately.
+  const origin = 'https://ethanchang.io';
   async function request(path, method = 'GET', body, headers = {}) {
-    return handler(new Request(`http://localhost:4350/dashboard/api${path}`, { method, headers: { cookie, origin: 'http://localhost:4350', 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
+    return handler(new Request(`${origin}/dashboard/api${path}`, { method, headers: { cookie, origin, 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
   }
   async function login() { const r = await request('/login', 'POST', { password: PASSWORD }); cookie = r.headers.get('set-cookie').split(';')[0]; return r; }
   async function connect() {

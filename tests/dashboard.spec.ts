@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 
 let process: ChildProcess, url: string;
@@ -18,11 +18,15 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => { process?.kill('SIGTERM'); });
 
-test('预览收到网页错误后显示可读原因，并能重新拉取恢复', async ({ page }) => {
+async function openLocal(page: Page) {
   await page.goto(url);
-  await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByLabel('后台密码')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+}
+
+test('预览收到网页错误后显示可读原因，并能重新拉取恢复', async ({ page }) => {
+  await openLocal(page);
   await page.route('**/dashboard/api/heptabase/preview', route => route.fulfill({
     status: 502, contentType: 'text/html', body: '<!DOCTYPE html><html>private diagnostic details</html>',
   }));
@@ -36,26 +40,19 @@ test('预览收到网页错误后显示可读原因，并能重新拉取恢复',
   await expect(page.frameLocator('iframe[title="网站发布样式预览"]').locator('h1')).toHaveText('知识管理，先从连接开始');
 });
 
-test('逐篇拉取时登录过期会回到登录页', async ({ page }) => {
-  await page.goto(url);
-  await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
-  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+test('本地拉取被拒绝时不出现密码框', async ({ page }) => {
+  await openLocal(page);
   await page.route('**/dashboard/api/heptabase/preview', route => route.fulfill({ status: 401, contentType: 'text/html', body: '<!DOCTYPE html><html>Login required</html>' }));
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.getByLabel('后台密码')).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveText('登录已过期，请重新输入后台密码。');
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByLabel('后台密码')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('本地后台请求被拒绝，请刷新后重试。');
 });
 
 test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回写和发布完整流程', async ({ page, request }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  await page.goto(url);
-  await page.getByLabel('后台密码').fill('wrong-password-long');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
-  await expect(page.getByRole('alert')).toHaveText('密码不正确。');
-  await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
-  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await openLocal(page);
   await expect(page.locator('textarea, [contenteditable=true]')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '浏览统计' })).toHaveCount(0);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
@@ -150,8 +147,11 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.frameLocator('iframe').locator('h1')).toBeVisible();
-  await page.getByRole('button', { name: '退出', exact: true }).click();
-  await page.reload(); await expect(page.getByLabel('后台密码')).toBeVisible();
+  await expect(page.getByRole('button', { name: '退出', exact: true })).toHaveCount(0);
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -168,8 +168,7 @@ test('全文对比保留移动段落、代码、列表和引用，两种主题�
     }
     await route.fulfill({ response, json: plan });
   });
-  await page.goto(url); await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   const original = page.locator('.diff-original'), revision = page.locator('.diff-revision');
@@ -236,8 +235,7 @@ test('全文对比保留移动段落、代码、列表和引用，两种主题�
 
 test('删除清单可预览、暂缓、确认、取消，并通过发布移除文章及独占资料', async ({ page, request }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url); await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   const group = page.locator('[data-review-group=removed]');
   await expect(group.getByRole('heading')).toHaveText('Deleted articles · 2');
@@ -288,10 +286,7 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
 });
 
 test('标签全部移除、仅排序和重复、长标签与特殊字符都能清楚安全地审查', async ({ page }) => {
-  await page.goto(url);
-  await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
-  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await openLocal(page);
   let afterTags: string[] = [];
   await page.route('**/dashboard/api/heptabase/preview', async route => {
     const response = await route.fetch(), plan = await response.json();
@@ -321,4 +316,25 @@ test('标签全部移除、仅排序和重复、长标签与特殊字符都能�
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   await expect(changes.locator('.tag-removed')).toHaveCount(2);
   await expect(page.locator('.diff-summary')).toHaveText('正文未修改，本次只更新标签。');
+});
+
+test('生产后台仍要密码', async ({ page }) => {
+  const port = new URL(url).port;
+  await page.goto(`http://dashboard.test:${port}/dashboard`);
+  const password = page.getByLabel('后台密码');
+  await expect(password).toBeVisible();
+  await password.fill('wrong-password-long');
+  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.getByRole('alert')).toHaveText('密码不正确。');
+  await password.fill('local-test-only-password');
+  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
+  await page.getByRole('button', { name: '退出', exact: true }).click();
+  await expect(page.getByLabel('后台密码')).toBeVisible();
+  await page.getByLabel('后台密码').fill('local-test-only-password');
+  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await page.route('**/dashboard/api/heptabase/preview', route => route.fulfill({ status: 401, contentType: 'text/html', body: '<!DOCTYPE html><html>Login required</html>' }));
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.getByLabel('后台密码')).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('登录已过期，请重新输入后台密码。');
 });

@@ -19,6 +19,10 @@ test('the bundled dashboard runs with Cloudflare WebCrypto, D1 and protected rou
     await db.exec(`${sql}\n${pulls}`.replace(/^--.*$/gm, '').replaceAll('\n', ' '));
     const page = await mf.dispatchFetch('https://ethanchang.io/dashboard');
     assert.equal(page.status, 200); assert.match(await page.text(), /Ethan Blog Studio/);
+    const local = await mf.dispatchFetch('http://127.0.0.1:4321/dashboard/api/session');
+    assert.equal(local.status, 200);
+    assert.equal((await local.json()).localOpen, true);
+    assert.equal((await mf.dispatchFetch('http://localhost:4321/dashboard/api/session')).status, 200);
     assert.equal((await mf.dispatchFetch('https://ethanchang.io/dashboard/api/session')).status, 401);
     const login = await mf.dispatchFetch('https://ethanchang.io/dashboard/api/login', { method: 'POST', headers: { origin: 'https://ethanchang.io', 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
     assert.equal(login.status, 200, await login.text());

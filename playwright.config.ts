@@ -16,9 +16,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4322',
     trace: 'on-first-retry',
-    ...(useCustomChromium
-      ? { launchOptions: { executablePath: customChromium } }
-      : {}),
+    launchOptions: {
+      ...(useCustomChromium ? { executablePath: customChromium } : {}),
+      args: ['--host-resolver-rules=MAP dashboard.test 127.0.0.1'],
+    },
   },
   webServer: {
     command: 'node --experimental-strip-types scripts/preview.mjs --port 4322',

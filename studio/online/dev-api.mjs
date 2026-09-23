@@ -51,7 +51,6 @@ class LocalD1 {
 
 const env = {
   DB: new LocalD1(),
-  STUDIO_DEV_OPEN: true,
   GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
   STUDIO_SECRET: process.env.STUDIO_SECRET || '',
   STUDIO_PASSWORD_HASH: process.env.STUDIO_PASSWORD_HASH || '',
