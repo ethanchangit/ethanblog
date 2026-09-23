@@ -68,7 +68,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 入口是 https://ethanchang.io/dashboard ，用后台密码登录。这里不能编辑 Markdown。正文在 Heptabase 改；后台只拉取、预览、段落对比、确认、提交和发布。审核预览不加载外站图片，也不运行交互组件。细节与故障恢复见 [docs/STUDIO.md](docs/STUDIO.md)。
 
-Cloud agent 不使用后台存在 D1 里的授权，也不读仓库 `.cursor/mcp.json`。这个账号没有团队。在 https://cursor.com/agents 点提示栏左侧的 +，选 MCP Servers → Add MCP，添加 HTTP 服务器 `https://api.heptabase.com/mcp`（scopes：`offline_access space:read space:write`）并完成 OAuth。这是个人账号的 Cloud Agent 连接，之后你启动的 Cloud Agent 都会带上，包括使用个人环境 `ethanchangit/ethanblog` 的那些。不要提交令牌，也不要把 `STUDIO_SECRET` 复制进 agent 环境。
+Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
 1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
 2. 主卡片上 ✓ / ×。通过则回写 `published`；Publish Date 为空时补当天（默认时区 `Africa/Dar_es_Salaam`），已有日期保留。此时只是「已通过，待发布」。拒绝则回写 `block`，不改日期，也不改线上旧文。
