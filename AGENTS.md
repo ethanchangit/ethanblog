@@ -83,7 +83,7 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 ## 开发与部署
 
 - Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
-- 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 `GITHUB_TOKEN` 时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。配置好的令牌放在环境变量里，不要写进仓库。
+- 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 GitHub 令牌时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。云端密钥名是 `GITHUB_TOKEN_BLOG`，本机同名写在 `.dev.vars`。生产 Pages 仍用 `GITHUB_TOKEN`。后台两条都认。`STUDIO_SECRET` 也放在 `.dev.vars`（见 `.dev.vars.example`），不要写进仓库。
 - `npm run studio` 与 `npm run dev` 是同一条命令。同一进程的 http://localhost:4321/studio 只能改本机文件，是迁移期留下的工具。它不是写作应用，生产构建不注入、不部署。日常写作在 Heptabase。
 - `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。
 - `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。

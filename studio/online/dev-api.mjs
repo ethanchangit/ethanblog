@@ -1,8 +1,46 @@
 // Local `astro dev` only. Production never imports this file.
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHandler } from './server.mjs';
 import { isLocalHost } from '../lib.mjs';
+
+export function parseDevVars(text) {
+  const out = {};
+  for (const line of String(text).split(/\r?\n/)) {
+    if (!line || line.trimStart().startsWith('#')) continue;
+    const separator = line.indexOf('=');
+    if (separator <= 0) continue;
+    const key = line.slice(0, separator).trim();
+    let value = line.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
+    out[key] = value;
+  }
+  return out;
+}
+
+function pickSecret(environment, file, keys) {
+  for (const key of keys) if (environment?.[key]) return environment[key];
+  for (const key of keys) if (file[key]) return file[key];
+  return '';
+}
+
+export function dashboardSecrets(environment, fileText) {
+  const file = parseDevVars(fileText);
+  return {
+    GITHUB_TOKEN: pickSecret(environment, file, ['GITHUB_TOKEN', 'GITHUB_TOKEN_BLOG']),
+    STUDIO_SECRET: pickSecret(environment, file, ['STUDIO_SECRET']),
+    STUDIO_PASSWORD_HASH: pickSecret(environment, file, ['STUDIO_PASSWORD_HASH']),
+  };
+}
+
+function databasePath() {
+  if (process.env.STUDIO_DASHBOARD_MEMORY === '1') return ':memory:';
+  const file = fileURLToPath(new URL('../../.studio/dashboard.sqlite', import.meta.url));
+  mkdirSync(dirname(file), { recursive: true });
+  return file;
+}
 
 // node:sqlite on some Node 22 builds rejects D1's ?1 placeholders and cannot reuse a number.
 function positional(sql) {
@@ -16,7 +54,7 @@ function positional(sql) {
 
 class LocalD1 {
   constructor() {
-    this.sqlite = new DatabaseSync(':memory:');
+    this.sqlite = new DatabaseSync(databasePath());
     this.sqlite.exec(readFileSync(new URL('../../migrations/0004_studio.sql', import.meta.url), 'utf8'));
     this.sqlite.exec(readFileSync(new URL('../../migrations/0005_card_pulls.sql', import.meta.url), 'utf8'));
   }
@@ -51,11 +89,17 @@ class LocalD1 {
 
 const env = {
   DB: new LocalD1(),
-  GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
-  STUDIO_SECRET: process.env.STUDIO_SECRET || '',
-  STUDIO_PASSWORD_HASH: process.env.STUDIO_PASSWORD_HASH || '',
+  GITHUB_TOKEN: '',
+  STUDIO_SECRET: '',
+  STUDIO_PASSWORD_HASH: '',
 };
 const handler = createHandler();
+
+function refreshSecrets() {
+  let text = '';
+  try { text = readFileSync(new URL('../../.dev.vars', import.meta.url), 'utf8'); } catch { /* local file is optional */ }
+  Object.assign(env, dashboardSecrets(process.env, text));
+}
 
 export async function handleDashboardApi(req, res) {
   if (!isLocalHost(req.headers.host)) {
@@ -64,6 +108,7 @@ export async function handleDashboardApi(req, res) {
     res.end(JSON.stringify({ error: 'dashboard API 只接受本机请求' }));
     return;
   }
+  refreshSecrets();
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const body = Buffer.concat(chunks);
