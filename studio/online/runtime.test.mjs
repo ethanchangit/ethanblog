@@ -15,7 +15,8 @@ test('the bundled dashboard runs with Cloudflare WebCrypto, D1 and protected rou
   try {
     const db = await mf.getD1Database('DB');
     const sql = await readFile(new URL('../../migrations/0004_studio.sql', import.meta.url), 'utf8');
-    await db.exec(sql.replace(/^--.*$/gm, '').replaceAll('\n', ' '));
+    const pulls = await readFile(new URL('../../migrations/0005_card_pulls.sql', import.meta.url), 'utf8');
+    await db.exec(`${sql}\n${pulls}`.replace(/^--.*$/gm, '').replaceAll('\n', ' '));
     const page = await mf.dispatchFetch('https://ethanchang.io/dashboard');
     assert.equal(page.status, 200); assert.match(await page.text(), /Ethan Blog Studio/);
     assert.equal((await mf.dispatchFetch('https://ethanchang.io/dashboard/api/session')).status, 401);

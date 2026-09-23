@@ -489,3 +489,78 @@ test('a large tag database is read in batches instead of one subrequest per card
   assert.equal(payload.cards.some((card) => card.id === CARD), false);
   assert.equal(payload.pageSet.cap, 4);
 });
+
+const readObjects = (f) => f.calls.filter((call) => call.body?.params?.name === 'read_object');
+
+test('later pulls reuse unchanged cards, refetch edited ones, and do not recreate deleted cards', async () => {
+  const f = await setup();
+  f.properties.get(CARD).Status = 'review';
+  f.properties.get(CARD)['Blog Type'] = 'Article';
+  const first = await preview(f);
+  assert.match(first.next, /来自 Heptabase 的正文/);
+  const stored = f.DB.sqlite.prepare('SELECT edited_at, source FROM studio_card_pulls WHERE card_id = ?').get(CARD);
+  assert.equal(stored.edited_at, '2026-09-21T00:00:00Z');
+  assert.match(stored.source, /来自 Heptabase 的正文/);
+  f.calls.length = 0;
+  const again = await preview(f);
+  assert.equal(again.next, first.next);
+  assert.equal(readObjects(f).length, 0);
+  assert.ok(f.calls.some((call) => call.body?.params?.name === 'list_cards'));
+  await f.login();
+  f.calls.length = 0;
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.deepEqual(listed.cards.map((card) => card.id), [CARD]);
+  assert.equal(readObjects(f).length, 0);
+
+  f.timestamps.set(CARD, { created: '2026-09-21T00:00:00Z', updated: '2026-09-23T01:00:00Z' });
+  f.setSource('# 测试文章\n\n只改这一篇。');
+  f.calls.length = 0;
+  const changed = await preview(f);
+  assert.match(changed.next, /只改这一篇/);
+  assert.ok(readObjects(f).some((call) => call.body.params.arguments.objectId === CARD));
+
+  const removed = 'ea84aa8e-dac4-46cb-91d1-1b10dc5350c0';
+  f.remote(`---\nslot: article\ntitle: 已删除\ndescription: 摘要\ndate: 2025-01-01\nheptabaseCardLink: heptabase://card/${removed}\n---\n\n占位。\n`, 'src/content/articles/removed-card.mdx');
+  f.missingCards.add(removed);
+  f.DB.sqlite.prepare('INSERT INTO studio_card_pulls (card_id, edited_at, properties, source, card_created, pulled_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+    removed, '2026-09-21T00:00:00Z', JSON.stringify({ member: true, status: 'review', date: null, tags: [], type: 'article', summary: '' }),
+    '# 已删除\n\n不该复活。', '2026-09-21T00:00:00Z', '2026-09-23T00:00:00.000Z');
+  const afterDelete = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(afterDelete.cards.some((card) => card.id === removed), false);
+  assert.equal(afterDelete.removals.find((item) => item.id === 'removed-card').reason, 'deleted');
+  assert.equal((await f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${removed}`, preparePublish: true })).status, 400);
+});
+
+test('a second large pull still lists every card, skips unchanged bodies, and batches the ones that changed', async () => {
+  const f = await setup();
+  const ids = [];
+  for (let i = 0; i < 40; i++) {
+    const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+    ids.push(id);
+    f.properties.set(id, { Status: 'published', 'Blog Type': 'Article' });
+    f.cardSources.set(id, `# 卡片 ${i}\n\n正文`);
+  }
+  let payload = await jsonOk(f.request('/heptabase/cards')), guard = 0;
+  while (payload.partial) {
+    assert.ok(++guard < 8);
+    payload = await jsonOk(f.request('/heptabase/cards'));
+  }
+  const pages = payload.pageSet.cards.map((card) => card.id);
+  f.calls.length = 0;
+  let again = await jsonOk(f.request('/heptabase/cards')), hops = 0;
+  while (again.partial) {
+    assert.ok(++hops < 4);
+    again = await jsonOk(f.request('/heptabase/cards'));
+  }
+  assert.equal(readObjects(f).length, 0);
+  assert.ok(f.calls.some((call) => call.body?.params?.name === 'list_cards'));
+  assert.deepEqual(again.pageSet.cards.map((card) => card.id), pages);
+  const changed = ids.slice(0, 25);
+  for (const id of changed) f.timestamps.set(id, { created: '2026-09-21T00:00:00Z', updated: '2026-09-23T00:00:00Z' });
+  f.calls.length = 0;
+  const next = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(next.partial, true);
+  const reread = readObjects(f).map((call) => call.body.params.arguments.objectId);
+  assert.ok(reread.length > 0 && reread.length <= 20, String(reread.length));
+  assert.ok(reread.every((id) => changed.includes(id)));
+});

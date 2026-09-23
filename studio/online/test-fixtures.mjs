@@ -26,15 +26,27 @@ customField: 保留字段
 
 English body.
 `;
+// node:sqlite on some Node 22 builds rejects D1's ?1 placeholders and cannot reuse a number.
+function positional(sql) {
+  const order = [];
+  const text = sql.replace(/\?(\d+)/g, (_, number) => {
+    order.push(Number(number) - 1);
+    return '?';
+  });
+  return { text, order };
+}
+
 export class TestD1 {
   constructor() {
     this.sqlite = new DatabaseSync(':memory:');
     this.sqlite.exec(readFileSync(new URL('../../migrations/0004_studio.sql', import.meta.url), 'utf8'));
+    this.sqlite.exec(readFileSync(new URL('../../migrations/0005_card_pulls.sql', import.meta.url), 'utf8'));
   }
   prepare(sql) {
-    const statement = this.sqlite.prepare(sql); let args = [];
+    const { text, order } = positional(sql);
+    const statement = this.sqlite.prepare(text); let args = [];
     const wrapper = {
-      bind(...values) { args = values; return wrapper; },
+      bind(...values) { args = order.map((index) => values[index]); return wrapper; },
       async first() { return statement.get(...args) || null; },
       async all() { return { results: statement.all(...args) }; },
       async run() { const result = statement.run(...args); return { success: true, meta: { changes: Number(result.changes) } }; },
@@ -60,6 +72,34 @@ export async function fixture(assets = {}) {
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
   let pr = null, checksPass = true, liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
   const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
+  const baselines = new Map();
+  // Heptabase bumps a card's edited time when its body or properties change.
+  // An explicit timestamps entry stays as written, including an empty updated time.
+  function cardHash(id) {
+    const body = id === CARD ? source : (cardSources.get(id) || '# 测试文章');
+    return digest([body, properties.get(id) || null]);
+  }
+  function stampFor(id) {
+    if (timestamps.has(id)) {
+      const stamp = timestamps.get(id) || {};
+      return { created: stamp.created || '', updated: stamp.updated || '' };
+    }
+    const hash = cardHash(id);
+    let seen = baselines.get(id);
+    if (!seen) baselines.set(id, seen = { hash, revision: 0, updated: '2026-09-21T00:00:00Z' });
+    else if (seen.hash !== hash) {
+      seen.hash = hash;
+      seen.updated = `2026-09-22T00:00:${String(++seen.revision).padStart(2, '0')}Z`;
+    }
+    return { created: '2026-09-21T00:00:00Z', updated: seen.updated };
+  }
+  // Dashboard property writes are not a new edit. Keep the edited time that the review already stored.
+  function adoptBaseline(id) {
+    const hash = cardHash(id);
+    const seen = baselines.get(id);
+    if (seen) seen.hash = hash;
+    else baselines.set(id, { hash, revision: 0, updated: '2026-09-21T00:00:00Z' });
+  }
   const calls = [];
   function filesFor(sha) { return trees.get(commits.get(sha).tree.sha); }
   const changedFiles = () => {
@@ -95,13 +135,14 @@ export async function fixture(assets = {}) {
               if (edit.value === null) delete values[key]; else values[key] = edit.value;
               properties.set(edit.cardId, values);
             }
+            for (const edit of args.edits) adoptBaseline(edit.cardId);
             content = { results: args.edits.map((e) => ({ cardId: e.cardId, propertyId: e.propertyId, status: 'success' })) };
           }
           else if (name === 'list_cards') {
             const ids = args.cardIds?.length ? args.cardIds : [...(args.tagIds?.[0] === 'reference-id' ? referenceCards : properties.keys())];
             content = { content: 'Cards:\n' + ids.map(id => {
               const title = (id === CARD ? source : cardSources.get(id) || '# 测试文章').split('\n')[0].replace(/^# /, '');
-              const stamp = timestamps.get(id) || { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z' };
+              const stamp = stampFor(id);
               const meta = [stamp.created ? `created: ${stamp.created}` : '', stamp.updated ? `updated: ${stamp.updated}` : ''].filter(Boolean).join('; ');
               return `card ${JSON.stringify(title)} [${id}]${meta ? ` ${meta}` : ''}`;
             }).join('\n') };

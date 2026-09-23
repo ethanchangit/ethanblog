@@ -14,7 +14,7 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan } from './heptabase.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
@@ -655,17 +655,32 @@ async function heptabaseCards(env, identity) {
   let scan = batched ? await readPullScan(env, identity.sessionId) : null;
   if (!scan || scan.signature !== signature) scan = { signature, props: {}, cursor: 0 };
   const started = scan.cursor;
-  const end = Math.min(cards.length, scan.cursor + (batched ? PROPERTY_BATCH : cards.length));
-  for (let index = scan.cursor; index < end; index++) {
-    const card = cards[index];
-    if (card.type !== 'card') { scan.props[card.id] = null; continue; }
-    try { scan.props[card.id] = await readProperties(client, card.id, schema); }
-    catch (error) {
+  const pulls = await readCardPulls(env);
+  const budget = batched ? PROPERTY_BATCH : Number.POSITIVE_INFINITY;
+  let fetches = 0;
+  // The list above already carries each card's edited time. Unchanged cards reuse
+  // the last successful pull. Only a new or changed edited time spends a subrequest,
+  // and those reads stay inside the same batch that avoids the 50-subrequest 502.
+  while (scan.cursor < cards.length && fetches < budget) {
+    const card = cards[scan.cursor];
+    if (card.type !== 'card') { scan.props[card.id] = null; scan.cursor++; continue; }
+    const cached = pulls.get(card.id);
+    if (card.updated && cached?.edited_at === card.updated && cached.properties) {
+      scan.props[card.id] = cached.properties;
+      scan.cursor++;
+      continue;
+    }
+    try {
+      const properties = await readProperties(client, card.id, schema);
+      scan.props[card.id] = properties;
+      await saveCardProperties(env, card.id, card.updated, card.created, properties);
+    } catch (error) {
       if (error.heptabaseReason !== 'objectNotFound') throw error;
       scan.props[card.id] = null;
     }
+    scan.cursor++;
+    fetches++;
   }
-  scan.cursor = end;
   if (batched && (scan.cursor < cards.length || scan.cursor > started)) {
     await writePullScan(env, identity.sessionId, scan);
     return { partial: true, scanned: scan.cursor, total: cards.length };
@@ -835,6 +850,31 @@ async function assertRemovals(env, state, rows) {
   for (const [path, raw] of proposed) if (linkedPaths(raw).some(ref => missing.has(ref))) throw fail(`「${parseMdx(raw).frontmatter.title || path}」仍引用待删除页面，请先处理引用。`, 409);
 }
 
+// Full content is fetched only when the edited time changed, or this card has never been pulled.
+// Cards still in the list keep the stored body when the edited time matches. A missing list entry is not revived from the cache.
+async function pullCard(env, client, schema, id, listed) {
+  let created = listed?.created || '';
+  let updated = listed?.updated || '';
+  if (!listed) {
+    const stamps = (await cardTimestamps(client, [id])).get(id);
+    created = stamps?.created || '';
+    updated = stamps?.updated || '';
+  }
+  const cached = updated ? await readCardPull(env, id) : null;
+  if (updated && cached?.edited_at === updated && cached.properties && cached.source != null) {
+    return { source: cached.source, properties: cached.properties, created: cached.card_created || created, updated };
+  }
+  const source = updated && cached?.edited_at === updated && cached.source != null ? cached.source : await readCard(client, id);
+  const properties = updated && cached?.edited_at === updated && cached.properties ? cached.properties : await readProperties(client, id, schema);
+  if (updated) await saveCardContent(env, id, updated, created, properties, source);
+  return { source, properties, created, updated };
+}
+
+async function rememberProperties(env, id, properties) {
+  const cached = await readCardPull(env, id);
+  if (cached?.edited_at) await saveCardProperties(env, id, cached.edited_at, cached.card_created, properties);
+}
+
 async function heptabasePlan(env, identity, input) {
   if (input.direction && input.direction !== 'pull') throw fail('请在 Heptabase 编辑内容；后台仅负责拉取与发布。');
   const id = cardId(input.cardLink);
@@ -843,7 +883,16 @@ async function heptabasePlan(env, identity, input) {
   const schema = await blogSchema(client, tagId);
   const card = cards.find((c) => c.id === id);
   if (!card || card.type !== 'card') throw fail('只能同步 #blog 下的文字卡片。');
-  const rootProperties = await readProperties(client, id, schema);
+  const listedById = new Map(cards.map((item) => [item.id, item]));
+  const pulled = new Map();
+  const cardPull = async (nextId) => {
+    if (pulled.has(nextId)) return pulled.get(nextId);
+    const value = await pullCard(env, client, schema, nextId, listedById.get(nextId));
+    pulled.set(nextId, value);
+    return value;
+  };
+  const rootPull = await cardPull(id);
+  const rootProperties = rootPull.properties;
   const routed = collectionForBlogType(rootProperties.type);
   if (input.collection && input.collection !== routed) throw fail(typeRouteMessage(rootProperties.type));
   const state = await branchState(env);
@@ -864,8 +913,9 @@ async function heptabasePlan(env, identity, input) {
   while (pending.length) {
     const nextId = pending.shift(); if (seen.has(nextId)) continue; seen.add(nextId);
     if (seen.size > 200) throw fail('引用超过 200 张卡片，请先拆分发布范围；没有遗漏后继续发布。');
-    const source = await readCard(client, nextId);
-    const properties = await readProperties(client, nextId, schema);
+    const loaded = await cardPull(nextId);
+    const source = loaded.source;
+    const properties = loaded.properties;
     const routedCollection = properties.member ? collectionForBlogType(properties.type) : null;
     const known = targets.get(nextId);
     if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
@@ -875,7 +925,7 @@ async function heptabasePlan(env, identity, input) {
     targets.set(nextId, target);
     const path = docPath(target.collection, target.id);
     const current = await effectiveFile(env, identity, state, path);
-    const stamps = (await cardTimestamps(client, [nextId])).get(nextId);
+    const stamps = { created: loaded.created, updated: loaded.updated };
     const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
     const parsed = current.raw ? parseMdx(current.raw) : { frontmatter: { slot: target.collection === 'pages' ? 'page' : target.collection === 'projects' ? 'project' : 'article', description: '待补充摘要', date: copied.date || publicationDate(), created: stamps.created || undefined, updated: stamps.updated || undefined, draft: true, ...(nextId !== id && target.collection !== 'pages' ? { listed: false } : {}) }, imports: '', bodyZh: '' };
     if (current.draft?.state === 'draft' && current.draft.raw === '') throw fail('这篇文章已在待删除清单，请先取消删除后重新拉取。', 409);
@@ -956,6 +1006,7 @@ async function markReferences(env, identity, input) {
       for (const id of ids) {
         const actual = await readProperties(client, id, plan.schema);
         if (!actual.member || actual.type !== 'reference') throw fail('Heptabase 尚未确认引用已加入 #blog 且 Blog Type 为 Reference。', 409);
+        await rememberProperties(env, id, actual);
       }
     }
     return { marked: ids.length };
@@ -1126,6 +1177,7 @@ async function decideReview(env, identity, input) {
     await lease(); await writeProperties(client, id, schema, desired);
     const after = await readProperties(client, id, schema);
     if (await readCard(client, id) !== root.source || JSON.stringify(after) !== JSON.stringify({ ...root.properties, ...desired })) throw fail('属性已回写，但内容或标签同时被修改。请重新标为 Review 后拉取审查，尚未提交 GitHub。', 409);
+    await rememberProperties(env, id, after);
     const completion = db(env).prepare("UPDATE studio_review_decisions SET status = 'complete' WHERE card_id = ?1").bind(id);
     if (input.decision === 'approve') {
       root.properties = after;

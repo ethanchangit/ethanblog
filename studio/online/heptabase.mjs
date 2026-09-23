@@ -117,6 +117,44 @@ export async function clearPullScan(env, sessionId) {
   await env.DB.prepare('DELETE FROM studio_connections WHERE id = ?1').bind(pullKey(sessionId)).run();
 }
 
+function storedProperties(text) {
+  if (!text) return null;
+  try { return JSON.parse(text); }
+  catch { return null; }
+}
+
+// edited_at is the Heptabase updated time from the last successful pull of this card.
+export async function readCardPulls(env) {
+  const rows = (await env.DB.prepare('SELECT card_id, edited_at, properties, card_created FROM studio_card_pulls').all()).results || [];
+  return new Map(rows.map((row) => [row.card_id, { edited_at: row.edited_at, properties: storedProperties(row.properties), card_created: row.card_created || '' }]));
+}
+
+export async function readCardPull(env, id) {
+  const row = await env.DB.prepare('SELECT card_id, edited_at, properties, source, card_created FROM studio_card_pulls WHERE card_id = ?1').bind(id).first();
+  if (!row) return null;
+  return { edited_at: row.edited_at, properties: storedProperties(row.properties), source: row.source ?? null, card_created: row.card_created || '' };
+}
+
+// Property reads remember the edited time but drop a body that belongs to an older time.
+export async function saveCardProperties(env, id, edited, created, properties) {
+  if (!edited) return;
+  await env.DB.prepare(`INSERT INTO studio_card_pulls (card_id, edited_at, properties, source, card_created, pulled_at)
+    VALUES (?1, ?2, ?3, NULL, ?4, ?5)
+    ON CONFLICT(card_id) DO UPDATE SET
+      source = CASE WHEN studio_card_pulls.edited_at = excluded.edited_at THEN studio_card_pulls.source ELSE NULL END,
+      edited_at = excluded.edited_at, properties = excluded.properties, card_created = excluded.card_created, pulled_at = excluded.pulled_at`)
+    .bind(id, edited, JSON.stringify(properties), created || '', new Date().toISOString()).run();
+}
+
+export async function saveCardContent(env, id, edited, created, properties, source) {
+  if (!edited) return;
+  await env.DB.prepare(`INSERT INTO studio_card_pulls (card_id, edited_at, properties, source, card_created, pulled_at)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+    ON CONFLICT(card_id) DO UPDATE SET
+      edited_at = excluded.edited_at, properties = excluded.properties, source = excluded.source, card_created = excluded.card_created, pulled_at = excluded.pulled_at`)
+    .bind(id, edited, JSON.stringify(properties), source, created || '', new Date().toISOString()).run();
+}
+
 async function rpcResponse(response, id) {
   if (!response.headers.get('content-type')?.includes('text/event-stream')) return providerData(await boundedText(response));
   const reader = response.body.getReader(), decoder = new TextDecoder();
