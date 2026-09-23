@@ -19,5 +19,6 @@ alwaysApply: false
    - 文章 → `src/content/articles/<slug>.mdx`（`slot: article`）
    - 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）
    - 项目 → `src/content/projects/<slug>.mdx`（`slot: project`）
-6. **验证**：`npm run check && npm run build`（含交互时加 `npm run test`）。
-7. **汇报**：slug、draft 状态、预览路径。
+6. **正文**：只有中文。要有标题、摘要、正文和 `slot`。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。新建或更新必须关联真实 `heptabaseCardLink`。写作在 Heptabase；`/studio` 不是写作应用。
+7. **验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
+8. **汇报**：slug、draft 状态、预览路径。

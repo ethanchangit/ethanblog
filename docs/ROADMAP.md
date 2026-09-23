@@ -2,7 +2,8 @@
 
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
-> 执行层的细节见 [CLAUDE.md](../CLAUDE.md)（日常操作指南）、[AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
+> 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
+> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。正文只有中文。没有 `CLAUDE.md`。
 
 ## 一、愿景与核心理念
 
@@ -29,7 +30,7 @@
 | 样式 | Tailwind CSS v4 `@theme` 设计 token | 极简双主题（白 / `#191919`），禁止裸色值 |
 | 内容 | MDX 同一形态；`slot`（article / project）决定索引 | 散文为主，交互组件按需嵌入 |
 | 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
-| 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | 域名、secrets 延续 |
+| 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | pull request 只验证；push 到 `main` 在验证通过后自动部署 |
 | 语言 | 单语言（中文为主） | 控制复杂度，不引入 i18n 框架 |
 | 主题 | 浅色 / 深色双主题 | 跟随系统，可手动切换 |
 
@@ -66,7 +67,7 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 - [x] **数据库**：Cloudflare D1 绑定 `wrangler.toml` → `migrations/0001_init.sql`
 - [x] **认证**：better-auth + GitHub/Google OAuth
 - [x] **接缝点亮**：`src/lib/user.ts`；Story 布局的收藏与进度同步已接入
-- [x] **UI**：Nav 登录/登出、Story 收藏按钮、滚动进度同步
+- [x] **UI**：公开导航不露出登录。收藏与阅读进度的 API 仍在（`src/lib/user.ts`），博客可以不启用
 - [x] **部署配置**：CI 在 deploy 前自动创建/绑定 D1 与 SESSION KV（`scripts/ensure-d1.sh`）
 - [ ] **标注（highlight）**：收藏与进度先行，标注其后（可选，非优先）
 
@@ -112,4 +113,4 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 ## 八、视觉收束 ✅（2026-08）
 
 - [x] 去掉全站装饰性边框、背景色块、圆角卡片、色条与设备边框
-- [x] 站点定位文档（本文 / CLAUDE / AGENTS）与极简博客一致
+- [x] 站点定位文档（本文 / AGENTS）与极简博客一致

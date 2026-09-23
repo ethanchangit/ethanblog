@@ -5,11 +5,18 @@ import { formatDate as siteDate } from '../../src/lib/format.ts';
 const root = document.querySelector('#studio');
 document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const stages = { merging: '正在合并', queued: '等待部署', building: '正在检查和部署', verifying: '正在确认线上版本', deployed: '已上线', failed: '发布失败' };
-let docs = [], items = [], selected, git, connected = false, loading = false, pulled = false, localPreview = false, mode = 'preview', template, timer;
+let docs = [], items = [], selected, git, connected = false, loading = false, pulled = false, localPreview = false, localOpen = false, booted = false, mode = 'preview', template, timer;
 let clearMoveLines = () => {};
 function el(tag, text, attrs = {}) { const n = document.createElement(tag); if (text != null) n.textContent = text; for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v); return n; }
 function link(text, href) { return el('a', text, { href, ...(href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }); }
-function button(text, action, attrs = {}) { const b = el('button', text, { type: 'button', ...attrs }); b.addEventListener('click', () => void run(action)); return b; }
+function button(text, action, attrs = {}) {
+  const b = el('button', text, { type: 'button', ...attrs });
+  // A button painted while another action is in flight must stay disabled until that action finishes.
+  // Otherwise a click can land on it and be dropped by the loading guard.
+  if (loading) b.disabled = true;
+  b.addEventListener('click', () => void run(action));
+  return b;
+}
 async function api(path, data) {
   const response = await fetch(`/dashboard/api${path}`, data === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
   let result;
@@ -33,7 +40,7 @@ async function run(action) {
   if (loading) return; loading = true;
   document.querySelectorAll('button').forEach(b => b.disabled = true);
   try { await action(); } catch (error) {
-    if (error.status === 401) { closeDialog(); showLogin(error.message); }
+    if (error.status === 401) { closeDialog(); showLogin(booted ? error.message : ''); }
     else notice(error.message, true);
   } finally { loading = false; document.querySelectorAll('button').forEach(b => b.disabled = false); }
 }
@@ -42,7 +49,7 @@ function showLogin(message = '') {
   const form = el('form', null, { class: 'login' });
   const password = el('input', null, { id: 'password', type: 'password', autocomplete: 'current-password', required: '', minlength: '12', maxlength: '256' });
   form.append(el('h1', 'Ethan 的发布后台'), el('p', '在 Heptabase 写作，在这里审查和发布。', { class: 'muted' }), el('label', '后台密码', { for: 'password' }), password, el('button', '进入发布后台', { type: 'submit' }), el('p', message, { id: 'notice', class: 'status', role: message ? 'alert' : 'status' }));
-  form.addEventListener('submit', event => { event.preventDefault(); void run(async () => { await api('/login', { password: password.value }); localPreview = (await api('/session')).localPreview; password.value = ''; await refresh(); }); });
+  form.addEventListener('submit', event => { event.preventDefault(); booted = true; void run(async () => { await api('/login', { password: password.value }); const session = await api('/session'); localPreview = session.localPreview; localOpen = session.localOpen === true; password.value = ''; await refresh(); }); });
   root.append(form); password.focus();
 }
 function closeDialog() { document.querySelector('dialog')?.close(); document.querySelector('dialog')?.remove(); }
@@ -53,11 +60,21 @@ function dialog(title) {
 }
 async function refresh() {
   clearTimeout(timer);
-  const [state, content, connection] = await Promise.all([api('/git'), api('/docs'), api('/heptabase/status')]);
-  git = state; docs = [...content.articles, ...content.projects]; connected = connection.connected;
+  let failed = '';
+  try {
+    const [state, content, connection] = await Promise.all([api('/git'), api('/docs'), api('/heptabase/status')]);
+    git = state; docs = [...content.articles, ...content.projects]; connected = connection.connected;
+  } catch (error) {
+    if (error.status === 401) throw error;
+    git = { draftCount: 0, files: [], removals: [] };
+    docs = [];
+    connected = false;
+    failed = error.message;
+  }
   clearMoveLines(); root.replaceChildren();
   const header = el('header'), actions = el('div', null, { class: 'actions' });
-  actions.append(button('切换明暗', async () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; await showSelection(); }), link('查看博客 ↗', 'https://ethanchang.io'), button('退出', async () => { await api('/logout', {}); showLogin(); }));
+  actions.append(button('切换明暗', async () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; await showSelection(); }), link('查看博客 ↗', 'https://ethanchang.io'));
+  if (!localOpen) actions.append(button('退出', async () => { await api('/logout', {}); showLogin(); }));
   header.append(el('span', 'ETHAN / REVIEW', { class: 'eyebrow' }), actions);
   const intro = el('section', null, { class: 'intro' });
   intro.append(el('h1', '发布前，再看一遍。'), el('p', '拉取 Review 博客，同时检查已移除的文章。逐篇审核，确认后再发布。', { class: 'muted' }), button('拉取最新更新 ↗', pullUpdates, { class: 'pull-button', 'aria-label': '拉取最新更新' }));
@@ -66,7 +83,9 @@ async function refresh() {
   if (localPreview) intro.append(el('p', '本地样式预览 · 示例内容，所有操作均不影响 Heptabase、GitHub 或线上网站。', { class: 'muted group-caption' }));
   const layout = el('div', null, { class: 'review-layout' }); layout.append(el('aside', null, { id: 'review-list', 'aria-label': '本次审核清单' }), el('section', null, { id: 'review-preview', 'aria-label': '卡片预览' })); root.append(layout);
   root.append(el('section', null, { id: 'release', 'aria-label': '发布进度' }));
-  renderList(); await showSelection(); await renderRelease();
+  renderList(); await showSelection();
+  if (failed) { notice(failed, true); return; }
+  await renderRelease();
 }
 async function pullUpdates() {
   if (!connected) { location.assign((await api('/heptabase/connect', {})).url); return; }
@@ -384,5 +403,10 @@ async function reviewRelease() {
   const list = el('ul'); review.changes.forEach(change => list.append(el('li', `${change.kind === 'removed' ? '删除 · ' : '更新 · '}${change.path.replace('src/content/', '').replace('.mdx', '')}`)));
   d.append(list, link('查看完整更新 ↗', review.pullRequest.url), button('确认发布到博客', async () => { await api('/git/publish', review); closeDialog(); git = await api('/git'); await renderRelease(); notice('发布已开始，显示“已上线”才表示完成。'); }));
 }
-showLogin();
-void run(async () => { localPreview = (await api('/session')).localPreview; await refresh(); });
+void run(async () => {
+  const session = await api('/session');
+  booted = true;
+  localPreview = session.localPreview;
+  localOpen = session.localOpen === true;
+  await refresh();
+});

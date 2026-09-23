@@ -5,7 +5,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 # /publish —— 把素材写成文章页
 
-**这是 Ethan Chang 的个人博客。** 用户负责写剧本（对话 / 笔记 / 草稿），你负责把它翻译成本站的 MDX 页面（默认文字；需要时再嵌交互组件）。
+**这是 Ethan Chang 的个人博客。** 日常写作在 Heptabase。本 skill 只在用户以 `/publish` 给出素材时，把素材翻译成 MDX（默认文字；需要时再嵌交互组件）。`/studio` 不是写作应用。
 本 skill 是操作清单；**判定规则的完整依据在 [docs/MEDIUM.md](../../../docs/MEDIUM.md)**，
 不确定时回去查它对应小节。硬性技术红线在 [AGENTS.md](../../../AGENTS.md)。
 
@@ -68,6 +68,7 @@ npm run validate:content && npm run check && npm run build && npm run test
 
 ### 9. 提交
 普通 git 提交即可。不要为读者写 `publish:` / `revise:` 前缀——文末不再渲染提交史。
+草稿提交不等于网站上线。上线仍是在 Heptabase 标成 Review，再经 `/dashboard` 审查并发布。
 
 ### 10. 汇报
 向用户报告：slug、draft 状态、本地预览路径（如 `/articles/<slug>`）、

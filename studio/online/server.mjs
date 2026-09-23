@@ -921,7 +921,7 @@ async function api(request, env) {
   const path = url.pathname.replace(/^\/dashboard\/api/, '/__studio/api').replace(/\/$/, '') || '/';
   const identity = await author(request, env);
   if (request.method !== 'GET') requireCsrf(request);
-  if (path === '/__studio/api/session') return { authenticated: true, localPreview: env.STUDIO_LOCAL_PREVIEW === true };
+  if (path === '/__studio/api/session') return { authenticated: true, localPreview: env.STUDIO_LOCAL_PREVIEW === true, localOpen: env.STUDIO_DEV_OPEN === true };
   if (path === '/__studio/api/heptabase/status' && request.method === 'GET') return connectionStatus(env);
   if (path === '/__studio/api/heptabase/connect' && request.method === 'POST') return connect(request, env, identity);
   if (path === '/__studio/api/heptabase/cards' && request.method === 'GET') return heptabaseCards(env, identity);

@@ -1,15 +1,16 @@
 # MEDIUM.md —— 媒介创作规范（v2）
 
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
-> 本文档是这个博客的**创作规范**：它规定任何 agent（或人）如何把创作者的输入
-> ——一段对话、一份笔记、一篇文章草稿——转化为本站的 MDX 故事页面。
+> 日常写作在 Heptabase。本文规定 agent 在收到 `/publish` 时，如何把手里的素材
+> ——一段对话、一份笔记、一篇文章草稿——转成 MDX 页面。
+> 新建或更新要有真实的 `heptabaseCardLink`，之后的审查和发布走 `/dashboard`，不在这里改线上正文。
 > 可执行的分步操作清单在 [.claude/skills/publish/SKILL.md](../.claude/skills/publish/SKILL.md)；
 > 强制性技术约束见 [AGENTS.md](../AGENTS.md)，组件契约见
 > [src/components/media/README.md](../src/components/media/README.md)，本文不复述、只引用。
 
 ## 0. 触发约定
 
-创作者与 agent 用消息**首行**的触发词声明意图。`/publish`（或 `发布：`）= 把输入转化为本站页面，走本文流水线；`/infra`（或 `基建：`）= 改网站基建，见 [AGENTS.md](../AGENTS.md) 任务路由。
+创作者与 agent 用消息**首行**的触发词声明意图。`/publish`（或 `发布：`）= 把给出的素材转成 MDX，走本文流水线；`/infra`（或 `基建：`）= 改网站基建，见 [AGENTS.md](../AGENTS.md) 任务路由。写作本身在 Heptabase，`/studio` 不是写作应用。
 
 ### 用户模板
 
@@ -36,8 +37,7 @@ draft: true             # 默认 true
 
 ## 1. 这份文档是什么
 
-**这是 Ethan Chang 的个人博客**，附带可选的交互组件。创作者的创作方式保持简单：与 agent 对话，或写下普通的文章草稿。
-读了本文的 agent 负责把这些输入转化为本站的 MDX 页面——创作方式不变，需要时再升档为可操作的实证。
+**这是 Ethan Chang 的个人博客**，附带可选的交互组件。文章在 Heptabase 里写成卡片。agent 只在被要求 `/publish` 时，把给出的素材转成 MDX，需要时再升档为可操作的实证。
 
 转化的目标不是"加特效"，而是在论点需要时让读者**亲手操作、亲眼验证**；
 默认档位永远是安静的文字。
@@ -216,7 +216,7 @@ Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期
 
 ## 9. 语言与调性
 
-- 中文为主，技术名词保留英文原文。
+- 只有中文正文。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。技术名词、代码和引用保留原文。
 - 宣言式短段落；第二人称克制使用；每个抽象论点尽快落到一个可操作的实证。
 - 机器声组件（`Calc`、AI 补充的 `SideNote`/`VerdictTable`）的 caption 也用创作者语气写——
   声音的区分靠视觉（accent 色），不靠文风突变。
@@ -268,10 +268,11 @@ date: 2026-07-03
 updated: 2026-08-18   # 可选；有修订时才写
 tags: []
 draft: true
+heptabaseCardLink: heptabase://card/00000000-0000-4000-8000-000000000000
 ---
 ```
 
-只写一份正文，不插入语言分隔标记。图片放 `public/media/articles/<slug>/`。
+只写一份中文正文。`heptabaseCardLink` 必须是 Heptabase 里真实存在的卡片，不能照抄上面的占位符，也不能编造。图片放 `public/media/articles/<slug>/`。
 
 **项目**（放 `src/content/projects/<slug>.mdx`；同一套字段，`slot` 决定出现在 `/projects`）：
 
@@ -281,6 +282,7 @@ slot: project
 title: "……"
 description: "……"
 draft: true
+heptabaseCardLink: heptabase://card/00000000-0000-4000-8000-000000000000
 # 以下均可选
 status: wip
 order: 99

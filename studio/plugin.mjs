@@ -1,7 +1,7 @@
 /**
- * Dev-only writing studio.
- * `astro dev` / `npm run studio` → http://localhost:4321/studio
- * Production builds never inject the route or the filesystem API.
+ * Dev-only routes.
+ * `astro dev` / `npm run dev` → http://localhost:4321/dashboard（免密码，仅本机）。
+ * `/studio` 只能改本机文件，不是写作入口，生产不注入。写作在 Heptabase。
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -22,6 +22,7 @@ import { readTagTaxonomy, saveTagGroups } from './tag-groups.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const INDEX = fileURLToPath(new URL('./ui/index.html', import.meta.url));
+const DASHBOARD_INDEX = fileURLToPath(new URL('./online/index.html', import.meta.url));
 const MAX_BODY = 2_000_000;
 
 function json(res, status, payload) {
@@ -127,6 +128,36 @@ function studioDevPlugin(root = ROOT) {
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url ?? '/';
         const pathname = rawUrl.split('?')[0];
+        if (pathname === '/dashboard/preview.html') {
+          req.url = '/dashboard/preview/';
+          return next();
+        }
+        if (pathname === '/dashboard' || pathname === '/dashboard/') {
+          if (!isLocalHost(req.headers.host)) {
+            res.statusCode = 403;
+            res.end('dashboard 只接受本机请求');
+            return;
+          }
+          const raw = (await readFile(DASHBOARD_INDEX, 'utf8')).replace(
+            'src="./dashboard.js"',
+            'src="/studio/online/dashboard.js"',
+          );
+          const html = await server.transformIndexHtml('/dashboard/', raw);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(html);
+          return;
+        }
+        if (pathname.startsWith('/dashboard/api')) {
+          const { handleDashboardApi } = await import('./online/dev-api.mjs');
+          try { await handleDashboardApi(req, res); }
+          catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            json(res, 500, { error: message });
+          }
+          return;
+        }
         if (pathname === '/studio' || pathname === '/studio/') {
           if (!isLocalHost(req.headers.host)) {
             res.statusCode = 403;
@@ -175,7 +206,8 @@ export function studioIntegration() {
             plugins: [studioDevPlugin()],
           },
         });
-        logger.info('本地编辑器：http://localhost:4321/studio');
+        logger.info('本地后台：http://localhost:4321/dashboard（免密码，仅本机 dev）');
+        logger.info('本机文件工具：http://localhost:4321/studio（不是写作入口，不部署）');
       },
     },
   };

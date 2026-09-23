@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
+          # 内容链接检查要 diff 到 PR base / 上一提交，浅克隆拿不到那个版本。
           fetch-depth: 0
 
       - name: Setup Node
@@ -69,7 +69,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # PageHistory 在构建期读 git log；浅克隆会把提交史截成 1 条
           fetch-depth: 0
 
       - name: Setup Node

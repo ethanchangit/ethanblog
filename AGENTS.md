@@ -1,7 +1,9 @@
 # AGENTS.md
 
-> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
-> 创作规范（输入 → 页面的转换方法）：[docs/MEDIUM.md](docs/MEDIUM.md)。本文件只管强制约束。
+> **这是 Ethan Chang（张峻源）的个人博客**（https://ethanchang.io）。
+> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4、GSAP。Cloudflare Pages 项目名 `ethanblog`。
+> 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
+> 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
 
 ## 任务路由
 
@@ -16,9 +18,10 @@
 
 - **禁止**新建或修改组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
 - 新页面默认 `draft: true`
-- 当前只有中文版。定稿只需要主标题、摘要、正文和 `slot`（`article` / `project`），不创建英文副本或语言分隔标记。更新文章须关联真实 `heptabaseCardLink`。
+- 只有中文正文。定稿要有标题、摘要、正文和 `slot`（`article` / `project`）。不要写 `titleEn` / `descriptionEn`，不要插入 `<div data-lang-split>`。技术名词、代码和引用保留原文。
+- 新建或更新须关联真实 `heptabaseCardLink`（`heptabase://card/<uuid>`）。不能编造。历史页可以暂时没有链接继续展示，更新前要补上。
 - 系列子文放 `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`）；子文默认不进 `/articles`
-- 完整操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
+- 操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
 
 **`/infra`（网站基建）硬性约束**：
 
@@ -31,7 +34,7 @@
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
 - 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。
 - **不要**使用装饰性边框、背景色块、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。页面靠排版与留白组织，不靠盒子。
-- 后台段落对比的红/绿底属于用户指定的差异标记，允许使用；颜色取自 accent-deletion / accent-insertion token，原文红底删除线、新文绿底，不给未改动内容加装饰。
+- 后台段落对比的红/绿底属于指定的差异标记，允许使用；颜色取自 accent-deletion / accent-insertion token，原文红底删除线、新文绿底，不给未改动内容加装饰。
 - `.media-frame` / `.media-caption` 只负责间距与图注，**不是**带边框/背景的卡片容器；不要各自发明卡片样式。
 - 中文壳层（`.i18n-zh`）里，`<a>` 紧贴前后汉字（`写信到<a>联系</a>`）。源码空格或换行会变成「写信到 联系」；英文链接前后可以留空格。
 
@@ -44,12 +47,48 @@
 - GSAP 只能在岛屿内部（onMount/$effect）动态 import，禁止在 `.astro` frontmatter 引入；ScrollTrigger 必须在组件销毁时 kill。
 - 完整契约见 `src/components/media/README.md`。
 
-## 开发环境说明
+## 内容从哪里来
 
-- Node 22+，`npm install` 后即可 `npm run dev`（无 submodule、无额外工具链）。
-- `npm run studio`（或 `npm run dev`）保留本地 `/studio` 作为旧内容迁移工具；该路由和 `/__studio/api` 不部署到正式网站。日常写作在 Heptabase 完成。
-- 正式后台 `/dashboard` 只有拉取、差异与隐私审查、提交和发布，没有编辑器。GitHub 是网站和发布真源；只从 `#blog` 拉取 Status 为 Review 的主文章，分 New / Edited articles，提供右侧预览与段落对比。单篇通过即回写 Published 并补齐空发布日期，拒绝回写 Block；审核通过不等于网站已上线。每篇更新须有唯一真实 `heptabaseCardLink`。递归跟随的非 `#blog` 卡片作为 page，必须标记 `#blog-reference` 并随所属 blog 审查，不单独提供通过/拒绝；标签不是公开许可，提交 GitHub 已是公开行为。流程：拉取 → 逐篇审查与属性回写 → GitHub PR → 检查 → 确认合并 → 核验上线。配置与恢复见 [docs/STUDIO.md](docs/STUDIO.md)，不依赖 ChatGPT Sites，不接访问统计。
-- 拉取还须检查关联文章是否移出 `#blog` 或源卡片已删除，独立列入 Deleted articles，不受 Review 状态限制。删除须审查确认并通过同一 GitHub 发布流程；不得将权限、网络或不完整结果当作删除。仅撤下网站文章及专属引用资料，保留共享资料，阻止剩余页面出现断链，不删除或改写 Heptabase 源卡片。提交与发布前重新核对来源和删除范围，提交前允许取消删除。
-- `npm run preview` 用静态服务器伺服 dist/（`@astrojs/cloudflare` adapter 不支持 `astro preview`）。
-- 构建产物 `dist/`（已 gitignore）。
-- 提交前跑验证四连 `npm run validate:content && npm run check && npm run build && npm run test`。
+Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站与已发布内容的真源。后台把已审查的内容做成 PR，合并进 `main` 后由 Actions 部署。后台不直接改 `main`。
+
+- 文章：`src/content/articles/<slug>.mdx`，`slot: article`，必须有 `date`。项目：`src/content/projects/<slug>.mdx`，`slot: project`。schema 在 `src/content.config.ts`。`slot` 决定进 `/articles` 还是 `/projects`，不是 topical `tags`。
+- `src/content/pages/` 只有手写目录 `blogs.mdx`。首页 about、Now、联系、隐私等站点页由 Astro 路由和 `src/data/profile.ts` 维护，不从 Heptabase 拉取。
+- `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
+
+### `#blog` 与 `#blog-reference`
+
+拉取读 Heptabase 里准确名为 `blog` 的标签数据库。
+
+- 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`block`、`review`、`published`，各一个。`published` 表示已通过审核，不表示网站已上线。
+- `Blog Type` 只有 `Blog` 和 `Project`。Blog 进文章页，Project 进项目页。没选就停止，不按标题猜测。
+- 主卡片递归提到、且自己不在 `#blog` 里的卡片，后台称为 page：`listed: false`，列在该主卡片下方，不单独通过或拒绝。发布前必须带上标签 `blog-reference`（`#blog-reference`）。标签只用于回到 Heptabase 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
+- 被提到的另一张 `#blog` 卡片仍是主卡片，必须单独通过或拒绝，不会被标成 `#blog-reference`。
+
+### `/dashboard`
+
+入口是 https://ethanchang.io/dashboard ，用后台密码登录。这里不能编辑 Markdown。正文在 Heptabase 改；后台只拉取、预览、段落对比、确认、提交和发布。审核预览不加载外站图片，也不运行交互组件。细节与故障恢复见 [docs/STUDIO.md](docs/STUDIO.md)。
+
+1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
+2. 主卡片上 ✓ / ×。通过则回写 `published`；Publish Date 为空时补当天（默认时区 `Africa/Dar_es_Salaam`），已有日期保留。此时只是「已通过，待发布」。拒绝则回写 `block`，不改日期，也不改线上旧文。
+3. 「提交通过的更新到 GitHub」只提交已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
+4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
+5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。
+
+撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。只撤下该文和专属引用，仍被其他页面使用的资料保留，并阻止剩余页面出现断链。不删除、不改写 Heptabase 源卡片。
+
+后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/blogs.mdx` 和 `src/data/tag-groups.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
+
+## 开发与部署
+
+- Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
+- 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 `GITHUB_TOKEN` 时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。配置好的令牌放在环境变量里，不要写进仓库。
+- `npm run studio` 与 `npm run dev` 是同一条命令。同一进程的 http://localhost:4321/studio 只能改本机文件，是迁移期留下的工具。它不是写作应用，生产构建不注入、不部署。日常写作在 Heptabase。
+- `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。它会要测试密码，不连接真实 GitHub 或 Heptabase。
+- `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
+- `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
+- 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
+- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件先在 `/lab` 放最小示例。
+- 公开导航没有登录。收藏、阅读进度和留言走 `src/lib/user.ts` 与 `src/pages/api/`（better-auth，博客可以不启用）。这和后台密码是两套登录。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
+- 部署是 `.github/workflows/deploy.yml`。pull request 只跑 `verify`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages 项目 `ethanblog`。在 `main` 上 `workflow_dispatch` 也会部署。
+- 部署使用已经测过的 `dist/`：远程执行 `wrangler d1 migrations apply ethanblog --remote`，部署 guestbook Worker，再 `wrangler pages deploy dist --project-name=ethanblog`。然后核验线上站点，并向 `https://ethanchang.io/dashboard/api/deployed` 发送签名回执。回执失败时站点可能已经更新，以线上版本为准。
+- Actions 用到的密钥是 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。Pages 上的后台密钥（`GITHUB_TOKEN`、`STUDIO_PASSWORD_HASH`、`STUDIO_SECRET`）见 [docs/STUDIO.md](docs/STUDIO.md)。Pages 的 `wrangler.toml` 不能写 `send_email`；留言信在 `workers/guestbook`。

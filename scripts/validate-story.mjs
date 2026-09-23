@@ -2,11 +2,12 @@
 /**
  * validate-story —— 内容校验闸门（npm run validate:content）。
  * 检查 src/content/articles 与 src/content/projects 中 astro check（schema）
- * 查不到的创作规约：双语硬门、注水指令、组件用法、Var/Calc 顺序等。
+ * 查不到的创作规约：主标题、摘要、正文、slot、注水指令、组件用法、Var/Calc 顺序等。
+ * 不要求英文标题、摘要或正文副本。
  * 规则清单与 docs/MEDIUM.md / .claude/skills/publish/SKILL.md 保持同步。
  *
  * 分级：error 挡 CI（exit 1）；warning 只提醒。draft: true 的文件是工作台，
- * 其全部 error 降级为 warning（含双语缺失）。
+ * 其全部 error 降级为 warning。
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -141,7 +142,7 @@ function validateFile(file) {
   const rel = relative(ROOT, file);
   const raw = readFileSync(file, 'utf8');
   const { frontmatter, bodyText } = splitDoc(raw);
-  // 英文副本（<div data-lang-split> 之后）不计入「一篇至多一个」类规约
+  // 旧稿若仍有语言分隔标记，分隔后的文字不计入「一篇至多一个」类规约
   const primaryBody = bodyText.split(/<div\s+data-lang-split\b/)[0];
   const errors = [];
   const warnings = [];
