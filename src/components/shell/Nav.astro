@@ -8,7 +8,7 @@ import { CONTACT_PATH, HOME_PATH, NOW_PATH, PRIVACY_PATH, SEARCH_PATH, TAGS_PATH
 
 const lp = Astro.locals.localePath;
 const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft);
-const rank = new Map(pageOrder.map((id, index) => [id, index]));
+const rank = new Map<string, number>(pageOrder.map((id, index) => [id, index]));
 const hrefFor = (id: string) => (id === 'about' ? HOME_PATH : id === 'now' ? NOW_PATH : id === 'contact' ? CONTACT_PATH : id === 'privacy' ? PRIVACY_PATH : `/pages/${id}`);
 const labelFor = (id: string, title: string): { key?: CopyKey; text?: string } => {
   if (id === 'about') return { text: 'EthanChang' };
