@@ -1,9 +1,7 @@
 name: Configure Pages git build
 
-# One-shot: Cloudflare Pages git builds read the build command from the
-# project build_config, not from wrangler.toml. This job sets that command
-# with the repository's existing Cloudflare credentials, then this file is
-# removed. It only runs for the branch that introduces the fix.
+# Applies the Pages project build command that git integration reads.
+# wrangler.toml only supplies pages_build_output_dir. Removed after it runs.
 on:
   pull_request:
 
@@ -17,15 +15,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node --input-type=module <<'EOF'
+        run: |
+          node --input-type=module <<'EOF'
           const token = process.env.CLOUDFLARE_API_TOKEN || "";
           const account = process.env.CLOUDFLARE_ACCOUNT_ID || "";
           if (!token || !account) {
             console.error("CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not available to this job.");
             process.exit(1);
           }
-          const project = "ethanblog";
-          const url = `https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/${project}`;
+          const url = `https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/ethanblog`;
           const headers = {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -69,4 +67,4 @@ jobs:
             console.error("Pages project build_config did not stick.");
             process.exit(1);
           }
-        EOF
+          EOF
