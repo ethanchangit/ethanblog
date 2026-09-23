@@ -31,6 +31,7 @@
 
 ## 样式约束（极简博客）
 
+- **适用范围**：本节的极简约束只管公开站点，目的是让读者只看到内容。`/dashboard` 是工作工具，为了可读性不受这条约束：可以用边框、卡片/面板、按审核类型区分的底色和彩色标签、吸顶标题、独立的属性块和更醒目的差异标记。后台颜色仍从 `@theme` token 派生；token 里没有的审核类型色，只能在 `studio/online/dashboard.css` 顶部定义成后台专用变量（`--dash-*`），分亮暗两套，不要在各处散写色值。后台样式不能泄漏到公开页面。
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
 - 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。
 - **不要**使用装饰性边框、背景色块、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。页面靠排版与留白组织，不靠盒子。
