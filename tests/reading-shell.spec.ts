@@ -1016,7 +1016,7 @@ test.describe('分栏阅读', () => {
       'page',
     );
 
-    await page.locator('header.site-nav a[href="/"]').click();
+    await page.getByRole('link', { name: '首页', exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'home');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
@@ -1031,7 +1031,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await markReadingShell(page);
 
-    await page.locator('header.site-nav a[href="/"]').click();
+    await page.getByRole('link', { name: '首页', exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expectKeptShell(page, 'home');
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', inner);
