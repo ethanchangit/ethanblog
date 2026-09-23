@@ -1639,14 +1639,18 @@
 
 @media (max-width: 767.98px) {
   .site-nav-bar {
-    min-height: calc(3.5rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
+    min-height: calc(6.75rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
     padding-top: env(safe-area-inset-top, 0px);
     padding-left: max(1rem, env(safe-area-inset-left, 0px));
     padding-right: max(1rem, env(safe-area-inset-right, 0px));
   }
 
+  .site-nav-veil {
+    height: calc(8rem + env(safe-area-inset-top, 0px));
+  }
+
   .site-main {
-    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
+    padding-top: calc(6.75rem + env(safe-area-inset-top, 0px) + var(--chrome-fade, 1.25rem));
     padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
   }
 

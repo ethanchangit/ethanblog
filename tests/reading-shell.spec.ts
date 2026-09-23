@@ -282,6 +282,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/tags"]')).toBeVisible();
+    await expect(page.locator('header.site-nav [data-page-station]')).toHaveText(['关于', '现在', '联系', '隐私']);
     await expect(page.locator('header.site-nav a[href="/now"]')).toBeVisible();
     const expand = index.locator('[data-reading-expand]');
     await expect(expand).toHaveAttribute('href', '/articles');
