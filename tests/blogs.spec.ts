@@ -16,7 +16,7 @@ test.describe('Blogs 索引', () => {
     await expect(page.locator('a[href="/articles/series-demo/2"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
     await expect(page.locator('a[href="/projects/aletheia"]')).toHaveCount(0);
-    await expect(page.locator('main h3')).toHaveCount(6);
+    await expect(page.locator('main h3')).toHaveCount(56);
   });
 
   test('/zh/blogs 是中文名单', async ({ page }) => {

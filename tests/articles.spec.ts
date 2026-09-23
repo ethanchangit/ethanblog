@@ -6,7 +6,7 @@ test.describe('文章列表', () => {
   test('一次列出全部已发布文章，并标出年份', async ({ page }) => {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.locator(CARD)).toHaveCount(12);
+    await expect(page.locator(CARD)).toHaveCount(54);
     await expect(page.getByRole('heading', { level: 2, name: '2026' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: '2025' })).toBeVisible();
     await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
@@ -33,7 +33,7 @@ test.describe('文章列表', () => {
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname).toBe('/articles');
     expect(response?.request().redirectedFrom()).toBeTruthy();
-    await expect(page.locator(CARD)).toHaveCount(12);
+    await expect(page.locator(CARD)).toHaveCount(54);
     await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
@@ -45,7 +45,7 @@ test.describe('文章列表（无 JS）', () => {
 
   test('完整列表仍在，没有分页链', async ({ page }) => {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator(CARD)).toHaveCount(12);
+    await expect(page.locator(CARD)).toHaveCount(54);
     await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
     await expect(page.getByRole('link', { name: "更早" })).toHaveCount(0);

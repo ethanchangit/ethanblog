@@ -25,7 +25,7 @@ test.describe('站点搜索', () => {
     await page.goto('/search', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: PKM })).toBeVisible();
     await expect(page.getByRole('heading', { name: PLACEHOLDER })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '页面即房间：一篇你读着读着就动手改写了的文章' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '页面即房间：一篇你读着读着就动手改写了的文章' })).toBeVisible();
   });
 
   test('输入关键字即时过滤标题、标签与摘要', async ({ page }) => {
