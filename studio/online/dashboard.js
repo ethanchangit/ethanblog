@@ -302,7 +302,8 @@ async function previewHtml(card, cards) {
   const csp = doc.createElement('meta'); csp.httpEquiv = 'Content-Security-Policy'; csp.content = "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; script-src 'none'; form-action 'none'; base-uri 'none'"; doc.head.insertBefore(csp, doc.head.firstChild);
   doc.querySelector('h1').textContent = p.title;
   const time = doc.querySelector('time'); time.textContent = formatDate(p.date); time.dateTime = String(p.date || '');
-  doc.querySelector('.article-dek-text').textContent = p.description || '';
+  const dek = doc.querySelector('.article-dek-text');
+  if (dek) { if (p.description) dek.textContent = p.description; else dek.remove(); }
   doc.querySelector('.article-dek .ui-tag-list').replaceChildren(...(p.tags || []).map(t => el('li', t, { class: 'ui-tag' })));
   doc.querySelector('[data-preview-body]').innerHTML = await renderedProse(card.afterContent, path => referenceHtml(path, cards, doc)); doc.querySelector('#reference-template').remove();
   return '<!doctype html>' + doc.documentElement.outerHTML;

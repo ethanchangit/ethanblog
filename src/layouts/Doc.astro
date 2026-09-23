@@ -78,9 +78,9 @@ const jsonLd = docJsonLd(doc);
   <div class="article-body-row relative mt-8">
     <article class="article-page">
       <header class="article-dek">
-        {description ? (
+        {description || preview ? (
           <p class="article-dek-text">
-            <Bi zh={description} />
+            {description ? <Bi zh={description} /> : null}
           </p>
         ) : null}
         {isArticle ? (
