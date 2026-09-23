@@ -68,7 +68,9 @@ Cloudflare production 需要：
 
 网站后台的连接在 `studio/online/heptabase.mjs`：`POST https://api.heptabase.com/v1/oauth/register`，授权页 `https://api.heptabase.com/auth`，令牌端点 `https://api.heptabase.com/token`，MCP 为 `https://api.heptabase.com/mcp`，scope 为 `offline_access space:read space:write`。令牌加密存在 D1 `studio_connections`（id `heptabase`），密钥是 `STUDIO_SECRET`。仓库没有 `.cursor/mcp.json`，也不保存明文令牌。
 
-Cloud Agent 读不到 Pages secret，也不加载仓库里的 `mcp.json`。持久接法是在 https://cursor.com/agents 的 MCP 菜单添加 HTTP 服务器，URL 填 `https://api.heptabase.com/mcp`，用 Heptabase 账号完成授权。团队共用由管理员加在 Dashboard → Plugins & MCPs，每个使用者仍要各自授权。`STUDIO_SECRET` 只用于后台加密和发布回执。
+Cloud Agent 读不到 Pages secret，也不加载仓库里的 `.cursor/mcp.json`。当前博客环境是个人快照（没有仓库 `.cursor/environment.json`）。schema 里的 `mcpServerAllowlist` 只过滤服务器，不建立连接；空名单沿用账号或团队已有的 MCP。`STUDIO_SECRET` 只用于后台加密和发布回执，不要复制到 Cloud Agent 环境。
+
+能跟着不同 agent 走的是团队 MCP：管理员在 Dashboard → Plugins & MCPs 添加 HTTP 服务器，URL 为 `https://api.heptabase.com/mcp`，scopes 为 `offline_access space:read space:write`。保存后，这个团队里完成过 OAuth 的人，之后在本仓库或其他仓库启动的 Cloud Agent 和云端子代理都会使用它，不限于某一次对话。cursor.com/agents 的个人 MCP 菜单只属于该 Cursor 账号，不是仓库级配置。本地 IDE 要等管理员把同一服务器 Add to Team Marketplace 并且各人安装后才有；OAuth 仍然每人一次。没有团队时，这个页面不存在，仓库文件补不上 Cloud Agent 的授权。
 
 GitHub 合并后发布同一个已测试构建包，核验正式网站，再发送签名回执确认发布结果。回执失败时网站可能已上线，刷新发布状态可重试；不会把 Published 或 PR 合并当作网站上线证明。
 
