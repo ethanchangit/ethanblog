@@ -1,7 +1,8 @@
 # AGENTS.md
 
-> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
-> 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。本文件只管强制约束。
+> **这是 Ethan Chang（张峻源）的个人博客**（https://ethanchang.io）。
+> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4、GSAP。Cloudflare Pages 项目名 `ethanblog`。
+> 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。本文件是唯一的 agent 约束。
 
 ## 任务路由
 
@@ -78,10 +79,15 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 ## 开发与部署
 
-- Node 22+。`npm install` 后 `npm run dev`。
-- `astro dev`（`npm run dev` / `npm run studio`）只在本地注入 `/studio` 和 `/__studio/api`，可以改本机文件。生产构建不注入、不部署。日常发布不走这个本地编辑器。
-- `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。后台界面验收：`node studio/online/preview.mjs`，本机 `http://localhost:4350/dashboard`；GitHub 与 Heptabase 写入在内存里模拟。
-- `npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。
+- Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
+- 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 `GITHUB_TOKEN` 时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。配置好的令牌放在环境变量里，不要写进仓库。
+- 同一进程的 http://localhost:4321/studio 可以改本机文件。生产构建不注入、不部署。日常写作在 Heptabase。
+- `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。它会要测试密码，不连接真实 GitHub 或 Heptabase。
+- `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
+- `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
+- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件先在 `/lab` 放最小示例。
+- 公开导航没有登录。收藏、阅读进度和留言走 `src/lib/user.ts` 与 `src/pages/api/`（better-auth，博客可以不启用）。这和后台密码是两套登录。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
 - 部署是 `.github/workflows/deploy.yml`。pull request 只跑 `verify`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages 项目 `ethanblog`。在 `main` 上 `workflow_dispatch` 也会部署。
 - 部署使用已经测过的 `dist/`：远程执行 `wrangler d1 migrations apply ethanblog --remote`，部署 guestbook Worker，再 `wrangler pages deploy dist --project-name=ethanblog`。然后核验线上站点，并向 `https://ethanchang.io/dashboard/api/deployed` 发送签名回执。回执失败时站点可能已经更新，以线上版本为准。
+- Actions 用到的密钥是 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。Pages 上的后台密钥（`GITHUB_TOKEN`、`STUDIO_PASSWORD_HASH`、`STUDIO_SECRET`）见 [docs/STUDIO.md](docs/STUDIO.md)。Pages 的 `wrangler.toml` 不能写 `send_email`；留言信在 `workers/guestbook`。

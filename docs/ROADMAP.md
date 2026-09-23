@@ -2,7 +2,7 @@
 
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
-> 执行层的细节见 [CLAUDE.md](../CLAUDE.md)（日常操作指南）、[AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
+> 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
 
 ## 一、愿景与核心理念
 
@@ -112,4 +112,4 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 ## 八、视觉收束 ✅（2026-08）
 
 - [x] 去掉全站装饰性边框、背景色块、圆角卡片、色条与设备边框
-- [x] 站点定位文档（本文 / CLAUDE / AGENTS）与极简博客一致
+- [x] 站点定位文档（本文 / AGENTS）与极简博客一致
