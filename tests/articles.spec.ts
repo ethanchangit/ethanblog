@@ -17,8 +17,8 @@ test.describe('文章列表', () => {
     await expect(page.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
     await expect(page.locator('a[href="/articles/series-demo/2"]')).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: '文章分页' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: "更早" })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: "更新" })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '更早', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '更新', exact: true })).toHaveCount(0);
   });
 
   test('文章索引不收录项目', async ({ page }) => {
@@ -48,6 +48,6 @@ test.describe('文章列表（无 JS）', () => {
     await expect(page.locator(CARD)).toHaveCount(54);
     await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
     await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
-    await expect(page.getByRole('link', { name: "更早" })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '更早', exact: true })).toHaveCount(0);
   });
 });

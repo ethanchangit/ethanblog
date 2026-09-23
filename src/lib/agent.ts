@@ -4,6 +4,7 @@
  * This is a publication, not a product API — do not invent MCP/OAuth/webhooks.
  */
 import { readFile } from 'node:fs/promises';
+import { getEntry } from 'astro:content';
 import { profile, site, skills } from '@/data/profile';
 import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
 import { copy } from '@/lib/i18n';
@@ -100,16 +101,21 @@ export function mdxBodyToMarkdown(body: string, lang: AgentLang): string {
   return zh;
 }
 
-async function entrySource(entry: DocEntry): Promise<string> {
-  const withMeta = entry as DocEntry & { body?: string; filePath?: string };
-  if (withMeta.filePath) {
+type SourcedEntry = { body?: string; filePath?: string };
+
+async function sourcedBody(entry: SourcedEntry): Promise<string> {
+  if (entry.filePath) {
     try {
-      return stripFrontmatter(await readFile(withMeta.filePath, 'utf8'));
+      return stripFrontmatter(await readFile(entry.filePath, 'utf8'));
     } catch {
       /* fall through */
     }
   }
-  return withMeta.body ?? '';
+  return entry.body ?? '';
+}
+
+async function entrySource(entry: DocEntry): Promise<string> {
+  return sourcedBody(entry as DocEntry & SourcedEntry);
 }
 
 export async function docMarkdown(entry: DocEntry, lang: AgentLang): Promise<string> {
@@ -122,14 +128,15 @@ export async function docMarkdown(entry: DocEntry, lang: AgentLang): Promise<str
   return `${lines.join('\n').trim()}\n`;
 }
 
-async function corePageMarkdown(id: string): Promise<string | null> {
-  try {
-    const raw = await readFile(new URL(`../content/pages/${id}.mdx`, import.meta.url), 'utf8');
-    const body = stripFrontmatter(raw).trim();
-    return body || null;
-  } catch {
-    return null;
-  }
+const CORE_PAGE_IDS = ['about', 'now', 'contact', 'privacy'] as const;
+
+async function corePageMarkdown(
+  id: (typeof CORE_PAGE_IDS)[number],
+): Promise<string | null> {
+  const entry = await getEntry('pages', id);
+  if (!entry) return null;
+  const body = (await sourcedBody(entry)).trim();
+  return body || null;
 }
 
 async function homeMarkdown(): Promise<string> {
