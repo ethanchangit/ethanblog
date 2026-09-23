@@ -275,6 +275,7 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(entries).toHaveCount(4); await expect(entries.filter({ hasText: /^删除 ·/ })).toHaveCount(3);
   await expect(page.getByRole('dialog')).toContainText('更新 · pages/blogs');
   await page.getByRole('button', { name: '确认发布到博客' }).click();
+  await expect(page.getByText('最近一次发布：正在确认线上版本')).toBeVisible();
   await request.post(new URL('/__test/deploy', url).href);
   await page.getByRole('button', { name: '刷新发布状态' }).click();
   await expect(page.getByText('最近一次发布：已上线', { exact: true })).toBeVisible();

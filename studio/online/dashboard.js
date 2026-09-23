@@ -9,7 +9,14 @@ let docs = [], items = [], selected, git, connected = false, loading = false, pu
 let clearMoveLines = () => {};
 function el(tag, text, attrs = {}) { const n = document.createElement(tag); if (text != null) n.textContent = text; for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v); return n; }
 function link(text, href) { return el('a', text, { href, ...(href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }); }
-function button(text, action, attrs = {}) { const b = el('button', text, { type: 'button', ...attrs }); b.addEventListener('click', () => void run(action)); return b; }
+function button(text, action, attrs = {}) {
+  const b = el('button', text, { type: 'button', ...attrs });
+  // A button painted while another action is in flight must stay disabled until that action finishes.
+  // Otherwise a click can land on it and be dropped by the loading guard.
+  if (loading) b.disabled = true;
+  b.addEventListener('click', () => void run(action));
+  return b;
+}
 async function api(path, data) {
   const response = await fetch(`/dashboard/api${path}`, data === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
   let result;
@@ -42,7 +49,7 @@ function showLogin(message = '') {
   const form = el('form', null, { class: 'login' });
   const password = el('input', null, { id: 'password', type: 'password', autocomplete: 'current-password', required: '', minlength: '12', maxlength: '256' });
   form.append(el('h1', 'Ethan 的发布后台'), el('p', '在 Heptabase 写作，在这里审查和发布。', { class: 'muted' }), el('label', '后台密码', { for: 'password' }), password, el('button', '进入发布后台', { type: 'submit' }), el('p', message, { id: 'notice', class: 'status', role: message ? 'alert' : 'status' }));
-  form.addEventListener('submit', event => { event.preventDefault(); void run(async () => { await api('/login', { password: password.value }); const session = await api('/session'); booted = true; localPreview = session.localPreview; localOpen = session.localOpen === true; password.value = ''; await refresh(); }); });
+  form.addEventListener('submit', event => { event.preventDefault(); booted = true; void run(async () => { await api('/login', { password: password.value }); const session = await api('/session'); localPreview = session.localPreview; localOpen = session.localOpen === true; password.value = ''; await refresh(); }); });
   root.append(form); password.focus();
 }
 function closeDialog() { document.querySelector('dialog')?.close(); document.querySelector('dialog')?.remove(); }
