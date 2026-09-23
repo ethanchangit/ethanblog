@@ -29,6 +29,19 @@ function graph(f) {
   f.cardSources.set(grandchild, `### 孙文\n\n${mention(CARD, '主文')}`);
 }
 
+test('loopback dev open skips the password; production and string flags do not', async () => {
+  const f = await fixture();
+  f.env.STUDIO_DEV_OPEN = true;
+  const open = await f.handler(new Request('http://127.0.0.1:4321/dashboard/api/session'), f.env);
+  assert.equal(open.status, 200);
+  assert.equal((await open.json()).localOpen, true);
+  assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/session'), f.env)).status, 401);
+  f.env.STUDIO_DEV_OPEN = 'true';
+  assert.equal((await f.handler(new Request('http://127.0.0.1:4321/dashboard/api/session'), f.env)).status, 401);
+  delete f.env.STUDIO_DEV_OPEN;
+  assert.equal((await f.handler(new Request('http://localhost:4321/dashboard/api/session'), f.env)).status, 401);
+});
+
 test('Heptabase heading levels all supply a title without changing the remaining content', () => {
   for (let level = 1; level <= 6; level++) {
     const result = fromHeptabase(`${'#'.repeat(level)} 卡片标题\n\n正文。\n\n## 正文小节\n\n保留文字。`, new Map());

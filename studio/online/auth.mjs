@@ -73,7 +73,17 @@ async function sessionId(request) {
   return value && /^[a-f0-9]{64}$/.test(value) ? hash(value) : null;
 }
 
+function devLoopback(request, env) {
+  // Boolean true is set only by the local dev server. A Cloudflare var is a string and does not match.
+  if (env.STUDIO_DEV_OPEN !== true) return false;
+  try {
+    const hostname = new URL(request.url).hostname;
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch { return false; }
+}
+
 export async function author(request, env) {
+  if (devLoopback(request, env)) return { id: 'owner', sessionId: 'local-dev' };
   if (!env.DB || !env.STUDIO_PASSWORD_HASH) throw fail('后台尚未完成密码与存储配置。', 503);
   const id = await sessionId(request);
   if (!id) throw fail('请先输入后台密码。', 401);
