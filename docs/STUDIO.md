@@ -64,13 +64,13 @@ Cloudflare production 需要：
 
 任何密钥都不能进入代码、聊天、普通配置或不可信 PR 预览。正式配置前必须经站点所有者确认。建议保护 `main`、禁止强制推送并要求最新 `verify` 检查；`production` 可要求人工审批。
 
-## Cloud Agent 的 Heptabase MCP
+## Heptabase MCP
 
-网站后台的连接在 `studio/online/heptabase.mjs`：`POST https://api.heptabase.com/v1/oauth/register`，授权页 `https://api.heptabase.com/auth`，令牌端点 `https://api.heptabase.com/token`，MCP 为 `https://api.heptabase.com/mcp`，scope 为 `offline_access space:read space:write`。令牌加密存在 D1 `studio_connections`（id `heptabase`），密钥是 `STUDIO_SECRET`。仓库没有 `.cursor/mcp.json`，也不保存明文令牌。
+网站后台仍走 `studio/online/heptabase.mjs`：动态注册、授权页 `https://api.heptabase.com/auth`、令牌端点 `https://api.heptabase.com/token`、MCP `https://api.heptabase.com/mcp`，scope 为 `offline_access space:read space:write`。令牌加密在 D1 `studio_connections`（id `heptabase`），密钥是 `STUDIO_SECRET`。明文不进仓库。
 
-Cloud Agent 读不到 Pages secret，也不加载仓库里的 `.cursor/mcp.json`。当前博客环境是个人快照（没有仓库 `.cursor/environment.json`）。schema 里的 `mcpServerAllowlist` 只过滤服务器，不建立连接；留空时沿用这个个人账号已经添加的 Cloud Agent MCP。`STUDIO_SECRET` 只用于后台加密和发布回执，不要复制到 Cloud Agent 环境。这个账号没有团队，不要去 Dashboard → Plugins & MCPs。
+Cursor 项目连接是 `.cursor/mcp.json` 里的 `heptabase-mcp`，只有 URL。编辑器与 CLI 读取它，并与 `~/.cursor/mcp.json` 合并，同名时以项目文件为准。拉取后刷新 Cursor，或在仓库目录运行 `agent mcp login heptabase-mcp`，在 Heptabase 点 Allow。写入权限在这次授权里授予。
 
-个人账号上，Heptabase 加在 https://cursor.com/agents ：点提示栏左侧的 +（Add files, skills, and MCP servers），悬停 MCP Servers，点 Add MCP，URL 填 `https://api.heptabase.com/mcp`。表单若有 scopes，填 `offline_access space:read space:write`，然后在 Heptabase 完成授权。这不是某一次对话的设置。授权保存在这个 Cursor 账号上，之后新开的 Cloud Agent 都会带上，包括使用个人环境 `ethanchangit/ethanblog` 的那些，以及从这里再分出去的云端子代理。已经在跑的 agent 不会中途出现这个连接。本地 IDE 不读这份 Cloud Agent 配置。
+Cloud Agent 不加载这份文件，也不读 Pages 上的密钥。这个账号没有团队，不要去 Dashboard → Plugins & MCPs。`STUDIO_SECRET` 和访问令牌不要放进 Cloud Agent 环境。
 
 GitHub 合并后发布同一个已测试构建包，核验正式网站，再发送签名回执确认发布结果。回执失败时网站可能已上线，刷新发布状态可重试；不会把 Published 或 PR 合并当作网站上线证明。
 
