@@ -14,7 +14,7 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps } from './heptabase.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
@@ -596,8 +596,9 @@ function assignPageId(title, card, docs, targets) {
 function typeRouteMessage(type) {
   if (type === 'project') return '这张卡片的 Blog Type 是 Project，对应项目页面。';
   if (type === 'page') return '这张卡片的 Blog Type 是 Page，对应站点页面。';
-  if (type === 'reference') return '这张卡片的 Blog Type 是 Reference，对应文章页面。';
-  return '这张卡片的 Blog Type 是 Blog，对应文章页面。';
+  if (type === 'reference') return '这张卡片的 Blog Type 是 Reference，有自己的页面，不进文章列表。';
+  if (type === 'article') return '这张卡片的 Blog Type 是 Article，对应文章列表。';
+  return '请在 Heptabase 为这张卡片选择 Blog Type（Article、Project、Page 或 Reference）。';
 }
 
 function blogBody(parsed) { return `# ${parsed.frontmatter.title}\n\n${parsed.bodyZh.trim()}`; }
@@ -621,7 +622,12 @@ async function assertReviewed(env, state, rows) {
     if (parsed.frontmatter.draft) throw fail('待发布清单中仍有草稿，请先选择“准备发布这一版”并审查。', 409);
     const approved = await firstRow(env, 'SELECT * FROM studio_reviews WHERE path = ?1', row.path);
     if (!approved || approved.card_id !== id || approved.raw_hash !== await hash(row.raw)) throw fail('内容未通过隐私审查，或审查后已有变化，请重新拉取并确认。', 409);
-    const source = await readCard(client, id), properties = await readProperties(client, id, schema);
+    let source, properties;
+    try { source = await readCard(client, id); properties = await readProperties(client, id, schema); }
+    catch (error) {
+      if (error.heptabaseReason === 'objectNotFound') throw fail('这篇文章的卡片已经删除。请重新拉取并撤下，不要把已删除的文章发回网站。', 409);
+      throw error;
+    }
     const stamps = (await cardTimestamps(client, [id])).get(id);
     if (!properties.member) throw fail('卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
     if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
@@ -636,18 +642,44 @@ async function assertReviewed(env, state, rows) {
   }
 }
 
+const PROPERTY_BATCH = 20;
+
 async function heptabaseCards(env, identity) {
   const client = await mcpClient(env);
   const { cards, tagId } = await blogCards(client);
   const schema = await blogSchema(client, tagId);
+  // One Worker request stays under the free-plan subrequest limit. Reading every
+  // card in the same request is what turned a full #blog pull into an HTML 502.
+  const batched = cards.length > PROPERTY_BATCH;
+  const signature = cards.map((card) => card.id).join('\n');
+  let scan = batched ? await readPullScan(env, identity.sessionId) : null;
+  if (!scan || scan.signature !== signature) scan = { signature, props: {}, cursor: 0 };
+  const started = scan.cursor;
+  const end = Math.min(cards.length, scan.cursor + (batched ? PROPERTY_BATCH : cards.length));
+  for (let index = scan.cursor; index < end; index++) {
+    const card = cards[index];
+    if (card.type !== 'card') { scan.props[card.id] = null; continue; }
+    try { scan.props[card.id] = await readProperties(client, card.id, schema); }
+    catch (error) {
+      if (error.heptabaseReason !== 'objectNotFound') throw error;
+      scan.props[card.id] = null;
+    }
+  }
+  scan.cursor = end;
+  if (batched && (scan.cursor < cards.length || scan.cursor > started)) {
+    await writePullScan(env, identity.sessionId, scan);
+    return { partial: true, scanned: scan.cursor, total: cards.length };
+  }
+  if (batched) await clearPullScan(env, identity.sessionId);
   const state = await branchState(env), docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
   const result = [], pageCandidates = [];
   for (const card of cards) {
     const linked = entries.filter((doc) => doc.heptabaseCardLink?.toLowerCase() === card.cardLink);
-    const properties = card.type === 'card' ? await readProperties(client, card.id, schema) : null;
-    if (properties?.member && properties.type === 'page') pageCandidates.push(card);
-    if (properties?.status !== 'review') continue;
+    const properties = scan.props[card.id] || null;
+    if (!properties) continue;
+    if (properties.member && properties.type === 'page') pageCandidates.push(card);
+    if (properties.status !== 'review') continue;
     result.push({ ...card, properties, linked: linked.map(({ collection, id, title, draft }) => ({ collection, id, title, draft })), unsupported: card.type !== 'card' });
   }
   const main = state.pr ? await branchState(env, cfg(env).branch) : state;
@@ -818,7 +850,7 @@ async function heptabasePlan(env, identity, input) {
   const docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
   const linked = entries.filter((d) => d.heptabaseCardLink?.toLowerCase() === card.cardLink);
-  if (linked.some((d) => d.collection !== routed)) throw fail('已关联页面与 Blog Type 不一致。Blog 和 Reference 对应文章，Project 对应项目，Page 对应站点页面。');
+  if (linked.some((d) => d.collection !== routed)) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
   const collection = input.collection || linked[0]?.collection || routed;
   const pageCards = routed === 'pages' ? await loadPageCards(client, schema, cards, await publishedFiles(env, state)) : [];
   const rootPage = routed === 'pages' ? assignPageId(card.title, id, entries, new Map()) : null;
@@ -836,7 +868,7 @@ async function heptabasePlan(env, identity, input) {
     const properties = await readProperties(client, nextId, schema);
     const routedCollection = properties.member ? collectionForBlogType(properties.type) : null;
     const known = targets.get(nextId);
-    if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Blog 和 Reference 对应文章，Project 对应项目，Page 对应站点页面。');
+    if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
     const heading = (/^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/m.exec(source) || [])[1]?.trim() || '';
     const assigned = routedCollection === 'pages' && !known ? assignPageId(heading, nextId, entries, targets) : null;
     const target = known || { collection: routedCollection || 'articles', id: assigned?.id || `hepta-${nextId}`, displaced: Boolean(assigned?.displaced), canonicalTitle: assigned?.canonicalTitle || '' };
@@ -862,10 +894,11 @@ async function heptabasePlan(env, identity, input) {
     const content = archived ? { title: parsed.frontmatter.title, body: parsed.bodyZh, imports: parsed.imports } : fromHeptabase(node.source, targets, parsed.imports);
     const copied = dateFromCard({ publishDate: properties.date, created: node.created, timezone: env.STUDIO_TIMEZONE });
     const frontmatter = { ...parsed.frontmatter, slot: node.target.collection === 'pages' ? 'page' : node.target.collection === 'projects' ? 'project' : 'article', title: content.title || '未命名卡片', tags: properties.tags,
+      description: properties.summary || '',
       date: copied.date || (!rootDraft && properties.member ? publicationDate(new Date(), env.STUDIO_TIMEZONE) : parsed.frontmatter.date || publicationDate(new Date(), env.STUDIO_TIMEZONE)),
       created: node.created || undefined, updated: node.updated || undefined,
-      draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.member,
-      heptabaseType: properties.type && properties.type !== 'blog' ? properties.type : undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}` };
+      draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.type === 'reference' ? false : properties.member,
+      heptabaseType: properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}` };
     node.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
     const previous = await firstRow(env, 'SELECT * FROM studio_heptabase_sync WHERE card_id = ?1', node.id);
     node.conflict = Boolean(previous && previous.source !== JSON.stringify([node.source, properties]) && previous.blog_body !== blogProjection(parsed));
@@ -1148,7 +1181,7 @@ async function exportCard(env, identity, input) {
     const membership = await client.call('update_database_card_membership', { tagId, operation: 'add', cardIds: [exported.card_id] });
     if (membership.failedCardIds?.length || membership.invalidCardIds?.length) throw fail('卡片已创建，但还没有加入 #blog，请重新尝试。');
     await lease();
-    await writeProperties(client, exported.card_id, schema, { status: 'writing', tags: parsed.frontmatter.tags || [], type: input.collection === 'projects' ? 'project' : input.collection === 'pages' ? 'page' : 'blog' });
+    await writeProperties(client, exported.card_id, schema, { status: 'writing', tags: parsed.frontmatter.tags || [], type: input.collection === 'projects' ? 'project' : input.collection === 'pages' ? 'page' : 'article' });
     parsed.frontmatter.heptabaseCardLink = `heptabase://card/${exported.card_id}`;
     parsed.frontmatter.heptabaseStatus = parsed.frontmatter.draft ? parsed.frontmatter.heptabaseStatus || 'writing' : 'writing';
     await upsertDraft(env, identity, state, path, serializeMdx(parsed), { baseRaw: current.remoteRaw, expectedVersion: current.draft?.state === 'draft' ? current.draft.version : 0 });

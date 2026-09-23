@@ -51,5 +51,5 @@ test('超过 4 张站点页时要在审核清单里选择留下哪几页', async
   await dialog.getByRole('checkbox', { name: '我已检查这篇博客和所有引用，确认可以公开。' }).check();
   await dialog.getByRole('button', { name: '确认通过并回写' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('blog · 已通过，待发布')).toBeVisible();
+  await expect(page.getByText('article · 已通过，待发布')).toBeVisible();
 });

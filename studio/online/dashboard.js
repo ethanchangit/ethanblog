@@ -91,7 +91,13 @@ async function refresh() {
 async function pullUpdates() {
   if (!connected) { location.assign((await api('/heptabase/connect', {})).url); return; }
   notice('正在拉取 Review 卡片，以及它们跟随发布的引用资料…');
-  const { cards, removals = [], pageSet: pages = null } = await api('/heptabase/cards'), next = [];
+  let payload, guard = 0;
+  do {
+    payload = await api('/heptabase/cards');
+    if (payload.partial) notice(`正在读取卡片 ${payload.scanned} / ${payload.total}…`);
+  } while (payload.partial && ++guard < 40);
+  if (payload.partial) throw new Error('拉取没有完成，请稍后重新拉取。');
+  const { cards, removals = [], pageSet: pages = null } = payload, next = [];
   pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || []);
   for (const card of cards) {
     const input = { cardLink: card.cardLink, preparePublish: true, reviewOnly: true, ...(card.linked[0] || {}) };
@@ -116,7 +122,7 @@ function renderList() {
   renderPageChoice(list);
   const active = items.filter(item => !item.removal), removed = items.filter(item => item.removal);
   const refs = new Set(active.flatMap(item => item.plan?.changes.filter(c => !c.mainArticle).map(c => c.id) || []));
-  list.append(el('p', `这一版 · ${active.length} blog / ${refs.size} page${removed.length ? ` · 待删除 ${removed.length} 篇` : ''}`, { class: 'edition-summary' }));
+  list.append(el('p', `这一版 · ${active.length} article / ${refs.size} page${removed.length ? ` · 待删除 ${removed.length} 篇` : ''}`, { class: 'edition-summary' }));
   if (items.some(i => i.decision)) list.append(el('p', `待审 ${items.filter(i => !i.decision).length} · 通过 ${items.filter(i => i.decision === 'approve').length} · 拒绝 ${items.filter(i => i.decision === 'reject').length}${removed.length ? ` · 确认删除 ${removed.filter(i => i.decision === 'remove').length} · 暂不删除 ${removed.filter(i => i.decision === 'skip').length}` : ''}`, { class: 'muted group-caption' }));
   for (const kind of ['new', 'edited', ...(removed.length ? ['removed'] : [])]) {
     const deleting = kind === 'removed', edited = kind === 'edited';
@@ -132,7 +138,7 @@ function renderList() {
         if (!deleting) return confirmDecision(item, 'reject');
         item.decision = 'skip'; renderList(); await showSelection(); notice('本次暂不删除，线上页面不变；下次拉取会再次提醒。');
       }, { 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }));
-      row.append(decisions); li.append(row, el('small', item.decision === 'remove' ? '已确认删除，待发布' : item.decision === 'skip' ? '本次暂不删除' : item.decision === 'approve' ? 'blog · 已通过，待发布' : item.decision === 'reject' ? 'blog · 已拒绝，已回写 Block' : item.error ? '读取失败，尚未审核' : deleting ? item.plan.reasonLabel : `blog · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`, { class: 'item-meta' }));
+      row.append(decisions); li.append(row, el('small', item.decision === 'remove' ? '已确认删除，待发布' : item.decision === 'skip' ? '本次暂不删除' : item.decision === 'approve' ? 'article · 已通过，待发布' : item.decision === 'reject' ? 'article · 已拒绝，已回写 Block' : item.error ? '读取失败，尚未审核' : deleting ? item.plan.reasonLabel : `article · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`, { class: 'item-meta' }));
       const change = rootChange(item);
       if (change && !deleting) {
         const { added, removed } = tagDiff(change.beforeProperties.tags, change.afterProperties.tags);
@@ -142,7 +148,7 @@ function renderList() {
       if (references.length) {
         const ul = el('ul', null, { class: 'references' });
         for (const card of references) {
-          const ref = el('li'); ref.append(button(card.title, async () => { selected = { item, id: card.id }; renderList(); await showSelection(); }, { class: 'card-select', 'aria-pressed': String(selected?.item === item && selected.id === card.id) }), el('small', `${card.mainArticle ? 'blog · 需单独审核' : 'page'} · ${card.kind}`, { class: 'item-meta' })); ul.append(ref);
+          const ref = el('li'); ref.append(button(card.title, async () => { selected = { item, id: card.id }; renderList(); await showSelection(); }, { class: 'card-select', 'aria-pressed': String(selected?.item === item && selected.id === card.id) }), el('small', `${card.mainArticle ? 'article · 需单独审核' : 'page'} · ${card.kind}`, { class: 'item-meta' })); ul.append(ref);
         }
         li.append(ul);
       }
@@ -203,8 +209,8 @@ async function showSelection() {
   for (const [value, text] of [['preview', item.removal ? '现有页面' : '发布预览'], ['diff', '段落对比']]) tabs.append(button(text, async () => { mode = value; await showSelection(); }, { 'aria-pressed': String(mode === value) }));
   bar.append(tabs);
   if (!item.removal || item.plan.reason !== 'deleted') bar.append(link('在 Heptabase 打开 ↗', card.cardLink));
-  const pageKind = card.afterProperties?.slot === 'project' ? 'project' : 'blog';
-  pane.append(bar, el('p', `${card.mainArticle ? pageKind : 'page · 不出现在博客列表'} / ${card.title}`, { class: 'muted preview-caption' }));
+  const pageKind = card.afterProperties?.slot === 'project' ? 'project' : card.afterProperties?.heptabaseType === 'reference' ? 'reference · 不进文章列表' : 'article';
+  pane.append(bar, el('p', `${card.mainArticle ? pageKind : 'page · 不进文章列表'} / ${card.title}`, { class: 'muted preview-caption' }));
   if (item.plan.pageNote) pane.append(el('p', item.plan.pageNote, { class: 'muted' }));
   if (item.removal) {
     pane.append(el('p', `${item.plan.reasonLabel}。下方是将被撤下的现有内容，不是准备重新发布的版本。`, { class: 'removal-notice' }));
@@ -249,7 +255,7 @@ async function confirmRemoval(item) {
   selected = { item, id: item.card.id }; renderList(); await showSelection();
   const d = dialog(`删除「${title(item)}」`);
   d.append(el('p', '确认后将这些页面加入待删除清单。通过 GitHub 发布后，正文、博客列表和全文搜索都会移除；不会删除或修改 Heptabase 里的其他卡片。历史版本仍可从 GitHub 恢复。'));
-  const list = el('ul'); item.plan.changes.forEach(c => list.append(el('li', `${c.mainArticle ? 'blog' : 'page'} · ${c.title}`))); d.append(list);
+  const list = el('ul'); item.plan.changes.forEach(c => list.append(el('li', `${c.mainArticle ? 'article' : 'page'} · ${c.title}`))); d.append(list);
   if (item.plan.keptReferences.length) d.append(el('p', `仍有其他文章使用的 ${item.plan.keptReferences.length} 个引用资料页会保留。`));
   if (item.plan.blockers.length) { d.append(el('p', '仍有其他文章指向这些页面，请先处理右侧列出的引用，再重新拉取。', { role: 'alert' })); return; }
   const checkbox = el('input', null, { type: 'checkbox', id: 'removal-reviewed' }), label = el('label', null, { for: 'removal-reviewed' });

@@ -59,7 +59,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('textarea, [contenteditable=true]')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '浏览统计' })).toHaveCount(0);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.getByText('这一版 · 4 blog / 1 page')).toBeVisible();
+  await expect(page.getByText('这一版 · 4 article / 1 page')).toBeVisible();
   await expect(page.locator('[data-review-group=new] > ol > li')).toHaveCount(2);
   await expect(page.locator('[data-review-group=edited] > ol > li')).toHaveCount(2);
   await expect(page.locator('[data-review-group=new] .references li')).toHaveCount(1);
@@ -88,7 +88,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.modified .diff-added ins')).toContainText('现在，我会从正在写的文章出发');
   await expect(page.locator('.diff-basis')).toContainText('未提供段落 ID');
   await page.getByRole('button', { name: '让标签跟着想法生长', exact: true }).click();
-  await expect(page.getByText('blog · 仅标签更新', { exact: true })).toBeVisible();
+  await expect(page.getByText('article · 仅标签更新', { exact: true })).toBeVisible();
   await expect(page.locator('#review-preview .tag-added')).toHaveText('+ Productivity');
   await expect(page.locator('#review-preview .tag-removed')).toHaveText('− AI Native');
   await expect(page.locator('.diff-summary')).toHaveText('正文未修改，本次只更新标签。');
@@ -109,7 +109,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('button', { name: '拒绝「一次还没想清楚的尝试」', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('不修改发布日期');
   await page.getByRole('button', { name: '确认拒绝并回写' }).click();
-  await expect(page.getByText('blog · 已拒绝，已回写 Block')).toBeVisible();
+  await expect(page.getByText('article · 已拒绝，已回写 Block')).toBeVisible();
   await page.getByRole('button', { name: '将笔记变成可以分享的文章', exact: true }).click();
   await page.getByRole('button', { name: '发布预览', exact: true }).click();
   await expect(frame.locator('h1')).toHaveText('将笔记变成可以分享的文章');
@@ -129,7 +129,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: '确认通过并回写' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('blog · 已通过，待发布')).toBeVisible();
+  await expect(page.getByText('article · 已通过，待发布')).toBeVisible();
   await expect(page.getByText('2 个页面已准备好。', { exact: false })).toBeVisible();
   const cards = await page.request.get(new URL('/dashboard/api/heptabase/cards', url).href);
   expect((await cards.json()).cards.map((c: { title: string }) => c.title)).toEqual(['知识管理，先从连接开始', '让标签跟着想法生长']);
@@ -146,7 +146,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('button', { name: '刷新发布状态' }).click();
   await expect(page.getByText('最近一次发布：已上线', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.getByText('这一版 · 2 blog / 0 page')).toBeVisible();
+  await expect(page.getByText('这一版 · 2 article / 0 page')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.frameLocator('iframe').locator('h1')).toBeVisible();
@@ -255,7 +255,7 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await page.getByRole('button', { name: '暂不删除「已在 Heptabase 删除的文章」', exact: true }).click();
   await expect(group.getByText('本次暂不删除', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '删除「已经不再公开的旧笔记」', exact: true }).click();
-  await expect(page.getByRole('dialog').locator('li')).toHaveText(['blog · 已经不再公开的旧笔记', 'page · 仅由旧笔记引用的资料']);
+  await expect(page.getByRole('dialog').locator('li')).toHaveText(['article · 已经不再公开的旧笔记', 'page · 仅由旧笔记引用的资料']);
   await page.getByRole('button', { name: '确认加入待删除' }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toHaveText('请先确认要删除的页面。');
   await page.getByRole('checkbox').check(); await page.getByRole('button', { name: '确认加入待删除' }).click();
@@ -311,7 +311,7 @@ test('标签全部移除、仅排序和重复、长标签与特殊字符都能�
   await expect(changes.locator('.tag-added')).toHaveCount(0);
   afterTags = ['AI Native', 'Mission', 'Mission']; await select();
   await expect(changes).toHaveCount(0);
-  await expect(page.getByText('blog · 仅标签更新', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('article · 仅标签更新', { exact: true })).toHaveCount(0);
   const special = '<img src=x onerror=alert(1)>', long = '很长的标签'.repeat(20);
   afterTags = [special, long]; await select();
   await expect(changes.locator('.tag-added')).toHaveText([`+ ${special}`, `+ ${long}`]);

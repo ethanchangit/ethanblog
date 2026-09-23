@@ -170,7 +170,7 @@ test('recursive mentions deduplicate cycles; only non-blog cards receive the ref
   await prepare(f);
   const read = id => jsonOk(f.request(`/doc?collection=articles&id=${id}`));
   const reference = await read(`hepta-${grandchild}`), mainChild = await read(`hepta-${child}`);
-  assert.equal(reference.frontmatter.listed, true); assert.equal(reference.frontmatter.heptabaseType, 'reference'); assert.equal(reference.frontmatter.draft, undefined);
+  assert.equal(reference.frontmatter.listed, false); assert.equal(reference.frontmatter.heptabaseType, 'reference'); assert.equal(reference.frontmatter.draft, undefined);
   assert.equal(mainChild.frontmatter.listed, true); assert.match(reference.bodyZh, /articles\/example/);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 3);
   await submit(f);
@@ -296,7 +296,7 @@ test('first association exports one existing page and retries without creating d
   const request = { collection: 'articles', id: 'example', documentHash: await hash(raw) };
   const doc = await jsonOk(f.request('/heptabase/export', 'POST', request));
   const id = doc.frontmatter.heptabaseCardLink.split('/').pop();
-  assert.equal(f.properties.get(id).Status, 'writing'); assert.equal(f.properties.get(id)['Blog Type'], 'Blog'); assert.match(f.cardSources.get(id), /中文正文。/);
+  assert.equal(f.properties.get(id).Status, 'writing'); assert.equal(f.properties.get(id)['Blog Type'], 'Article'); assert.match(f.cardSources.get(id), /中文正文。/);
   await jsonOk(f.request('/heptabase/export', 'POST', request));
   assert.equal(f.calls.filter(c => c.body?.params?.name === 'create_object').length, 1);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
@@ -441,4 +441,51 @@ test('MCP pagination reads every numbered line and rejects incomplete lists', as
   assert.equal(calls[0].nameFilter, undefined);
   assert.equal(calls[0].limit, 100);
   assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
+  assert.throws(() => toolResult({ isError: true, content: [{ type: 'text', text: 'The object was not found.' }] }), (error) => error.heptabaseReason === 'objectNotFound');
+});
+
+test('summary fills the preview slot and an empty summary does not copy the first paragraph', async () => {
+  const f = await setup();
+  f.properties.get(CARD).Summary = '局部最优是搜索问题，不是选择问题。';
+  f.setSource('# 标题\n\n第一段不该变成摘要。');
+  const filled = await preview(f);
+  assert.match(filled.next, /description: "局部最优是搜索问题，不是选择问题。"/);
+  assert.doesNotMatch(filled.next, /description: "第一段不该变成摘要。"/);
+  f.properties.get(CARD).Summary = '   ';
+  const empty = await preview(f);
+  assert.match(empty.next, /description: ""/);
+  assert.match(empty.next, /第一段不该变成摘要。/);
+  assert.equal(empty.changes[0].afterProperties.date, '2026-09-21');
+});
+
+test('a deleted card is listed for removal and is not republished', async () => {
+  const f = await setup();
+  const id = 'ea84aa8e-dac4-46cb-91d1-1b10dc5350c0';
+  f.remote(`---\nslot: article\ntitle: 占位 2025-01\ndescription: 摘要\ndate: 2025-01-01\nheptabaseCardLink: heptabase://card/${id}\n---\n\n占位。\n`, 'src/content/articles/dummy-2025-01.mdx');
+  f.missingCards.add(id);
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.cards.some((card) => card.id === id), false);
+  assert.equal(listed.removals.find((item) => item.id === 'dummy-2025-01').reason, 'deleted');
+  assert.equal((await f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${id}`, preparePublish: true })).status, 400);
+});
+
+test('a large tag database is read in batches instead of one subrequest per card', async () => {
+  const f = await setup();
+  for (let i = 0; i < 40; i++) {
+    const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+    f.properties.set(id, { Status: 'published', 'Blog Type': 'Article' });
+    f.cardSources.set(id, `# 卡片 ${i}\n\n正文`);
+  }
+  const first = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(first.partial, true);
+  assert.equal(first.scanned, 20);
+  const reads = f.calls.filter((call) => call.body?.params?.name === 'read_object').length;
+  assert.ok(reads <= 20, String(reads));
+  let payload = first, guard = 0;
+  while (payload.partial) {
+    assert.ok(++guard < 8);
+    payload = await jsonOk(f.request('/heptabase/cards'));
+  }
+  assert.equal(payload.cards.some((card) => card.id === CARD), false);
+  assert.equal(payload.pageSet.cap, 4);
 });

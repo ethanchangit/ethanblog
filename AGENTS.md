@@ -60,7 +60,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 拉取读 Heptabase 里准确名为 `blog` 的标签数据库。引用资料不再使用单独的 `#blog-reference` 标签。
 
 - 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`block`、`review`、`published`，各一个。`published` 表示已通过审核，不表示网站已上线。
-- `Blog Type` 有 `Blog`、`Project`、`Page` 和 `Reference`。Blog 和 Reference 进文章页，Project 进项目页，Page 进站点页。项目、博客和 Reference 随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。Reference 用 Blog Type 的 Reference 选项区分，不靠第二个标签。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。
+- `Blog Type` 的选项以数据库里的为准，当前是 `Article`、`Project`、`Page` 和 `Reference`。只有 `Article` 进公开文章列表。`Reference` 仍有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
 - 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
 - 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
 

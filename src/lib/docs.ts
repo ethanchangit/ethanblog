@@ -14,6 +14,8 @@ export function docHref(entry: Pick<DocEntry, 'id' | 'data'>): string {
  * 默认：id 含 `/` 的是系列子文，不进索引。`listed: false` 可藏顶层文；`listed: true` 可把子文放进索引。
  */
 export function isIndexed(entry: Pick<DocEntry, 'id' | 'data'>): boolean {
+  // Reference 有自己的地址，不进文章列表。没写类型的旧文仍视为 article。
+  if (entry.data.heptabaseType === 'reference') return false;
   if (entry.data.listed === false) return false;
   if (entry.data.listed === true) return true;
   return !entry.id.includes('/');
