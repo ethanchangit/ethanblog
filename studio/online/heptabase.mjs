@@ -230,7 +230,18 @@ export function parseTagEntries(content) {
   })).filter((tag) => tag.name);
 }
 
-export async function taggedCards(client, name) {
+// Heptabase list tools used to say "More cards are available."; newer replies use an
+// output-budget footer with an explicit next offset. Prefer that offset when present.
+export function listContinueOffset(content, collected) {
+  const text = String(content || '');
+  const budget = /(?:call list_(?:cards|tags) with )?offset\s+(\d+)\s+to continue/i.exec(text)
+    || /output budget reached[\s\S]*?\boffset\s+(\d+)/i.exec(text);
+  if (budget) return Number(budget[1]);
+  if (/more (?:cards|tags) are available/i.test(text)) return collected;
+  return null;
+}
+
+async function taggedCardsOnce(client, name) {
   const found = [], seenTags = new Set();
   for (let offset = 0; offset < 10000;) {
     const page = await client.call('list_tags', { offset, limit: 100 });
@@ -240,8 +251,9 @@ export async function taggedCards(client, name) {
       return true;
     });
     found.push(...batch);
-    if (!/more tags are available/i.test(page.content || '') || !batch.length) break;
-    offset += batch.length;
+    const next = listContinueOffset(page.content, found.length);
+    if (next == null || !batch.length) break;
+    offset = next;
     if (offset >= 10000) throw fail('标签过多，请精简后再拉取。');
   }
   const matches = found.filter((tag) => tag.name === name);
@@ -249,19 +261,38 @@ export async function taggedCards(client, name) {
   const tagId = matches[0].id, cards = [], seen = new Set();
   for (let offset = 0; offset < 10000;) {
     const page = await client.call('list_cards', { tagIds: [tagId], offset, limit: 100, include: ['timestamps'], sortBy: 'title', sortDirection: 'ascending' });
-    const rows = [...page.content.matchAll(new RegExp(`^(\\w+) "(.*)" \\[(${UUID})\\](.*)$`, 'gm'))];
+    const rows = [...String(page.content || '').matchAll(new RegExp(`^(\\w+) "(.*)" \\[(${UUID})\\](.*)$`, 'gm'))];
     for (const [, type, title, id, metadata] of rows) {
       if (seen.has(id)) throw fail('读取卡片时列表发生变化，请重新拉取。', 409);
       const stamps = cardStamps(metadata);
       seen.add(id); cards.push({ id, type, title, created: stamps.created, updated: stamps.updated, cardLink: `heptabase://card/${id}` });
     }
-    if (!page.content.includes('More cards are available.')) break;
+    const next = listContinueOffset(page.content, cards.length);
+    if (next == null) break;
     if (!rows.length) throw fail('Heptabase 返回了无法识别的卡片列表。', 502);
-    offset += rows.length;
+    if (next <= offset) throw fail('Heptabase 卡片列表分页未前进。', 502);
+    offset = next;
     if (offset >= 10000) throw fail('卡片过多，请分批同步。');
   }
-  if (Number(matches[0].cardCount) !== cards.length) throw fail('Heptabase 卡片数量已变化，请重新拉取完整列表。', 409);
+  const expected = Number(matches[0].cardCount);
+  if (Number.isFinite(expected) && expected !== cards.length) {
+    throw fail('Heptabase 卡片数量已变化，请重新拉取完整列表。', 409);
+  }
   return { tagId, cards };
+}
+
+// Count mismatches and mid-list churn are transient. Retry inside this pull so the
+// dashboard button does not ask the user to click the same action again.
+export async function taggedCards(client, name) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return await taggedCardsOnce(client, name); }
+    catch (error) {
+      last = error;
+      if (error.status !== 409) throw error;
+    }
+  }
+  throw last;
 }
 
 export const blogCards = (client) => taggedCards(client, 'blog');
