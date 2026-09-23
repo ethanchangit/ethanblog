@@ -64,6 +64,12 @@ Cloudflare production 需要：
 
 任何密钥都不能进入代码、聊天、普通配置或不可信 PR 预览。正式配置前必须经站点所有者确认。建议保护 `main`、禁止强制推送并要求最新 `verify` 检查；`production` 可要求人工审批。
 
+## Cloud Agent 的 Heptabase MCP
+
+网站后台的连接在 `studio/online/heptabase.mjs`：`POST https://api.heptabase.com/v1/oauth/register`，授权页 `https://api.heptabase.com/auth`，令牌端点 `https://api.heptabase.com/token`，MCP 为 `https://api.heptabase.com/mcp`，scope 为 `offline_access space:read space:write`。令牌加密存在 D1 `studio_connections`（id `heptabase`），密钥是 `STUDIO_SECRET`。仓库没有 `.cursor/mcp.json`，也不保存明文令牌。
+
+Cloud Agent 读不到 Pages secret，也不加载仓库里的 `mcp.json`。持久接法是在 https://cursor.com/agents 的 MCP 菜单添加 HTTP 服务器，URL 填 `https://api.heptabase.com/mcp`，用 Heptabase 账号完成授权。团队共用由管理员加在 Dashboard → Plugins & MCPs，每个使用者仍要各自授权。`STUDIO_SECRET` 只用于后台加密和发布回执。
+
 GitHub 合并后发布同一个已测试构建包，核验正式网站，再发送签名回执确认发布结果。回执失败时网站可能已上线，刷新发布状态可重试；不会把 Published 或 PR 合并当作网站上线证明。
 
 ## 验证和本地预览
