@@ -164,12 +164,13 @@ test('recursive mentions deduplicate cycles; only non-blog cards receive the ref
   assert.equal(plan.references.length, 2); assert.match(plan.next, /DocList pane="embed"/); assert.match(plan.next, /data-doc-mention/);
   assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
   const marked = await jsonOk(f.request('/heptabase/mark-references', 'POST', selection(plan)));
-  assert.equal(marked.marked, 1); assert.deepEqual([...f.referenceCards], [grandchild]);
+  assert.equal(marked.marked, 1); assert.equal(f.properties.get(grandchild)['Blog Type'], 'Reference');
+  assert.equal(f.properties.get(child)?.['Blog Type'], undefined);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
   await prepare(f);
   const read = id => jsonOk(f.request(`/doc?collection=articles&id=${id}`));
   const reference = await read(`hepta-${grandchild}`), mainChild = await read(`hepta-${child}`);
-  assert.equal(reference.frontmatter.listed, false); assert.equal(reference.frontmatter.draft, undefined);
+  assert.equal(reference.frontmatter.listed, true); assert.equal(reference.frontmatter.heptabaseType, 'reference'); assert.equal(reference.frontmatter.draft, undefined);
   assert.equal(mainChild.frontmatter.listed, true); assert.match(reference.bodyZh, /articles\/example/);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_drafts').get().n, 3);
   await submit(f);
@@ -186,12 +187,14 @@ test('reference tags alone are not consent, and failed or stale tagging cannot p
 
 test('approved source, properties, graph, raw snapshot and reference tags are rechecked before any GitHub upload', async () => {
   for (const change of ['source', 'properties', 'reference', 'raw', 'tag']) {
-    const f = await setup(); graph(f); f.referenceCards.add(child); f.referenceCards.add(grandchild); await prepare(f);
+    const f = await setup(); graph(f);
+    f.properties.set(child, { 'Blog Type': 'Reference' }); f.properties.set(grandchild, { 'Blog Type': 'Reference' });
+    await prepare(f);
     if (change === 'source') f.setSource('# 更新\n\n私人信息');
     if (change === 'properties') f.properties.get(CARD).Tag = ['Mission'];
     if (change === 'reference') f.cardSources.set(grandchild, '# 新引用\n\n私人信息');
     if (change === 'raw') f.DB.sqlite.prepare('UPDATE studio_drafts SET raw = raw || ? WHERE path = ?').run('\n私人信息', PATH);
-    if (change === 'tag') f.referenceCards.delete(grandchild);
+    if (change === 'tag') f.properties.delete(grandchild);
     const response = await f.request('/git/commit', 'POST', { message: '更新' });
     assert.equal(response.status, 409, change); assert.equal(gitWrites(f).length, 0, change);
   }
@@ -271,7 +274,7 @@ test('verified publication writes status and first date only; receipt is authent
   const signature = await signReceipt(f.env.STUDIO_SECRET, payload); assert.equal((await receipt(signature)).status, 409);
   f.deploy(); await jsonOk(receipt(signature));
   assert.equal(f.properties.get(CARD).Status, 'published');
-  assert.equal(f.properties.get(CARD)['Publish Date'].start.slice(0, 10), publicationDate());
+  assert.equal(f.properties.get(CARD)['Publish Date'], undefined);
   f.properties.get(CARD)['Publish Date'] = { start: '2025-02-03T00:00:00.000Z' };
   await jsonOk(receipt(signature)); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2025-02-03T00:00:00.000Z');
   const expired = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: 1 });
@@ -334,6 +337,92 @@ test('Blog Type routes a card to articles or projects and is stored when creatin
   const id = doc.frontmatter.heptabaseCardLink.split('/').pop();
   assert.equal(f.properties.get(id)['Blog Type'], 'Project');
   assert.equal(doc.frontmatter.slot, 'project');
+});
+
+test('Page cards scale to their own address and do not replace a taken canonical page', async () => {
+  const f = await setup();
+  const fresh = '122560bd-b99f-4fb9-9fa5-742090feacb1';
+  f.properties.set(fresh, { Status: 'review', 'Blog Type': 'Page' });
+  f.cardSources.set(fresh, '# 读书笔记\n\n这是一张新的站点页。');
+  const plan = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  assert.equal(plan.changes[0].path, `src/content/pages/hepta-${fresh}.mdx`);
+  assert.equal(plan.pageChoiceRequired, false);
+  assert.match(plan.pageNote, /最多显示 4 页/);
+  assert.match(plan.pageNote, /不需要挑选/);
+  assert.match(plan.pageNote, /没有上限/);
+  assert.match(plan.pageNote, new RegExp(`/pages/hepta-${fresh}`));
+  assert.equal(plan.changes[0].afterProperties.date, '2026-09-21');
+  assert.equal(plan.changes[0].afterProperties.created, '2026-09-21T00:00:00Z');
+  f.remote(`---\nslot: page\ntitle: 关于\ndescription: 关于\nheptabaseCardLink: heptabase://card/${CARD}\n---\n\n正文。\n`, 'src/content/pages/about.mdx');
+  f.cardSources.set(CARD, '# 关于\n\n旧的关于。');
+  f.properties.set(CARD, { Status: 'published', 'Blog Type': 'Page', 'Publish Date': { start: '2024-02-01T00:00:00.000Z' } });
+  f.cardSources.set(fresh, '# 关于\n\n另一张关于。');
+  const second = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  assert.equal(second.changes[0].path, `src/content/pages/hepta-${fresh}.mdx`);
+  assert.match(second.pageNote, /已经连着另一张卡片/);
+  assert.match(second.pageNote, /不会替换或丢掉/);
+  f.timestamps.set(fresh, { created: '', updated: '' });
+  f.properties.set(fresh, { Status: 'review', 'Blog Type': 'Page' });
+  f.cardSources.set(fresh, '# 无日期\n\n卡片没有创建时间。');
+  const invented = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  assert.equal(invented.changes[0].afterProperties.date, publicationDate());
+  assert.equal(invented.changes[0].afterProperties.created, undefined);
+});
+
+test('more than four page cards require a choice and do not drop the extras', async () => {
+  const f = await setup();
+  const kept = [
+    ['11111111-1111-4111-8111-111111111111', '关于', 'about'],
+    ['22222222-2222-4222-8222-222222222222', 'Now', 'now'],
+    ['33333333-3333-4333-8333-333333333333', '联系', 'contact'],
+  ];
+  const dropped = ['44444444-4444-4444-8444-444444444444', '隐私', 'privacy'];
+  const fresh = '55555555-5555-4555-8555-555555555555';
+  for (const [id, title, slug] of [...kept, dropped]) {
+    f.properties.set(id, { Status: 'published', 'Blog Type': 'Page', 'Publish Date': { start: '2026-09-21T00:00:00.000Z' } });
+    f.cardSources.set(id, `# ${title}\n\n${title}页。`);
+    f.remote(`---\nslot: page\ntitle: ${title}\ndescription: ${title}\ndate: 2026-09-21\nheptabaseCardLink: heptabase://card/${id}\n---\n\n${title}页。\n`, `src/content/pages/${slug}.mdx`);
+  }
+  f.properties.set(fresh, { Status: 'review', 'Blog Type': 'Page' });
+  f.cardSources.set(fresh, '# 读书笔记\n\n新的站点页。');
+  f.properties.set('66666666-6666-4666-8666-666666666666', { Status: 'published', 'Blog Type': 'Reference' });
+  f.cardSources.set('66666666-6666-4666-8666-666666666666', '# 参考\n\n不是站点页。');
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.pageSet.cap, 4);
+  assert.equal(listed.pageSet.choiceRequired, true);
+  assert.equal(listed.pageSet.cards.length, 5);
+  assert.equal(listed.pageSet.cards.some(card => card.id.startsWith('6666')), false);
+  const plan = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  assert.equal(plan.pageChoiceRequired, true);
+  assert.match(plan.pageNote, /最多显示 4 页/);
+  assert.match(plan.pageNote, /选择留下哪几页/);
+  assert.equal(plan.changes[0].afterProperties.date, '2026-09-21');
+  assert.equal(plan.changes[0].afterProperties.created, '2026-09-21T00:00:00Z');
+  const blocked = await f.request('/heptabase/decision', 'POST', { cardLink: `heptabase://card/${fresh}`, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'approve', confirmPublic: true, resolveConflict: true });
+  assert.equal(blocked.status, 409);
+  assert.match((await blocked.json()).error, /请先在审核清单里选择留下哪几页/);
+  const tooMany = await f.request('/heptabase/page-choice', 'POST', { keep: [...kept.map(([id]) => id), dropped[0], fresh] });
+  assert.equal(tooMany.status, 400);
+  assert.match((await tooMany.json()).error, /最多留下 4 页/);
+  const choice = await jsonOk(f.request('/heptabase/page-choice', 'POST', { keep: [...kept.map(([id]) => id), fresh] }));
+  assert.deepEqual(choice.keep, [...kept.map(([id]) => id), fresh].sort());
+  assert.equal(choice.removals.length, 1);
+  assert.equal(choice.removals[0].title, '隐私');
+  assert.equal(f.properties.has(dropped[0]), true);
+  const removal = await jsonOk(f.request('/heptabase/removal-preview', 'POST', { collection: 'pages', id: 'privacy', cardLink: `heptabase://card/${dropped[0]}` }));
+  assert.equal(removal.reason, 'capped');
+  const again = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  await jsonOk(f.request('/heptabase/decision', 'POST', { cardLink: `heptabase://card/${fresh}`, sourceHash: again.sourceHash, documentHash: again.documentHash, planHash: again.planHash, decision: 'approve', confirmPublic: true, resolveConflict: true }));
+  assert.equal(f.properties.get(fresh)['Publish Date'], undefined);
+  await jsonOk(f.request('/git/commit', 'POST', { message: '留下四页' }));
+  const files = f.filesFor(f.refs.get('codex/studio-content'));
+  assert.equal(files['src/content/pages/privacy.mdx'], undefined);
+  assert.equal(['about', 'now', 'contact'].every(slug => Boolean(files[`src/content/pages/${slug}.mdx`])), true);
+  const doc = await jsonOk(f.request(`/doc?collection=pages&id=hepta-${fresh}`));
+  assert.match(doc.raw, /读书笔记/);
+  assert.match(doc.raw, /2026-09-21/);
+  assert.match(doc.raw, /created: "2026-09-21T00:00:00Z"/);
+  assert.equal((await f.request('/doc?collection=pages&id=privacy')).status, 404);
 });
 
 test('MCP pagination reads every numbered line and rejects incomplete lists', async () => {

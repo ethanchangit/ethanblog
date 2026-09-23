@@ -16,15 +16,15 @@ export async function blogSchema(client, tagId) {
     type: field(['blog type'], 'select'),
   };
   for (const name of ['new', 'writing', 'block', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
-  for (const name of ['blog', 'project']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
+  for (const name of ['blog', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
   return schema;
 }
 
 export function collectionForBlogType(type) {
-  if (type === 'blog') return 'articles';
+  if (type === 'blog' || type === 'reference') return 'articles';
   if (type === 'project') return 'projects';
   if (type === 'page') return 'pages';
-  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog、Project 或 Page）。');
+  throw fail('请在 Heptabase 为这张卡片选择 Blog Type（Blog、Project、Page 或 Reference）。');
 }
 
 export function propertiesFromRead(content, schema) {
@@ -48,7 +48,7 @@ export function propertiesFromRead(content, schema) {
   const typeValue = values[schema.type.name];
   const type = typeValue == null || typeValue === '' ? null : String(typeValue).trim().toLowerCase();
   const typeNames = schema.type.options.map((option) => option.name.trim().toLowerCase());
-  if (type && (!typeNames.includes(type) || !['blog', 'project', 'page'].includes(type))) throw fail('Blog Type 选项尚未对应。');
+  if (type && (!typeNames.includes(type) || !['blog', 'project', 'page', 'reference'].includes(type))) throw fail('Blog Type 选项尚未对应。');
   return { member, status, date, tags: [...new Set(tags)].sort(), type };
 }
 
@@ -89,4 +89,15 @@ export async function writeProperties(client, id, schema, desired) {
 
 export function publicationDate(now = new Date(), timezone = 'Africa/Dar_es_Salaam') {
   return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
+// Publish Date wins. Otherwise use the card's created time. Today is only a last resort when the card stores neither.
+export function dateFromCard({ publishDate, created, timezone = 'Africa/Dar_es_Salaam' } = {}) {
+  if (publishDate) return { date: publishDate, invented: false };
+  if (created) {
+    const instant = new Date(created);
+    if (Number.isNaN(instant.getTime())) throw fail('卡片的创建时间无法识别，未改用今天的日期。', 502);
+    return { date: publicationDate(instant, timezone), invented: false };
+  }
+  return { date: null, invented: true };
 }

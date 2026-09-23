@@ -4,7 +4,7 @@
  * This is a publication, not a product API — do not invent MCP/OAuth/webhooks.
  */
 import { readFile } from 'node:fs/promises';
-import { getEntry } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import { profile, site, skills } from '@/data/profile';
 import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
 import { copy } from '@/lib/i18n';
@@ -250,7 +250,11 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
 }
 
 export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]> {
-  const [articles, projects] = await Promise.all([docsBySlot('article'), docsBySlot('project')]);
+  const [articles, projects, sitePages] = await Promise.all([
+    docsBySlot('article'),
+    docsBySlot('project'),
+    getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft),
+  ]);
   const [nowPage, contactPage, privacyPage] = await Promise.all([
     corePageMarkdown('now'),
     corePageMarkdown('contact'),
@@ -270,6 +274,13 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
     '/lab',
   ]);
   const lastmod = new Map<string, string>();
+
+  for (const page of sitePages) {
+    const href = page.id === 'about' ? '/' : page.id === 'now' || page.id === 'contact' || page.id === 'privacy' ? `/${page.id}` : `/pages/${page.id}`;
+    paths.add(href);
+    const stamp = page.data.updated ?? page.data.created ?? page.data.date;
+    if (stamp) lastmod.set(href, stamp.toISOString());
+  }
 
   for (const entry of [...articles, ...projects]) {
     if (entry.data.slot === 'article' && /^\d+$/.test(entry.id)) continue;

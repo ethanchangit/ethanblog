@@ -24,7 +24,7 @@ local.cardSources.set(child, '# 原子笔记与连接\n\n一张卡片只回答�
 local.cardSources.set(rejected, '# 一次还没想清楚的尝试\n\n这是一张用于演示拒绝操作的卡片，尚未进入任何公开版本。');
 const tagsOnly = '6b6309a2-43a9-4c85-9b4f-037dcb0f898b';
 const tagTitle = '让标签跟着想法生长', tagBody = '标签不是一次完成的分类。随着理解加深，我们可以重新整理文章之间的关系，而不必改动正文。';
-local.remote(serializeMdx({ frontmatter: { slot: 'article', title: tagTitle, description: '调整分类，不必重写文章。', date: '2024-03-12', tags: ['Mission', 'AI Native'], heptabaseCardLink: `heptabase://card/${tagsOnly}` }, bodyZh: tagBody }), 'src/content/articles/growing-tags.mdx');
+local.remote(serializeMdx({ frontmatter: { slot: 'article', title: tagTitle, description: '调整分类，不必重写文章。', date: '2024-03-12', created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z', tags: ['Mission', 'AI Native'], heptabaseCardLink: `heptabase://card/${tagsOnly}` }, bodyZh: tagBody }), 'src/content/articles/growing-tags.mdx');
 local.properties.set(tagsOnly, { Status: 'review', 'Publish Date': { start: '2024-03-12T00:00:00Z' }, Tag: ['Mission', 'Productivity'] });
 local.cardSources.set(tagsOnly, `# ${tagTitle}\n\n${tagBody}`);
 const untagged = '411f45cb-1296-48d2-b32b-a30d1546d2b6', deleted = '7ece4d64-b906-4e1a-a836-bfb57b19d24d', retiredRef = 'a6d72b42-2cf7-437d-99f1-dce55a667e90';
@@ -37,6 +37,21 @@ for (const [id, title, body, listed] of [
   local.cardSources.set(id, `# ${title}\n\n${body}`);
 }
 local.missingCards.add(deleted);
+if (process.env.STUDIO_PAGE_CAP_FIXTURE === '1') {
+  for (const [id, title, slug] of [
+    ['a51ada66-ee0b-4759-9b1f-830c8374fcae', '关于', 'about'],
+    ['b51ada66-ee0b-4759-9b1f-830c8374fcae', 'Now', 'now'],
+    ['c51ada66-ee0b-4759-9b1f-830c8374fcae', '联系', 'contact'],
+    ['d51ada66-ee0b-4759-9b1f-830c8374fcae', '隐私', 'privacy'],
+  ]) {
+    local.properties.set(id, { Status: 'published', 'Blog Type': 'Page', 'Publish Date': { start: '2026-09-21T00:00:00.000Z' } });
+    local.cardSources.set(id, `# ${title}\n\n${title}页。`);
+    local.remote(`---\nslot: page\ntitle: ${title}\ndescription: ${title}\ndate: 2026-09-21\nheptabaseCardLink: heptabase://card/${id}\n---\n\n${title}页。\n`, `src/content/pages/${slug}.mdx`);
+  }
+  const extra = 'e51ada66-ee0b-4759-9b1f-830c8374fcae';
+  local.properties.set(extra, { Status: 'review', 'Blog Type': 'Page' });
+  local.cardSources.set(extra, '# 读书笔记\n\n新的站点页。');
+}
 local.remote(`---\nslot: page\ntitle: 博客\n---\n\n<DocList>\n<DocRef of="articles/hepta-${untagged}" />\n<DocRef of="articles/hepta-${deleted}" />\n</DocList>\n`, 'src/content/pages/blogs.mdx');
 const server = createServer(async (req, res) => {
   try {

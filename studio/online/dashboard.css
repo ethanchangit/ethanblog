@@ -28,6 +28,9 @@ label { display: block; line-height: 1.9; margin: 16px 0; }
 .review-layout[data-mode=diff] #review-preview { position: static; }
 .edition-summary { font-size: 13px; margin: 0 0 30px; color: var(--color-ink-400); }
 .review-group { margin-bottom: 42px; }
+.page-choice fieldset { border: 0; margin: 0; padding: 0; }
+.page-choice legend { padding: 0; }
+.page-choice label { display: block; margin: 10px 0; }
 .review-group ol { list-style: decimal; padding-left: 24px; }
 .review-group ol > li { padding-left: 3px; margin: 22px 0 30px; }
 .review-group li::marker { color: var(--color-ink-400); font-size: 13px; }

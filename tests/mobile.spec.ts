@@ -50,9 +50,12 @@ test.describe('手机阅读', () => {
         const html = await page.evaluate(() => getComputedStyle(document.documentElement).overflowY);
         expect(html).not.toBe('hidden');
 
-        expectTap(await box(page, 'header.site-nav a[href="/"]'), `${route} home`);
+        expectTap(await box(page, 'header.site-nav a[aria-label="首页"]'), `${route} home`);
+        expectTap(await box(page, 'header.site-nav [data-page-station="about"]'), `${route} about`);
+        expectTap(await box(page, 'header.site-nav [data-page-station="now"]'), `${route} now`);
+        expectTap(await box(page, 'header.site-nav [data-page-station="contact"]'), `${route} contact`);
+        expectTap(await box(page, 'header.site-nav [data-page-station="privacy"]'), `${route} privacy`);
         expectTap(await box(page, 'header.site-nav a[href="/tags"]'), `${route} tags`);
-        expectTap(await box(page, 'header.site-nav a[href="/now"]'), `${route} now`);
         expectTap(await box(page, 'header.site-nav a[href="/search"]'), `${route} search`);
         expectTap(await box(page, 'footer.site-footer button.theme-toggle'), `${route} theme`);
         await expect(page.locator('footer.site-footer button[aria-haspopup="listbox"]')).toHaveCount(0);

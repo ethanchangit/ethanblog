@@ -6,6 +6,7 @@ const root = document.querySelector('#studio');
 document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 const stages = { merging: '正在合并', queued: '等待部署', building: '正在检查和部署', verifying: '正在确认线上版本', deployed: '已上线', failed: '发布失败' };
 let docs = [], items = [], selected, git, connected = false, loading = false, pulled = false, localPreview = false, localOpen = false, booted = false, mode = 'preview', template, timer;
+let pageSet = null, pageChoice = null, pageKeepDraft = new Set();
 let clearMoveLines = () => {};
 function el(tag, text, attrs = {}) { const n = document.createElement(tag); if (text != null) n.textContent = text; for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v); return n; }
 function link(text, href) { return el('a', text, { href, ...(href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {}) }); }
@@ -90,7 +91,8 @@ async function refresh() {
 async function pullUpdates() {
   if (!connected) { location.assign((await api('/heptabase/connect', {})).url); return; }
   notice('正在拉取 Review 卡片，以及它们跟随发布的引用资料…');
-  const { cards, removals = [] } = await api('/heptabase/cards'), next = [];
+  const { cards, removals = [], pageSet: pages = null } = await api('/heptabase/cards'), next = [];
+  pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || []);
   for (const card of cards) {
     const input = { cardLink: card.cardLink, preparePublish: true, reviewOnly: true, ...(card.linked[0] || {}) };
     try { next.push({ card, input, plan: await api('/heptabase/preview', input), decision: '' }); }
@@ -98,7 +100,7 @@ async function pullUpdates() {
   }
   for (const removed of removals) {
     const card = { ...removed, id: removed.cardLink.split('/').pop() }, input = { collection: removed.collection, id: removed.id, cardLink: removed.cardLink };
-    try { const plan = await api('/heptabase/removal-preview', input); next.push({ card, input, plan, removal: true, decision: plan.approved ? 'remove' : '' }); }
+    try { const plan = await api('/heptabase/removal-preview', input); next.push({ card, input, plan, removal: true, capped: removed.reason === 'capped', decision: plan.approved ? 'remove' : '' }); }
     catch (error) { if (error.status === 401) throw error; next.push({ card, input, removal: true, error: error.message, decision: '' }); }
   }
   items = next; pulled = true; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
@@ -111,6 +113,7 @@ const title = item => rootChange(item)?.title || item.card.title;
 function renderList() {
   const list = document.querySelector('#review-list'); if (!list) return; list.replaceChildren();
   if (!pulled) { list.append(el('p', '等待拉取', { class: 'muted empty' })); return; }
+  renderPageChoice(list);
   const active = items.filter(item => !item.removal), removed = items.filter(item => item.removal);
   const refs = new Set(active.flatMap(item => item.plan?.changes.filter(c => !c.mainArticle).map(c => c.id) || []));
   list.append(el('p', `这一版 · ${active.length} blog / ${refs.size} page${removed.length ? ` · 待删除 ${removed.length} 篇` : ''}`, { class: 'edition-summary' }));
@@ -148,6 +151,46 @@ function renderList() {
     section.append(group.length ? ol : el('p', '这一组没有待审文章。', { class: 'muted' })); list.append(section);
   }
 }
+function renderPageChoice(list) {
+  if (!pageSet?.choiceRequired) return;
+  const section = el('section', null, { class: 'review-group page-choice', 'data-review-group': 'pages' });
+  section.append(el('h2', '站点页面'));
+  section.append(el('p', `站点页面最多显示 4 页。现在有 ${pageSet.cards.length} 张 Page 卡片，请选择留下哪几页。未勾选的不会悄悄去掉：已经在网站上的，要等你确认发布后才撤下；还没上线的，这次不会发布。项目、博客和 Reference 没有上限。`, { class: 'muted group-caption' }));
+  const field = el('fieldset');
+  field.append(el('legend', '留下哪几页'));
+  for (const card of pageSet.cards) {
+    const box = el('input', null, { type: 'checkbox', id: `keep-${card.id}`, value: card.id });
+    box.checked = pageKeepDraft.has(card.id);
+    box.addEventListener('change', () => {
+      if (box.checked) pageKeepDraft.add(card.id); else pageKeepDraft.delete(card.id);
+      if (pageKeepDraft.size > 4) { pageKeepDraft.delete(card.id); box.checked = false; notice('站点页面最多留下 4 页。', true); }
+    });
+    const label = el('label', null, { for: `keep-${card.id}` });
+    label.append(box, document.createTextNode(`${card.title}${card.onSite ? ' · 已在网站上' : ' · 尚未上线'}`));
+    field.append(label);
+  }
+  const ack = el('input', null, { type: 'checkbox', id: 'page-choice-ack' });
+  const ackLabel = el('label', null, { for: 'page-choice-ack' });
+  ackLabel.append(ack, document.createTextNode('我确认就留下勾选的页面。'));
+  section.append(field, ackLabel, button('确认留下这些页面', applyPageChoice));
+  list.append(section);
+}
+async function applyPageChoice() {
+  if (!document.querySelector('#page-choice-ack')?.checked) throw new Error('请先确认就留下勾选的页面。');
+  const keep = [...pageKeepDraft];
+  if (keep.length > 4) throw new Error('站点页面最多留下 4 页。');
+  const result = await api('/heptabase/page-choice', { keep });
+  pageChoice = { keep: result.keep };
+  pageKeepDraft = new Set(result.keep);
+  items = items.filter(item => !item.capped);
+  for (const removed of result.removals) {
+    const card = { ...removed, id: removed.cardLink.split('/').pop() }, input = { collection: removed.collection, id: removed.id, cardLink: removed.cardLink };
+    const plan = await api('/heptabase/removal-preview', input);
+    items.push({ card, input, plan, removal: true, capped: true, decision: plan.approved ? 'remove' : '' });
+  }
+  renderList(); await showSelection(); git = await api('/git'); await renderRelease();
+  notice(`已记下留下的 ${result.keep.length} 页。未选中且已在网站上的页面进入待删除，网站还没变。`);
+}
 async function showSelection() {
   clearMoveLines();
   const pane = document.querySelector('#review-preview'); if (!pane) return; pane.replaceChildren();
@@ -162,6 +205,7 @@ async function showSelection() {
   if (!item.removal || item.plan.reason !== 'deleted') bar.append(link('在 Heptabase 打开 ↗', card.cardLink));
   const pageKind = card.afterProperties?.slot === 'project' ? 'project' : 'blog';
   pane.append(bar, el('p', `${card.mainArticle ? pageKind : 'page · 不出现在博客列表'} / ${card.title}`, { class: 'muted preview-caption' }));
+  if (item.plan.pageNote) pane.append(el('p', item.plan.pageNote, { class: 'muted' }));
   if (item.removal) {
     pane.append(el('p', `${item.plan.reasonLabel}。下方是将被撤下的现有内容，不是准备重新发布的版本。`, { class: 'removal-notice' }));
     if (item.plan.blockers.length) pane.append(el('p', `仍被这些文章引用：${item.plan.blockers.map(b => b.title).join('、')}。先在 Heptabase 移除引用并审核更新，或先撤下引用它的文章，再重新拉取。`, { role: 'alert' }));
@@ -181,7 +225,12 @@ async function showSelection() {
   if (!item.decision && !item.removal) {
     const scope = el('div', null, { class: 'review-scope' }), refs = item.plan.changes.filter(c => !c.mainArticle);
     scope.append(el('p', `审核「${title(item)}」时，会同时确认 ${refs.length} 个引用资料页可以公开。引用资料不单独设置通过或拒绝。`));
-    if (refs.some(c => !c.referenceTagged)) scope.append(button('标记引用资料为 #blog-reference', async () => { await api('/heptabase/mark-references', selection(item)); refs.forEach(c => c.referenceTagged = true); await showSelection(); notice('引用已标记。请确认这些资料不含私人内容。'); }));
+    if (refs.some(c => !c.referenceTagged)) scope.append(button('标记引用资料为 Reference', async () => {
+      await api('/heptabase/mark-references', selection(item));
+      item.plan = await api('/heptabase/preview', item.input);
+      renderList(); await showSelection();
+      notice('引用已加入 #blog，Blog Type 为 Reference。请确认这些资料不含私人内容。');
+    }));
     if (!item.card.linked.length) {
       const kind = item.card.properties?.type === 'project' ? 'projects' : 'articles';
       const select = el('select', null, { 'aria-label': kind === 'projects' ? '关联已有项目' : '关联已有文章' });
@@ -351,9 +400,12 @@ function connectMovedBlocks(comparison) {
   return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); svg.remove(); };
 }
 async function confirmDecision(item, decision) {
+  const approve = decision === 'approve';
+  if (approve && item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
   selected = { item, id: item.card.id }; renderList(); await showSelection();
-  const approve = decision === 'approve', d = dialog(`${approve ? '通过' : '拒绝'}「${title(item)}」`);
-  d.append(el('p', approve ? `通过这篇博客，也表示你已确认它的 ${item.plan.changes.filter(c => !c.mainArticle).length} 个引用资料页可以公开。将回写 Published；发布日期为空时填入今天。网站仍需下一步提交发布。` : '将回写 Block，不修改发布日期，也不会改动线上已有文章。'));
+  const d = dialog(`${approve ? '通过' : '拒绝'}「${title(item)}」`);
+  d.append(el('p', approve ? `通过这篇博客，也表示你已确认它的 ${item.plan.changes.filter(c => !c.mainArticle).length} 个引用资料页可以公开。将回写 Published。卡片已有发布日期或创建时间时，沿用卡片上的时间，不另填今天。网站仍需下一步提交发布。` : '将回写 Block，不修改发布日期，也不会改动线上已有文章。'));
+  if (approve && item.plan.pageNote) d.append(el('p', item.plan.pageNote));
   if (approve) appendTagChanges(d, rootChange(item));
   let checkbox;
   if (approve) { checkbox = el('input', null, { type: 'checkbox', id: 'privacy-reviewed' }); const label = el('label', null, { for: 'privacy-reviewed' }); label.append(checkbox, document.createTextNode('我已检查这篇博客和所有引用，确认可以公开。')); d.append(label); }

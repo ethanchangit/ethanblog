@@ -77,6 +77,10 @@ test('removal includes exclusive cyclic references but keeps shared pages', asyn
   f.remote(raw(SHARED, '共享资料', '两个文章都用它。', false), refPath(SHARED));
   f.remote(raw(OTHER, '另一篇文章', docRef(SHARED)), refPath(OTHER));
   f.properties.set(OTHER, { Status: 'published' }); f.cardSources.set(OTHER, '# 另一篇文章\n\n正文');
+  f.cardSources.set(REF, '# 专属资料\n\n正文'); f.cardSources.set(SHARED, '# 共享资料\n\n正文');
+  const listed = await ok(f.request('/heptabase/cards'));
+  assert.equal(listed.removals.some(item => item.title === '主文'), true);
+  assert.equal(listed.removals.some(item => item.title === '专属资料'), false);
   const plan = await preview(f);
   assert.deepEqual(plan.changes.map(c => c.path), [PATH, refPath(REF)]); assert.equal(plan.keptReferences[0].title, '共享资料');
   await ok(approve(f, plan)); await commit(f);
@@ -134,6 +138,9 @@ test('core pages and reference-only pages drop when the card leaves its tag or i
   f.remote(raw(REF, '资料', '正文', false), refPath(REF));
   f.cardSources.set(REF, '# 资料\n\n正文');
   f.referenceCards.add(REF);
+  const onlyOldTag = await ok(f.request('/heptabase/cards'));
+  assert.equal(onlyOldTag.removals.some((item) => item.id === `hepta-${REF}`), true);
+  f.properties.set(REF, { 'Blog Type': 'Reference' });
   const listed = await ok(f.request('/heptabase/cards'));
   assert.equal(listed.removals.some((item) => item.id === `hepta-${REF}`), false);
 });

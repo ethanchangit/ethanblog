@@ -2,16 +2,19 @@
 import I18n from '@/components/shell/I18n.astro';
 import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
 import { pagePath } from '@/lib/locale';
-import { NOW_PATH, SEARCH_PATH, TAGS_PATH } from '@/lib/routes';
+import { CONTACT_PATH, HOME_PATH, NOW_PATH, PRIVACY_PATH, SEARCH_PATH, TAGS_PATH } from '@/lib/routes';
 
 const lp = Astro.locals.localePath;
-const links: { href: string; key: CopyKey }[] = [
-  { href: TAGS_PATH, key: 'navTags' },
-  { href: NOW_PATH, key: 'navNow' },
+/** 首页只有站名这一处。后面三页各自有路径。标签和搜索不是站点页。 */
+const stations: { href: string; key: CopyKey; id: string }[] = [
+  { href: NOW_PATH, key: 'navNow', id: 'now' },
+  { href: CONTACT_PATH, key: 'navContact', id: 'contact' },
+  { href: PRIVACY_PATH, key: 'navPrivacy', id: 'privacy' },
 ];
+const tools: { href: string; key: CopyKey }[] = [{ href: TAGS_PATH, key: 'navTags' }];
 
 const path = pagePath(Astro.url.pathname);
-const isActive = (href: string) => path === href || path.startsWith(href + '/');
+const isActive = (href: string) => (href === HOME_PATH ? path === HOME_PATH : path === href || path.startsWith(href + '/'));
 ---
 
 {/*
@@ -27,18 +30,42 @@ const isActive = (href: string) => path === href || path.startsWith(href + '/');
     <div class="site-nav-veil-blur site-nav-veil-blur--4"></div>
     <div class="site-nav-veil-tint"></div>
   </div>
-  <nav class="site-nav-bar chrome-fade-bottom relative mx-auto flex max-w-5xl items-center justify-between gap-1 px-4 sm:gap-4 sm:px-6 md:h-14">
+  <nav class="site-nav-bar chrome-fade-bottom relative mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-1 gap-y-0 px-4 sm:gap-x-4 sm:px-6 md:h-14 md:flex-nowrap">
     <a
       href={lp('/')}
+      data-page-station="about"
       aria-label={copy[DEFAULT_LANG].navHome}
       data-i18n-aria="navHome"
+      aria-current={isActive(HOME_PATH) ? 'page' : undefined}
       class="pointer-events-auto inline-flex min-h-11 shrink-0 items-center px-1.5 text-xs font-semibold text-ink-100 transition-colors hover:text-ink-100 sm:px-2 sm:text-sm md:min-h-0 md:py-1.5"
     >
       EthanChang
     </a>
+    <ul
+      class="site-nav-stations pointer-events-auto order-last flex w-full items-center justify-between md:order-none md:ml-auto md:w-auto md:justify-end md:gap-3"
+      aria-label={copy[DEFAULT_LANG].navPages}
+    >
+      {
+        stations.map((link) => (
+          <li class="shrink-0">
+            <a
+              href={lp(link.href)}
+              data-page-station={link.id}
+              aria-current={isActive(link.href) ? 'page' : undefined}
+              class:list={[
+                'inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-xs transition-colors sm:text-sm md:min-h-0 md:min-w-0 md:py-1.5',
+                isActive(link.href) ? 'text-ink-100' : 'text-ink-400 hover:text-ink-100',
+              ]}
+            >
+              <I18n k={link.key} />
+            </a>
+          </li>
+        ))
+      }
+    </ul>
     <ul class="pointer-events-auto flex min-w-0 items-center gap-0.5 sm:gap-1 md:gap-3">
       {
-        links.map((link) => (
+        tools.map((link) => (
           <li class="shrink-0">
             <a
               href={lp(link.href)}

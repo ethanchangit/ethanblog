@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD, LINK, PATH, article } from './test-fixtures.mjs';
-import { publicationDate } from './card-properties.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
 import { onlyTagsChanged, tagDiff } from './review-content.mjs';
 const nativeFetch = globalThis.fetch;
@@ -26,7 +25,10 @@ test('only Review roots are pulled; new and edited use GitHub publication, not a
 });
 test('individual approval writes Published and first date immediately; not deployed, retries idempotent', async () => {
   const f = await setup(); const main = f.refs.get('main'), plan = await preview(f);
-  const result = await ok(decision(f, plan)); assert.equal(result.properties.status, 'published'); assert.equal(result.properties.date, publicationDate());
+  const result = await ok(decision(f, plan)); assert.equal(result.properties.status, 'published');
+  assert.equal(result.properties.date, null);
+  assert.equal((await ok(f.request('/doc?collection=articles&id=example'))).frontmatter.date, '2026-09-21');
+  assert.equal((await ok(f.request('/doc?collection=articles&id=example'))).frontmatter.created, '2026-09-21T00:00:00Z');
   assert.equal(f.refs.get('main'), main); assert.equal(writes(f).length, 0);
   assert.equal((await ok(f.request('/heptabase/cards'))).cards.length, 0);
   await ok(decision(f, plan));
@@ -48,7 +50,7 @@ test('edited approval preserves existing publication day', async () => {
 test('tag-only approval stages exact new tags while keeping body and date; rejection leaves public tags alone', async () => {
   for (const which of ['approve', 'reject']) {
     const f = await setup();
-    const frontmatter = { slot: 'article', title: '测试文章', description: '摘要', date: '2023-01-02', tags: ['Mission', 'AI Native'], heptabaseCardLink: LINK };
+    const frontmatter = { slot: 'article', title: '测试文章', description: '摘要', date: '2023-01-02', created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z', tags: ['Mission', 'AI Native'], heptabaseCardLink: LINK };
     f.remote(serializeMdx({ frontmatter, bodyZh: '标签更新，正文不动。' })); f.setSource('# 测试文章\n\n标签更新，正文不动。');
     f.properties.set(CARD, { Status: 'review', 'Publish Date': { start: '2023-01-02T00:00:00Z' }, Tag: ['Mission', 'Productivity'] });
     const main = f.refs.get('main'), plan = await preview(f), change = plan.changes[0];
@@ -96,7 +98,7 @@ test('pending writes survive timeout and retry with the same first day and no du
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
 });
 test('failed local batch cannot publish a partial approval; retry restores the complete graph', async () => {
-  const f = await setup(); f.cardSources.set(other, '# 引用\n\n资料'); f.referenceCards.add(other);
+  const f = await setup(); f.cardSources.set(other, '# 引用\n\n资料'); f.properties.set(other, { 'Blog Type': 'Reference' });
   f.setSource(`# 第一篇\n\n<hepta-mention type="card" id="${other}">引用</hepta-mention>`);
   f.DB.sqlite.exec("CREATE TRIGGER fail_review BEFORE INSERT ON studio_reviews BEGIN SELECT RAISE(ABORT, 'rollback'); END");
   assert.equal((await decision(f, await preview(f))).status, 500);
@@ -110,7 +112,7 @@ test('rejecting one blog preserves the shared reference needed by an approved bl
   const f = await setup(), ref = '122560bd-b99f-4fb9-9fa5-742090feacb1';
   const mention = `<hepta-mention type="card" id="${ref}">共同资料</hepta-mention>`;
   f.setSource(`# 第一篇\n\n${mention}`); f.cardSources.set(other, `# 第二篇\n\n${mention}`);
-  f.cardSources.set(ref, '# 共同资料\n\n都引用这里'); f.referenceCards.add(ref); f.properties.set(other, { Status: 'review' });
+  f.cardSources.set(ref, '# 共同资料\n\n都引用这里'); f.properties.set(ref, { 'Blog Type': 'Reference' }); f.properties.set(other, { Status: 'review' });
   await ok(decision(f, await preview(f)));
   const second = { ...input, cardLink: `heptabase://card/${other}`, id: `hepta-${other}` };
   const plan = await ok(f.request('/heptabase/preview', 'POST', second));

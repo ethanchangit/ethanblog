@@ -1,10 +1,12 @@
 import {
   CORE_PAGE_BY_TITLE,
-  CORE_PAGE_IDS,
-  corePageIdFromPath,
   isSafeDocRef,
   isSafeId,
   listDocRefs,
+  PAGE_CAP,
+  pageHref,
+  pageIdFromPath,
+  pageReviewNote,
   parseMdx,
   publicHref,
   serializeMdx,
@@ -12,18 +14,18 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, taggedCards, readCard, cardId } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, collectionForBlogType } from './card-properties.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps } from './heptabase.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
-import { BLOG_INDEX, removalMemberIds, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
+import { BLOG_INDEX, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
 
 const DEFAULT_REPOSITORY = 'ethanchangit/ethanblog';
 const DEFAULT_BRANCH = 'main';
 const WORKFLOW_PATH = '.github/workflows/deploy.yml';
 const BLOG_URL = 'https://ethanchang.io';
 const CONTENT_BRANCH = 'codex/studio-content';
-const ALLOWED_CONTENT = /^(src\/content\/(articles|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*\.mdx|src\/content\/pages\/(?:blogs|about|now|contact|privacy)\.mdx|src\/data\/tag-groups\.ts)$/;
+const ALLOWED_CONTENT = /^(src\/content\/(articles|projects)\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*\.mdx|src\/content\/pages\/[a-z0-9]+(?:-[a-z0-9]+)*\.mdx|src\/data\/tag-groups\.ts)$/;
 
 function json(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -151,13 +153,13 @@ function pathDoc(filePath) {
   let match = /^src\/content\/(articles|projects)\/(.+)\.mdx$/.exec(filePath);
   if (match && isSafeId(match[1], match[2])) return { collection: match[1], id: match[2] };
   if (filePath === 'src/content/pages/blogs.mdx') return { collection: 'pages', id: 'blogs' };
-  const core = corePageIdFromPath(filePath);
-  if (core) return { collection: 'pages', id: core };
+  const pageId = pageIdFromPath(filePath);
+  if (pageId && isSafeId('pages', pageId)) return { collection: 'pages', id: pageId };
   return null;
 }
 
 function contentPath(filePath) {
-  return /^src\/content\/(articles|projects)\//.test(filePath) || Boolean(corePageIdFromPath(filePath));
+  return /^src\/content\/(articles|projects)\//.test(filePath) || Boolean(pageIdFromPath(filePath));
 }
 
 function summary(collection, id, raw, extra = {}) {
@@ -392,6 +394,7 @@ async function commitDrafts(env, identity, input) {
       conflicts: conflicts.map(({ path, baseCommitSha, currentCommitSha }) => ({ path, baseCommitSha, currentCommitSha })),
     });
   }
+  assertPublicPageCount(proposed);
   await assertReviewed(env, state, rows);
   const treeEntries = [];
   for (const row of rows) {
@@ -458,6 +461,7 @@ async function publish(env, identity, input) {
   if (!required.pull_requests?.some((p) => p.number === state.pr.number && p.base.sha === main.commitSha)) throw fail('主版本已更新，请在 GitHub 更新分支并重新检查。', 409);
   const reviewedRows = [];
   for (const change of reviewed.changes) reviewedRows.push({ path: change.path, raw: await readBlob(env, state, change.path) });
+  assertPublicPageCount(await contentFiles(env, state));
   await assertReviewed(env, state, reviewedRows);
   await lease();
   const now = new Date().toISOString();
@@ -494,10 +498,112 @@ async function review(env) {
     changes: files.map((f) => ({ path: f.filename, kind: f.status, patch: f.patch || '请在 GitHub 查看完整变化。' })) };
 }
 
+const PAGE_CHOICE_ID = 'page-cap';
+
+function publicPageCount(files) {
+  let count = 0;
+  for (const [path, raw] of files) {
+    if (!pageIdFromPath(path) || !raw || parseMdx(raw).frontmatter.draft) continue;
+    count += 1;
+  }
+  return count;
+}
+
+function pageFileFor(published, card) {
+  for (const [filePath, raw] of published) {
+    if (!pageIdFromPath(filePath) || !raw) continue;
+    const frontmatter = parseMdx(raw).frontmatter;
+    if (frontmatter.draft) continue;
+    if (String(frontmatter.heptabaseCardLink || '').toLowerCase() === card.cardLink) return filePath;
+  }
+  return null;
+}
+
+async function loadPageCards(client, schema, cards, published) {
+  const pages = [];
+  for (const card of cards) {
+    if (card.type !== 'card') continue;
+    const properties = await readProperties(client, card.id, schema);
+    if (!properties.member || properties.type !== 'page') continue;
+    const path = pageFileFor(published, card);
+    pages.push({
+      id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path), path,
+      href: path ? pageHref(pageIdFromPath(path)) : null,
+    });
+  }
+  pages.sort((a, b) => a.title.localeCompare(b.title, 'zh') || a.id.localeCompare(b.id));
+  return pages;
+}
+
+async function storedPageChoice(env) {
+  const row = await firstRow(env, "SELECT payload FROM studio_review_decisions WHERE card_id = ?1 AND decision = 'page-cap'", PAGE_CHOICE_ID);
+  if (!row) return null;
+  try {
+    const payload = JSON.parse(row.payload);
+    if (!Array.isArray(payload.seen) || !Array.isArray(payload.keep)) return null;
+    return payload;
+  } catch { return null; }
+}
+
+function choiceMatches(choice, pages) {
+  if (!choice) return false;
+  const seen = pages.map(page => page.id).sort();
+  const stored = [...choice.seen].sort();
+  const keep = [...new Set(choice.keep)];
+  return seen.join() === stored.join() && keep.length === choice.keep.length && keep.length <= PAGE_CAP && keep.every(id => seen.includes(id));
+}
+
+async function publishedFiles(env, state) {
+  const main = state.pr ? await branchState(env, cfg(env).branch) : state;
+  return contentFiles(env, main);
+}
+
+async function assertKeptPage(env, identity, id) {
+  const client = await mcpClient(env);
+  const { cards, tagId } = await blogCards(client);
+  const schema = await blogSchema(client, tagId);
+  const pages = await loadPageCards(client, schema, cards, await publishedFiles(env, await branchState(env)));
+  if (pages.length <= PAGE_CAP) return;
+  const choice = await storedPageChoice(env);
+  if (!choiceMatches(choice, pages)) throw fail(`站点页面最多显示 ${PAGE_CAP} 页。现在有 ${pages.length} 张 Page 卡片，请先在审核清单里选择留下哪几页。`, 409);
+  if (!choice.keep.includes(id)) throw fail('这张页面不在你选择留下的页面里。要发布它，请先改选择。', 409);
+  const rows = await draftRows(env, identity);
+  for (const page of pages) {
+    if (choice.keep.includes(page.id) || !page.onSite) continue;
+    if (!rows.some(row => row.path === page.path && row.raw === '')) throw fail(`「${page.title}」已在网站上，但不在留下的 ${PAGE_CAP} 页里。请先确认选择，让它进入待删除。`, 409);
+  }
+}
+
+function assertPublicPageCount(files) {
+  const count = publicPageCount(files);
+  if (count > PAGE_CAP) throw fail(`站点页面最多显示 ${PAGE_CAP} 页。这一版会留下 ${count} 页。请先选择留下哪几页；多出来的页面不会被悄悄去掉。`, 409);
+}
+
+function assignPageId(title, card, docs, targets) {
+  const canonicalTitle = String(title || '').trim();
+  const canonical = CORE_PAGE_BY_TITLE.get(canonicalTitle);
+  const taken = (pageId) => {
+    const occupant = docs.find((doc) => doc.collection === 'pages' && doc.id === pageId);
+    const link = occupant?.heptabaseCardLink?.toLowerCase();
+    if (link && link !== `heptabase://card/${card}`) return true;
+    for (const [otherId, target] of targets) if (otherId !== card && target.collection === 'pages' && target.id === pageId) return true;
+    return false;
+  };
+  if (canonical && !taken(canonical)) return { id: canonical, displaced: false, canonicalTitle };
+  return { id: `hepta-${card}`, displaced: Boolean(canonical), canonicalTitle };
+}
+
+function typeRouteMessage(type) {
+  if (type === 'project') return '这张卡片的 Blog Type 是 Project，对应项目页面。';
+  if (type === 'page') return '这张卡片的 Blog Type 是 Page，对应站点页面。';
+  if (type === 'reference') return '这张卡片的 Blog Type 是 Reference，对应文章页面。';
+  return '这张卡片的 Blog Type 是 Blog，对应文章页面。';
+}
+
 function blogBody(parsed) { return `# ${parsed.frontmatter.title}\n\n${parsed.bodyZh.trim()}`; }
 function blogProjection(parsed) { return JSON.stringify({ body: blogBody(parsed), draft: Boolean(parsed.frontmatter.draft), status: parsed.frontmatter.heptabaseStatus, date: parsed.frontmatter.date, tags: parsed.frontmatter.tags || [] }); }
 
-const sourceDigest = (source, properties) => hash(JSON.stringify([source, properties]));
+const sourceDigest = (source, properties, stamps) => hash(JSON.stringify([source, properties, stamps?.created || '', stamps?.updated || '']));
 
 // Check every reachable page, even if it is unchanged in this particular PR.
 // No card bytes are sent to GitHub before this check succeeds.
@@ -505,23 +611,23 @@ async function assertReviewed(env, state, rows) {
   await assertRemovals(env, state, rows);
   const client = await mcpClient(env);
   const { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-  const referencesTag = await taggedCards(client, 'blog-reference');
-  const tagged = new Set(referencesTag.cards.map(c => c.id));
   const pending = rows.filter(row => row.raw && row.path !== BLOG_INDEX), seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
   while (pending.length) {
     const row = pending.shift(); if (seen.has(row.path)) continue; seen.add(row.path);
     if (seen.size > 200) throw fail('发布范围超过 200 张卡片，请拆分审查。');
-    if (!pathDoc(row.path) || (row.path.includes('/pages/') && !corePageIdFromPath(row.path))) throw fail('后台仅发布从 Heptabase 审查过的文章。');
+    if (!pathDoc(row.path) || (row.path.includes('/pages/') && !pageIdFromPath(row.path))) throw fail('后台仅发布从 Heptabase 审查过的文章。');
     if (!row.raw) throw fail('引用资料尚未完整拉取，请重新审查。', 409);
     const parsed = parseMdx(row.raw), id = cardId(parsed.frontmatter.heptabaseCardLink);
     if (parsed.frontmatter.draft) throw fail('待发布清单中仍有草稿，请先选择“准备发布这一版”并审查。', 409);
     const approved = await firstRow(env, 'SELECT * FROM studio_reviews WHERE path = ?1', row.path);
     if (!approved || approved.card_id !== id || approved.raw_hash !== await hash(row.raw)) throw fail('内容未通过隐私审查，或审查后已有变化，请重新拉取并确认。', 409);
     const source = await readCard(client, id), properties = await readProperties(client, id, schema);
-    if (parsed.frontmatter.listed !== false && !properties.member) throw fail('文章已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
-    if (approved.source_hash !== await sourceDigest(source, properties)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
-    if (!properties.member && !tagged.has(id)) throw fail('引用卡片缺少 #blog-reference，请标记并审查。', 409);
-    if (properties.member && !properties.date && String(parsed.frontmatter.date).slice(0, 10) !== publicationDate(new Date(), env.STUDIO_TIMEZONE)) throw fail('首次发布日期已跨天，请重新拉取审查，让网站与 Heptabase 日期一致。', 409);
+    const stamps = (await cardTimestamps(client, [id])).get(id);
+    if (!properties.member) throw fail('卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
+    if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
+    const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
+    const expectedDay = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
+    if (properties.member && String(parsed.frontmatter.date || '').slice(0, 10) !== expectedDay) throw fail(copied.invented ? '首次发布日期已跨天，请重新拉取审查，让网站与 Heptabase 日期一致。' : '网站日期与卡片上的发布日期或创建时间不一致，请重新拉取。', 409);
     for (const ref of blogReferences(parsed.bodyZh)) {
       if (!isSafeDocRef(ref)) throw fail('引用路径不合法。');
       const path = `src/content/${ref}.mdx`;
@@ -536,27 +642,52 @@ async function heptabaseCards(env, identity) {
   const schema = await blogSchema(client, tagId);
   const state = await branchState(env), docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
-  const result = [];
+  const result = [], pageCandidates = [];
   for (const card of cards) {
     const linked = entries.filter((doc) => doc.heptabaseCardLink?.toLowerCase() === card.cardLink);
     const properties = card.type === 'card' ? await readProperties(client, card.id, schema) : null;
+    if (properties?.member && properties.type === 'page') pageCandidates.push(card);
     if (properties?.status !== 'review') continue;
     result.push({ ...card, properties, linked: linked.map(({ collection, id, title, draft }) => ({ collection, id, title, draft })), unsupported: card.type !== 'card' });
   }
   const main = state.pr ? await branchState(env, cfg(env).branch) : state;
-  const files = await contentFiles(env, main), rows = await draftRows(env, identity), removals = [];
+  const published = await contentFiles(env, main);
+  const files = new Map(published), rows = await draftRows(env, identity), removals = [];
   for (const [path, raw] of await contentFiles(env, state, rows)) files.set(path, raw);
   for (const plan of await removalDecisions(env)) if (rows.some(row => row.path === plan.filePath && row.raw === '')) files.set(plan.filePath, plan.graph[0].current.raw);
-  const blogIds = new Set(cards.map(card => card.id));
-  const referenceIds = new Set((await taggedCards(client, 'blog-reference')).cards.map(card => card.id));
+  const blogIds = new Set(cards.map(card => card.id)), candidates = [];
   for (const [path, raw] of files) {
     const p = parseMdx(raw).frontmatter;
     if (path === BLOG_INDEX || p.draft || !p.heptabaseCardLink) continue;
-    const referenceOnly = !corePageIdFromPath(path) && p.listed === false;
-    const id = cardId(p.heptabaseCardLink), reason = await removalReason(client, id, schema, removalMemberIds(p, path, blogIds, referenceIds));
-    if (reason) removals.push({ ...pathDoc(path), cardLink: p.heptabaseCardLink, title: p.title, reason, reasonLabel: referenceOnly && reason === 'untagged' ? '已移出 #blog-reference' : removalReasons[reason] });
+    const id = cardId(p.heptabaseCardLink), reason = await removalReason(client, id, schema, blogIds);
+    if (reason) candidates.push({ path, title: p.title, cardLink: p.heptabaseCardLink, reason, listed: p.listed });
   }
-  return { cards: result, removals, tagOptions: schema.tags.options.map((o) => o.name) };
+  // A listed:false page already inside a main article's removal is withdrawn with that article.
+  // Listing it again duplicates the same page in Deleted articles.
+  const covered = new Set();
+  for (const item of candidates) {
+    if (item.listed === false) continue;
+    for (const child of removalScope(files, item.path).paths) if (child !== item.path) covered.add(child);
+  }
+  for (const item of candidates) {
+    if (covered.has(item.path)) continue;
+    removals.push({ ...pathDoc(item.path), cardLink: item.cardLink, title: item.title, reason: item.reason, reasonLabel: removalReasons[item.reason] });
+  }
+  const pages = pageCandidates.map(card => {
+    const path = pageFileFor(published, card);
+    return { id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path) };
+  }).sort((a, b) => a.title.localeCompare(b.title, 'zh') || a.id.localeCompare(b.id));
+  const stored = await storedPageChoice(env);
+  const pageSet = { cap: PAGE_CAP, choiceRequired: pages.length > PAGE_CAP, cards: pages, choice: choiceMatches(stored, pages) ? { keep: stored.keep } : null };
+  if (pageSet.choice) {
+    for (const plan of await removalDecisions(env)) {
+      if (plan.reason !== 'capped' || pageSet.choice.keep.includes(plan.id)) continue;
+      const cardLink = `heptabase://card/${plan.id}`;
+      if (removals.some(item => item.cardLink === cardLink)) continue;
+      removals.push({ ...pathDoc(plan.filePath), cardLink, title: plan.graph[0].parsed.frontmatter.title, reason: 'capped', reasonLabel: removalReasons.capped });
+    }
+  }
+  return { cards: result, removals, pageSet, tagOptions: schema.tags.options.map((o) => o.name) };
 }
 
 async function contentFiles(env, state, rows = []) {
@@ -572,7 +703,7 @@ async function removalDecisions(env) {
   return (await allRows(env, "SELECT payload FROM studio_review_decisions WHERE decision = 'remove' AND status = 'complete'")).map(row => JSON.parse(row.payload));
 }
 
-async function removalPlan(env, identity, input) {
+async function removalPlan(env, identity, input, forcedReason = null) {
   const path = docPath(input.collection, input.id), id = cardId(input.cardLink);
   const state = await branchState(env), rows = await draftRows(env, identity);
   const main = state.pr ? await branchState(env, cfg(env).branch) : state, publishedRaw = await readBlob(env, main, path);
@@ -580,12 +711,17 @@ async function removalPlan(env, identity, input) {
   const files = await contentFiles(env, state, rows);
   const original = files.get(path) || publishedRaw || (rows.some(row => row.path === path && row.raw === '') ? saved?.graph[0].current.raw : null);
   const parsed = parseMdx(original);
-  const corePage = input.collection === 'pages' && CORE_PAGE_IDS.has(input.id);
-  if (!original || parsed.frontmatter.draft || parsed.frontmatter.heptabaseCardLink !== input.cardLink || (input.collection === 'pages' && !corePage)) throw fail('只能撤下已关联的公开或待发布主文章，请重新拉取。', 409);
+  const sitePage = input.collection === 'pages' && input.id !== 'blogs' && isSafeId('pages', input.id);
+  if (!original || parsed.frontmatter.draft || parsed.frontmatter.heptabaseCardLink !== input.cardLink || (input.collection === 'pages' && !sitePage)) throw fail('只能撤下已关联的公开或待发布主文章，请重新拉取。', 409);
   const client = await mcpClient(env), { cards, tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-  const referenceIds = new Set((await taggedCards(client, 'blog-reference')).cards.map(card => card.id));
-  const reason = await removalReason(client, id, schema, removalMemberIds(parsed.frontmatter, path, new Set(cards.map(c => c.id)), referenceIds));
+  const live = await removalReason(client, id, schema, new Set(cards.map(c => c.id)));
+  const reason = live || (forcedReason === 'capped' || saved?.reason === 'capped' ? 'capped' : null);
   if (!reason) throw fail('卡片已恢复到 #blog，未继续删除。请取消待删除并重新拉取。', 409);
+  if (reason === 'capped') {
+    const pages = await loadPageCards(client, schema, cards, await contentFiles(env, main));
+    const choice = await storedPageChoice(env);
+    if (!choiceMatches(choice, pages) || choice.keep.includes(id)) throw fail('站点页面选择已变化，请重新选择留下哪几页。', 409);
+  }
   if (saved && saved.reason === reason && saved.graph[0].publishedRaw === publishedRaw && (rows.some(row => row.path === path && row.raw === '') || !state.entries.has(path))) return { ...saved, approved: true };
   if (!files.has(path)) throw fail('已有待删除操作，请先取消后重新拉取。', 409);
   const scope = removalScope(files, path), graph = [];
@@ -645,15 +781,18 @@ async function assertRemovals(env, state, rows) {
   if (removed.includes(BLOG_INDEX)) throw fail('不能删除博客目录。', 409);
   const plans = await removalDecisions(env), checked = new Set();
   const client = await mcpClient(env), { cards, tagId } = await blogCards(client), schema = await blogSchema(client, tagId), blogIds = new Set(cards.map(c => c.id));
-  const referenceIds = new Set((await taggedCards(client, 'blog-reference')).cards.map(card => card.id));
   for (const path of new Set([...removed, ...rows.filter(row => !row.raw).map(row => row.path)])) {
     const plan = plans.find(p => p.graph.some(n => n.path === path));
     const node = plan?.graph.find(n => n.path === path);
     if (!node || node.publishedRaw !== (published.get(path) || null)) throw fail('删除尚未审核，或 GitHub 文章已有变化，请重新拉取。', 409);
     if (proposed.has(plan.filePath)) throw fail('不能单独删除仍在发布的文章所用资料。', 409);
     if (!checked.has(plan.id)) {
-      const root = plan.graph[0];
-      if (await removalReason(client, plan.id, schema, removalMemberIds(root.parsed.frontmatter, root.path, blogIds, referenceIds)) !== plan.reason) throw fail('卡片已恢复或移除原因变化，请取消待删除并重新拉取。', 409);
+      const live = await removalReason(client, plan.id, schema, blogIds);
+      if (plan.reason === 'capped') {
+        const pages = await loadPageCards(client, schema, cards, published);
+        const choice = await storedPageChoice(env);
+        if (live || pages.length <= PAGE_CAP || !choiceMatches(choice, pages) || choice.keep.includes(plan.id)) throw fail('站点页面选择已变化，请取消待删除并重新选择留下哪几页。', 409);
+      } else if (live !== plan.reason) throw fail('卡片已恢复或移除原因变化，请取消待删除并重新拉取。', 409);
       checked.add(plan.id);
     }
     if (node.id !== plan.id && blogIds.has(node.id)) throw fail('引用资料已成为 #blog 主文章，未继续删除。请取消待删除并重新拉取。', 409);
@@ -674,21 +813,21 @@ async function heptabasePlan(env, identity, input) {
   if (!card || card.type !== 'card') throw fail('只能同步 #blog 下的文字卡片。');
   const rootProperties = await readProperties(client, id, schema);
   const routed = collectionForBlogType(rootProperties.type);
-  if (input.collection && input.collection !== routed) throw fail(routed === 'projects' ? '这张卡片的 Blog Type 是 Project，对应项目页面。' : routed === 'pages' ? '这张卡片的 Blog Type 是 Page，对应站点页面。' : '这张卡片的 Blog Type 是 Blog，对应文章页面。');
+  if (input.collection && input.collection !== routed) throw fail(typeRouteMessage(rootProperties.type));
   const state = await branchState(env);
   const docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
   const linked = entries.filter((d) => d.heptabaseCardLink?.toLowerCase() === card.cardLink);
-  if (linked.some((d) => d.collection !== routed)) throw fail('已关联页面与 Blog Type 不一致。Blog 对应文章，Project 对应项目，Page 对应站点页面。');
+  if (linked.some((d) => d.collection !== routed)) throw fail('已关联页面与 Blog Type 不一致。Blog 和 Reference 对应文章，Project 对应项目，Page 对应站点页面。');
   const collection = input.collection || linked[0]?.collection || routed;
-  const titledPage = CORE_PAGE_BY_TITLE.get(String(card.title || '').trim());
-  const documentId = input.id || linked[0]?.id || (routed === 'pages' ? titledPage : null) || `hepta-${id}`;
-  if (routed === 'pages' && !CORE_PAGE_IDS.has(documentId)) throw fail('这张 Page 卡片没有对应的站点页面（关于、Now、联系、隐私）。');
+  const pageCards = routed === 'pages' ? await loadPageCards(client, schema, cards, await publishedFiles(env, state)) : [];
+  const rootPage = routed === 'pages' ? assignPageId(card.title, id, entries, new Map()) : null;
+  const documentId = input.id || linked[0]?.id || rootPage?.id || `hepta-${id}`;
   const filePath = docPath(collection, documentId);
   if (collection === 'pages' && documentId === 'blogs') throw fail('博客目录不能绑定为一张内容卡片。');
   if (linked.some((d) => d.collection !== collection || d.id !== documentId)) throw fail('这张卡片已连接另一篇文章，请打开原文章同步。');
   const targets = new Map(entries.filter((d) => d.heptabaseCardLink).map((d) => [cardId(d.heptabaseCardLink), d]));
-  targets.set(id, { collection, id: documentId });
+  targets.set(id, { collection, id: documentId, displaced: Boolean(rootPage?.displaced), canonicalTitle: rootPage?.canonicalTitle || '' });
   const graph = [], pending = [id], seen = new Set();
   while (pending.length) {
     const nextId = pending.shift(); if (seen.has(nextId)) continue; seen.add(nextId);
@@ -697,18 +836,20 @@ async function heptabasePlan(env, identity, input) {
     const properties = await readProperties(client, nextId, schema);
     const routedCollection = properties.member ? collectionForBlogType(properties.type) : null;
     const known = targets.get(nextId);
-    if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Blog 对应文章，Project 对应项目，Page 对应站点页面。');
-    const pageId = routedCollection === 'pages' ? (CORE_PAGE_BY_TITLE.get((/^# (.+)$/m.exec(source) || [])[1]?.trim() || '') || null) : null;
-    if (routedCollection === 'pages' && !known && !pageId) throw fail('这张 Page 卡片没有对应的站点页面（关于、Now、联系、隐私）。');
-    const target = known || { collection: routedCollection || 'articles', id: pageId || `hepta-${nextId}` };
+    if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Blog 和 Reference 对应文章，Project 对应项目，Page 对应站点页面。');
+    const heading = (/^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/m.exec(source) || [])[1]?.trim() || '';
+    const assigned = routedCollection === 'pages' && !known ? assignPageId(heading, nextId, entries, targets) : null;
+    const target = known || { collection: routedCollection || 'articles', id: assigned?.id || `hepta-${nextId}`, displaced: Boolean(assigned?.displaced), canonicalTitle: assigned?.canonicalTitle || '' };
     targets.set(nextId, target);
     const path = docPath(target.collection, target.id);
     const current = await effectiveFile(env, identity, state, path);
-    const parsed = current.raw ? parseMdx(current.raw) : { frontmatter: { slot: target.collection === 'pages' ? 'page' : target.collection === 'projects' ? 'project' : 'article', description: '待补充摘要', date: properties.date || publicationDate(), draft: true, ...(nextId !== id && target.collection !== 'pages' ? { listed: false } : {}) }, imports: '', bodyZh: '' };
+    const stamps = (await cardTimestamps(client, [nextId])).get(nextId);
+    const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
+    const parsed = current.raw ? parseMdx(current.raw) : { frontmatter: { slot: target.collection === 'pages' ? 'page' : target.collection === 'projects' ? 'project' : 'article', description: '待补充摘要', date: copied.date || publicationDate(), created: stamps.created || undefined, updated: stamps.updated || undefined, draft: true, ...(nextId !== id && target.collection !== 'pages' ? { listed: false } : {}) }, imports: '', bodyZh: '' };
     if (current.draft?.state === 'draft' && current.draft.raw === '') throw fail('这篇文章已在待删除清单，请先取消删除后重新拉取。', 409);
     if (current.raw && !parsed.frontmatter.draft && parsed.frontmatter.listed !== false && !properties.member) throw fail('引用的主文章已移出 #blog，请先处理撤下和引用关系，不能自动作为资料继续公开。', 409);
     if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== nextId) throw fail('文章已连接另一张卡片。');
-    graph.push({ id: nextId, path, target, source, properties, parsed, current });
+    graph.push({ id: nextId, path, target, source, properties, created: stamps.created, updated: stamps.updated, parsed, current });
     for (const ref of references(source)) { if (!seen.has(ref.id)) pending.push(ref.id); }
   }
   const rootDraft = input.preparePublish === true ? false : graph[0].properties.status !== 'published';
@@ -719,9 +860,12 @@ async function heptabasePlan(env, identity, input) {
     const archived = /^# [^\n]+\n\n`{3,}mdx\n/.test(node.source);
     if (archived && (!node.current.raw || node.source !== toHeptabase(parsed, entries))) throw fail('这张卡片保存了交互内容的源码。此类程序改动需通过 GitHub 审查，不能直接从卡片运行到网站。');
     const content = archived ? { title: parsed.frontmatter.title, body: parsed.bodyZh, imports: parsed.imports } : fromHeptabase(node.source, targets, parsed.imports);
+    const copied = dateFromCard({ publishDate: properties.date, created: node.created, timezone: env.STUDIO_TIMEZONE });
     const frontmatter = { ...parsed.frontmatter, slot: node.target.collection === 'pages' ? 'page' : node.target.collection === 'projects' ? 'project' : 'article', title: content.title || '未命名卡片', tags: properties.tags,
-      date: properties.date || (!rootDraft && properties.member ? publicationDate(new Date(), env.STUDIO_TIMEZONE) : parsed.frontmatter.date || publicationDate(new Date(), env.STUDIO_TIMEZONE)), draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.member,
-      heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}` };
+      date: copied.date || (!rootDraft && properties.member ? publicationDate(new Date(), env.STUDIO_TIMEZONE) : parsed.frontmatter.date || publicationDate(new Date(), env.STUDIO_TIMEZONE)),
+      created: node.created || undefined, updated: node.updated || undefined,
+      draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.member,
+      heptabaseType: properties.type && properties.type !== 'blog' ? properties.type : undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}` };
     node.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
     const previous = await firstRow(env, 'SELECT * FROM studio_heptabase_sync WHERE card_id = ?1', node.id);
     node.conflict = Boolean(previous && previous.source !== JSON.stringify([node.source, properties]) && previous.blog_body !== blogProjection(parsed));
@@ -731,7 +875,9 @@ async function heptabasePlan(env, identity, input) {
   return { id, collection, documentId, filePath, source: root.source, raw: root.current.raw, next: root.next,
     blog: root.current.raw ? blogBody(root.parsed) : '尚未创建', nextBlog: blogBody(parseMdx(root.next)),
     properties: root.properties,
-    sourceHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.source, n.properties]))),
+    sourceHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.source, n.properties, n.created || '', n.updated || '']))),
+    pageNote: root.target.collection === 'pages' ? pageReviewNote(root.target.id, { ...root.target, choiceRequired: pageCards.length > PAGE_CAP }) : undefined,
+    pageChoiceRequired: root.target.collection === 'pages' && pageCards.length > PAGE_CAP,
     documentHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.current.raw]))),
     planHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.next]))),
     conflict: graph.some((n) => n.conflict), graph, state, schema };
@@ -740,14 +886,12 @@ async function heptabasePlan(env, identity, input) {
 async function heptabasePreview(env, identity, input) {
   const plan = await heptabasePlan(env, identity, input);
   const { state, schema, graph, ...visible } = plan;
-  const { cards } = await taggedCards(await mcpClient(env), 'blog-reference');
-  const tagged = new Set(cards.map(c => c.id));
   // An open PR is a proposed release, not an already-published article.
   const baseline = state.readBranch === state.branch ? state : await branchState(env, state.branch);
   const published = new Map();
   for (const node of graph) published.set(node.id, await readBlob(env, baseline, node.path));
   const changes = graph.map(n => ({ id: n.id, cardLink: `heptabase://card/${n.id}`, title: parseMdx(n.next).frontmatter.title,
-    path: n.path, mainArticle: n.properties.member, referenceTagged: tagged.has(n.id),
+    path: n.path, mainArticle: Boolean(n.properties.member && n.properties.type !== 'reference'), referenceTagged: Boolean(n.properties.member && n.properties.type === 'reference'),
     previouslyPublished: Boolean(published.get(n.id) && !parseMdx(published.get(n.id)).frontmatter.draft),
     kind: !published.get(n.id) ? '新增' : n.next === published.get(n.id) ? '未变化' : '更新',
     beforeContent: published.get(n.id) ? parseMdx(published.get(n.id)).bodyZh : '',
@@ -765,15 +909,21 @@ function samePlan(input, plan) {
 async function markReferences(env, identity, input) {
   return withLock(env, 'publication', async (lease) => {
     const plan = await heptabasePlan(env, identity, input); samePlan(input, plan);
-    const client = await mcpClient(env), { tagId } = await taggedCards(client, 'blog-reference');
-    // A mentioned #blog article remains a main article, never label it as reference-only.
+    const client = await mcpClient(env), { tagId } = await blogCards(client);
+    const option = plan.schema.type.options.find((item) => item.name.trim().toLowerCase() === 'reference');
+    if (!option) throw fail('Blog Type 需要一个 Reference 选项。');
+    // A mentioned #blog article keeps its own Blog Type. Only cards outside #blog become Reference.
     const ids = plan.graph.filter(n => !n.properties.member).map(n => n.id);
     if (ids.length) {
       await lease();
       const result = await client.call('update_database_card_membership', { tagId, operation: 'add', cardIds: ids });
-      if (result.failedCardIds?.length || result.invalidCardIds?.length) throw fail('部分引用尚未标记成功，未批准发布；请重新拉取后重试。', 409);
-      const actual = new Set((await taggedCards(client, 'blog-reference')).cards.map(c => c.id));
-      if (ids.some(id => !actual.has(id))) throw fail('Heptabase 尚未确认全部引用标签，未批准发布。', 409);
+      if (result.failedCardIds?.length || result.invalidCardIds?.length) throw fail('部分引用尚未加入 #blog，未批准发布；请重新拉取后重试。', 409);
+      const edited = await client.call('edit_card_properties', { tagId, edits: ids.map((cardId) => ({ cardId, propertyId: plan.schema.type.id, type: 'select', value: option.name })) });
+      if (!edited.results || edited.results.length !== ids.length || edited.results.some((item) => item.status !== 'success')) throw fail('引用的 Blog Type 没有全部写成 Reference，未批准发布。', 409);
+      for (const id of ids) {
+        const actual = await readProperties(client, id, plan.schema);
+        if (!actual.member || actual.type !== 'reference') throw fail('Heptabase 尚未确认引用已加入 #blog 且 Blog Type 为 Reference。', 409);
+      }
     }
     return { marked: ids.length };
   });
@@ -784,9 +934,9 @@ async function heptabaseApply(env, identity, input) {
     const plan = await heptabasePlan(env, identity, input);
     samePlan(input, plan);
     if (input.confirmPublic !== true) throw fail('请先审查所有文章和引用卡片，并明确确认可以公开。', 409);
-    const tagged = new Set((await taggedCards(await mcpClient(env), 'blog-reference')).cards.map(c => c.id));
-    if (plan.graph.some(n => !n.properties.member && !tagged.has(n.id))) throw fail('请先把没有 #blog 的引用卡片标记为 #blog-reference，并在 Heptabase 完成隐私审查。', 409);
+    if (plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
     if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请比较后明确确认采用 Heptabase 的版本。', 409);
+    if (plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, plan.graph[0].id);
     await savePlan(env, identity, plan, lease);
     return readDoc(env, identity, plan.collection, plan.documentId);
   });
@@ -809,7 +959,7 @@ async function savePlan(env, identity, plan, lease, completion) {
           active ? Number(previous.version) + 1 : 1, now));
       if (!node.remove) {
         statements.push(db(env).prepare('INSERT INTO studio_heptabase_sync (card_id, path, source, blog_body) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(card_id) DO UPDATE SET path = excluded.path, source = excluded.source, blog_body = excluded.blog_body').bind(node.id, node.path, JSON.stringify([node.source, node.properties]), blogProjection(parseMdx(node.next))));
-        statements.push(db(env).prepare('INSERT INTO studio_reviews (path, card_id, source_hash, raw_hash, reviewed_at) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(path) DO UPDATE SET card_id = excluded.card_id, source_hash = excluded.source_hash, raw_hash = excluded.raw_hash, reviewed_at = excluded.reviewed_at').bind(node.path, node.id, await sourceDigest(node.source, node.properties), await hash(node.next), now));
+        statements.push(db(env).prepare('INSERT INTO studio_reviews (path, card_id, source_hash, raw_hash, reviewed_at) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(path) DO UPDATE SET card_id = excluded.card_id, source_hash = excluded.source_hash, raw_hash = excluded.raw_hash, reviewed_at = excluded.reviewed_at').bind(node.path, node.id, await sourceDigest(node.source, node.properties, node), await hash(node.next), now));
       }
     }
     if (completion) statements.push(completion);
@@ -817,9 +967,74 @@ async function savePlan(env, identity, plan, lease, completion) {
     await db(env).batch(statements);
 }
 
+async function restoreRemoval(env, identity, id, lease) {
+  const plan = (await removalDecisions(env)).find(p => p.id === id);
+  if (!plan) return false;
+  const rows = await draftRows(env, identity);
+  if (!plan.graph.every(n => rows.some(row => row.path === n.path && row.raw === ''))) throw fail('删除已提交 GitHub，请先在 GitHub 恢复，不能在这里覆盖已提交版本。', 409);
+  const statements = [];
+  for (const node of plan.graph) {
+    const previous = node.current.draft;
+    if (previous?.state === 'draft') statements.push(db(env).prepare("UPDATE studio_drafts SET raw = ?1, base_raw = ?2, base_commit_sha = ?3, version = version + 1 WHERE path = ?4 AND state = 'draft'").bind(previous.raw, previous.base_raw, previous.base_commit_sha, node.path));
+    else statements.push(db(env).prepare("DELETE FROM studio_drafts WHERE path = ?1 AND state = 'draft'").bind(node.path));
+  }
+  statements.push(db(env).prepare("DELETE FROM studio_review_decisions WHERE card_id = ?1 AND decision = 'remove'").bind(id));
+  await lease();
+  await db(env).batch(statements);
+  return true;
+}
+
+async function choosePages(env, identity, input) {
+  return withLock(env, 'publication', async lease => {
+    if (!Array.isArray(input.keep) || input.keep.some(id => typeof id !== 'string')) throw fail('请选择要留下的站点页面。');
+    const keep = [...new Set(input.keep)];
+    if (keep.length !== input.keep.length) throw fail('请选择要留下的站点页面。');
+    if (keep.length > PAGE_CAP) throw fail(`站点页面最多留下 ${PAGE_CAP} 页。`);
+    const client = await mcpClient(env);
+    const { cards, tagId } = await blogCards(client);
+    const schema = await blogSchema(client, tagId);
+    const state = await branchState(env);
+    const pages = await loadPageCards(client, schema, cards, await publishedFiles(env, state));
+    if (pages.length <= PAGE_CAP) throw fail(`现在不超过 ${PAGE_CAP} 张站点页，会全部发布，不需要挑选。`);
+    const ids = new Set(pages.map(page => page.id));
+    if (keep.some(id => !ids.has(id))) throw fail('只能从 Page 卡片里选择留下的页面。');
+    for (const plan of await removalDecisions(env)) {
+      if (plan.reason === 'capped' && keep.includes(plan.id)) await restoreRemoval(env, identity, plan.id, lease);
+    }
+    const seen = pages.map(page => page.id).sort();
+    await lease();
+    await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'page-cap', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'page-cap', status = 'complete', payload = excluded.payload, created_at = excluded.created_at", PAGE_CHOICE_ID, JSON.stringify({ seen, keep: [...keep].sort() }), new Date().toISOString());
+    for (const page of pages) {
+      if (!page.onSite || keep.includes(page.id)) continue;
+      const plan = await removalPlan(env, identity, { collection: 'pages', id: pageIdFromPath(page.path), cardLink: page.cardLink }, 'capped');
+      if (plan.approved) continue;
+      if (plan.blockers.length) throw fail(`「${page.title}」仍被其他文章引用：${plan.blockers.map(b => b.title).join('、')}。先处理引用，再选择不留下这一页。`, 409);
+      const completion = db(env).prepare("INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'remove', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'remove', status = 'complete', payload = excluded.payload, created_at = excluded.created_at").bind(plan.id, JSON.stringify(plan), new Date().toISOString());
+      await savePlan(env, identity, plan, lease, completion);
+    }
+    const statements = [];
+    for (const row of await draftRows(env, identity)) {
+      if (!row.raw || !pageIdFromPath(row.path)) continue;
+      const link = parseMdx(row.raw).frontmatter.heptabaseCardLink;
+      if (!link) continue;
+      let card;
+      try { card = cardId(link); } catch { continue; }
+      if (!ids.has(card) || keep.includes(card)) continue;
+      statements.push(db(env).prepare("DELETE FROM studio_drafts WHERE path = ?1 AND state = 'draft'").bind(row.path));
+      statements.push(db(env).prepare('DELETE FROM studio_reviews WHERE path = ?1').bind(row.path));
+      statements.push(db(env).prepare("DELETE FROM studio_review_decisions WHERE card_id = ?1 AND decision = 'approve'").bind(card));
+    }
+    if (statements.length) { await lease(); await db(env).batch(statements); }
+    const removals = (await removalDecisions(env)).filter(plan => plan.reason === 'capped' && !keep.includes(plan.id)).map(plan => ({
+      ...pathDoc(plan.filePath), cardLink: `heptabase://card/${plan.id}`, title: plan.graph[0].parsed.frontmatter.title, reason: plan.reason, reasonLabel: plan.reasonLabel,
+    }));
+    return { cap: PAGE_CAP, keep: [...keep].sort(), seen, removals };
+  });
+}
+
 async function reviewDecisions(env) {
   const rows = await allRows(env, 'SELECT * FROM studio_review_decisions ORDER BY created_at DESC');
-  return { decisions: rows.map(row => {
+  return { decisions: rows.filter(row => row.decision === 'approve' || row.decision === 'reject').map(row => {
     const plan = JSON.parse(row.payload), root = plan.graph[0];
     return { id: row.card_id, title: root.parsed.frontmatter.title, decision: row.decision, status: row.status, date: plan.date };
   }) };
@@ -846,18 +1061,19 @@ async function decideReview(env, identity, input) {
       if (input.decision === 'approve') {
         if (input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
         if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请确认采用 Heptabase 版本。', 409);
-        const tagged = new Set((await taggedCards(await mcpClient(env), 'blog-reference')).cards.map(c => c.id));
-        if (plan.graph.some(n => !n.properties.member && !tagged.has(n.id))) throw fail('请先把引用资料标记为 #blog-reference 并完成隐私审查。', 409);
+        if (plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
       }
       // Other #blog cards always need their own decision. A mention must never
       // smuggle a rejected or still-unreviewed blog into this approval.
-      plan.graph = plan.graph.filter(n => n.id === id || !n.properties.member);
-      plan.date = plan.graph[0].properties.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
+      plan.graph = plan.graph.filter(n => n.id === id || n.properties.type === 'reference');
+      const copied = dateFromCard({ publishDate: plan.graph[0].properties.date, created: plan.graph[0].created, timezone: env.STUDIO_TIMEZONE });
+      plan.date = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
+      plan.inventDate = copied.invented;
       plan.state = { repository: plan.state.repository, branch: plan.state.branch, commitSha: plan.state.commitSha };
       await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, ?2, 'pending', ?3, ?4) ON CONFLICT(card_id) DO UPDATE SET decision = excluded.decision, status = 'pending', payload = excluded.payload, created_at = excluded.created_at", id, input.decision, JSON.stringify(plan), new Date().toISOString());
     }
     const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-    const root = plan.graph[0], desired = input.decision === 'approve' ? { status: 'published', ...(!plan.graph[0].properties.date ? { date: plan.date } : {}) } : { status: 'block' };
+    const root = plan.graph[0], desired = input.decision === 'approve' ? { status: 'published', ...(!root.properties.date && !root.created ? { date: plan.date } : {}) } : { status: 'block' };
     const current = await readProperties(client, id, schema);
     // A timed-out write may have applied none, some, or all properties. Accept
     // only those exact intermediate states; never overwrite unrelated edits.
@@ -873,6 +1089,7 @@ async function decideReview(env, identity, input) {
       const staged = await draftFor(env, identity, node.path);
       if ((staged?.state === 'draft' ? staged.raw : null) !== (node.current.draft?.state === 'draft' ? node.current.draft.raw : null)) throw fail('已有更新的审核副本，请重新把卡片标为 Review 后拉取。', 409);
     }
+    if (input.decision === 'approve' && plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, id);
     await lease(); await writeProperties(client, id, schema, desired);
     const after = await readProperties(client, id, schema);
     if (await readCard(client, id) !== root.source || JSON.stringify(after) !== JSON.stringify({ ...root.properties, ...desired })) throw fail('属性已回写，但内容或标签同时被修改。请重新标为 Review 后拉取审查，尚未提交 GitHub。', 409);
@@ -904,7 +1121,7 @@ async function decideReview(env, identity, input) {
 
 async function exportCard(env, identity, input) {
   const path = docPath(input.collection, input.id);
-  if (input.collection === 'pages' && !CORE_PAGE_IDS.has(input.id)) throw fail('目录页不能创建为内容卡片。');
+  if (input.collection === 'pages' && input.id === 'blogs') throw fail('目录页不能创建为内容卡片。');
   return withLock(env, 'publication', async (lease) => {
     const state = await branchState(env);
     const current = await effectiveFile(env, identity, state, path);
@@ -948,6 +1165,7 @@ async function api(request, env) {
   if (path === '/__studio/api/heptabase/status' && request.method === 'GET') return connectionStatus(env);
   if (path === '/__studio/api/heptabase/connect' && request.method === 'POST') return connect(request, env, identity);
   if (path === '/__studio/api/heptabase/cards' && request.method === 'GET') return heptabaseCards(env, identity);
+  if (path === '/__studio/api/heptabase/page-choice' && request.method === 'POST') return choosePages(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/removal-preview' && request.method === 'POST') return removalView(await removalPlan(env, identity, await readJson(request)));
   if (path === '/__studio/api/heptabase/removal' && request.method === 'POST') return decideRemoval(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/removal-cancel' && request.method === 'POST') return cancelRemoval(env, identity, await readJson(request));

@@ -1,17 +1,16 @@
-import { corePageIdFromPath, parseMdx } from '../core.mjs';
+import { parseMdx } from '../core.mjs';
 import { blogReferences, proseParts } from './card-content.mjs';
 import { propertiesFromRead } from './card-properties.mjs';
 import { fail } from './auth.mjs';
 
 export const BLOG_INDEX = 'src/content/pages/blogs.mdx';
-export const removalReasons = { untagged: '已移出 #blog', deleted: 'Heptabase 卡片已删除' };
+export const removalReasons = {
+  untagged: '已移出 #blog',
+  deleted: 'Heptabase 卡片已删除',
+  capped: '超过站点页面上限，这次不留在网站上',
+};
 
-// Public blogs and projects, and the four core pages, stay only while the card is in #blog.
-// A reference-only page (listed: false) stays while the card is still in #blog or #blog-reference.
-export function removalMemberIds(frontmatter, filePath, blogIds, referenceIds) {
-  if (!corePageIdFromPath(filePath) && frontmatter?.listed === false) return new Set([...blogIds, ...referenceIds]);
-  return blogIds;
-}
+// Blogs, projects, Reference cards, and the four core pages stay only while the card is in #blog.
 
 // A missing item in a list alone is never sufficient evidence of deletion.
 export async function removalReason(client, id, schema, blogIds) {
