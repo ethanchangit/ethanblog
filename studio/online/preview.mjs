@@ -2,7 +2,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { assets } from './assets.generated.mjs';
-import { fixture, PASSWORD, CARD, article } from './test-fixtures.mjs';
+import { fixture, CARD, article } from './test-fixtures.mjs';
 import { serializeMdx } from '../core.mjs';
 
 const local = await fixture(assets);
@@ -63,8 +63,9 @@ const server = createServer(async (req, res) => {
     if (req.url === '/__test/deploy' && req.method === 'POST') { local.deploy(); res.end('ok'); return; }
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
-    const request = new Request(`http://localhost:${server.address().port}${req.url}`, { method: req.method, headers: req.headers, ...(body.length ? { body, duplex: 'half' } : {}) });
+    const host = req.headers.host || `localhost:${server.address().port}`;
+    const request = new Request(`http://${host}${req.url}`, { method: req.method, headers: req.headers, ...(body.length ? { body, duplex: 'half' } : {}) });
     const response = await local.handler(request, local.env);
     res.writeHead(response.status, Object.fromEntries(response.headers)); res.end(Buffer.from(await response.arrayBuffer()));
   } catch (error) { res.writeHead(500); res.end(error.message); }
-}).listen(Number(process.env.STUDIO_PREVIEW_PORT ?? 4350), '127.0.0.1', () => console.log(`Local simulated dashboard: http://localhost:${server.address().port}/dashboard\nTest-only password: ${PASSWORD}`));
+}).listen(Number(process.env.STUDIO_PREVIEW_PORT ?? 4350), '127.0.0.1', () => console.log(`Local simulated dashboard: http://localhost:${server.address().port}/dashboard`));

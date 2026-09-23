@@ -23,8 +23,9 @@ test.afterAll(() => { child?.kill('SIGTERM'); });
 
 test('超过 4 张站点页时要在审核清单里选择留下哪几页', async ({ page }) => {
   await page.goto(url);
-  await page.getByLabel('后台密码').fill('local-test-only-password');
-  await page.getByRole('button', { name: '进入发布后台' }).click();
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByLabel('后台密码')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '发布前，再看一遍。' })).toBeVisible();
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   const choice = page.locator('[data-review-group=pages]');
   await expect(choice.getByRole('heading', { name: '站点页面' })).toBeVisible();
