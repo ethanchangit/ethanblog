@@ -3,7 +3,8 @@
 > 调研时间：2026-07-05。本档案是"把网页当动态媒介"研究线（`web-as-medium`）的第二份原始材料，
 > 聚焦 Bret Victor 谱系与 Realtalk 的编程/媒介思想。与 [ink-and-switch.md](ink-and-switch.md)
 > 互补：那份偏"实验室在做什么"，这份偏"动态媒介的第一性原理"。
-> 它直接催生了 Phase 4 Batch 1 的反应式散文（`Var`/`Calc`）与可见性/溯源建设。
+> 它直接催生了 Phase 4 Batch 1 的反应式散文（`Var`/`Calc`）。
+> 这是调研档案，不是操作说明。`PageHistory` 已从读者面撤下。写作在 Heptabase，发布在 `/dashboard`。见 [AGENTS.md](../../AGENTS.md)。
 
 ## 一、Bret Victor：动态媒介的第一性原理
 
@@ -95,7 +96,7 @@ Realtalk 优先服务 Authoring：**"它的目的从来不是让我们更快地�
 |---|---|---|
 | 反应式文档，读者拨动假设 | Explorable Explanations / Tangle | `Var` + `Calc` |
 | 活数据而非死符号，展示所有状态 | Media for Thinking / Ladder of Abstraction | 反应式散文、ParamSlider；Batch 3 amb |
-| 可见源码，页面自我解释 | Dynamicland / Realtalk | 「拆开看」source-view + PageHistory |
+| 可见源码，页面自我解释 | Dynamicland / Realtalk | 「拆开看」source-view（默认不向读者注入）。PageHistory 已撤下 |
 | 声明式响应式规则，行为涌现 | Realtalk Claim/Wish/When | `RuleGarden` + `RuleTarget`（第五档） |
 | 创作优先于工程 | Bret Victor / 那篇博客 | MEDIUM 全文以"媒介表达"为纲，不以"功能"为纲 |
 | 上下文优先，减少无谓交互 | Magic Ink | 溯源行自动渲染、默认值即对的 |

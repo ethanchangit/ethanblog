@@ -1,11 +1,12 @@
 # Ethan 发布后台
 
-入口：`https://ethanchang.io/dashboard`。用自己的密码登录，不依赖 ChatGPT。所有写作留在 Heptabase；后台只负责拉取、比较、隐私审查、提交和发布，不提供编辑器。
+入口：`https://ethanchang.io/dashboard`。生产环境用后台密码登录。所有写作留在 Heptabase；后台只负责拉取、比较、隐私审查、提交和发布，不提供编辑器。
 
 ## 哪里的内容为准
 
 - **Heptabase 是写作来源。** 读取准确名为 `blog` 的标签数据库。审核入口只拉取 `Status = review` 的主文章；`new`、`writing`、`block` 不进入审核清单。大小写兼容，但每个状态只能有一个选项。`published` 表示已通过审核，是否真正上线另看发布进度。
-- **GitHub 是网站、已审查内容与发布历史的唯一真源。** 提交只创建或更新内容 PR；经过检查和明确确认后合并到 `main`，再由 GitHub 发布到 Cloudflare。
+- **GitHub 是网站、已审查内容与发布历史的唯一真源。** 提交只创建或更新内容 PR；经过检查和明确确认后合并到 `main`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages。pull request 只跑 `verify`。在 `main` 上 `workflow_dispatch` 也会部署。
+- 首页 about、Now、联系、隐私留在 Astro 路由和 `src/data/profile.ts`，不从 `#blog` 拉取。`#blog` 的 Blog Type 只有 Blog 和 Project。
 - **Cloudflare 私有存储只保留待提交快照、审查记录、授权和发布进度。** 拉取或保存审查结果不会直接更新网站。后台不会直接覆盖 `main`。
 - 每篇文章或项目用真实的 `heptabaseCardLink: heptabase://card/<uuid>` 一对一关联，不靠标题猜测。历史文章可以继续展示，但更新前需要关联；不能编造链接。
 - 当前只有一份正文，不要求中英双语。英文版副本已移除，中文正文中的英文名称、引用和代码不受影响。
@@ -13,7 +14,7 @@
 ## 日常发布
 
 1. 在 Heptabase 完成写作、日期和标签，把准备审核的主文章标为 `review`。
-2. 登录后台，点大按钮「拉取最新更新」。首次会引导 Heptabase 授权；后台登录仍使用自己的密码。
+2. 打开后台，点大按钮「拉取最新更新」。首次会引导 Heptabase 授权。生产 https://ethanchang.io/dashboard 要后台密码；本地 `npm run dev` 的 http://localhost:4321/dashboard 不要密码。
 3. 左侧分成 **New articles**（新卡片或首次公开）、**Edited articles**（GitHub 主版本里已公开文章的更新）与 **Deleted articles**（移出 `#blog` 或源卡片已删除）。`Blog Type` 为 Blog 的卡片进入文章页，Project 进入项目页；没选时停止拉取，不按标题猜测。blog 用有序清单，跟随的 page 用下方无序清单。首次关联只列出同一类型里尚未连接的网页。没有待删除文章时不显示第三组。
 4. 点击条目，在右侧查看发布排版，或切换「段落对比」。对比以 GitHub 主版本为基准，不把未合并 PR 当作已发布文章。左右栏分别按各自顺序展示完整全文：左栏改动的原有内容为红底删除线，右栏新内容为绿底，未变段落不折叠，不重复显示「原有内容／新内容」标签。移动段落与表格在左侧原位置标红、右侧新位置标绿，跨栏连线连接对应位置；位置提示可点击跳到另一侧。手机上按原文、这一版上下排列，隐藏跨栏连线，保留位置跳转。代码块、列表、表格按完整块比较；标签变化仍独立展示。普通正文复用博客的 Doc/Card 排版；审核时不加载外站图片或运行交互组件，避免私人内容泄露，复杂源码不伪装成已渲染效果。
 5. 检查完整递归引用范围，包括循环和共享引用。没有 `#blog` 的引用卡片需标记 `#blog-reference`，便于回到 Heptabase 集中审查。**标签本身不是公开许可**。
@@ -49,11 +50,9 @@
 
 MCP 暂不能创建选项，缺少时会列出名称，要求先在 Heptabase 添加，不会丢掉原标签。特殊卡片、复杂嵌入等不能安全转换的内容会明确阻止同步。
 
-## 部署与首次配置
+## 部署与配置
 
-旧 Sites 尚未提交的内容需要先导出或提交 GitHub；新后台不会偷偷复制另一个数据库。确认新后台可用之前，不要关闭旧入口。
-
-继续使用 Cloudflare Pages 项目 `ethanblog` 和现有域名，不需要改 DNS。保留原有 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台新增 `studio_` 表，迁移不重建原数据库。GitHub Actions 保留现有 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`。
+Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
 
 Cloudflare production 需要：
 
@@ -77,19 +76,31 @@ npm run build
 npm run test
 ```
 
-`build` 同时构建博客与后台，最终只发布 `dist/`。`.studio-build/` 和 `.studio/` 不上传。项目没有 Sites 专用部署或数据库依赖。
+`build` 同时构建博客与后台，最终只发布 `dist/`。`.studio-build/` 和 `.studio/` 不上传。
+
+本地调试后台：
+
+```sh
+npm run dev
+```
+
+打开 http://localhost:4321/dashboard。这条路由只在 `astro dev` 注入，本机不要求后台密码，改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。`npm run studio` 与 `npm run dev` 是同一条命令。
+
+同一进程的 http://localhost:4321/studio 只能改本机文件。它不是写作应用，生产构建不注入、不部署。
+
+内存验收（带测试密码，不连接真实 GitHub 或 Heptabase）：
 
 ```sh
 npm run build
 node studio/online/preview.mjs
 ```
 
-预览仅监听本机 `http://localhost:4350/dashboard`，GitHub、Heptabase 写入全部模拟在内存中；测试密码由进程显示，不能用于生产。它用于完整界面验收，不代表真实第三方授权或上线验证。旧本地 `/studio` 仅作为迁移期间的兼容工具，不部署到正式站点。
+默认 http://localhost:4350/dashboard。进程打印的测试密码不能用于生产。
 
 ## 故障和恢复
 
-- 未配置密码、存储或 GitHub 时明确提示，绝不退回无密码模式。
-- 登录过期时重新输入密码；连续错误尝试会暂时限制。
+- 生产未配置密码、存储或 GitHub 时明确提示，不会在生产打开无密码后台。本地 `astro dev` 的免密码只在 `STUDIO_DEV_OPEN === true` 且主机是 localhost、127.0.0.1 或 `::1` 时成立。Cloudflare 上的字符串环境变量不会打开这扇门。
+- 生产登录过期时重新输入密码；连续错误尝试会暂时限制。
 - 隐私审查失效：重新拉取，检查完整引用范围，再确认。仅有 `#blog-reference` 不够。
 - 两边都有改动：比较后明确确认采用 Heptabase 的版本。GitHub 上的修改不会被悄悄覆盖。
 - 保存中断：整批审查快照一起保存或一起回滚；之前的版本仍保留。

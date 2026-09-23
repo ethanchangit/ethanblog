@@ -2,7 +2,8 @@
 
 > 调研时间：2026-07-03。本档案是"把网页当动态媒介"研究线（`web-as-medium`）的原始材料，
 > 由四份并行调研笔记整理而成：实验室全貌、动态媒介核心文章精读、Realtalk 思想脉络、网站形态分析。
-> 它直接催生了本站可选交互组件与创作规范（见 [docs/MEDIUM.md](../MEDIUM.md) 与研究线笔记）。
+> 它直接催生了本站可选交互组件与创作规范（见 [docs/MEDIUM.md](../MEDIUM.md)）。
+> 这是调研档案，不是操作说明。站点现在没有 `PageHistory`、notebook 档位或研究线路由。写作在 Heptabase，发布在 `/dashboard`。见 [AGENTS.md](../../AGENTS.md)。
 
 ## 一、Ink & Switch 实验室全貌
 
@@ -133,9 +134,7 @@ Webstrates、Automerge）+ 可组合 UI（OpenDoc、Dynamicland）。对 AI 的�
 **Patchwork（2024–）**："版本历史即聊天"——用类聊天界面给历史加轻量标注，
 分支是"探索的一等公民"，愿景是把版本控制推广到图表/表格等任意数据（beyond prose）。
 **核心洞见**：版本历史不是行政开销、不是备份，而是**一种可读的媒介**——修订说明写给读者看，
-让思路的演进透明。**本站翻译**：`PageHistory`（frontmatter `history: true`）把一篇故事的
-git 提交史渲染成文末"这一页如何长成"时间线；配 commit 信息约定
-（`publish:` / `revise:` 前缀 + 一句话意图，写给读者看）。
+让思路的演进透明。当时曾把 `PageHistory` 做成文末时间线；读者面已经撤下，不要按这段恢复。
 
 ### Ambsheets（2024–2025）—— 一格多值的可能性空间（Batch 3 出处）
 "如果单个单元格能同时持有多个值会怎样？"`{500, 1200}` 表示"500 或 1200"，
@@ -222,6 +221,8 @@ git 提交史渲染成文末"这一页如何长成"时间线；配 commit 信息
 链接下划线是手绘 SVG；分隔线是墨点飞溅。手绘"墨水"风统一插图与装饰，软化论文严肃感。
 
 ### 对本站的可借鉴机制（已转化为建设任务）
+
+notebook 档位、研究线路由和 `PageHistory` 已从站点撤下。下面清单里对应的条目不要恢复。
 
 **第一轮（Phase 3+，已完成）**：
 1. **两档发布制**（essay/notebook）→ stories 集合 kind: notebook + thread/seq

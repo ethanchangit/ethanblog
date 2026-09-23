@@ -19,7 +19,7 @@ const docSchema = z
     updated: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
-    // Legacy pages can still build; every new Studio submission requires this link.
+    // 历史页可以没有链接继续构建。经后台新建或更新时必须是真实的 heptabase://card/<uuid>。
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
     listed: z.boolean().optional(),

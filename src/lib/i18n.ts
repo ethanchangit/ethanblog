@@ -1,4 +1,4 @@
-/** Single Chinese edition. Keep the existing component API until i18n is redesigned. */
+/** 站点只有中文版。`Lang` 仍留着，是为了现有调用能编译。 */
 export type Lang = 'zh-CN' | 'en';
 export const DEFAULT_LANG = 'zh-CN' as const;
 export const LANG_STORAGE_KEY = 'lang';

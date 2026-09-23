@@ -1,7 +1,7 @@
 /**
  * Dev-only routes.
- * `astro dev` / `npm run dev` → http://localhost:4321/dashboard（免密码）and /studio
- * Production builds never inject these routes or the filesystem API.
+ * `astro dev` / `npm run dev` → http://localhost:4321/dashboard（免密码，仅本机）。
+ * `/studio` 只能改本机文件，不是写作入口，生产不注入。写作在 Heptabase。
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -207,7 +207,7 @@ export function studioIntegration() {
           },
         });
         logger.info('本地后台：http://localhost:4321/dashboard（免密码，仅本机 dev）');
-        logger.info('本地编辑器：http://localhost:4321/studio');
+        logger.info('本机文件工具：http://localhost:4321/studio（不是写作入口，不部署）');
       },
     },
   };
