@@ -94,6 +94,8 @@ npm run dev
 
 打开 http://localhost:4321/dashboard。这条路由只在 `astro dev` 注入，本机不要求后台密码，改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。`npm run studio` 与 `npm run dev` 是同一条命令。
 
+本机拉取读 `.dev.vars` 里的 `GITHUB_TOKEN_BLOG`（或 `GITHUB_TOKEN`）和 `STUDIO_SECRET`。云端 Cursor Secrets 用同名 `GITHUB_TOKEN_BLOG`，类型是 Runtime Secret。生产 Pages 仍用 `GITHUB_TOKEN`。`STUDIO_SECRET` 加密 Heptabase 授权；令牌只授权 `ethanchangit/ethanblog`，Contents 与 Pull requests 读写，Actions 只读。不要复用 `gh` 的登录令牌，也不要把令牌写进仓库。授权和拉取缓存写在 `.studio/dashboard.sqlite`，重启后还在。
+
 同一进程的 http://localhost:4321/studio 只能改本机文件。它不是写作应用，生产构建不注入、不部署。
 
 内存验收（不连接真实 GitHub 或 Heptabase）：

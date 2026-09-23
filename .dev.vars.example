@@ -23,6 +23,19 @@ GITHUB_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# Local dashboard (`npm run dev` → http://localhost:4321/dashboard).
+# Production keeps these on Cloudflare Pages, not in this file.
+# GITHUB_TOKEN_BLOG: fine-grained PAT for ethanchangit/ethanblog only
+#   (Contents and Pull requests: read/write, Actions: read).
+#   Same name as the Cursor Runtime Secret. GITHUB_TOKEN is also accepted.
+#   Do not reuse the `gh` login token.
+# STUDIO_SECRET: 32-byte key, base64. Same value as GitHub Actions.
+# STUDIO_PASSWORD_HASH: from `npm run dashboard:password`. Localhost skips the password.
+GITHUB_TOKEN_BLOG=
+GITHUB_TOKEN=
+STUDIO_SECRET=
+STUDIO_PASSWORD_HASH=
+
 # Guestbook mail does not use an API key. Pages binds GUESTBOOK to
 # workers/guestbook (service binding). That Worker sends via Email Routing
 # (EmailMessage) to hey@ethanchang.io. Local `astro dev` has no Worker —

@@ -82,7 +82,7 @@ function ghPath(repo, suffix) {
 }
 
 async function githubRequest(env, path, init = {}) {
-  const token = String(env.GITHUB_TOKEN || '');
+  const token = String(env.GITHUB_TOKEN || env.GITHUB_TOKEN_BLOG || '');
   if (!token) throw fail('请在 Cloudflare 私密配置中连接 GitHub 仓库。', 503);
   const headers = new Headers(init.headers || {});
   headers.set('accept', 'application/vnd.github+json');
