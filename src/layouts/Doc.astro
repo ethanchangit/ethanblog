@@ -86,7 +86,7 @@ const jsonLd = docJsonLd(doc);
     {series && <SeriesNav series={series} part="parent" />}
   </header>
 
-  {!preview && <CopyUrl client:visible url={canonicalUrl} />}
+  {!preview && <CopyUrl client:visible url={canonicalUrl} lang={Astro.locals.lang === 'en' ? 'en' : 'zh-CN'} />}
 
   <div class="article-body-row relative mt-8">
     <article class="article-page">
