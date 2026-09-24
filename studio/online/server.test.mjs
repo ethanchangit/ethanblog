@@ -4,7 +4,7 @@ import { fixture, article, PATH, LINK, CARD, PASSWORD } from './test-fixtures.mj
 import { hash, passwordRecord } from './auth.mjs';
 import { signReceipt } from './release-sync.mjs';
 import { publicationDate } from './card-properties.mjs';
-import { blogCards, listContinueOffset, readCard, toolResult } from './heptabase.mjs';
+import { blogCards, cardStamps, listContinueOffset, readCard, toolResult } from './heptabase.mjs';
 import { fromHeptabase } from './card-content.mjs';
 
 const nativeFetch = globalThis.fetch;
@@ -481,6 +481,7 @@ test('MCP pagination reads every numbered line and rejects incomplete lists', as
   } });
   assert.equal(listed.tagId, blog);
   assert.equal(listed.cards[0].title, '标题');
+  assert.equal(cardStamps('created: 2026-09-21T00:00:00Z; editedTime: 2026-09-23T00:00:00Z').updated, '2026-09-23T00:00:00Z');
   assert.equal(calls[0].nameFilter, undefined);
   assert.equal(calls[0].limit, 100);
   assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
@@ -556,12 +557,14 @@ test('a large tag database is read in batches instead of one subrequest per card
   }
   const first = await jsonOk(f.request('/heptabase/cards'));
   assert.equal(first.partial, true);
-  assert.equal(first.scanned, 20);
+  assert.equal(first.phase, 'fetch');
+  assert.equal(first.fetched, 12);
+  assert.ok(first.changed > first.fetched);
   const reads = f.calls.filter((call) => call.body?.params?.name === 'read_object').length;
-  assert.ok(reads <= 20, String(reads));
+  assert.ok(reads > 0 && reads <= 24, String(reads));
   let payload = first, guard = 0;
   while (payload.partial) {
-    assert.ok(++guard < 8);
+    assert.ok(++guard < 16);
     payload = await jsonOk(f.request('/heptabase/cards'));
   }
   assert.equal(payload.cards.some((card) => card.id === CARD), false);
@@ -620,7 +623,7 @@ test('a second large pull still lists every card, skips unchanged bodies, and ba
   }
   let payload = await jsonOk(f.request('/heptabase/cards')), guard = 0;
   while (payload.partial) {
-    assert.ok(++guard < 8);
+    assert.ok(++guard < 16);
     payload = await jsonOk(f.request('/heptabase/cards'));
   }
   const pages = payload.pageSet.cards.map((card) => card.id);
@@ -638,7 +641,101 @@ test('a second large pull still lists every card, skips unchanged bodies, and ba
   f.calls.length = 0;
   const next = await jsonOk(f.request('/heptabase/cards'));
   assert.equal(next.partial, true);
-  const reread = readObjects(f).map((call) => call.body.params.arguments.objectId);
-  assert.ok(reread.length > 0 && reread.length <= 20, String(reread.length));
-  assert.ok(reread.every((id) => changed.includes(id)));
+  assert.equal(next.phase, 'fetch');
+  assert.equal(next.fetched, 12);
+  assert.equal(next.changed, changed.length);
+  const reread = readObjects(f);
+  assert.ok(reread.length > 0 && reread.length <= 24, String(reread.length));
+  assert.ok(reread.every((call) => changed.includes(call.body.params.arguments.objectId)));
+  assert.ok(reread.some((call) => call.body.params.arguments.limit === 1));
+  assert.ok(reread.some((call) => call.body.params.arguments.limit === 200));
+});
+
+const pullRow = (f, id, edited, source, properties) => f.DB.sqlite.prepare(
+  'INSERT INTO studio_card_pulls (card_id, edited_at, properties, source, card_created, pulled_at) VALUES (?, ?, ?, ?, ?, ?)',
+).run(id, edited, JSON.stringify(properties), source, '2026-09-21T00:00:00Z', '2026-09-23T00:00:00.000Z');
+const cachedProperties = { member: true, status: 'review', date: null, tags: [], type: 'article', summary: '', remark: '', url: null, translations: [] };
+
+test('unchanged editedTime does not fetch properties or content', async () => {
+  const f = await setup();
+  f.properties.get(CARD).Status = 'review';
+  f.properties.get(CARD)['Blog Type'] = 'Article';
+  const kept = '00000000-0000-4000-8000-0000000000aa';
+  f.properties.set(kept, { Status: 'published', 'Blog Type': 'Article' });
+  f.cardSources.set(kept, '# 没变\n\n正文');
+  f.timestamps.set(kept, { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z' });
+  f.remote(`---\nslot: article\ntitle: 没变\ndescription: 摘要\ndate: 2026-09-21\ndraft: false\nheptabaseStatus: published\nheptabaseType: article\nheptabaseCardLink: heptabase://card/${kept}\n---\n\n正文\n`, 'src/content/articles/kept.mdx');
+  pullRow(f, CARD, '2026-09-21T00:00:00Z', '# 测试文章\n\n来自 Heptabase 的正文。', cachedProperties);
+  pullRow(f, kept, '2026-09-21T00:00:00Z', '# 没变\n\n正文', { ...cachedProperties, status: 'published' });
+  f.calls.length = 0;
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.partial, undefined);
+  assert.deepEqual(listed.cards.map((card) => card.id), [CARD]);
+  assert.equal(listed.removals.some((item) => item.id === 'kept'), false);
+  assert.equal(readObjects(f).length, 0);
+  const lists = f.calls.filter((call) => call.body?.params?.name === 'list_cards');
+  assert.ok(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'blog-id'));
+  assert.ok(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'i18n-id'));
+});
+
+test('a newer editedTime fetches properties and content, and leaves the unchanged card unread', async () => {
+  const f = await setup();
+  f.properties.get(CARD).Status = 'published';
+  f.properties.get(CARD)['Blog Type'] = 'Article';
+  const kept = '00000000-0000-4000-8000-0000000000aa';
+  f.properties.set(kept, { Status: 'published', 'Blog Type': 'Article' });
+  f.cardSources.set(kept, '# 没变\n\n正文');
+  const published = { ...cachedProperties, status: 'published' };
+  pullRow(f, CARD, '2026-09-21T00:00:00Z', '# 测试文章\n\n来自 Heptabase 的正文。', published);
+  pullRow(f, kept, '2026-09-21T00:00:00Z', '# 没变\n\n正文', published);
+  f.timestamps.set(CARD, { created: '2026-09-21T00:00:00Z', updated: '2026-09-24T00:00:00Z' });
+  f.timestamps.set(kept, { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z' });
+  f.calls.length = 0;
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.partial, undefined);
+  const reads = readObjects(f);
+  assert.ok(reads.some((call) => call.body.params.arguments.objectId === CARD && call.body.params.arguments.limit === 1));
+  assert.ok(reads.some((call) => call.body.params.arguments.objectId === CARD && call.body.params.arguments.limit === 200));
+  assert.equal(reads.some((call) => call.body.params.arguments.objectId === kept), false);
+  const stored = f.DB.sqlite.prepare('SELECT edited_at, source FROM studio_card_pulls WHERE card_id = ?').get(CARD);
+  assert.equal(stored.edited_at, '2026-09-24T00:00:00Z');
+  assert.match(stored.source, /来自 Heptabase 的正文/);
+});
+
+test('an incomplete card list is not treated as a deletion', async () => {
+  const f = await setup();
+  const id = 'ea84aa8e-dac4-46cb-91d1-1b10dc5350c0';
+  f.properties.set(id, { Status: 'published', 'Blog Type': 'Article' });
+  f.cardSources.set(id, '# 占位\n\n正文');
+  f.remote(`---\nslot: article\ntitle: 占位\ndescription: 摘要\ndate: 2025-01-01\ndraft: false\nheptabaseCardLink: heptabase://card/${id}\n---\n\n占位。\n`, 'src/content/articles/dummy-2025-01.mdx');
+  const fetcher = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body && String(init.body).startsWith('{') ? JSON.parse(init.body) : {};
+    if (body.params?.name === 'list_cards' && body.params.arguments?.tagIds?.[0] === 'blog-id') {
+      const content = `card "测试文章" [${CARD}] created: 2026-09-21T00:00:00Z; updated: 2026-09-21T00:00:00Z`;
+      return new Response(`event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { structuredContent: { status: 'succeeded', content } } })}\n\n`, { headers: { 'content-type': 'text/event-stream', 'mcp-session-id': 'test-session' } });
+    }
+    return fetcher(url, init);
+  };
+  const response = await f.request('/heptabase/cards');
+  assert.notEqual(response.status, 200);
+  assert.equal((await response.text()).includes('dummy-2025-01'), false);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_review_decisions').get().n, 0);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0);
+});
+
+test('a matching published updated time records the baseline without a card read', async () => {
+  const f = await setup();
+  const id = '00000000-0000-4000-8000-0000000000bb';
+  f.properties.set(id, { Status: 'published', 'Blog Type': 'Article' });
+  f.cardSources.set(id, '# 已发布\n\n正文');
+  f.timestamps.set(id, { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T03:00:00Z' });
+  f.remote(`---\nslot: article\ntitle: 已发布\ndescription: 摘要\ndate: 2026-09-21\nupdated: 2026-09-21T03:00:00Z\nheptabaseStatus: published\nheptabaseType: article\ndraft: false\nheptabaseCardLink: heptabase://card/${id}\n---\n\n正文\n`, 'src/content/articles/kept.mdx');
+  f.calls.length = 0;
+  await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(readObjects(f).some((call) => call.body.params.arguments.objectId === id), false);
+  assert.equal(f.DB.sqlite.prepare('SELECT edited_at FROM studio_card_pulls WHERE card_id = ?').get(id).edited_at, '2026-09-21T03:00:00Z');
+  f.calls.length = 0;
+  await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(readObjects(f).some((call) => call.body.params.arguments.objectId === id), false);
 });

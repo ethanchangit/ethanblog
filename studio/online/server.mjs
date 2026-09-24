@@ -18,11 +18,12 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards } from './heptabase.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
+import { IO_CONCURRENCY, mapLimited } from './pool.mjs';
 
 const DEFAULT_REPOSITORY = 'ethanchangit/ethanblog';
 const DEFAULT_BRANCH = 'main';
@@ -662,56 +663,175 @@ async function assertReviewed(env, state, rows) {
   }
 }
 
-const PROPERTY_BATCH = 20;
+// Full properties + body for changed cards only. Kept small so one Worker
+// request stays under the free-plan subrequest limit.
+const CHANGED_BATCH = 12;
+
+function pullTask(card, kind, bodyOnly) {
+  return { id: card.id, kind, created: card.created || '', updated: card.updated || '', bodyOnly: Boolean(bodyOnly) };
+}
+
+function sameEdit(card, cached) {
+  return Boolean(card?.updated && cached && cached.edited_at === card.updated && currentShape(cached.properties));
+}
+
+function propertiesFromPublished(fm) {
+  if (!fm?.updated) return null;
+  if (fm.translationOf) {
+    const language = typeof fm.language === 'string' ? fm.language.trim().toLowerCase() : '';
+    if (!/^[a-z]{2,3}$/.test(language)) return null;
+    return { i18n: true, member: true, language, url: fm.url || null };
+  }
+  const status = String(fm.heptabaseStatus || '').trim().toLowerCase();
+  if (!['new', 'writing', 'blocked', 'published'].includes(status)) return null;
+  const typeValue = fm.heptabaseType || (fm.slot === 'page' ? 'page' : fm.slot === 'project' ? 'project' : fm.slot === 'article' ? 'article' : '');
+  return {
+    member: true, status,
+    date: typeof fm.date === 'string' ? fm.date.slice(0, 10) : null,
+    tags: Array.isArray(fm.tags) ? fm.tags.filter((tag) => typeof tag === 'string') : [],
+    type: typeValue ? String(typeValue).trim().toLowerCase() : null,
+    summary: typeof fm.description === 'string' ? fm.description : '',
+    remark: '', url: typeof fm.url === 'string' ? fm.url : null, translations: [],
+  };
+}
+
+async function publishedCardMeta(env) {
+  const state = await branchState(env);
+  const main = state.pr ? await branchState(env, cfg(env).branch) : state;
+  const files = await contentFiles(env, main);
+  const meta = new Map();
+  for (const [, raw] of files) {
+    let fm;
+    try { fm = parseMdx(raw).frontmatter; }
+    catch { continue; }
+    if (fm.draft || !fm.heptabaseCardLink || !fm.updated) continue;
+    try { meta.set(cardId(fm.heptabaseCardLink), fm); }
+    catch { /* not a card link */ }
+  }
+  return meta;
+}
+
+function reviewTranslationIds(cards, pulls) {
+  const ids = new Set();
+  for (const card of cards) {
+    const properties = pulls.get(card.id)?.properties;
+    if (properties?.status !== 'review') continue;
+    for (const id of properties.translations || []) ids.add(id);
+  }
+  return ids;
+}
+
+async function startPullScan(env, client) {
+  const { blog, i18n } = await dashboardCardLists(client);
+  const pulls = await readCardPulls(env);
+  const listed = [...blog.cards, ...i18n.cards];
+  const cold = listed.some((card) => card.type === 'card' && !sameEdit(card, pulls.get(card.id)));
+  const published = cold ? await publishedCardMeta(env) : new Map();
+  const changed = [];
+  for (const card of blog.cards) {
+    if (card.type !== 'card') continue;
+    const cached = pulls.get(card.id);
+    if (sameEdit(card, cached)) {
+      if (cached.properties.status === 'review' && !cached.has_source) changed.push(pullTask(card, 'blog', true));
+      continue;
+    }
+    const fm = published.get(card.id);
+    const properties = fm && fm.updated === card.updated ? propertiesFromPublished(fm) : null;
+    if (properties) {
+      await saveCardProperties(env, card.id, card.updated, card.created, properties);
+      continue;
+    }
+    changed.push(pullTask(card, 'blog', false));
+  }
+  const blogCount = changed.length;
+  const needed = reviewTranslationIds(blog.cards, await readCardPulls(env));
+  for (const card of i18n.cards) {
+    if (card.type !== 'card') continue;
+    const cached = pulls.get(card.id);
+    const linked = needed.has(card.id);
+    if (sameEdit(card, cached)) {
+      if (linked && !cached.has_source) changed.push(pullTask(card, 'i18n', true));
+      continue;
+    }
+    const fm = published.get(card.id);
+    const properties = fm && fm.updated === card.updated ? propertiesFromPublished(fm) : null;
+    if (properties?.i18n && !linked) {
+      await saveCardProperties(env, card.id, card.updated, card.created, properties);
+      continue;
+    }
+    changed.push(pullTask(card, 'i18n', false));
+  }
+  return {
+    phase: 'fetch', tagId: blog.tagId, i18nTagId: i18n.tagId,
+    blogCards: blog.cards, i18nCards: i18n.cards, changed, blogCount, cursor: 0, linksChecked: false,
+  };
+}
+
+async function appendLinkedTranslations(env, scan) {
+  const pulls = await readCardPulls(env);
+  const needed = reviewTranslationIds(scan.blogCards, pulls);
+  const queued = new Set(scan.changed.map((item) => item.id));
+  for (const card of scan.i18nCards) {
+    if (card.type !== 'card' || queued.has(card.id) || !needed.has(card.id)) continue;
+    const cached = pulls.get(card.id);
+    if (sameEdit(card, cached) && cached.has_source) continue;
+    scan.changed.push(pullTask(card, 'i18n', sameEdit(card, cached)));
+  }
+}
+
+async function fetchChangedCard(env, client, schema, i18n, item) {
+  const cached = item.bodyOnly ? await readCardPull(env, item.id) : null;
+  const trusted = Boolean(item.bodyOnly && currentShape(cached?.properties));
+  try {
+    const properties = trusted ? cached.properties
+      : item.kind === 'i18n' ? await readTranslation(client, item.id, i18n) : await readProperties(client, item.id, schema);
+    const source = await readCard(client, item.id);
+    if (item.updated) await saveCardContent(env, item.id, item.updated, item.created, properties, source);
+  } catch (error) {
+    if (error.heptabaseReason !== 'objectNotFound') throw error;
+  }
+}
 
 async function heptabaseCards(env, identity) {
   const client = await mcpClient(env);
-  const { cards, tagId } = await blogCards(client);
-  const schema = await blogSchema(client, tagId);
-  // One Worker request stays under the free-plan subrequest limit. Reading every
-  // card in the same request is what turned a full #blog pull into an HTML 502.
-  const batched = cards.length > PROPERTY_BATCH;
-  const signature = cards.map((card) => card.id).join('\n');
-  let scan = batched ? await readPullScan(env, identity.sessionId) : null;
-  if (!scan || scan.signature !== signature) scan = { signature, props: {}, cursor: 0 };
-  const started = scan.cursor;
-  const pulls = await readCardPulls(env);
-  const budget = batched ? PROPERTY_BATCH : Number.POSITIVE_INFINITY;
-  let fetches = 0;
-  // The list above already carries each card's edited time. Unchanged cards reuse
-  // the last successful pull. Only a new or changed edited time spends a subrequest,
-  // and those reads stay inside the same batch that avoids the 50-subrequest 502.
-  while (scan.cursor < cards.length && fetches < budget) {
-    const card = cards[scan.cursor];
-    if (card.type !== 'card') { scan.props[card.id] = null; scan.cursor++; continue; }
-    const cached = pulls.get(card.id);
-    if (card.updated && cached?.edited_at === card.updated && currentShape(cached.properties)) {
-      scan.props[card.id] = cached.properties;
-      scan.cursor++;
-      continue;
+  let scan = await readPullScan(env, identity.sessionId);
+  // Step 1 is CardList + editedTime for #blog and #blogi18n. A resumed request
+  // only continues step 2, so an unchanged card never gets a properties or body read.
+  if (scan?.phase !== 'fetch' || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
+  const schema = await blogSchema(client, scan.tagId);
+  let i18n = null, fetched = 0;
+  while (fetched < CHANGED_BATCH) {
+    if (scan.cursor === scan.blogCount && !scan.linksChecked) {
+      await appendLinkedTranslations(env, scan);
+      scan.linksChecked = true;
     }
-    try {
-      const properties = await readProperties(client, card.id, schema);
-      scan.props[card.id] = properties;
-      await saveCardProperties(env, card.id, card.updated, card.created, properties);
-    } catch (error) {
-      if (error.heptabaseReason !== 'objectNotFound') throw error;
-      scan.props[card.id] = null;
-    }
-    scan.cursor++;
-    fetches++;
+    if (scan.cursor >= scan.changed.length) break;
+    const room = CHANGED_BATCH - fetched;
+    const end = scan.cursor < scan.blogCount ? Math.min(scan.cursor + room, scan.blogCount) : Math.min(scan.cursor + room, scan.changed.length);
+    const batch = scan.changed.slice(scan.cursor, end);
+    if (!batch.length) break;
+    if (batch.some((item) => item.kind === 'i18n') && !i18n) i18n = await i18nSchema(client, scan.i18nTagId);
+    await mapLimited(batch, IO_CONCURRENCY, (item) => fetchChangedCard(env, client, schema, i18n, item));
+    scan.cursor += batch.length;
+    fetched += batch.length;
   }
-  if (batched && (scan.cursor < cards.length || scan.cursor > started)) {
+  if (scan.cursor === scan.blogCount && !scan.linksChecked) {
+    await appendLinkedTranslations(env, scan);
+    scan.linksChecked = true;
+  }
+  if (scan.cursor < scan.changed.length || !scan.linksChecked) {
     await writePullScan(env, identity.sessionId, scan);
-    return { partial: true, scanned: scan.cursor, total: cards.length };
+    return { partial: true, phase: 'fetch', fetched: scan.cursor, changed: scan.changed.length };
   }
-  if (batched) await clearPullScan(env, identity.sessionId);
+  await clearPullScan(env, identity.sessionId);
+  const cards = scan.blogCards;
+  const pulls = await readCardPulls(env);
   const state = await branchState(env), docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
   const result = [], pageCandidates = [];
   for (const card of cards) {
     const linked = entries.filter((doc) => doc.heptabaseCardLink?.toLowerCase() === card.cardLink);
-    const properties = scan.props[card.id] || null;
+    const properties = pulls.get(card.id)?.properties || null;
     if (!properties) continue;
     if (properties.member && properties.type === 'page') pageCandidates.push(card);
     if (properties.status !== 'review') continue;
@@ -723,12 +843,14 @@ async function heptabaseCards(env, identity) {
   for (const [path, raw] of await contentFiles(env, state, rows)) files.set(path, raw);
   for (const plan of await removalDecisions(env)) if (rows.some(row => row.path === plan.filePath && row.raw === '')) files.set(plan.filePath, plan.graph[0].current.raw);
   const blogIds = new Set(cards.map(card => card.id)), candidates = [];
+  const removalChecks = [];
   for (const [path, raw] of files) {
     const p = parseMdx(raw).frontmatter;
     if (path === BLOG_INDEX || p.draft || !p.heptabaseCardLink || p.translationOf) continue;
-    const id = cardId(p.heptabaseCardLink), reason = await removalReason(client, id, schema, blogIds);
-    if (reason) candidates.push({ path, title: p.title, cardLink: p.heptabaseCardLink, reason, listed: p.listed });
+    removalChecks.push({ path, title: p.title, cardLink: p.heptabaseCardLink, id: cardId(p.heptabaseCardLink), listed: p.listed });
   }
+  const reasons = await mapLimited(removalChecks, IO_CONCURRENCY, (item) => removalReason(client, item.id, schema, blogIds));
+  removalChecks.forEach((item, index) => { if (reasons[index]) candidates.push({ path: item.path, title: item.title, cardLink: item.cardLink, reason: reasons[index], listed: item.listed }); });
   // A listed:false page already inside a main article's removal is withdrawn with that article.
   // Listing it again duplicates the same page in Deleted articles.
   const covered = new Set();
