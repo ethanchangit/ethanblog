@@ -28,7 +28,7 @@ test('URL column is the slug as written; Chinese is served at /cn', () => {
   assert.equal(urlArticleId('toolset', null), 'toolset');
 });
 
-test('a Serial pair maps English to /articles/<url> and Chinese to /articles/<url>/cn', async () => {
+test('a Serial pair maps English to /<url> and Chinese to /<url>/cn', async () => {
   const f = await setup([[EN, 'My toolset', { Serial: 7, URL: 'toolset' }], [ZH, '我的工具箱', { Serial: 7, Language: 'simplified chinese' }]]);
   await ok(f.request('/heptabase/cards'));
   const en = await ok(preview(f, EN)), zh = await ok(preview(f, ZH));
@@ -38,6 +38,26 @@ test('a Serial pair maps English to /articles/<url> and Chinese to /articles/<ur
   assert.deepEqual([enFront.serial, enFront.language, enFront.url], [7, undefined, 'toolset']);
   assert.deepEqual([zhFront.serial, zhFront.language, zhFront.url], [7, 'cn', 'toolset']);
   assert.equal(en.changes[0].title, 'My toolset');
+  for (const [id, plan] of [[EN, en], [ZH, zh]]) await ok(f.request('/heptabase/decision', 'POST', { cardLink: link(id), collection: 'articles', preparePublish: true, reviewOnly: true, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'approve', confirmPublic: true }));
+  assert.equal((await ok(f.request('/doc?collection=articles&id=toolset'))).href, '/toolset');
+  assert.equal((await ok(f.request('/doc?collection=articles&id=toolset%2Fcn'))).href, '/toolset/cn');
+});
+
+test('a mention of the Chinese version links to /<url>/cn', async () => {
+  const f = await setup([[ZH, '我的工具箱', { Serial: 7, URL: 'toolset', Language: 'simplified chinese' }]]);
+  f.cardSources.set(EN, `# My toolset\n\nRead it in <hepta-mention type="card" id="${ZH}">Chinese</hepta-mention>.`);
+  f.properties.set(EN, { Status: 'review', Serial: 7, URL: 'toolset' });
+  const plan = await ok(preview(f, EN));
+  assert.match(plan.next, /href="\/toolset\/cn"/);
+});
+
+test('a URL that collides with a fixed site route is refused and names the route', async () => {
+  for (const fixed of ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about']) {
+    assert.throws(() => routeSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
+  }
+  const f = await setup([[EN, 'Now page copy', { URL: 'now' }]]);
+  const refused = await preview(f, EN); assert.equal(refused.status, 409);
+  assert.match((await refused.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
 });
 
 test('a card without URL keeps the old slug; a URL is never taken from the title', async () => {

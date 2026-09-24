@@ -636,7 +636,7 @@ async function showSelection() {
     frame.addEventListener('load', () => fitFrame(frame));
     frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
       const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
-      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path);
+      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => contentPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path);
       if (target) void run(async () => { selected = { item, id: target.id }; renderList(); await showSelection(); });
       else notice('预览中不打开外部链接，以免未发布内容发送到其他网站。');
     }));
@@ -679,8 +679,12 @@ function remarkField(item) {
   box.append(label, area, hint);
   return box;
 }
+/** Public path. A Heptabase URL article (articles/<url>.mdx, articles/<url>/cn.mdx) is served at /<url> and /<url>/cn. */
 function contentPath(card) {
-  return card.path ? '/' + card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') : '';
+  if (!card.path) return '';
+  const id = card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '');
+  const url = card.afterProperties?.url || card.beforeProperties?.url;
+  return url && id.startsWith('articles/') ? '/' + id.slice('articles/'.length) : '/' + id;
 }
 function appendProperties(parent, card, kind, removal) {
   const before = card.beforeProperties || {}, p = (removal ? card.beforeProperties : card.afterProperties) || {};

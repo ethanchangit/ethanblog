@@ -1,0 +1,36 @@
+---
+import ReadingShell from '@/components/shell/ReadingShell.astro';
+import Doc from '@/layouts/Doc.astro';
+import Toc from '@/components/shell/Toc.astro';
+import { docHref, type DocEntry } from '@/lib/docs';
+import { hasToc } from '@/lib/toc';
+import { render } from 'astro:content';
+
+interface Props {
+  article: DocEntry;
+}
+
+const { article } = Astro.props;
+const rendered = await render(article);
+const split = rendered.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
+const zhHeadings =
+  typeof split === 'number' ? rendered.headings.slice(0, split) : rendered.headings;
+const showRail = hasToc(zhHeadings);
+const Content = rendered.Content;
+---
+
+<ReadingShell
+  kind="article"
+  title={article.data.title}
+  description={article.data.description}
+  currentId={article.id}
+  docHref={docHref(article)}
+  showRail={showRail}
+>
+  <Doc doc={article}>
+    <Content />
+  </Doc>
+  <Fragment slot="rail">
+    <Toc headings={zhHeadings} />
+  </Fragment>
+</ReadingShell>

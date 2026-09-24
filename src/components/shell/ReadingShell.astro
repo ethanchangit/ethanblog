@@ -12,6 +12,8 @@ interface Props {
   title?: string;
   description: string;
   currentId?: string;
+  /** The document's public path when it is not /articles/<id> (a Heptabase URL article). */
+  docHref?: string;
   showRail?: boolean;
 }
 
@@ -21,6 +23,7 @@ const {
   title,
   description,
   currentId,
+  docHref,
   showRail = false,
 } = Astro.props;
 const lp = Astro.locals.localePath;
@@ -31,7 +34,7 @@ const indexHref = lp(listKind === 'projects' ? PROJECTS_PATH : ARTICLES_PATH);
 const docSrc =
   kind === 'index'
     ? ''
-    : lp(kind === 'home' ? HOME_PATH : kind === 'article' ? articleHref(currentId ?? '') : projectHref(currentId ?? ''));
+    : lp(kind === 'home' ? HOME_PATH : kind === 'article' ? docHref ?? articleHref(currentId ?? '') : projectHref(currentId ?? ''));
 const backKey: CopyKey = kind === 'project' || listKind === 'projects' ? 'backToProjects' : 'backToArticles';
 const showProjects = listKind === 'projects';
 ---

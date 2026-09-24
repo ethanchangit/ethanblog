@@ -126,8 +126,11 @@ function localeFromReferer(request: Request): string | undefined {
   }
 }
 
-function redirectToArticle(request: Request, slug: string, sent: '1' | '0'): Response {
-  const dest = new URL(localizeHref(articleHref(slug), localeFromReferer(request)), request.url);
+async function redirectToArticle(request: Request, slug: string, sent: '1' | '0'): Promise<Response> {
+  // A Heptabase URL article lives at /<url>, not /articles/<id>.
+  const doc = await findDoc(slug);
+  const href = doc ? docHref(doc) : articleHref(slug);
+  const dest = new URL(localizeHref(href, localeFromReferer(request)), request.url);
   dest.searchParams.set('sent', sent);
   dest.hash = 'comments';
   return Response.redirect(dest, 303);
@@ -139,7 +142,7 @@ function jsonOrRedirect(
   slug: string,
   payload: Record<string, unknown>,
   status: number,
-): Response {
+): Response | Promise<Response> {
   if (isForm && slug) {
     const ok = status < 400 || payload.ok === true;
     return redirectToArticle(request, slug, ok ? '1' : '0');

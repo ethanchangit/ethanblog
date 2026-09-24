@@ -86,13 +86,22 @@ export function languageCode(value) {
   return text;
 }
 
-/** The URL column is the article slug exactly as written. It is never derived from the title. */
+/** Top-level paths the site already owns. Keep in sync with RESERVED_URLS in src/lib/routes.ts. */
+export const RESERVED_URLS = ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'lab', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'];
+
+/** The URL column is the public path exactly as written (/<url>, Chinese /<url>/cn). It is never derived from the title. */
 export function routeSlug(value) {
   if (value == null) return null;
   const slug = String(value).trim().replace(/^\/+|\/+$/g, '');
   if (!slug) return null;
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || /^\d+$/.test(slug)) throw fail(`URL「${slug}」只能用小写字母、数字和连字符，且不能只有数字。请在 Heptabase 改好后重新拉取。`);
+  if (RESERVED_URLS.includes(slug)) throw fail(`URL「${slug}」与网站固定地址 /${slug} 冲突。请在 Heptabase 换一个 URL 后重新拉取。`, 409);
   return slug;
+}
+
+/** Public path of a URL article. */
+export function urlHref(url, language) {
+  return language === 'cn' ? `/${url}/cn` : `/${url}`;
 }
 
 /** Article id for a URL card: English is <url>, Chinese is <url>/cn. */

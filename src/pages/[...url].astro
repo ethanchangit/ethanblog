@@ -1,0 +1,22 @@
+---
+import ArticleView from '@/components/shell/ArticleView.astro';
+import { docHref, docsBySlot, includeDraftsInDev } from '@/lib/docs';
+
+export const prerender = true;
+
+// Articles whose Heptabase card sets URL: English at /<url>, Chinese at /<url>/cn.
+// Fixed routes always win; content.config and the dashboard both refuse reserved URLs.
+export async function getStaticPaths() {
+  const articles = await docsBySlot('article', { includeDrafts: includeDraftsInDev });
+  return articles
+    .filter((article) => article.data.url)
+    .map((article) => ({
+      params: { url: docHref(article).slice(1) },
+      props: { article },
+    }));
+}
+
+const { article } = Astro.props;
+---
+
+<ArticleView article={article} />

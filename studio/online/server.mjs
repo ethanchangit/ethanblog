@@ -19,7 +19,7 @@ import {
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, urlArticleId } from './card-properties.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, urlArticleId, urlHref } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
@@ -166,6 +166,11 @@ function contentPath(filePath) {
   return /^src\/content\/(articles|projects)\//.test(filePath) || Boolean(pageIdFromPath(filePath));
 }
 
+// A Heptabase URL article is served at /<url> (Chinese /<url>/cn), not /articles/<id>.
+function docHrefFor(collection, id, data = {}) {
+  return collection === 'articles' && typeof data.url === 'string' && data.url ? urlHref(data.url, data.language) : publicHref(collection, id);
+}
+
 function summary(collection, id, raw, extra = {}) {
   const data = parseMdx(raw).frontmatter ?? {};
   return {
@@ -174,7 +179,7 @@ function summary(collection, id, raw, extra = {}) {
     tags: Array.isArray(data.tags) ? data.tags : [], draft: Boolean(data.draft), listed: data.listed,
     date: data.date ? String(data.date).slice(0, 10) : '',
     slot: data.slot ?? (collection === 'projects' ? 'project' : collection === 'articles' ? 'article' : undefined),
-    href: publicHref(collection, id), heptabaseCardLink: data.heptabaseCardLink || '', series: id.includes('/') && !id.endsWith('/cn'),
+    href: docHrefFor(collection, id, data), heptabaseCardLink: data.heptabaseCardLink || '', series: id.includes('/') && !id.endsWith('/cn'),
     serial: typeof data.serial === 'number' ? data.serial : null, language: data.language || null, url: typeof data.url === 'string' ? data.url : null, ...extra,
   };
 }
@@ -221,7 +226,7 @@ async function upsertDraft(env, identity, state, filePath, raw, { baseCommitSha,
 function docPayload(collection, id, raw, state, draft, remoteRaw) {
   const parsed = parseMdx(raw);
   return {
-    collection, id, href: publicHref(collection, id), ...parsed,
+    collection, id, href: docHrefFor(collection, id, parsed.frontmatter), ...parsed,
     filePath: docPath(collection, id),
     remoteRaw,
     remoteCommitSha: state.commitSha,

@@ -1,12 +1,13 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { articleHref, projectHref } from '@/lib/routes';
+import { articleHref, projectHref, urlArticleHref } from '@/lib/routes';
 
 /** 哪份索引收录这条文档。与 topical `tags` 无关。 */
 export type DocSlot = 'article' | 'project';
 export type DocEntry = CollectionEntry<'articles'> | CollectionEntry<'projects'>;
 
 export function docHref(entry: Pick<DocEntry, 'id' | 'data'>): string {
-  return entry.data.slot === 'project' ? projectHref(entry.id) : articleHref(entry.id);
+  if (entry.data.slot === 'project') return projectHref(entry.id);
+  return entry.data.url ? urlArticleHref(entry.data.url, entry.data.language) : articleHref(entry.id);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { RESERVED_URLS } from '@/lib/routes';
 
 /**
  * 文章与项目共用同一份 MDX 形态。
@@ -24,7 +25,7 @@ const docSchema = z
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
-    // Heptabase Serial / Language / URL. One Serial is one article; its Chinese version lives at <url>/cn.
+    // Heptabase Serial / Language / URL. One Serial is one article; English is served at /<url>, Chinese at /<url>/cn.
     serial: z.number().optional(),
     language: z.enum(['en', 'cn']).optional(),
     url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
@@ -43,6 +44,9 @@ const docSchema = z
     featured: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
+    if (value.url && (RESERVED_URLS as readonly string[]).includes(value.url)) {
+      ctx.addIssue({ code: 'custom', message: `url「${value.url}」与网站固定地址 /${value.url} 冲突`, path: ['url'] });
+    }
     if (value.slot === 'article' && value.date == null) {
       ctx.addIssue({
         code: 'custom',
