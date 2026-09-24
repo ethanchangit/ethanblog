@@ -368,8 +368,7 @@ kbd {
 #review-preview {
   min-width: 0;
   width: 100%;
-  border: 1px solid var(--dash-line);
-  border-radius: var(--dash-radius);
+  border: 0;
   padding: 0 24px 28px;
 }
 #review-preview > .status { margin: 16px 0 0; }
