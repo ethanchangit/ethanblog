@@ -16,10 +16,41 @@ export async function prepareWriteback(env, releaseId, cards) {
   }
 }
 
+/** Dialog remarks are stored on the decision until a deploy actually finishes. Retries write that same text. */
+async function flushPendingRemarks(env) {
+  const rows = (await env.DB.prepare("SELECT card_id, payload FROM studio_review_decisions WHERE status = 'complete'").all()).results || [];
+  const due = [];
+  for (const row of rows) {
+    let plan;
+    try { plan = JSON.parse(row.payload); } catch { continue; }
+    if (!plan?.remarkPending || typeof plan.pendingRemark !== 'string') continue;
+    due.push({ id: row.card_id, remark: plan.pendingRemark, plan });
+  }
+  if (!due.length) return { written: 0 };
+  const client = await mcpClient(env);
+  const { tagId } = await blogCards(client);
+  const schema = await blogSchema(client, tagId);
+  let written = 0;
+  for (const item of due) {
+    const current = await readProperties(client, item.id, schema);
+    if ((current.remark || '') !== item.remark) {
+      await writeProperties(client, item.id, schema, { remark: item.remark });
+      written += 1;
+    }
+    item.plan.remarkPending = false;
+    item.plan.remarkWritten = item.remark;
+    await env.DB.prepare('UPDATE studio_review_decisions SET payload = ?2 WHERE card_id = ?1').bind(item.id, JSON.stringify(item.plan)).run();
+  }
+  return { written };
+}
+
 export async function completeWriteback(env, releaseId) {
   return withLock(env, 'heptabase-writeback', async () => {
   const rows = (await env.DB.prepare('SELECT * FROM studio_release_cards WHERE release_id = ?1 AND completed = 0').bind(releaseId).all()).results;
-  if (!rows.length) return { pending: 0, errors: [] };
+  if (!rows.length) {
+    const remarks = await flushPendingRemarks(env);
+    return { pending: 0, errors: [], remarks };
+  }
   try {
     const client = await mcpClient(env);
     const { tagId } = await blogCards(client);
@@ -45,7 +76,8 @@ export async function completeWriteback(env, releaseId) {
     return { pending: rows.length, errors: [error.message] };
   }
   const pending = (await env.DB.prepare('SELECT error FROM studio_release_cards WHERE release_id = ?1 AND completed = 0').bind(releaseId).all()).results;
-  return { pending: pending.length, errors: pending.map((r) => r.error).filter(Boolean) };
+  const remarks = await flushPendingRemarks(env);
+  return { pending: pending.length, errors: pending.map((r) => r.error).filter(Boolean), remarks };
   });
 }
 

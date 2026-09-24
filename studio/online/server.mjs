@@ -356,6 +356,7 @@ async function syncRelease(env, row) {
 }
 
 async function commitDrafts(env, identity, input) {
+  if (input.pageChoice || (Array.isArray(input.decisions) && input.decisions.length)) await applyDecisionBatch(env, identity, input);
   return withLock(env, 'publication', async (lease) => {
   if (await firstRow(env, "SELECT card_id FROM studio_review_decisions WHERE status = 'pending' LIMIT 1")) throw fail('还有审核属性尚未回写完成，请先重试该操作。', 409);
   const message = String(input.message || '').trim();
@@ -914,7 +915,9 @@ async function removalPlan(env, identity, input, forcedReason = null) {
   const live = await removalReason(client, id, schema, new Set(cards.map(c => c.id)));
   const reason = live || (forcedReason === 'capped' || saved?.reason === 'capped' ? 'capped' : null);
   if (!reason) throw fail('卡片已恢复到 #blog，未继续删除。请取消待删除并重新拉取。', 409);
-  if (reason === 'capped') {
+  // previewOnly lets the pull cache a capped-page body before the reviewer has chosen.
+  // It does not store a decision. The real choice is checked when that choice is published.
+  if (reason === 'capped' && input.previewOnly !== true) {
     const pages = await loadPageCards(client, schema, cards, await contentFiles(env, main));
     const choice = await storedPageChoice(env);
     if (!choiceMatches(choice, pages) || choice.keep.includes(id)) throw fail('站点页面选择已变化，请重新选择留下哪几页。', 409);
@@ -1211,7 +1214,9 @@ function samePlan(input, plan) {
 
 async function markReferences(env, identity, input) {
   return withLock(env, 'publication', async (lease) => {
-    const plan = await heptabasePlan(env, identity, input); samePlan(input, plan);
+    // The review preview is a publish plan. A batch decision does not repeat that flag on every click.
+    const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
+    samePlan(input, plan);
     const client = await mcpClient(env), { tagId } = await blogCards(client);
     const option = plan.schema.type.options.find((item) => item.name.trim().toLowerCase() === 'reference');
     if (!option) throw fail('Blog Type 需要一个 Reference 选项。');
@@ -1367,6 +1372,26 @@ async function choosePages(env, identity, input) {
   });
 }
 
+/** One publish request applies every local decision, then the caller commits. */
+async function applyDecisionBatch(env, identity, input) {
+  if (input.pageChoice) await choosePages(env, identity, input.pageChoice);
+  const decisions = Array.isArray(input.decisions) ? input.decisions : [];
+  for (const decision of decisions) {
+    if (decision.kind === 'removal') await decideRemoval(env, identity, decision);
+    else if (decision.kind === 'removal-cancel') await cancelRemoval(env, identity, decision);
+    else if (decision.kind === 'review') {
+      let body = decision;
+      if (decision.markReferences) {
+        await markReferences(env, identity, decision);
+        const plan = await heptabasePreview(env, identity, { cardLink: decision.cardLink, preparePublish: true, reviewOnly: true, ...(decision.collection ? { collection: decision.collection } : {}), ...(decision.id ? { id: decision.id } : {}) });
+        body = { ...decision, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash };
+      }
+      await decideReview(env, identity, body);
+    } else throw fail('无法识别的审核决定。');
+  }
+  return { applied: decisions.length };
+}
+
 async function reviewDecisions(env) {
   const rows = await allRows(env, 'SELECT * FROM studio_review_decisions ORDER BY created_at DESC');
   return { decisions: rows.filter(row => row.decision === 'approve' || row.decision === 'reject').map(row => {
@@ -1382,14 +1407,29 @@ async function decideReview(env, identity, input) {
     if (input.remark !== undefined && typeof input.remark !== 'string') throw fail('Remark 应是一段文字。');
     if (typeof input.remark === 'string' && input.remark.length > 2000) throw fail('Remark 最多 2000 字。');
     const remark = input.remark;
+    const stageRemark = target => {
+      if (input.decision === 'reject' && typeof remark === 'string') {
+        target.pendingRemark = remark;
+        target.remarkPending = true;
+      }
+      return target;
+    };
     let saved = await firstRow(env, 'SELECT * FROM studio_review_decisions WHERE card_id = ?1', id), plan;
     const savedPlan = saved ? JSON.parse(saved.payload) : null;
     const sameRequest = savedPlan && input.sourceHash === savedPlan.sourceHash && input.documentHash === savedPlan.documentHash && input.planHash === savedPlan.planHash;
     const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
     if (saved?.status === 'complete' && saved.decision === input.decision && sameRequest) {
       const current = await readProperties(client, id, schema);
-      const wantRemark = input.decision === 'reject' && remark !== undefined;
-      if (current.status === (saved.decision === 'approve' ? 'published' : 'blocked') && (!wantRemark || current.remark === remark)) return { id, decision: saved.decision, status: 'complete', properties: current };
+      const expectedStatus = saved.decision === 'approve' ? 'published' : 'blocked';
+      // Remark stays on the decision until deploy. A repeat reject only replaces the stored note.
+      if (current.status === expectedStatus) {
+        if (input.decision === 'reject' && typeof remark === 'string' && !(savedPlan.remarkPending && savedPlan.pendingRemark === remark)) {
+          savedPlan.pendingRemark = remark;
+          savedPlan.remarkPending = true;
+          await run(env, 'UPDATE studio_review_decisions SET payload = ?2 WHERE card_id = ?1', id, JSON.stringify(savedPlan));
+        }
+        return { id, decision: saved.decision, status: 'complete', properties: current };
+      }
     }
     // A decided card may be decided again from the same review, as long as nothing else changed.
     // The card is no longer in Review, so the reviewed plan is reused instead of pulled again.
@@ -1419,12 +1459,14 @@ async function decideReview(env, identity, input) {
       plan.date = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
       plan.inventDate = copied.invented;
       plan.state = { repository: plan.state.repository, branch: plan.state.branch, commitSha: plan.state.commitSha };
+      stageRemark(plan);
       await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, ?2, 'pending', ?3, ?4) ON CONFLICT(card_id) DO UPDATE SET decision = excluded.decision, status = 'pending', payload = excluded.payload, created_at = excluded.created_at", id, input.decision, JSON.stringify(plan), new Date().toISOString());
     }
     const root = plan.graph[0];
+    // Status is written now. The dialog remark is kept on the decision and written when deploy finishes.
     const desired = input.decision === 'approve'
       ? { status: 'published', ...(!root.properties.date && !root.created ? { date: plan.date } : {}) }
-      : { status: 'blocked', ...(remark !== undefined ? { remark } : {}) };
+      : { status: 'blocked' };
     const current = await readProperties(client, id, schema);
     // A timed-out write may have applied none, some, or all properties. Accept
     // only those exact intermediate states; never overwrite unrelated edits.
@@ -1464,6 +1506,7 @@ async function decideReview(env, identity, input) {
         node.next = serializeMdx(translated);
       }
     }
+    stageRemark(plan);
     const record = JSON.stringify({ ...plan, applied });
     const completion = db(env).prepare("UPDATE studio_review_decisions SET status = 'complete', payload = ?2 WHERE card_id = ?1").bind(id, record);
     if (input.decision === 'approve') {
@@ -1534,10 +1577,15 @@ async function api(request, env) {
   if (path === '/__studio/api/heptabase/connect' && request.method === 'POST') return connect(request, env, identity);
   if (path === '/__studio/api/heptabase/cards' && request.method === 'GET') return heptabaseCards(env, identity);
   if (path === '/__studio/api/heptabase/page-choice' && request.method === 'POST') return choosePages(env, identity, await readJson(request));
-  if (path === '/__studio/api/heptabase/removal-preview' && request.method === 'POST') return removalView(await removalPlan(env, identity, await readJson(request)));
+  if (path === '/__studio/api/heptabase/removal-preview' && request.method === 'POST') {
+    const body = await readJson(request);
+    if (body.previewOnly === true && body.collection !== 'pages') throw fail('只能预览尚未留下的站点页。', 400);
+    return removalView(await removalPlan(env, identity, body, body.previewOnly === true ? 'capped' : null));
+  }
   if (path === '/__studio/api/heptabase/removal' && request.method === 'POST') return decideRemoval(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/removal-cancel' && request.method === 'POST') return cancelRemoval(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/decisions' && request.method === 'GET') return reviewDecisions(env);
+  if (path === '/__studio/api/heptabase/decisions' && request.method === 'POST') return applyDecisionBatch(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/decision' && request.method === 'POST') return decideReview(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/preview' && request.method === 'POST') return heptabasePreview(env, identity, await readJson(request));
   if (path === '/__studio/api/heptabase/mark-references' && request.method === 'POST') return markReferences(env, identity, await readJson(request));

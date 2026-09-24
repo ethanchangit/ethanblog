@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { IO_CONCURRENCY, mapLimited } from './pool.mjs';
+import { IO_CONCURRENCY, mapLimited, previewBodyKey } from './pool.mjs';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -30,3 +30,16 @@ test('mapLimited stops starting work after the first rejection', async () => {
   assert.equal(started, 2);
 });
 
+test('preview body key ignores review decisions and changes with the prose', () => {
+  const card = {
+    id: 'a', title: '标题', beforeContent: '旧', afterContent: '新',
+    beforeProperties: { date: '2024-01-01', tags: ['A'] },
+    afterProperties: { date: '2024-02-01', tags: ['B'] },
+  };
+  const preview = previewBodyKey(card, 'preview', false);
+  assert.equal(preview, previewBodyKey({ ...card }, 'preview', false));
+  assert.notEqual(preview, previewBodyKey(card, 'diff', false));
+  assert.notEqual(preview, previewBodyKey(card, 'preview', true));
+  assert.notEqual(preview, previewBodyKey({ ...card, afterContent: '另一版' }, 'preview', false));
+  assert.notEqual(preview, previewBodyKey({ ...card, afterProperties: { ...card.afterProperties, tags: ['C'] } }, 'preview', false));
+});

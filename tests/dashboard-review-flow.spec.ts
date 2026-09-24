@@ -26,6 +26,27 @@ async function openLocal(page: Page) {
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
 }
 
+test('直接发布不能开始时，发布栏说明原因', async ({ page }) => {
+  await openLocal(page);
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await expect(page.locator('#release [data-release-notice]')).toContainText('请先拉取');
+  await expect(page.locator('#release [data-release-notice]')).toHaveAttribute('role', 'alert');
+});
+
+test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
+  await openLocal(page);
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.locator('.progress-count')).toHaveText('已审 0 / 6');
+  const commit = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/git/commit'));
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await commit;
+  const notice = page.locator('#release [data-release-notice]');
+  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
+  await expect(notice).toBeVisible();
+  await expect(notice).not.toHaveText('');
+  await expect(notice).not.toHaveText('正在直接发布…');
+});
+
 test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审，进度随之更新', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);
@@ -52,6 +73,14 @@ test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
   await page.keyboard.press('d');
   await expect(page.locator('.diff-summary')).toBeVisible(); await idle();
+  await expect(page.locator('#release .muted')).not.toHaveText('');
+  const reviewRequests = { decision: 0, preview: 0, git: 0 };
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/heptabase/decision') || path.endsWith('/heptabase/removal') || path.endsWith('/heptabase/removal-cancel')) reviewRequests.decision += 1;
+    if (path.endsWith('/heptabase/preview')) reviewRequests.preview += 1;
+    if (path.endsWith('/git') || path.endsWith('/docs')) reviewRequests.git += 1;
+  });
   const detail = page.locator('#review-preview .detail-actions');
   await page.keyboard.press('a');
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -59,26 +88,31 @@ test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审
   await expect(page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '拒绝「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.progress-count')).toHaveText('已审 1 / 6');
-  const remark = page.getByRole('textbox', { name: /拒绝说明/ });
-  await expect(remark).toBeVisible();
-  await remark.fill('标签还要再想想');
+  await expect(page.locator('.review-meta code').first()).toHaveText(/^\/[^/].*/);
+  await expect(page.locator('.review-meta')).not.toContainText('ethanchang.io');
+  await expect(page.locator('.review-meta')).not.toContainText('/articles/');
   await detail.getByRole('button', { name: '拒绝', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox', { name: '备注' }).fill('标签还要再想想');
+  await dialog.getByRole('button', { name: '拒绝', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#notice')).toContainText('Remark 已写回 Heptabase');
+  await expect(page.locator('#notice')).toContainText('发布上线后');
   await expect(page.locator('#notice')).toContainText('Edited articles 已全部审完');
   await expect(page.locator('.progress-count')).toHaveText('已审 2 / 6');
   await expect(page.locator('#release')).toContainText('还有 4 条待审');
+  await expect(page.locator('#release').getByRole('button', { name: '直接发布', exact: true })).toBeVisible();
   await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await expect(remark).toHaveValue('标签还要再想想');
-  await remark.fill('标签还要再想想，先放一周');
-  await expect(page.locator('.remark-hint')).toContainText('再点一次拒绝');
+  await expect(page.locator('.remark-field')).toHaveCount(0);
   await detail.getByRole('button', { name: '通过', exact: true }).focus();
   await page.keyboard.press('a');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#notice')).toContainText('已改判');
   await expect(page.locator('.progress-count')).toHaveText('已审 2 / 6');
+  expect(reviewRequests).toEqual({ decision: 0, preview: 0, git: 0 });
   expect(errors).toEqual([]);
 });
 

@@ -27,7 +27,9 @@ test('超过 4 张站点页时要在审核清单里选择留下哪几页', async
   await expect(page.getByLabel('后台密码')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  const choice = page.locator('[data-review-group=pages]');
+  await page.getByRole('tab', { name: /站点页面/ }).click();
+  const choice = page.locator('#review-preview .page-choice');
+  await expect(page.locator('#page-nav, .review-sidebar .page-choice')).toHaveCount(0);
   await expect(choice.getByRole('heading', { name: '站点页面' })).toBeVisible();
   await expect(choice).toContainText('站点页面最多显示 4 页');
   await expect(choice).toContainText('现在有 5 张 Page 卡片');
