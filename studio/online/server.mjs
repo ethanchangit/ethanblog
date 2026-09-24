@@ -1,5 +1,6 @@
 import {
   CORE_PAGE_BY_TITLE,
+  CORE_PAGE_IDS,
   isSafeDocRef,
   isSafeId,
   listDocRefs,
@@ -19,7 +20,7 @@ import {
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation } from './card-properties.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
@@ -541,7 +542,7 @@ async function loadPageCards(client, schema, cards, published) {
     const path = pageFileFor(published, card);
     const pageId = path ? pageIdFromPath(path) : null;
     pages.push({
-      id: card.id, title: card.title, cardLink: card.cardLink, onSite: Boolean(path), path, pageId,
+      id: card.id, title: card.title, cardLink: card.cardLink, slug: properties.url, onSite: Boolean(path), path, pageId,
       href: pageId ? pageHref(pageId) : null,
     });
   }
@@ -595,9 +596,10 @@ function assertPublicPageCount(files) {
   if (count > PAGE_CAP) throw fail(`站点页面最多显示 ${PAGE_CAP} 页。这一版会留下 ${count} 页。请先选择留下哪几页；多出来的页面不会被悄悄去掉。`, 409);
 }
 
-function assignPageId(title, card, docs, targets) {
+// A Page card whose slug names its own site page (about, now, contact, privacy) is that page.
+function assignPageId(title, card, docs, targets, slug = null) {
   const canonicalTitle = String(title || '').trim();
-  const canonical = CORE_PAGE_BY_TITLE.get(canonicalTitle);
+  const canonical = slug && CORE_PAGE_IDS.has(slug) ? slug : CORE_PAGE_BY_TITLE.get(canonicalTitle);
   const taken = (pageId) => {
     const occupant = docs.find((doc) => doc.collection === 'pages' && doc.id === pageId);
     const link = occupant?.heptabaseCardLink?.toLowerCase();
@@ -910,7 +912,7 @@ async function rememberProperties(env, id, properties) {
 // at the same path on their language's site). Without URL it keeps its current slug.
 function articleRoute(properties) {
   if (!properties.member || collectionForBlogType(properties.type) !== 'articles' || !properties.url) return null;
-  return { id: properties.url, url: properties.url };
+  return { id: assertArticleSlug(properties.url), url: properties.url };
 }
 
 function assertRouteFree(entries, route, cardLink) {
@@ -979,7 +981,7 @@ async function heptabasePlan(env, identity, input) {
   if (linked.some((d) => d.collection !== routed)) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
   const collection = input.collection || linked[0]?.collection || routed;
   const pageCards = routed === 'pages' ? await loadPageCards(client, schema, cards, await publishedFiles(env, state)) : [];
-  const rootPage = routed === 'pages' ? assignPageId(card.title, id, entries, new Map()) : null;
+  const rootPage = routed === 'pages' ? assignPageId(card.title, id, entries, new Map(), rootProperties.url) : null;
   const route = collection === 'articles' ? articleRoute(rootProperties) : null;
   if (route) {
     assertRouteFree(entries, route, card.cardLink);
@@ -1003,7 +1005,7 @@ async function heptabasePlan(env, identity, input) {
     const known = targets.get(nextId);
     if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
     const heading = (/^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/m.exec(source) || [])[1]?.trim() || '';
-    const assigned = routedCollection === 'pages' && !known ? assignPageId(heading, nextId, entries, targets) : null;
+    const assigned = routedCollection === 'pages' && !known ? assignPageId(heading, nextId, entries, targets, properties.url) : null;
     const nodeRoute = !known && routedCollection === 'articles' ? articleRoute(properties) : null;
     if (nodeRoute) assertRouteFree(entries, nodeRoute, `heptabase://card/${nextId}`);
     const target = known || { collection: routedCollection || 'articles', id: nodeRoute?.id || assigned?.id || `hepta-${nextId}`, url: nodeRoute?.url || null, displaced: Boolean(assigned?.displaced), canonicalTitle: assigned?.canonicalTitle || '' };
@@ -1204,7 +1206,7 @@ async function choosePages(env, identity, input) {
     const slugs = [];
     for (const id of order) {
       const card = pages.find(page => page.id === id);
-      const assigned = card.pageId ? { id: card.pageId } : assignPageId(card.title, card.id, docs.sitePages, targets);
+      const assigned = card.pageId ? { id: card.pageId } : assignPageId(card.title, card.id, docs.sitePages, targets, card.slug);
       targets.set(id, { collection: 'pages', id: assigned.id });
       slugs.push(assigned.id);
     }
