@@ -15,12 +15,9 @@ export async function publishedArticles(): Promise<PublishedArticle[]> {
 
 const byDateDesc = (a: DocEntry, b: DocEntry) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0) || a.id.localeCompare(b.id);
 
-/** ethanchang.io lists: published English translations, plus the Chinese articles not translated yet. */
-export async function englishSiteArticles(): Promise<{ english: PublishedArticle[]; chineseOnly: PublishedArticle[] }> {
-  const english = (await englishArticles()).sort(byDateDesc);
-  const translated = new Set(english.map((entry) => entry.data.translationOf));
-  const chineseOnly = (await publishedArticles()).filter((entry) => !entry.data.heptabaseCardLink || !translated.has(entry.data.heptabaseCardLink));
-  return { english, chineseOnly };
+/** Published English translations. ethanchang.io lists these only. */
+export async function englishSiteArticles(): Promise<PublishedArticle[]> {
+  return (await englishArticles()).sort(byDateDesc);
 }
 
 /**

@@ -165,7 +165,6 @@ export const copy = {
     tweetVerified: '已认证',
     videoPlayHint: '点击封面播放',
     videoWatchYoutube: '在 YouTube 观看 ↗',
-    readInChinese: '阅读中文版 ↗',
   },
   en: {
     navArticles: 'Articles',
@@ -320,7 +319,6 @@ export const copy = {
     tweetVerified: 'Verified',
     videoPlayHint: 'Click the cover to play',
     videoWatchYoutube: 'Watch on YouTube ↗',
-    readInChinese: 'Read in Chinese ↗',
   },
 } as const satisfies Record<'zh-CN' | 'en', Record<string, string>>;
 

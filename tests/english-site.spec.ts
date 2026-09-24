@@ -13,9 +13,15 @@ test.describe('English site (ethanchang.io)', () => {
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles');
     await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('Tags');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://ethanchang.io/');
-    // Before translations are published, Chinese articles are listed and open on the Chinese site.
-    const chinese = page.locator('[data-chinese-only]');
-    await expect(chinese.locator('a[href="/_lang/zh/pkm-method"]')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: 'In Chinese' })).toHaveCount(0);
+    await expect(page.getByText('These articles are only in Chinese so far.')).toHaveCount(0);
+    await expect(page.locator('[data-chinese-only]')).toHaveCount(0);
+    await expect(page.locator('a[href="/_lang/zh/pkm-method"]')).toHaveCount(0);
+    await page.goto(`${EN}/articles`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { name: 'In Chinese' })).toHaveCount(0);
+    await expect(page.getByText('These articles are only in Chinese so far.')).toHaveCount(0);
+    await expect(page.locator('a[href="/_lang/zh/pkm-method"]')).toHaveCount(0);
   });
 
   test('the tags page is the English index of the same tags', async ({ page }) => {
