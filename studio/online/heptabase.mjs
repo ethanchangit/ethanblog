@@ -125,8 +125,13 @@ function storedProperties(text) {
 
 // edited_at is the Heptabase updated time from the last successful pull of this card.
 export async function readCardPulls(env) {
-  const rows = (await env.DB.prepare('SELECT card_id, edited_at, properties, card_created FROM studio_card_pulls').all()).results || [];
-  return new Map(rows.map((row) => [row.card_id, { edited_at: row.edited_at, properties: storedProperties(row.properties), card_created: row.card_created || '' }]));
+  const rows = (await env.DB.prepare('SELECT card_id, edited_at, properties, card_created, source IS NOT NULL AS has_source FROM studio_card_pulls').all()).results || [];
+  return new Map(rows.map((row) => [row.card_id, {
+    edited_at: row.edited_at,
+    properties: storedProperties(row.properties),
+    card_created: row.card_created || '',
+    has_source: Boolean(row.has_source),
+  }]));
 }
 
 export async function readCardPull(env, id) {
@@ -241,7 +246,7 @@ export function listContinueOffset(content, collected) {
   return null;
 }
 
-async function taggedCardsOnce(client, name) {
+async function allTags(client) {
   const found = [], seenTags = new Set();
   for (let offset = 0; offset < 10000;) {
     const page = await client.call('list_tags', { offset, limit: 100 });
@@ -256,16 +261,25 @@ async function taggedCardsOnce(client, name) {
     offset = next;
     if (offset >= 10000) throw fail('标签过多，请精简后再拉取。');
   }
-  const matches = found.filter((tag) => tag.name === name);
+  return found;
+}
+
+function tagNamed(tags, name) {
+  const matches = tags.filter((tag) => tag.name === name);
   if (matches.length !== 1) throw fail(`请在 Heptabase 中保留一个名为 ${name} 的标签。`);
-  const tagId = matches[0].id, cards = [], seen = new Set();
+  return matches[0];
+}
+
+// CardList only: id, title, and edited time. No properties and no body.
+async function cardsInTag(client, tag) {
+  const cards = [], seen = new Set();
   for (let offset = 0; offset < 10000;) {
-    const page = await client.call('list_cards', { tagIds: [tagId], offset, limit: 100, include: ['timestamps'], sortBy: 'title', sortDirection: 'ascending' });
-    const rows = [...String(page.content || '').matchAll(new RegExp(`^(\\w+) "(.*)" \\[(${UUID})\\](.*)$`, 'gm'))];
-    for (const [, type, title, id, metadata] of rows) {
-      if (seen.has(id)) throw fail('读取卡片时列表发生变化，请重新拉取。', 409);
-      const stamps = cardStamps(metadata);
-      seen.add(id); cards.push({ id, type, title, created: stamps.created, updated: stamps.updated, cardLink: `heptabase://card/${id}` });
+    const page = await client.call('list_cards', { tagIds: [tag.id], offset, limit: 100, include: ['timestamps'], sortBy: 'title', sortDirection: 'ascending' });
+    const rows = parseCardList(page.content);
+    for (const card of rows) {
+      if (seen.has(card.id)) throw fail('读取卡片时列表发生变化，请重新拉取。', 409);
+      seen.add(card.id);
+      cards.push(card);
     }
     const next = listContinueOffset(page.content, cards.length);
     if (next == null) break;
@@ -274,11 +288,16 @@ async function taggedCardsOnce(client, name) {
     offset = next;
     if (offset >= 10000) throw fail('卡片过多，请分批同步。');
   }
-  const expected = Number(matches[0].cardCount);
+  const expected = Number(tag.cardCount);
   if (Number.isFinite(expected) && expected !== cards.length) {
     throw fail('Heptabase 卡片数量已变化，请重新拉取完整列表。', 409);
   }
-  return { tagId, cards };
+  return { tagId: tag.id, cards };
+}
+
+async function taggedCardsOnce(client, name) {
+  const tag = tagNamed(await allTags(client), name);
+  return cardsInTag(client, tag);
 }
 
 // Count mismatches and mid-list churn are transient. Retry inside this pull so the
@@ -299,10 +318,36 @@ export const blogCards = (client) => taggedCards(client, 'blog');
 // Translations of #blog cards. Ethan also writes this tag as #blogi18n.
 export const i18nCards = (client) => taggedCards(client, 'blog i18n');
 
+// One tag walk, then CardList + edited time for #blog and #blogi18n. No card bodies.
+export async function dashboardCardLists(client) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const tags = await allTags(client);
+      const blog = await cardsInTag(client, tagNamed(tags, 'blog'));
+      const i18n = await cardsInTag(client, tagNamed(tags, 'blog i18n'));
+      return { blog, i18n };
+    } catch (error) {
+      last = error;
+      if (error.status !== 409) throw error;
+    }
+  }
+  throw last;
+}
+
+function stampField(metadata, names) {
+  for (const name of names) {
+    const match = new RegExp(`(?:^|[;\\s])${name}: ([^;\\s]+)`).exec(metadata || '');
+    if (match) return match[1];
+  }
+  return '';
+}
+
 export function cardStamps(metadata) {
   return {
-    created: /(?:^|[;\s])created: ([^;\s]+)/.exec(metadata || '')?.[1] || '',
-    updated: /(?:^|[;\s])updated: ([^;\s]+)/.exec(metadata || '')?.[1] || '',
+    created: stampField(metadata, ['created', 'createdTime']),
+    // Heptabase CardList calls this editedTime. Older replies used updated.
+    updated: stampField(metadata, ['editedTime', 'edited', 'updated']),
   };
 }
 
