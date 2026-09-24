@@ -287,6 +287,8 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(group.getByRole('button', { name: '仅由旧笔记引用的资料', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '已经不再公开的旧笔记', exact: true }).click();
   await expect(page.locator('.preview-title')).toHaveText('已经不再公开的旧笔记');
+  await expect(page.locator('#review-preview')).toHaveCSS('border-top-width', '0px');
+  await expect(page.locator('#review-preview')).toHaveCSS('border-left-width', '0px');
   await expect(page.locator('.preview-date')).toBeVisible();
   await expect(page.frameLocator('iframe').locator('h1, time')).toHaveCount(0);
   await expect(page.locator('.removal-notice')).toHaveCount(0);
@@ -301,6 +303,8 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   const keep = page.getByRole('button', { name: '暂不删除「已经不再公开的旧笔记」', exact: true });
   await remove.click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#review-preview')).not.toContainText('网站尚未改变');
+  await expect(page.locator('#review-preview')).not.toContainText('加入待删除');
   await expect(page.locator('#release')).toContainText('其中 2 个待删除');
   await expect(remove).toHaveAttribute('aria-pressed', 'true'); await expect(keep).toHaveAttribute('aria-pressed', 'false');
   await keep.click();
@@ -317,6 +321,10 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(release.getByRole('button', { name: '提交通过的更新到 GitHub', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   await page.getByRole('tab', { name: /Deleted articles/ }).click();
+  await page.getByRole('checkbox', { name: '全选这一组' }).check();
+  await page.getByRole('button', { name: '批量删除已选文章' }).click();
+  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
+  await expect(page.locator('#review-preview')).not.toContainText('加入待删除');
   for (const title of ['已经不再公开的旧笔记', '已在 Heptabase 删除的文章']) {
     await page.getByRole('button', { name: `删除「${title}」`, exact: true }).click();
     await expect(page.getByRole('button', { name: `删除「${title}」`, exact: true })).toHaveAttribute('aria-pressed', 'true');

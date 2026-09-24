@@ -433,12 +433,14 @@ function afterDecision(item, message) {
 const decisionNotes = {
   approve: '已通过，待发布。只是审核通过，尚未上线。',
   reject: '已拒绝，待发布。线上旧文章保持不变。',
-  remove: '已加入待删除清单，网站尚未改变。',
+  // The row already says the article is queued for removal.
+  remove: '',
   skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
 };
 function paintAfterDecision(message) {
   renderList();
-  notice(message);
+  if (message) notice(message);
+  else { statusText = ''; statusError = false; }
   void showSelection();
   void renderRelease();
 }
@@ -466,7 +468,7 @@ function applyMany(list, verdict, remark) {
   const message = !targets[0].removal && verdict === 'reject'
     ? `已拒绝 ${targets.length} 篇。备注会在发布上线后写回这些卡片。`
     : targets[0].removal && verdict === 'approve'
-      ? `已将 ${targets.length} 篇加入待删除，网站尚未改变。`
+      ? ''
       : targets[0].removal
         ? `已暂不删除 ${targets.length} 篇。`
         : `已通过 ${targets.length} 篇。只是审核通过，尚未上线。`;
