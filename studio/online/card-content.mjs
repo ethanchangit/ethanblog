@@ -56,7 +56,7 @@ export function fromHeptabase(source, targets, imports = '') {
       const standalone = !part.slice(lineStart, offset).trim() && !part.slice(offset + whole.length, end < 0 ? part.length : end).trim();
       const of = `${target.collection}/${target.id}`;
       hasBlock ||= standalone;
-      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="${publicHref(target.collection, target.id)}" data-doc-mention>${escapeText(label || linkLabel || target.title)}</a>`;
+      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="${target.url && target.collection === 'articles' ? `/${target.id}` : publicHref(target.collection, target.id)}" data-doc-mention>${escapeText(label || linkLabel || target.title)}</a>`;
       return `\u0001${tokens.push(markup) - 1}\u0002`;
     });
     // Preserve the text of colors; other protected objects require explicit handling.

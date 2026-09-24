@@ -6,6 +6,7 @@ interface Props {
 }
 
 const { k } = Astro.props;
+const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
 ---
 
-<span class="i18n-zh">{t('zh-CN', k)}</span>
+<span class={lang === 'en' ? 'i18n-en' : 'i18n-zh'}>{t(lang, k)}</span>

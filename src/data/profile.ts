@@ -7,7 +7,8 @@ export const site = {
   title: 'Ethan Chang',
   wordmark: 'ethan.chang',
   description: 'Ethan Chang 的个人博客 —— 文章、笔记与项目。',
-  url: 'https://ethanchang.io',
+  // The Chinese blog. The English blog (translations from #blogi18n) is https://ethanchang.io.
+  url: 'https://cn.ethanchang.io',
   lang: 'zh-CN',
 } as const;
 

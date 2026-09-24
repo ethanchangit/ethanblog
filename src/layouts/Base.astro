@@ -9,6 +9,7 @@ import Footer from '@/components/shell/Footer.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
 import { stripLocalePrefix } from '@/lib/locale';
+import { canonicalUrl, isEnglishBuildPath } from '@/lib/hosts';
 import { markdownAssetPath } from '@/lib/accept';
 import { siteJsonLd } from '@/lib/agent';
 
@@ -17,6 +18,8 @@ interface Props {
   description?: string;
   ogImage?: string;
   split?: boolean;
+  /** Other language versions of this page, as absolute URLs. */
+  alternates?: { hreflang: string; href: string }[];
 }
 
 const {
@@ -24,14 +27,16 @@ const {
   description = site.description,
   ogImage = '/og-default.svg',
   split = false,
+  alternates = [],
 } = Astro.props;
-const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — 博客`;
-const lang = 'zh-CN';
+const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
+const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — ${lang === 'en' ? 'Blog' : '博客'}`;
 const pageTitle = pageTitleZh;
 const pageDescription = description;
 const canonicalPath = stripLocalePrefix(Astro.url.pathname);
-const canonical = new URL(canonicalPath, site.url);
-const markdownUrl = new URL(markdownAssetPath(canonicalPath), site.url);
+const english = isEnglishBuildPath(canonicalPath);
+const canonical = canonicalUrl(canonicalPath);
+const markdownUrl = english ? null : new URL(markdownAssetPath(canonicalPath), site.url);
 const jsonLd = siteJsonLd();
 ---
 
@@ -55,7 +60,7 @@ const jsonLd = siteJsonLd();
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme =
             stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
-          var lang = 'zh-CN';
+          var lang = root.getAttribute('data-lang') || 'zh-CN';
           root.dataset.theme = theme;
           root.lang = lang;
           root.dataset.lang = lang;
@@ -90,7 +95,9 @@ const jsonLd = siteJsonLd();
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
-    <link rel="alternate" type="text/markdown" href={markdownUrl} />
+    {markdownUrl && <link rel="alternate" type="text/markdown" href={markdownUrl} />}
+    {alternates.length > 0 && <link rel="alternate" hreflang={lang} href={canonical} />}
+    {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
     <script is:inline type="application/ld+json" set:html={jsonLd} />
     <meta name="generator" content={Astro.generator} />
     <meta property="og:title" content={pageTitle} />

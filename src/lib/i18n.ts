@@ -1,4 +1,7 @@
-/** 站点只有中文版。`Lang` 仍留着，是为了现有调用能编译。 */
+/**
+ * cn.ethanchang.io 是中文站（#blog 原文），ethanchang.io 是英文站（#blogi18n 译文）。
+ * 页面语言由路由决定：英文页面构建在 /en 下，其余是中文。
+ */
 export type Lang = 'zh-CN' | 'en';
 export const DEFAULT_LANG = 'zh-CN' as const;
 export const LANG_STORAGE_KEY = 'lang';
@@ -160,8 +163,166 @@ export const copy = {
     tweetVerified: '已认证',
     videoPlayHint: '点击封面播放',
     videoWatchYoutube: '在 YouTube 观看 ↗',
+    chineseOnly: '只有中文',
+    chineseOnlyLead: '这些文章目前只有中文。',
+    readInChinese: '阅读中文版 ↗',
   },
-} as const;
+  en: {
+    navArticles: 'Articles',
+    navProjects: 'Projects',
+    navBlogs: 'Blog',
+    navTags: 'Tags',
+    navNow: 'Now',
+    navContact: 'Contact',
+    navPrivacy: 'Privacy',
+    navSearch: 'Search',
+    navHome: 'Home',
+    navPages: 'Pages',
+    indexSwitchAria: 'Articles and projects',
+    searchTitle: 'Search',
+    searchDesc: 'Search published articles, projects and references.',
+    searchLabel: 'Search articles',
+    searchPlaceholder: 'Search titles, tags or text',
+    searchEmpty: 'No matching articles.',
+    themeAria: 'Toggle light or dark mode',
+    themeTitle: 'Toggle theme',
+    langAria: 'Choose language',
+    langListAria: 'Languages',
+    skipToContent: 'Skip to content',
+    hello: 'Hi, I am',
+    viewWork: 'See projects →',
+    heroBio: 'I build native iOS apps, bring LLMs and voice AI into productivity tools, and keep refining my own personal knowledge management.',
+    nowAria: 'Now',
+    nowUpdated: 'Updated',
+    nowDoing: 'Doing',
+    nowReading: 'Reading',
+    nowThinking: 'Thinking about',
+    skillsAria: 'Skills',
+    skillsTitle: 'What I build with',
+    contactAria: 'Contact',
+    contactTitle: 'Want to talk?',
+    contactBody: 'Write to me about an article, a project or any idea.',
+    aboutStack: 'Stack',
+    aboutContact: 'Contact me',
+    aboutDoing: 'What I am doing',
+    signOut: 'Sign out',
+    bookmark: 'Bookmark',
+    bookmarked: 'Bookmarked',
+    bookmarkAria: 'Bookmark this article',
+    unbookmarkAria: 'Remove bookmark',
+    copyUrl: 'Copy link',
+    copyUrlCopied: 'Copied',
+    copyUrlAria: 'Copy link to this page',
+    proficiency: 'Proficiency',
+    usedIn: 'Used in these projects',
+    pickSkill: 'Pick a skill to see how well I know it and where I used it.',
+    domainMobile: 'Mobile',
+    domainBackend: 'Backend',
+    domainAI: 'AI',
+    domainTools: 'Tooling',
+    notFoundTitle: 'This page does not exist',
+    notFoundBody: 'It may have moved, or it never existed.',
+    notFoundTry: 'Try one of these:',
+    notFoundAgents: 'ethanchang.io developer resources for agents',
+    notFoundLlms: 'llms.txt',
+    notFoundSitemap: 'Sitemap',
+    notFoundContact: 'Contact',
+    notFoundPrivacy: 'Privacy',
+    backHome: 'Back home',
+    contactPageTitle: 'Contact',
+    contactPageDesc: 'Write to hey@ethanchang.io. No tickets, no form that sends your message into the void.',
+    privacyTitle: 'Privacy',
+    privacyDesc: 'Reading needs no account. Optional sign-in only syncs bookmarks and progress. Notes go to my inbox and never appear on the page.',
+    forAgentsTitle: 'ethanchang.io developer resources for agents',
+    forAgentsDesc: 'Markdown at the same URL, llms.txt, RSS and the endpoints that actually exist. There is no public MCP here.',
+    aboutHowTitle: 'How to read this site',
+    aboutHowArticlesTitle: 'Articles and projects',
+    aboutHowArticlesBody: 'Articles are notes I am willing to share. Projects are one line of software research, not a portfolio grid. The Now page is what I am doing lately, not a résumé.',
+    aboutHowMachineTitle: 'Copies for machines',
+    aboutHowContactTitle: 'Contact and privacy',
+    siteBlog: 'Blog',
+    articlesTitle: 'Articles',
+    articlesDesc: 'Articles.',
+    articlesEarlier: 'Earlier',
+    articlesNewer: 'Newer',
+    articlesPagerAria: 'Article pages',
+    seriesNavAria: 'Series',
+    seriesChapters: 'Chapters',
+    docListAria: 'References',
+    seriesPrev: 'Previous',
+    seriesNext: 'Next',
+    seriesCloseChild: 'Close',
+    tagsTitle: 'Tags',
+    tagsDesc: 'Browse articles by tag.',
+    tagsAll: 'All',
+    tagsDomainsAria: 'Filter by area',
+    tagsListAria: 'All tags',
+    tagsEmpty: 'No matching tags.',
+    tagsNoDocs: 'No matching documents.',
+    tagPageDesc: 'Articles with this tag.',
+    backToTags: '← All tags',
+    blogsTitle: 'Blog',
+    blogsDesc: 'Articles and projects referenced by hand, not a whole folder.',
+    blogsLead: 'This is not a mirror of the article list. Every row is a reference I wrote in MDX.',
+    projectsTitle: 'Projects',
+    projectsH1: 'Projects are one line',
+    projectsDesc: 'The software I make is not a row of cards but one line of research: each project inherits what the previous one proved.',
+    projectsLead: 'This is not a portfolio index. Scroll down to see how my software builds on itself.',
+    projectsLineageH2: 'Timeline: from cards to containers',
+    projectsLineageP: 'Each project is an experiment in one continuing line: first how to take notes, then how to read, then what to do with too many notes.',
+    projectsEdgesIntro: 'Three clear hand-offs:',
+    projectsArchiveH2: 'Project archive',
+    projectsArchiveP: 'Need the repository, stack or full write-up? Every project still has its own page:',
+    aboutLead: 'Media are our tools; the goal is to deliver real value by solving problems.',
+    aboutIos: 'iOS development: native apps with Swift and SwiftUI',
+    aboutAi: 'AI integration: LLMs and voice AI in productivity tools',
+    aboutPkm: 'Personal knowledge management: tools and methods for capturing and organizing thought',
+    labTitle: 'Component lab',
+    labDesc: 'Media component lab',
+    labLead: 'Live demos and QA for the media component library.',
+    updatedPrefix: 'Updated',
+    abstract: 'Abstract',
+    commentsHeading: 'Leave a note',
+    commentsHint: 'It goes to my inbox and never appears on this page.',
+    commentsName: 'Name',
+    commentsEmail: 'Email',
+    commentsBody: 'Say something',
+    commentsSubmit: 'Send',
+    commentsError: 'Could not send. Please try again later.',
+    commentsSent: 'Sent to my inbox.',
+    visitSite: 'Visit site ↗',
+    githubRepo: 'GitHub repository ↗',
+    downloads: 'Downloads',
+    techStack: 'Stack',
+    backToArticles: '← Articles',
+    backToProjects: '← Projects',
+    expandReading: 'Show the full list',
+    collapseReading: 'Collapse to home',
+    statusActive: 'Active',
+    statusShipped: 'Shipped',
+    statusWip: 'In progress',
+    statusArchived: 'Archived',
+    toc: 'Contents',
+    tocAria: 'Contents',
+    demoReload: '↻ Reload',
+    demoFullscreen: 'Full screen ↗',
+    demoStart: '▶ Start demo',
+    demoSandbox: 'The demo runs in a sandbox on this page',
+    demoNewWindow: 'Open the demo in a new window ↗',
+    audioPlay: 'Play',
+    audioPause: 'Pause',
+    audioSeek: 'Click to seek',
+    paramHint: 'Drag the slider →',
+    tweetView: 'View on X',
+    tweetUnavailable: 'This post could not be loaded.',
+    tweetVerified: 'Verified',
+    videoPlayHint: 'Click the cover to play',
+    videoWatchYoutube: 'Watch on YouTube ↗',
+    chineseOnly: 'In Chinese',
+    chineseOnlyLead: 'These articles are only in Chinese so far.',
+    readInChinese: 'Read in Chinese ↗',
+  },
+} as const satisfies Record<'zh-CN' | 'en', Record<string, string>>;
 
 export type CopyKey = keyof typeof copy['zh-CN'];
 
@@ -179,7 +340,7 @@ export const NOW_VERB_KEYS = {
 } as const satisfies Record<string, CopyKey>;
 
 export function t(lang: Lang, key: CopyKey): string {
-  return copy['zh-CN'][key];
+  return (lang === 'en' ? copy.en[key] : undefined) ?? copy['zh-CN'][key];
 }
 
 export function tf(lang: Lang, key: CopyKey, vars: Record<string, string | number>): string {
@@ -197,17 +358,21 @@ export function nowVerbKey(verb: string): CopyKey | null {
 }
 
 
-export function resolveLang(_stored: string | null): Lang { return 'zh-CN'; }
-export function getStoredLang(): Lang { return 'zh-CN'; }
-export function langFromEnvironment(): Lang { return 'zh-CN'; }
-export function readLang(): Lang { return 'zh-CN'; }
-export function applyLang(_lang: Lang = 'zh-CN') {
+/** The page's language is rendered by the server from its route; the client only reads it. */
+export function pageLang(): Lang {
+  return typeof document !== 'undefined' && document.documentElement.dataset.lang === 'en' ? 'en' : 'zh-CN';
+}
+export function resolveLang(_stored: string | null): Lang { return pageLang(); }
+export function getStoredLang(): Lang { return pageLang(); }
+export function langFromEnvironment(): Lang { return pageLang(); }
+export function readLang(): Lang { return pageLang(); }
+export function applyLang(lang: Lang = pageLang()) {
   if (typeof document === 'undefined') return;
-  document.documentElement.lang = 'zh-CN';
-  document.documentElement.dataset.lang = 'zh-CN';
+  document.documentElement.lang = lang;
+  document.documentElement.dataset.lang = lang;
   document.querySelectorAll('[data-i18n-aria]').forEach(el => {
     const key = el.getAttribute('data-i18n-aria') as CopyKey;
-    if (key in copy['zh-CN']) el.setAttribute('aria-label', t('zh-CN', key));
+    if (key in copy['zh-CN']) el.setAttribute('aria-label', t(lang, key));
   });
 }
 let started = false;
@@ -218,6 +383,6 @@ export function initLang() {
   document.addEventListener('astro:after-swap', () => applyLang());
 }
 export function subscribeLang(cb: (lang: Lang) => void): () => void {
-  cb('zh-CN');
+  cb(pageLang());
   return () => {};
 }

@@ -145,7 +145,7 @@ test('pull removes English copies, preserves metadata and does not touch GitHub 
 
 test('status mapping, existing publication date and tags follow the database', async () => {
   const f = await setup();
-  for (const status of ['new', 'writing', 'block', 'published']) {
+  for (const status of ['new', 'writing', 'blocked', 'published']) {
     f.properties.set(CARD, { Status: status, 'Publish Date': { start: '2024-02-01T00:00:00.000Z' }, Tag: ['Mission', 'AI Native'] });
     const doc = await prepare(f, { preparePublish: false });
     assert.equal(Boolean(doc.frontmatter.draft), status !== 'published');
@@ -297,10 +297,10 @@ test('verified publication writes status and first date only; receipt is authent
 test('writeback respects pre-existing dates and concurrent status edits', async () => {
   const f = await setup(); f.properties.get(CARD)['Publish Date'] = { start: '2024-02-01T00:00:00.000Z' };
   await prepare(f); await submit(f); await jsonOk(f.request('/git/publish', 'POST', await jsonOk(f.request('/git/review'))));
-  f.properties.get(CARD).Status = 'block'; f.deploy();
+  f.properties.get(CARD).Status = 'blocked'; f.deploy();
   const result = await jsonOk(f.request('/git'));
   assert.equal(result.release.status, 'succeeded'); assert.equal(result.release.heptabase.pending, 1);
-  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2024-02-01T00:00:00.000Z');
+  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2024-02-01T00:00:00.000Z');
 });
 
 test('first association exports one existing page and retries without creating duplicate cards', async () => {

@@ -5,10 +5,12 @@
 
   interface Props {
     url: string;
+    /** The page's language, so the server render already matches it. */
+    lang?: Lang;
   }
 
-  let { url }: Props = $props();
-  let lang = $state<Lang>('en');
+  let { url, lang: pageLang = 'zh-CN' }: Props = $props();
+  let lang = $state<Lang>(pageLang);
   let copied = $state(false);
   let revertTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -95,8 +97,8 @@
     />
   </svg>
   {#if copied}
-    <span class="i18n-zh">{t('zh-CN', 'copyUrlCopied')}</span>
+    <span class={lang === 'en' ? 'i18n-en' : 'i18n-zh'}>{t(lang, 'copyUrlCopied')}</span>
   {:else}
-    <span class="i18n-zh">{t('zh-CN', 'copyUrl')}</span>
+    <span class={lang === 'en' ? 'i18n-en' : 'i18n-zh'}>{t(lang, 'copyUrl')}</span>
   {/if}
 </button>

@@ -106,11 +106,6 @@ function closeDialog() { document.querySelector('dialog')?.close(); document.que
 function dialog(title) {
   closeDialog(); const d = el('dialog', null, { 'aria-label': title }), h = el('header');
   h.append(el('h2', title), button('关闭', async () => closeDialog())); d.append(h, el('p', '', { class: 'status', role: 'status' }));
-  // Enter on the confirmation checkbox submits, so a keyboard review is A, Space, Enter.
-  d.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || !event.target.matches?.('input[type=checkbox]')) return;
-    event.preventDefault(); d.querySelector('button.primary, button.danger')?.click();
-  });
   document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal(); return d;
 }
 async function refresh() {
@@ -222,7 +217,7 @@ function reviewGroups() {
 const groupLabels = { new: 'New articles', edited: 'Edited articles', removed: 'Deleted articles' };
 const groupWords = { new: 'New', edited: 'Edited', removed: 'Deleted' };
 const groupMarks = { new: '+', edited: '±', removed: '−' };
-const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference' };
+const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference', translation: 'Translation' };
 function typeMark(group) { return el('span', groupMarks[group], { class: 'type-mark', 'data-type': group, 'aria-hidden': 'true' }); }
 function typeLabel(group, kind) {
   const label = el('span', null, { class: 'type-label', 'data-type': group });
@@ -230,6 +225,7 @@ function typeLabel(group, kind) {
   return label;
 }
 function pageKind(change, removal) {
+  if (change?.translation) return 'translation';
   const p = (removal ? change?.beforeProperties : change?.afterProperties) || {};
   if (p.slot === 'project') return 'project';
   if (p.slot === 'page') return 'page';
@@ -240,12 +236,11 @@ function itemMeta(item, deleting, edited) {
   if (item.decision === 'remove') return '已确认删除，待发布';
   if (item.decision === 'skip') return '本次暂不删除';
   if (item.decision === 'approve') return 'article · 已通过，待发布';
-  if (item.decision === 'reject') return 'article · 已拒绝，已回写 Block';
+  if (item.decision === 'reject') return 'article · 已拒绝，已回写 Blocked';
   if (item.error) return '读取失败，尚未审核';
   if (deleting) return item.plan.reasonLabel;
   return `article · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`;
 }
-const decisionWords = { approve: '通过', reject: '拒绝', remove: '待删除', skip: '暂缓' };
 const reviewKinds = ['new', 'edited', 'removed'];
 const reviewed = item => Boolean(item.decision);
 function reviewQueue() { const by = reviewGroups(); return reviewKinds.flatMap(kind => by[kind]); }
@@ -272,13 +267,47 @@ function afterDecision(item, message) {
   const advanced = advanceFrom(item);
   return advanced ? message : `${message}${doneHint(item)}`;
 }
+/** The remark is written back only when the field differs from the card's current Remark. */
+function remarkChange(item) {
+  const base = item.plan?.properties?.remark || '';
+  return item.remarkDraft !== undefined && item.remarkDraft !== base ? item.remarkDraft : undefined;
+}
+const decisionNotes = {
+  approve: '已通过并回写 Published。只是审核通过，尚未上线。',
+  reject: '已拒绝并回写 Blocked，线上旧文章保持不变。',
+  remove: '已加入待删除清单，网站尚未改变。',
+  skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
+};
+/** One click decides. A decided item can be decided again; only the first decision advances. */
 async function decide(item, verdict) {
-  if (!item?.plan || reviewed(item)) return;
-  if (verdict === 'approve') return item.removal ? confirmRemoval(item) : confirmDecision(item, 'approve');
-  if (!item.removal) return confirmDecision(item, 'reject');
-  item.decision = 'skip';
-  const message = afterDecision(item, '本次暂不删除，线上页面不变；下次拉取会再次提醒。');
-  renderList(); await showSelection(); notice(message);
+  if (!item?.plan) return;
+  const next = item.removal ? (verdict === 'approve' ? 'remove' : 'skip') : verdict;
+  const remark = next === 'reject' ? remarkChange(item) : undefined;
+  if (item.decision === next && remark === undefined) return;
+  const first = !reviewed(item);
+  let extra = '';
+  if (next === 'approve') {
+    if (item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
+    if (first && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged && !c.translation)) {
+      await api('/heptabase/mark-references', selection(item));
+      item.plan = await api('/heptabase/preview', item.input);
+      extra = '引用资料已加入 #blog，Blog Type 为 Reference。';
+    }
+    await api('/heptabase/decision', { ...selection(item), decision: 'approve', confirmPublic: true, resolveConflict: true });
+  } else if (next === 'reject') {
+    await api('/heptabase/decision', { ...selection(item), decision: 'reject', ...(remark !== undefined ? { remark } : {}) });
+    if (remark !== undefined) { item.plan.properties = { ...item.plan.properties, remark }; extra = remark ? 'Remark 已写回 Heptabase。' : 'Remark 已清空。'; }
+  } else if (next === 'remove') {
+    await api('/heptabase/removal', { ...selection(item), confirmDelete: true });
+  } else if (item.decision === 'remove') {
+    await api('/heptabase/removal-cancel', { cardLink: item.input.cardLink });
+  }
+  const changed = item.decision && item.decision !== next;
+  item.decision = next;
+  const text = `${decisionNotes[next]}${extra}${changed ? '已改判。' : ''}`;
+  const message = first ? afterDecision(item, text) : text;
+  renderList(); await showSelection(); git = await api('/git'); await renderRelease();
+  notice(message);
 }
 function renderSummary(by) {
   const top = document.querySelector('#review-summary'); if (!top) return;
@@ -353,12 +382,13 @@ function renderList() {
     card.append(typeLabel(focusedGroup, pageKind(rootChange(item), deleting)));
     card.append(button(title(item), () => select(item), { class: 'card-select', 'aria-pressed': String(Boolean(active && selected.id === item.card.id)) }));
     const decisions = el('div', null, { class: 'decisions' });
-    if (!item.decision && item.plan) {
+    if (item.plan) {
+      const yes = deleting ? 'remove' : 'approve', no = deleting ? 'skip' : 'reject';
       decisions.append(
-        button('✓', () => decide(item, 'approve'), { class: 'decide', 'data-decide': deleting ? 'remove' : 'approve', 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '审查删除这篇博客' : '通过这篇博客' }),
-        button('×', () => decide(item, 'reject'), { class: 'decide', 'data-decide': deleting ? 'skip' : 'reject', 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
+        button('✓', () => decide(item, 'approve'), { class: 'decide', 'data-decide': yes, 'aria-pressed': String(item.decision === yes), 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '从网站删除这篇博客' : '通过这篇博客，并确认正文和引用可以公开' }),
+        button('×', () => decide(item, 'reject'), { class: 'decide', 'data-decide': no, 'aria-pressed': String(item.decision === no), 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
       );
-    } else if (item.decision) decisions.append(el('span', decisionWords[item.decision], { class: 'item-state', 'data-decision': item.decision, 'aria-hidden': 'true' }));
+    }
     card.append(decisions, el('small', itemMeta(item, deleting, edited), { class: 'item-meta' }));
     const change = rootChange(item);
     if (change && !deleting) {
@@ -373,9 +403,9 @@ function renderList() {
         const refActive = Boolean(active && selected.id === refCard.id);
         const ref = el('li', null, refActive ? { 'data-selected': 'true' } : {});
         ref.append(
-          el('span', refCard.mainArticle ? 'Article' : 'Reference', { class: 'kind-label' }),
+          el('span', refCard.translation ? `Translation · ${refCard.language}` : refCard.mainArticle ? 'Article' : 'Reference', { class: 'kind-label' }),
           button(refCard.title, () => select(item, refCard.id), { class: 'card-select', 'aria-pressed': String(refActive) }),
-          el('small', `${refCard.mainArticle ? 'article · 需单独审核' : 'page'} · ${refCard.kind}`, { class: 'item-meta' }),
+          el('small', refCard.translation ? `译文，随中文原文一起审核 · ${refCard.kind}` : `${refCard.mainArticle ? 'article · 需单独审核' : 'page'} · ${refCard.kind}`, { class: 'item-meta' }),
         );
         ul.append(ref);
       }
@@ -587,6 +617,7 @@ async function showSelection() {
   bar.append(detailActions(item));
   head.append(titleRow, bar);
   pane.append(head);
+  if (!item.removal) pane.append(remarkField(item));
   const meta = el('section', null, { class: 'review-meta', 'aria-label': '属性与标签' });
   meta.append(el('h3', '属性', { class: 'section-label' }));
   appendProperties(meta, card, kind, item.removal);
@@ -595,8 +626,7 @@ async function showSelection() {
     meta.append(el('p', `${item.plan.reasonLabel}。下方是将被撤下的现有内容，不是准备重新发布的版本。`, { class: 'removal-notice' }));
     if (item.plan.blockers.length) meta.append(el('p', `仍被这些文章引用：${item.plan.blockers.map(b => b.title).join('、')}。先在 Heptabase 移除引用并审核更新，或先撤下引用它的文章，再重新拉取。`, { role: 'alert' }));
     if (item.plan.keptReferences.length) meta.append(el('p', `共享资料会保留：${item.plan.keptReferences.map(r => r.title).join('、')}。`, { class: 'muted meta-note' }));
-  } else appendTagChanges(meta, card);
-  if (mode === 'diff') appendPropertyChanges(meta, card);
+  }
   pane.append(meta);
   const body = el('section', null, { class: 'review-body', 'aria-label': '正文' });
   body.append(el('h3', mode === 'preview' ? '正文 · 网站排版' : '正文 · 段落对比', { class: 'section-label' }));
@@ -604,99 +634,107 @@ async function showSelection() {
   const previewCards = item.removal ? item.plan.changes.map(c => ({ ...c, afterProperties: c.beforeProperties, afterContent: c.beforeContent })) : item.plan.changes;
   if (mode === 'preview') {
     const frame = el('iframe', null, { title: '网站发布样式预览', sandbox: 'allow-same-origin', class: 'article-preview', referrerpolicy: 'no-referrer' });
+    frame.addEventListener('load', () => fitFrame(frame));
     frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
       const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
-      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path);
+      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => !c.translation && (previewPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path));
       if (target) void run(async () => { selected = { item, id: target.id }; renderList(); await showSelection(); });
       else notice('预览中不打开外部链接，以免未发布内容发送到其他网站。');
     }));
     frame.srcdoc = await previewHtml(previewCards.find(c => c.id === id), previewCards); body.append(frame);
   } else await showDiff(body, card, item.plan.changes);
 }
+/** Grows the preview to its content so the article scrolls with the pane, as it does on the site. */
+function fitFrame(frame) {
+  const doc = frame.contentDocument; if (!doc?.documentElement) return;
+  const fit = () => { frame.style.height = `${Math.ceil(doc.documentElement.getBoundingClientRect().height)}px`; };
+  fit();
+  new frame.contentWindow.ResizeObserver(fit).observe(doc.documentElement);
+}
 function detailActions(item) {
   const box = el('div', null, { class: 'detail-actions' });
-  if (item.decision) {
-    box.append(el('span', itemMeta(item, item.removal, itemGroup(item) === 'edited').replace(/^article · /, ''), { class: 'item-state', 'data-decision': item.decision }));
-    return box;
-  }
-  const action = (text, key, verdict, variant) => {
-    const b = button(text, () => decide(item, verdict), { class: `btn ${variant}`, 'aria-keyshortcuts': key.toLowerCase() });
+  const yes = item.removal ? 'remove' : 'approve', no = item.removal ? 'skip' : 'reject';
+  const action = (text, key, verdict, decision, variant) => {
+    const b = button(text, () => decide(item, verdict), { class: `btn ${variant}`, 'data-decide': decision, 'aria-pressed': String(item.decision === decision), 'aria-keyshortcuts': key.toLowerCase() });
     b.append(el('kbd', key, { 'aria-hidden': 'true' }));
     return b;
   };
   box.append(
-    action(item.removal ? '暂不删除' : '拒绝', 'R', 'reject', ''),
-    action(item.removal ? '删除' : '通过', 'A', 'approve', item.removal ? 'danger' : 'primary'),
+    action(item.removal ? '暂不删除' : '拒绝', 'R', 'reject', no, ''),
+    action(item.removal ? '删除' : '通过', 'A', 'approve', yes, ''),
   );
   return box;
 }
+/** Remark is written to the card's Remark column when the review is rejected. */
+function remarkField(item) {
+  const box = el('div', null, { class: 'remark-field' });
+  const id = `remark-${item.card.id}`;
+  const label = el('label', null, { for: id });
+  label.append(el('span', '拒绝说明'), el('span', 'Remark', { class: 'muted' }));
+  const area = el('textarea', null, { id, rows: '2', maxlength: '2000', placeholder: '写给自己的修改意见。拒绝时写回 Heptabase，可以留空。' });
+  area.value = item.remarkDraft ?? (item.plan.properties?.remark || '');
+  const hint = el('p', '', { class: 'muted remark-hint', role: 'status' });
+  const sync = () => { hint.textContent = item.decision === 'reject' && remarkChange(item) !== undefined ? '说明已修改，再点一次拒绝写回 Heptabase。' : ''; };
+  area.addEventListener('input', () => { item.remarkDraft = area.value; sync(); });
+  sync();
+  box.append(label, area, hint);
+  return box;
+}
+/**
+ * Public address. Chinese (#blog) is on cn.ethanchang.io; an English translation has the same
+ * path on ethanchang.io, other languages under ethanchang.io/<language>.
+ */
 function contentPath(card) {
-  return card.path ? '/' + card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') : '';
+  if (!card.path) return '';
+  let id = card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '');
+  if (card.translation) id = id.replace(/\/[a-z]{2,3}$/, '');
+  const url = card.afterProperties?.url || card.beforeProperties?.url;
+  const path = url && id.startsWith('articles/') ? '/' + id.slice('articles/'.length) : '/' + id;
+  if (!card.translation) return `cn.ethanchang.io${path}`;
+  return card.language === 'en' ? `ethanchang.io${path}` : `ethanchang.io/${card.language}${path}`;
+}
+function previewPath(card) {
+  return contentPath(card).replace(/^(cn\.)?ethanchang\.io/, '');
 }
 function appendProperties(parent, card, kind, removal) {
-  const p = (removal ? card.beforeProperties : card.afterProperties) || {};
-  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表' }[kind];
+  const before = card.beforeProperties || {}, p = (removal ? card.beforeProperties : card.afterProperties) || {};
+  // Only an already published card has an old value to compare against; removals show what is live.
+  const compare = !removal && Boolean(card.previouslyPublished);
+  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表', translation: `${card.language} 译文` };
   const rows = el('dl', null, { class: 'meta-grid' });
-  const row = (name, value) => { const dd = el('dd'); if (typeof value === 'string') dd.textContent = value; else dd.append(value); rows.append(el('dt', name), dd); };
-  row('类型', `${kindLabels[kind]} · ${where}`);
+  const row = (name, value, attrs = {}) => { const dd = el('dd', null, attrs); if (typeof value === 'string') dd.textContent = value; else dd.append(value); rows.append(el('dt', name), dd); };
+  const changed = (oldText, newText) => {
+    const span = el('span', null, { class: 'inline-change' });
+    span.append(el('del', oldText), el('ins', newText));
+    return span;
+  };
+  const scalar = (name, oldText, newText, empty) => {
+    if (compare && oldText !== newText) row(name, changed(oldText || empty, newText || empty));
+    else row(name, newText ? newText : el('span', empty, { class: 'muted' }));
+  };
+  if (compare && before.title && before.title !== p.title) row('标题', changed(before.title, p.title || '未设置'));
+  const oldKind = compare && before.slot ? pageKind({ ...card, afterProperties: before }, false) : kind;
+  scalar('类型', `${kindLabels[oldKind]} · ${where[oldKind]}`, `${kindLabels[kind]} · ${where[kind]}`, '');
   if (contentPath(card)) row('地址', el('code', contentPath(card)));
-  row('日期', formatDate(p.date) || '未设置');
-  const summary = el('span', p.description || '未填写 Summary', p.description ? {} : { class: 'muted' });
-  row('摘要', summary);
-  const tags = el('ul', null, { class: 'meta-tags', 'aria-label': '当前标签' });
-  (p.tags || []).forEach(tag => tags.append(el('li', tag)));
-  row('标签', (p.tags || []).length ? tags : el('span', '没有标签', { class: 'muted' }));
+  scalar('日期', formatDate(before.date), formatDate(p.date), '未设置');
+  scalar('摘要', before.description || '', p.description || '', '未填写 Summary');
+  appendTagRow(row, card, p, removal);
   parent.append(rows);
 }
-function appendPropertyChanges(parent, card) {
-  const props = el('dl', null, { class: 'property-changes' });
-  for (const [key, name] of [['title', '标题'], ['description', '摘要'], ['date', '日期']]) {
-    const text = p => Array.isArray(p[key]) ? p[key].join('、') : String(p[key] || '未设置');
-    if (text(card.beforeProperties) === text(card.afterProperties)) continue;
-    const dd = el('dd');
-    dd.append(el('del', text(card.beforeProperties)), document.createTextNode(' → '), el('ins', text(card.afterProperties)));
-    props.append(el('dt', name), dd);
-  }
-  if (!props.children.length) return;
-  parent.append(el('h3', '属性变化', { class: 'section-label' }), props);
-}
-async function confirmRemoval(item) {
-  selected = { item, id: item.card.id }; renderList(); await showSelection();
-  const d = dialog(`删除「${title(item)}」`);
-  d.append(el('p', '确认后将这些页面加入待删除清单。通过 GitHub 发布后，正文、博客列表和全文搜索都会移除；不会删除或修改 Heptabase 里的其他卡片。历史版本仍可从 GitHub 恢复。'));
-  const list = el('ul'); item.plan.changes.forEach(c => list.append(el('li', `${c.mainArticle ? 'article' : 'page'} · ${c.title}`))); d.append(list);
-  if (item.plan.keptReferences.length) d.append(el('p', `仍有其他文章使用的 ${item.plan.keptReferences.length} 个引用资料页会保留。`));
-  if (item.plan.blockers.length) { d.append(el('p', '仍有其他文章指向这些页面，请先处理右侧列出的引用，再重新拉取。', { role: 'alert' })); return; }
-  const checkbox = el('input', null, { type: 'checkbox', id: 'removal-reviewed' }), label = el('label', null, { for: 'removal-reviewed' });
-  label.append(checkbox, document.createTextNode('我确认将以上页面从网站删除。')); d.append(label, button('确认加入待删除', async () => {
-    if (!checkbox.checked) throw new Error('请先确认要删除的页面。');
-    await api('/heptabase/removal', { ...selection(item), confirmDelete: true });
-    item.decision = 'remove'; closeDialog();
-    const message = afterDecision(item, '已加入待删除清单，网站尚未改变。');
-    renderList(); await showSelection(); git = await api('/git'); await renderRelease(); notice(message);
-  }, { class: 'btn danger' }));
-  setTimeout(() => checkbox.focus());
-}
-function appendTagChanges(parent, card) {
-  const { added, removed, unchanged } = tagDiff(card.beforeProperties.tags, card.afterProperties.tags);
-  if (!added.length && !removed.length) return;
-  const section = el('section', null, { class: 'tag-changes', 'aria-label': '标签变化' });
-  section.append(el('h3', onlyTagsChanged(card) ? '仅标签更新' : '标签变化'));
-  const rows = el('dl');
-  for (const [label, symbol, tags, kind] of [['新增', '+', added, 'added'], ['移除', '−', removed, 'removed']]) {
-    if (!tags.length) continue;
-    const values = el('dd'), list = el('ul');
-    tags.forEach(tag => { const li = el('li', null, { class: `tag-${kind}` }); li.append(document.createTextNode(`${symbol} `), el(kind === 'removed' ? 's' : 'span', tag)); list.append(li); });
-    values.append(list); rows.append(el('dt', `${label} ${tags.length}`), values);
-  }
-  section.append(rows);
-  if (unchanged.length) {
-    const details = el('details'), list = el('ul');
-    unchanged.forEach(tag => list.append(el('li', tag)));
-    details.append(el('summary', `保留 ${unchanged.length} 个标签`), list); section.append(details);
-  }
-  if (!added.length && !unchanged.length) section.append(el('p', '更新后没有标签。', { class: 'muted' }));
-  parent.append(section);
+function appendTagRow(row, card, p, removal) {
+  const { added, removed } = removal ? { added: [], removed: [] } : tagDiff(card.beforeProperties.tags, card.afterProperties.tags);
+  const list = el('ul', null, { class: 'meta-tags', 'aria-label': '标签' });
+  const addedSet = new Set(added);
+  [...new Set(p.tags || [])].forEach(tag => {
+    if (!addedSet.has(tag)) { list.append(el('li', tag)); return; }
+    const li = el('li', null, { class: 'tag-added' }); li.append(document.createTextNode('+ '), el('span', tag)); list.append(li);
+  });
+  removed.forEach(tag => { const li = el('li', null, { class: 'tag-removed' }); li.append(document.createTextNode('− '), el('s', tag)); list.append(li); });
+  const changes = added.length || removed.length;
+  const value = el('div', null, { class: 'meta-tag-row' });
+  if (list.children.length) value.append(list);
+  if (!(p.tags || []).length) value.append(el('span', changes ? '更新后没有标签。' : '没有标签', { class: 'muted' }));
+  row('标签', value, changes ? { class: 'tag-changes', 'aria-label': '标签与标签变化' } : {});
 }
 const formatDate = date => date ? siteDate(new Date(String(date).slice(0,10) + 'T12:00:00Z'), 'zh-CN') : '';
 async function previewTemplate() {
@@ -717,7 +755,9 @@ function previewThemeStyle(theme) {
   const vars = dark
     ? '--theme-surface-950:rgb(25 25 25);--theme-surface-900:rgb(25 25 25);--theme-surface-800:rgb(38 38 38);--theme-surface-700:rgb(52 52 52);--theme-ink-50:rgb(248 250 252);--theme-ink-100:rgb(241 245 249);--theme-ink-200:rgb(226 232 240);--theme-ink-300:rgb(203 213 225);--theme-ink-400:rgb(148 163 184);--theme-ink-500:rgb(100 116 139);--theme-ink-600:rgb(71 85 105);--theme-accent-deletion:rgb(252 165 165);--theme-accent-insertion:rgb(134 239 172)'
     : '--theme-surface-950:rgb(255 255 255);--theme-surface-900:rgb(255 255 255);--theme-surface-800:rgb(240 240 240);--theme-surface-700:rgb(224 224 224);--theme-ink-50:rgb(255 255 255);--theme-ink-100:rgb(23 23 23);--theme-ink-200:rgb(38 38 38);--theme-ink-300:rgb(64 64 64);--theme-ink-400:rgb(115 115 115);--theme-ink-500:rgb(140 140 140);--theme-ink-600:rgb(163 163 163);--theme-accent-deletion:rgb(153 27 27);--theme-accent-insertion:rgb(22 101 52)';
-  return `html{color-scheme:${theme}!important;${vars}}html,body{background-color:var(--color-surface-950)!important;color:var(--color-ink-300)!important}`;
+  // The site places the article in a 42rem reading column (see .reading-shell in global.css).
+  const column = '.article-shell{max-width:42rem;margin-inline:auto}@media (min-width:768px){.article-shell{padding-top:.75rem}}';
+  return `html{color-scheme:${theme}!important;${vars}}html,body{background-color:var(--color-surface-950)!important;color:var(--color-ink-300)!important}${column}`;
 }
 function absolutizePreviewAssets(doc) {
   const origin = location.origin;
@@ -750,7 +790,8 @@ async function previewHtml(card, cards) {
   const dek = doc.querySelector('.article-dek-text');
   if (dek) { if (p.description) dek.textContent = p.description; else dek.remove(); }
   const tags = doc.querySelector('.article-dek .ui-tag-list');
-  if (tags) {
+  if (!(p.tags || []).length) doc.querySelector('.article-dek .article-meta')?.remove();
+  else if (tags) {
     tags.replaceChildren(...(p.tags || []).map(tag => {
       const li = doc.createElement('li');
       const a = doc.createElement('a');
@@ -858,38 +899,6 @@ function connectMovedBlocks(comparison) {
   document.fonts.ready.then(schedule); document.fonts.addEventListener('loadingdone', schedule);
   schedule();
   return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); svg.remove(); };
-}
-async function confirmDecision(item, decision) {
-  const approve = decision === 'approve';
-  if (approve && item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
-  selected = { item, id: item.card.id }; renderList(); await showSelection();
-  const d = dialog(`${approve ? '通过' : '拒绝'}「${title(item)}」`);
-  d.append(el('p', approve ? `通过这篇博客，也表示你已确认它的 ${item.plan.changes.filter(c => !c.mainArticle).length} 个引用资料页可以公开。将回写 Published。卡片已有发布日期或创建时间时，沿用卡片上的时间，不另填今天。网站仍需下一步提交发布。` : '将回写 Block，不修改发布日期，也不会改动线上已有文章。'));
-  if (approve && item.plan.pageNote) d.append(el('p', item.plan.pageNote));
-  if (approve) appendTagChanges(d, rootChange(item));
-  if (approve && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged)) {
-    d.append(button('标记引用资料为 Reference', async () => {
-      await api('/heptabase/mark-references', selection(item));
-      item.plan = await api('/heptabase/preview', item.input);
-      closeDialog();
-      renderList();
-      await showSelection();
-      notice('引用已加入 #blog，Blog Type 为 Reference。请确认这些资料不含私人内容。');
-    }, { class: 'btn' }));
-  }
-  let checkbox;
-  if (approve) { checkbox = el('input', null, { type: 'checkbox', id: 'privacy-reviewed' }); const label = el('label', null, { for: 'privacy-reviewed' }); label.append(checkbox, document.createTextNode('我已检查这篇博客和所有引用，确认可以公开。')); d.append(label); }
-  if (item.plan.conflict) d.append(el('p', 'GitHub 与 Heptabase 两边都有变化；通过后将采用已预览的 Heptabase 版本。', { role: 'alert' }));
-  d.append(button(approve ? '确认通过并回写' : '确认拒绝并回写', async () => {
-    if (approve && !checkbox.checked) throw new Error('请先确认这篇博客和所有引用都可以公开。');
-    await api('/heptabase/decision', { ...selection(item), decision, confirmPublic: approve, resolveConflict: true });
-    item.decision = decision; closeDialog();
-    const message = afterDecision(item, approve ? '已通过并回写 Published。只是审核通过，尚未上线。' : '已拒绝并回写 Block，线上旧文章保持不变。');
-    renderList(); await showSelection(); git = await api('/git'); await renderRelease();
-    notice(message);
-  }, { class: approve ? 'btn primary' : 'btn danger' }));
-  // run() re-enables buttons only after this returns.
-  setTimeout(() => (checkbox || d.querySelector('button.primary, button.danger'))?.focus());
 }
 async function renderRelease() {
   const release = document.querySelector('#release'); if (!release) return;

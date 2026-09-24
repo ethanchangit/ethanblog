@@ -8,8 +8,8 @@ import DateText from '@/components/shell/DateText.astro';
 import TagList from '@/components/shell/TagList.astro';
 import CopyUrl from '@/components/shell/CopyUrl.svelte';
 import SeriesNav from '@/components/shell/SeriesNav.astro';
-import { site } from '@/data/profile';
-import { seriesContext, type DocEntry } from '@/lib/docs';
+import { isTranslation, languageVersions, seriesContext, type DocEntry } from '@/lib/docs';
+import { canonicalUrl as pageCanonical, languageSwitchHref } from '@/lib/hosts';
 import { localizeHref } from '@/lib/locale';
 import { docJsonLd } from '@/lib/agent';
 
@@ -34,12 +34,12 @@ const {
 } = doc.data;
 const isArticle = slot === 'article';
 const slug = doc.id;
-const canonicalUrl = new URL(
-  Astro.locals.localePath?.(Astro.url.pathname) ??
-    localizeHref(Astro.url.pathname, Astro.locals.locale),
-  site.url,
-).href;
+const canonicalUrl = pageCanonical(
+  Astro.locals.localePath?.(Astro.url.pathname) ?? localizeHref(Astro.url.pathname, Astro.locals.locale),
+);
 const series = isArticle && !preview ? await seriesContext(doc) : null;
+const translation = isTranslation(doc);
+const versions = isArticle && !preview ? await languageVersions(doc) : [];
 const jsonLd = docJsonLd(doc);
 ---
 
@@ -63,7 +63,20 @@ const jsonLd = docJsonLd(doc);
               </span>
             )}
           </div>
-          {!preview && <BookmarkButton client:load slug={slug} />}
+          <div class="flex items-center gap-3">
+            {versions.map((version) => (
+              <a
+                href={languageSwitchHref(version.lang, version.href)}
+                hreflang={version.lang === 'zh' ? 'zh-CN' : 'en'}
+                lang={version.lang === 'zh' ? 'zh-CN' : 'en'}
+                class="ui-meta ui-link"
+                data-language-switch={version.lang}
+              >
+                {version.label}
+              </a>
+            ))}
+            {!preview && <BookmarkButton client:load slug={slug} />}
+          </div>
         </div>
       )
     }
@@ -73,7 +86,7 @@ const jsonLd = docJsonLd(doc);
     {series && <SeriesNav series={series} part="parent" />}
   </header>
 
-  {!preview && <CopyUrl client:visible url={canonicalUrl} />}
+  {!preview && <CopyUrl client:visible url={canonicalUrl} lang={Astro.locals.lang === 'en' ? 'en' : 'zh-CN'} />}
 
   <div class="article-body-row relative mt-8">
     <article class="article-page">
@@ -84,14 +97,24 @@ const jsonLd = docJsonLd(doc);
           </p>
         ) : null}
         {isArticle ? (
-          <TagList tags={tags} />
+          (tags.length > 0 || preview) && (
+            <dl class="article-meta">
+              <dt><I18n k="tagsTitle" /></dt>
+              <dd><TagList tags={tags} class="ui-tag-list--start" /></dd>
+            </dl>
+          )
         ) : (
           stack.length > 0 && (
-            <ul class="ui-tag-list mt-5">
-              {stack.map((item) => (
-                <li class="ui-tag">{item}</li>
-              ))}
-            </ul>
+            <dl class="article-meta">
+              <dt><I18n k="techStack" /></dt>
+              <dd>
+                <ul class="ui-tag-list ui-tag-list--start">
+                  {stack.map((item) => (
+                    <li class="ui-tag">{item}</li>
+                  ))}
+                </ul>
+              </dd>
+            </dl>
           )
         )}
       </header>
@@ -156,7 +179,7 @@ const jsonLd = docJsonLd(doc);
             )
           }
           {series && <SeriesNav series={series} part="pager" />}
-          {isArticle && !preview && <ArticleComments client:visible slug={slug} />}
+          {isArticle && !preview && !translation && <ArticleComments client:visible slug={slug} />}
         </footer>
       </div>
     </article>

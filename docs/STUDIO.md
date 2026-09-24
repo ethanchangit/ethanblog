@@ -4,7 +4,7 @@
 
 ## 哪里的内容为准
 
-- **Heptabase 是写作来源。** 读取准确名为 `blog` 的标签数据库。审核入口只拉取 `Status = review` 的主文章；`new`、`writing`、`block` 不进入审核清单。大小写兼容，但每个状态只能有一个选项。`published` 表示已通过审核，是否真正上线另看发布进度。
+- **Heptabase 是写作来源。** 读取准确名为 `blog` 的标签数据库。审核入口只拉取 `Status = review` 的主文章；`new`、`writing`、`blocked` 不进入审核清单。大小写兼容，但每个状态只能有一个选项。`published` 表示已通过审核，是否真正上线另看发布进度。
 - **GitHub 是网站、已审查内容与发布历史的唯一真源。** 提交只创建或更新内容 PR；经过检查和明确确认后合并到 `main`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages。pull request 只跑 `verify`。在 `main` 上 `workflow_dispatch` 也会部署。
 - 站点页来自 `#blog` 里 Blog Type 为 Page 的卡片，最多显示 4 页。不超过 4 张时全部发布，审核里不出现挑选。超过 4 张时，拉取后的审核清单顶部写明「站点页面最多显示 4 页」，并要求勾选留下哪几页；未勾选的不会悄悄去掉，已在网站上的要等确认发布后才撤下。关于、Now、联系、隐私继续用原来的地址；留下的新 Page 卡片发布到 `/pages/<id>`。固定地址已被占用时，审核预览会写明新页面的地址，两张都保留。发布副本在 `src/content/pages/`。Blog Type 的选项以数据库为准，当前是 Article、Project、Page 和 Reference。只有 Article 进入文章列表。Reference 有自己的页面，不进文章列表。项目和文章没有篇数上限。卡片已有的发布日期和创建时间原样复制，不另造一个今天。标题下的预览段落来自 Summary；Summary 为空时留空，不把正文第一段当成摘要。
 - **Cloudflare 私有存储只保留待提交快照、审查记录、授权、发布进度，以及每张卡片上次成功拉取的编辑时间。** 编辑时间在 D1 表 `studio_card_pulls` 的 `edited_at`。每次拉取仍读取完整卡片列表，用来发现移出 `#blog` 或已删除的卡片。编辑时间没变的卡片不再读取正文，沿用上次拉到的内容；编辑时间变了，或还没有拉取过的卡片，才读取正文。后台重启后仍用这张表比较。拉取或保存审查结果不会直接更新网站。后台不会直接覆盖 `main`。
@@ -18,7 +18,7 @@
 3. 左侧分成 **New articles**（新卡片或首次公开）、**Edited articles**（GitHub 主版本里已公开文章的更新）与 **Deleted articles**（移出 `#blog` 或源卡片已删除）。`Blog Type` 为 Article 的卡片进入文章列表，Reference 有自己的页面但不进文章列表，Project 进入项目页，Page 进入站点页。Page 预览写明发布地址。站点页最多 4 页；不超过 4 张时全部发布。超过 4 张时，清单顶部的「站点页面」要求勾选留下哪几页，再用上移、下移排列导航顺序，然后点「确认留下这些页面」。不超过 4 张时，同一处只排列顺序，点「确认这个顺序」。顺序写入 `src/data/page-order.ts`，发布后导航按这个顺序显示。项目和文章没有上限。没选时停止拉取，不按标题猜测。Article 用有序清单，跟随的 Reference 用下方无序清单。首次关联只列出同一类型里尚未连接的网页。没有待删除文章时不显示第三组。卡片已经删除的文章只出现在 Deleted articles，不会被重新发布。
 4. 点击条目，在右侧查看发布排版，或切换「段落对比」。对比以 GitHub 主版本为基准，不把未合并 PR 当作已发布文章。左右栏分别按各自顺序展示完整全文：左栏改动的原有内容为红底删除线，右栏新内容为绿底，未变段落不折叠，不重复显示「原有内容／新内容」标签。移动段落与表格在左侧原位置标红、右侧新位置标绿，跨栏连线连接对应位置；位置提示可点击跳到另一侧。手机上按原文、这一版上下排列，隐藏跨栏连线，保留位置跳转。代码块、列表、表格按完整块比较；标签变化仍独立展示。普通正文复用博客的 Doc/Card 排版；审核时不加载外站图片或运行交互组件，避免私人内容泄露，复杂源码不伪装成已渲染效果。
 5. 检查完整递归引用范围，包括循环和共享引用。还没有进入 `#blog` 的引用卡片要加入 `#blog`，并把 Blog Type 设为 Reference，便于回到同一张表里审查。**类型本身不是公开许可**。
-6. 只在 blog 上设置 ✓ 和 ×。通过前明确确认正文与所有 page 都可公开；立即回写 `published`。已有 Publish Date 或创建时间原样保留；两样都空才补当天（默认 Africa/Dar_es_Salaam）。此时仅为「已通过，待发布」，尚未上传 GitHub。拒绝则回写 `block`，保留日期和线上旧文章，不填写 comment。被引用的其他 blog 必须单独通过，不能借 mention 绕过拒绝。
+6. 只在 blog 上设置 ✓ 和 ×。通过前明确确认正文与所有 page 都可公开；立即回写 `published`。已有 Publish Date 或创建时间原样保留；两样都空才补当天（默认 Africa/Dar_es_Salaam）。此时仅为「已通过，待发布」，尚未上传 GitHub。拒绝则回写 `blocked`，保留日期和线上旧文章，不填写 comment。被引用的其他 blog 必须单独通过，不能借 mention 绕过拒绝。
 7. 可只通过部分博客。点「提交通过的更新到 GitHub」只提交这些博客及其引用；再次检查源内容、属性和隐私确认。公开仓库里 **PR 提交已经是公开行为**。
 8. GitHub 检查通过后「确认发布」，核对清单，再「确认发布到博客」。内容、主版本或检查变化时停止。
 9. 后台显示「已上线」才算真正发布完成；合并成功、审核 Published 都不等于已上线。以实际网站版本和 GitHub 发布结果为准。
@@ -32,7 +32,7 @@ Reference 卡片在 `#blog` 里，用 Blog Type 的 Reference 选项和文章、
 在 Heptabase 将关联文章移出 `#blog`，或直接删除源卡片，下次「拉取最新更新」会把它列入 **Deleted articles**。关于、Now、联系、隐私和 Blog Type 为 Reference 的资料同样：卡片离开 `#blog` 或被删除就进入这份清单。这项检查不要求卡片仍为 Review，也包括已经通过审核、尚未上线的新文章。没有关联源卡片的旧文章不会因为拉取结果里找不到它而被删除。权限、网络或不完整列表不当作删除。不会删除 Heptabase 里的源卡片。
 
 1. 点击待删除文章，右侧显示现有内容和删除原因。下方列出会一起撤下的专属引用资料；仍被其他页面使用的资料会保留。
-2. 点击 ✓，核对完整删除清单并明确确认；点击 × 仅表示本轮暂不删除，不改 Heptabase 属性。撤下流程不会删除或改写 Heptabase 源卡片，不会把状态改为 Block。
+2. 点击 ✓，核对完整删除清单并明确确认；点击 × 仅表示本轮暂不删除，不改 Heptabase 属性。撤下流程不会删除或改写 Heptabase 源卡片，不会把状态改为 Blocked。
 3. 确认后只是「待发布」。提交前可在底部取消删除，恢复之前的待发布更新。已经提交 GitHub 的删除需要通过 GitHub 调整，后台不会覆盖已提交的审查结果。
 4. 与新增、编辑一起提交 GitHub，检查通过后明确确认发布，才会从线上正文、列表和搜索中移除。只在本地待发布、从未提交的新文章被撤回时，清理待发布清单即可，不需要创建空的发布。
 
@@ -52,7 +52,7 @@ MCP 暂不能创建选项，缺少时会列出名称，要求先在 Heptabase �
 
 ## 部署与配置
 
-Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
+Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io （英文博客、后台）和 https://cn.ethanchang.io （中文博客）。部署时 `scripts/ensure-domains.mjs` 自动补齐 cn 域名和 DNS。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
 
 Cloudflare production 需要：
 
@@ -121,3 +121,10 @@ node studio/online/preview.mjs
 - Heptabase 授权过期或撤销：重新连接，不把访问令牌粘贴到网页或聊天。更换加密密钥前必须备份并处理旧授权。
 
 本次不接入访问统计、不提供网页编辑器、媒体上传或自动翻译。
+
+## 译文（#blogi18n）
+
+- 译文是 `#blogi18n`（标签 `blog i18n`）里的独立卡片。`#blog` 卡片的关联字段 `blog i18n` 指向它；配对只看关联。
+- 审核时译文列在原文下面（Translation · en），和原文一起通过或拒绝。发布后中文在 cn.ethanchang.io，英文在 ethanchang.io，同一路径。
+- 译文的 `Language` 必填；`URL` 为空或与原文相同。没有加入 `#blogi18n`、URL 不一致、同一语言关联了两张，都会停下并说明原因。
+- 撤下原文时，它的译文一起撤下。从关联里去掉某张译文，不会自动撤下已发布的那一版，需要在 GitHub 删除对应文件。

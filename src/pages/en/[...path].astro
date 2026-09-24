@@ -1,0 +1,20 @@
+---
+// English translations (#blogi18n), built under /en and served on ethanchang.io at the same
+// path as their Chinese source on cn.ethanchang.io: /<url>, or /articles/<id> without URL.
+import ArticleView from '@/components/shell/ArticleView.astro';
+import { docHref, englishArticles, includeDraftsInDev } from '@/lib/docs';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const articles = await englishArticles({ includeDrafts: includeDraftsInDev });
+  return articles.map((article) => ({
+    params: { path: docHref(article).slice(1) },
+    props: { article },
+  }));
+}
+
+const { article } = Astro.props;
+---
+
+<ArticleView article={article} />

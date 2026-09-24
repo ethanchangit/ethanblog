@@ -1,5 +1,6 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { RESERVED_URLS } from '@/lib/routes';
 
 /**
  * 文章与项目共用同一份 MDX 形态。
@@ -22,8 +23,13 @@ const docSchema = z
     draft: z.boolean().default(false),
     // 历史页可以没有链接继续构建。经后台新建或更新时必须是真实的 heptabase://card/<uuid>。
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
-    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
+    // Heptabase URL: the article is /<url> on cn.ethanchang.io, and its translations use the same path on their site.
+    // A translation (from #blogi18n) records its language and the #blog card it translates.
+    language: z.string().regex(/^[a-z]{2,3}$/).optional(),
+    translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
+    url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),
@@ -39,6 +45,9 @@ const docSchema = z
     featured: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
+    if (value.url && (RESERVED_URLS as readonly string[]).includes(value.url)) {
+      ctx.addIssue({ code: 'custom', message: `url「${value.url}」与网站固定地址 /${value.url} 冲突`, path: ['url'] });
+    }
     if (value.slot === 'article' && value.date == null) {
       ctx.addIssue({
         code: 'custom',
@@ -69,7 +78,7 @@ const pages = defineCollection({
     updated: z.coerce.date().optional(),
     draft: z.boolean().optional(),
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
-    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
   }),
 });

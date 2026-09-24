@@ -296,6 +296,8 @@ export async function taggedCards(client, name) {
 }
 
 export const blogCards = (client) => taggedCards(client, 'blog');
+// Translations of #blog cards. Ethan also writes this tag as #blogi18n.
+export const i18nCards = (client) => taggedCards(client, 'blog i18n');
 
 export function cardStamps(metadata) {
   return {

@@ -115,7 +115,7 @@ test.describe('Projects 集合页', () => {
     );
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(copied).toBe(canonical);
-    expect(copied).toMatch(/^https:\/\/ethanchang\.io\/projects\/ethanchang-io\/?$/);
+    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/projects\/ethanchang-io\/?$/);
   });
 
   test('项目索引不收录文章', async ({ page }) => {

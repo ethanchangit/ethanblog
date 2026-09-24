@@ -16,7 +16,7 @@ const items = groups.flatMap((group) => group.tags.map((tag) => ({ tag, group: g
 const counts = Object.fromEntries(
   tags.map((tag) => [tag, articles.filter((entry) => entry.data.tags.includes(tag)).length])
 );
-const cards = articles.filter((entry) => entry.data.tags.length > 0).map(articleCardProps);
+const cards = articles.filter((entry) => entry.data.tags.length > 0).map((entry) => articleCardProps(entry));
 const lp = Astro.locals.localePath;
 ---
 

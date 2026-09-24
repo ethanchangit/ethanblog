@@ -40,6 +40,8 @@ declare namespace App {
     locale: 'en' | 'zh';
     lang: 'zh-CN' | 'en';
     localePath: (href: string) => string;
+    /** Set by the dev middleware after it rewrote an English-host request to /en. */
+    hostRouted?: boolean;
   }
 }
 
