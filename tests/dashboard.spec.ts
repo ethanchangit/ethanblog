@@ -72,31 +72,43 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(frame.locator('.prose-site')).toContainText('只整理当下真正用得上的笔记');
   await expect(frame.locator('time')).toContainText('2024 年 2 月 1 日');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
-  await expect(page.locator('.diff-summary')).toHaveText('新增 2 段 · 改写 1 段 · 删除 0 段 · 移动 1 段');
-  await expect(page.locator('.diff-original .modified')).toContainText('过去，我会每周整理一次所有笔记');
-  await expect(page.locator('.diff-revision .modified')).toContainText('现在，我会从正在写的文章出发');
-  await expect(page.locator('.diff-original ins, .diff-revision del, .diff-change-label')).toHaveCount(0);
+  await expect(page.locator('.diff-summary')).toHaveText('新增 2 段 · 改写 3 段 · 删除 0 段');
+  await expect(page.locator('.diff-move-label, .paragraph-change.moved')).toHaveCount(0);
+  await expect(page.getByText('原文 · 发布前')).toHaveCount(0);
+  await expect(page.getByText('这一版 · 发布后')).toHaveCount(0);
+  await expect(page.locator('.diff-original, .diff-revision, .diff-column-label, .diff-move-lines')).toHaveCount(0);
+  await expect(page.locator('.full-diff article')).toHaveCount(1);
+  await expect(page.locator('.full-diff article')).toHaveCSS('border-top-width', '0px');
+  const modified = page.locator('.paragraph-change.modified').filter({ hasText: '过去，我会每周整理一次所有笔记' });
+  await expect(modified.locator('.diff-removed')).toContainText('过去，我会每周整理一次所有笔记');
+  await expect(modified.locator('.diff-added')).toContainText('现在，我会从正在写的文章出发');
+  expect(await modified.evaluate(node => {
+    const old = node.querySelector('.diff-removed')!.getBoundingClientRect();
+    const next = node.querySelector('.diff-added')!.getBoundingClientRect();
+    return old.bottom <= next.top + 1 && Math.abs(old.left - next.left) < 2;
+  })).toBe(true);
+  await expect(page.locator('.diff-removed ins, .diff-added del, .diff-change-label')).toHaveCount(0);
   await expect(page.locator('.full-diff')).not.toContainText('原有内容');
   await expect(page.locator('.full-diff')).not.toContainText('新内容');
-  await expect(page.locator('.diff-original [data-position="3"] table')).toBeVisible();
-  await expect(page.locator('.diff-revision [data-position="4"] table')).toBeVisible();
-  await expect(page.locator('.diff-move-path[data-move="3-4"]')).toHaveCount(1);
+  await expect(page.locator('.diff-removed[data-position="3"] table')).toBeVisible();
+  await expect(page.locator('.diff-added[data-position="4"] table')).toBeVisible();
+  await expect(page.locator('.diff-move-path')).toHaveCount(0);
   await expect(page.locator('.full-diff details')).toHaveCount(0);
-  await expect(page.locator('.diff-original-body')).toContainText('知识管理并不是把更多资料放进一个地方');
-  await expect(page.locator('.diff-original-body')).toContainText('过去，我会每周整理一次所有笔记');
-  await expect(page.locator('.diff-original-body')).not.toContainText('现在，我会从正在写的文章出发');
-  await expect(page.locator('.diff-revision .unchanged')).toHaveCount(2);
-  await expect(page.locator('.diff-revision')).toContainText('好的系统应该让写作更自然');
-  await expect(page.locator('.modified .diff-removed del')).toContainText('过去，我会每周整理一次所有笔记');
-  await expect(page.locator('.modified .diff-added ins')).toContainText('现在，我会从正在写的文章出发');
+  await expect(page.locator('.full-diff .unchanged')).toHaveCount(1);
+  await expect(page.locator('.full-diff article')).toContainText('知识管理并不是把更多资料放进一个地方');
+  await expect(page.locator('.paragraph-change.unchanged').filter({ hasText: '现在，我会从正在写的文章出发' })).toHaveCount(0);
+  await expect(page.locator('.modified .diff-removed', { hasText: '现在，我会从正在写的文章出发' })).toHaveCount(0);
+  await expect(page.locator('.full-diff article')).toContainText('好的系统应该让写作更自然');
+  await expect(modified.locator('.diff-removed del')).toContainText('过去，我会每周整理一次所有笔记');
+  await expect(modified.locator('.diff-added ins')).toContainText('现在，我会从正在写的文章出发');
   await expect(page.locator('.diff-basis')).toContainText('未提供段落 ID');
   await page.getByRole('button', { name: '让标签跟着想法生长', exact: true }).click();
   await expect(page.getByText('article · 仅标签更新', { exact: true })).toBeVisible();
   await expect(page.locator('#review-preview .tag-added')).toHaveText('+ Productivity');
   await expect(page.locator('#review-preview .tag-removed')).toHaveText('− AI Native');
   await expect(page.locator('.diff-summary')).toHaveText('正文未修改，本次只更新标签。');
-  await expect(page.locator('.diff-original-body')).toContainText('标签不是一次完成的分类');
-  await expect(page.locator('.diff-revision')).toContainText('标签不是一次完成的分类');
+  await expect(page.locator('.full-diff article')).toContainText('标签不是一次完成的分类');
+  await expect(page.locator('.paragraph-change.unchanged').filter({ hasText: '标签不是一次完成的分类' })).toHaveCount(1);
   await expect(page.locator('.full-diff del, .full-diff ins')).toHaveCount(0);
   await expect(page.locator('.diff-move-lines')).toHaveCount(0);
   await expect(page.locator('#review-preview .tag-changes .meta-tags li')).toHaveText(['Mission', '+ Productivity', '− AI Native']);
@@ -150,7 +162,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   expect(errors).toEqual([]);
 });
 
-test('全文对比保留移动段落、代码、列表和引用，两种主题及窄屏都可阅读', async ({ page }) => {
+test('全文对比把换位段落显示成改写，并保留代码、列表和引用，两种主题及窄屏都可阅读', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const unchanged = '没有改动的结尾段落，完整显示。';
   const code = '```js\nconst label = "<script>not executable</script>";\n' + 'x'.repeat(150) + '\n```';
@@ -166,21 +178,22 @@ test('全文对比保留移动段落、代码、列表和引用，两种主题�
   await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
-  const original = page.locator('.diff-original'), revision = page.locator('.diff-revision');
-  await expect(original).toContainText(unchanged); await expect(revision).toContainText(unchanged);
-  await expect(original.locator('ul li')).toHaveText(['旧项目', '保留项目']);
-  await expect(original.locator('.modified del li')).toHaveText(['旧项目', '保留项目']);
-  await expect(revision.locator('.modified ins li')).toHaveText(['新项目', '保留项目']);
-  await expect(original.locator('pre')).toContainText('<script>not executable</script>');
-  await expect(revision.locator('pre')).toContainText('<script>not executable</script>');
+  const article = page.locator('.full-diff article');
+  await expect(article.locator('.paragraph-change.unchanged').filter({ hasText: unchanged })).toHaveCount(1);
+  await expect(article.locator('.modified .diff-removed ul li')).toHaveText(['旧项目', '保留项目']);
+  await expect(article.locator('.modified del li')).toHaveText(['旧项目', '保留项目']);
+  await expect(article.locator('.modified ins li')).toHaveText(['新项目', '保留项目']);
+  await expect(page.locator('.diff-summary')).toHaveText('新增 2 段 · 改写 4 段 · 删除 0 段');
+  await expect(article.locator('pre')).toHaveCount(2);
+  await expect(article.locator('pre').first()).toContainText('<script>not executable</script>');
   await expect(page.locator('.full-diff script')).toHaveCount(0);
-  await expect(original.locator('.moved')).toHaveCount(1);
-  await expect(revision.locator('.moved')).toHaveCount(1);
-  await expect(original.locator('.moved del')).toHaveText('移动这一段。');
-  await expect(revision.locator('.moved ins')).toHaveText('移动这一段。');
-  await expect(original.locator('.moved .diff-move-label')).toContainText('移至');
-  await expect(revision.locator('.moved .diff-move-label')).toContainText('移入');
-  const external = revision.getByRole('link', { name: '外部资料' });
+  await expect(article.locator('.moved, .diff-move-label')).toHaveCount(0);
+  const departed = article.locator('.paragraph-change.modified').filter({ has: page.locator('.diff-removed', { hasText: '移动这一段。' }) });
+  await expect(departed.locator('.diff-removed del')).toHaveText('移动这一段。');
+  await expect(departed.locator('.diff-added')).toContainText('固定中间段落。');
+  const arrived = article.locator('.paragraph-change.modified').filter({ has: page.locator('.diff-added', { hasText: '移动这一段。' }) });
+  await expect(arrived.locator('.diff-added ins')).toHaveText('移动这一段。');
+  const external = article.getByRole('link', { name: '外部资料' });
   await expect(external).toHaveAttribute('href', 'https://example.com/review-private');
   await external.click(); await expect(page).toHaveURL(url);
   await expect(page.locator('#notice')).toContainText('外部链接不会打开');
@@ -197,32 +210,25 @@ test('全文对比保留移动段落、代码、列表和引用，两种主题�
   for (const width of [1440, 1200, 900, 390]) {
     await page.setViewportSize({ width, height: 900 });
     const layout = await page.evaluate(() => {
-      const old = document.querySelector('.diff-original')!.getBoundingClientRect(), next = document.querySelector('.diff-revision')!.getBoundingClientRect();
-      return { overflow: document.documentElement.scrollWidth > innerWidth, oldX: old.x, nextX: next.x, oldBottom: old.bottom, nextTop: next.top };
+      const boxes = [...document.querySelectorAll('.full-diff .paragraph-change')].map(node => node.getBoundingClientRect());
+      const modified = document.querySelector('.paragraph-change.modified');
+      const old = modified?.querySelector('.diff-removed')?.getBoundingClientRect();
+      const next = modified?.querySelector('.diff-added')?.getBoundingClientRect();
+      return {
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        oneColumn: boxes.length > 0 && boxes.every(box => Math.abs(box.left - boxes[0].left) < 2),
+        stacked: boxes.every((box, index) => index === 0 || box.top >= boxes[index - 1].bottom - 1),
+        oldAbove: Boolean(old && next && old.bottom <= next.top + 1 && Math.abs(old.left - next.left) < 2),
+      };
     });
     expect(layout.overflow).toBe(false);
-    if (width > 640) expect(layout.nextX).toBeGreaterThan(layout.oldX);
-    else expect(layout.nextTop).toBeGreaterThan(layout.oldBottom);
-    if (width > 640) {
-      // Wait for resize/font layout before checking the actual SVG endpoints.
-      await expect.poll(() => page.evaluate(() => {
-        const svg = document.querySelector('.diff-move-lines')!.getBoundingClientRect();
-        const old = document.querySelector('.diff-original .moved')!.getBoundingClientRect();
-        const next = document.querySelector('.diff-revision .moved')!.getBoundingClientRect();
-        const path = document.querySelector<SVGPathElement>('.diff-move-path');
-        if (!path) return Infinity;
-        const start = path.getPointAtLength(0), end = path.getPointAtLength(path.getTotalLength());
-        return Math.max(Math.abs(start.x + svg.left - old.right), Math.abs(start.y + svg.top - old.top - old.height / 2),
-          Math.abs(end.x + svg.left - next.left), Math.abs(end.y + svg.top - next.top - next.height / 2));
-      })).toBeLessThan(1);
-    } else {
-      await expect(page.locator('.diff-move-path')).toHaveCount(0);
-      await original.getByRole('button', { name: '查看移入后的第 5 段' }).click();
-      await expect(revision.getByRole('button', { name: '查看原来的第 2 段' })).toBeFocused();
-    }
+    expect(layout.oneColumn).toBe(true);
+    expect(layout.stacked).toBe(true);
+    expect(layout.oldAbove).toBe(true);
+    await expect(page.locator('.diff-move-path, .diff-move-lines')).toHaveCount(0);
   }
   await page.setViewportSize({ width: 1200, height: 900 });
-  await expect(page.locator('.diff-move-path')).toHaveCount(1);
+  await expect(page.locator('.diff-move-path, .diff-move-lines, .diff-move-label')).toHaveCount(0);
   await page.getByRole('button', { name: '发布预览', exact: true }).click();
   await expect(page.locator('.diff-move-lines')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -245,9 +251,9 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(page.frameLocator('iframe').locator('h1')).toHaveText('已经不再公开的旧笔记');
   await expect(page.locator('.removal-notice')).toContainText('不是准备重新发布的版本');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
-  await expect(page.locator('.diff-original [data-doc-list] h3')).toHaveText(['仅由旧笔记引用的资料']);
-  await expect(page.locator('.diff-revision .paragraph-change')).toHaveCount(0);
-  await expect(page.locator('.diff-revision')).toContainText('这一版将移除全文。');
+  await expect(page.locator('.diff-removed [data-doc-list] h3')).toHaveText(['仅由旧笔记引用的资料']);
+  await expect(page.locator('.paragraph-change.added, .paragraph-change.modified, .diff-original, .diff-revision')).toHaveCount(0);
+  await expect(page.locator('.full-diff')).toContainText('这一版将移除全文。');
   await page.getByRole('button', { name: '现有页面', exact: true }).click();
   await page.getByRole('button', { name: '暂不删除「已在 Heptabase 删除的文章」', exact: true }).click();
   await expect(group.getByText('本次暂不删除', { exact: true })).toBeVisible();

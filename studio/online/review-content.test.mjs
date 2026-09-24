@@ -34,11 +34,11 @@ test('paragraphs preserve code fences, lists, tables and repeated paragraphs', (
   const source = '```js\nconst x = 1;\n\nconst y = 2;\n```\n\n- one\n- two\n\n| A | B |\n|---|---|\n| 1 | 2 |';
   assert.deepEqual(paragraphs(source).map(p => p.type), ['code', 'list', 'table']);
   assert.equal(paragraphDiff(source, source).length, 3);
-  assert.deepEqual(paragraphDiff('重复\n\n重复\n\n尾声', '重复\n\n尾声').map(p => p.kind), ['unchanged', 'removed', 'unchanged']);
-  assert.ok(paragraphDiff('甲\n\n乙\n\n丙', '乙\n\n甲\n\n丙').some(p => p.kind === 'moved'));
+  assert.deepEqual(paragraphDiff('重复\n\n重复\n\n尾声', '重复\n\n尾声').map(p => p.kind), ['unchanged', 'modified', 'removed']);
+  assert.deepEqual(paragraphDiff('甲\n\n乙\n\n丙', '乙\n\n甲\n\n丙').map(p => p.kind), ['modified', 'modified', 'unchanged']);
   assert.throws(() => paragraphs('x'.repeat(300001)), /正文过长/);
 });
-test('full review preserves both complete document orders, including moved and repeated blocks', () => {
+test('full review preserves both complete document orders, including shifted and repeated blocks', () => {
   const samples = [
     ['', '首次发布'], ['撤下全文', ''],
     ['甲\n\n乙\n\n丙', '乙\n\n甲\n\n丙'],
@@ -47,18 +47,17 @@ test('full review preserves both complete document orders, including moved and r
     ['旧段落', '新段落一\n\n新段落二'],
     ['旧段落一\n\n旧段落二', '合并后'],
   ];
-  // Every red/unchanged block reconstructs the original, and every
-  // green/unchanged block reconstructs the next version without losing moves.
+  // Every before block reconstructs the original, and every after block
+  // reconstructs the next version. Comparison is by position, not by moves.
   for (const [before, after] of samples) {
     const diff = paragraphDiff(before, after);
+    assert.equal(diff.some(d => d.kind === 'moved'), false);
     assert.deepEqual(diff.filter(d => d.before).map(d => d.before), paragraphs(before).map(p => p.text));
     assert.deepEqual(diff.filter(d => d.after).map(d => d.after), paragraphs(after).map(p => p.text));
   }
-  const move = paragraphDiff('甲\n\n乙\n\n丙', '乙\n\n甲\n\n丙').filter(d => d.kind === 'moved');
-  assert.equal(move.length, 2);
-  assert.equal(move.filter(d => d.before).length, 1);
-  assert.equal(move.filter(d => d.after).length, 1);
-  assert.equal(move[0].from, move[1].from); assert.equal(move[0].to, move[1].to);
+  const shifted = paragraphDiff(['1', '2', '3', '4', '5', '6'].join('\n\n'), ['1', '2', '5', '3', '4', '6'].join('\n\n'));
+  assert.deepEqual(shifted.map(d => d.kind), ['unchanged', 'unchanged', 'modified', 'modified', 'modified', 'unchanged']);
+  assert.deepEqual(shifted.filter(d => d.kind === 'modified').map(d => [d.before, d.after]), [['3', '5'], ['4', '3'], ['5', '4']]);
 });
 test('review blocks resolve links from their own full document and keep unsafe targets inert', async () => {
   const source = '[资料][ref]', before = `${source}\n\n[ref]: https://example.com/old`, after = `${source}\n\n[ref]: https://example.com/new`;
@@ -66,17 +65,16 @@ test('review blocks resolve links from their own full document and keep unsafe t
   assert.match(await renderedProse(source, undefined, after), /href="https:\/\/example.com\/new"/);
   assert.ok(!(await renderedProse(source, undefined, `${source}\n\n[ref]: javascript:alert(1)`)).includes('href="javascript:'));
 });
-test('a table moved from block 3 to 4 keeps a single red/green pair and both document orders', () => {
+test('a table that changes place is a rewrite at each shifted position', () => {
   const table = '| 阶段 | 做法 |\n| --- | --- |\n| 写作 | 从问题开始 |';
   const before = ['第一段', '原来的第二段', table, '结尾'], after = ['第一段', '改写的第二段', '结尾', table, '新段落'];
   const diff = paragraphDiff(before.join('\n\n'), after.join('\n\n'));
   assert.deepEqual(diff.filter(c => c.before).map(c => c.before), before);
   assert.deepEqual(diff.filter(c => c.after).map(c => c.after), after);
-  const moved = diff.filter(c => c.kind === 'moved');
-  assert.equal(moved.length, 2);
-  assert.ok(moved.every(c => c.from === 3 && c.to === 4));
-  assert.equal(moved[0].before, table); assert.equal(moved[1].after, table);
-  assert.equal(diff.filter(c => c.kind === 'modified' && c.after).length, 1);
+  assert.deepEqual(diff.map(c => c.kind), ['unchanged', 'modified', 'modified', 'modified', 'added']);
+  assert.equal(diff.some(c => c.kind === 'moved'), false);
+  assert.equal(diff[2].before, table);
+  assert.equal(diff[3].after, table);
 });
 test('preview renders prose and references, but never executes card HTML or loads trackers', async () => {
   const mdx = '## 标题\n\n**粗体**和 [链接](https://example.com)。\n\n<DocList pane="embed">\n<DocRef of="articles/ref" />\n</DocList>\n\n<a href="/articles/ref" data-doc-mention>引用</a>';

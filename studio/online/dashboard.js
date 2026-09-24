@@ -807,99 +807,73 @@ async function previewHtml(card, cards) {
   return '<!doctype html>' + doc.documentElement.outerHTML;
 }
 async function showDiff(pane, card, cards) {
-  const changes = paragraphDiff(card.beforeContent, card.afterContent), counts = { added: 0, removed: 0, modified: 0, moved: 0 };
-  changes.filter(c => c.kind !== 'unchanged' && (!['moved', 'modified'].includes(c.kind) || c.after)).forEach(c => counts[c.kind]++);
-  pane.append(el('p', Object.values(counts).some(Boolean) ? `新增 ${counts.added} 段 · 改写 ${counts.modified} 段 · 删除 ${counts.removed} 段 · 移动 ${counts.moved} 段` : onlyTagsChanged(card) ? '正文未修改，本次只更新标签。' : '正文未修改。', { class: 'diff-summary' }));
-  pane.append(el('p', '按正文匹配 · 当前 Heptabase 连接未提供段落 ID，段落对应关系仅供审查。', { class: 'diff-basis muted' }));
+  const changes = paragraphDiff(card.beforeContent, card.afterContent), counts = { added: 0, removed: 0, modified: 0 };
+  changes.filter(c => c.kind !== 'unchanged').forEach(c => counts[c.kind]++);
+  pane.append(el('p', Object.values(counts).some(Boolean) ? `新增 ${counts.added} 段 · 改写 ${counts.modified} 段 · 删除 ${counts.removed} 段` : onlyTagsChanged(card) ? '正文未修改，本次只更新标签。' : '正文未修改。', { class: 'diff-summary' }));
+  pane.append(el('p', '按阅读顺序逐段比较 · 当前 Heptabase 连接未提供段落 ID。', { class: 'diff-basis muted' }));
   const legend = el('p', null, { class: 'diff-legend' });
   legend.append(el('span', '− 红色：原有内容', { class: 'diff-legend-removed' }), el('span', '+ 绿色：新内容', { class: 'diff-legend-added' }), document.createTextNode('未改动的段落完整保留。'));
   pane.append(legend);
   const doc = await previewTemplate(), comparison = el('div', null, { class: 'full-diff', 'aria-label': '全文段落对比' });
-  const original = el('article', null, { class: 'diff-original', 'aria-label': '发布前的完整原文' });
-  const revision = el('article', null, { class: 'diff-revision', 'aria-label': '这一版全文与修改标记' });
-  for (const [column, label, version] of [[original, '原文 · 发布前', 'before'], [revision, '这一版 · 发布后', 'after']]) {
-    const properties = card[`${version}Properties`], removed = version === 'before';
-    column.append(el('p', label, { class: 'diff-column-label' }));
-    const columnMeta = el('div', null, { class: 'diff-column-meta' });
-    if (properties.title) columnMeta.append(el('h2', properties.title, { class: 'diff-article-title' }));
-    if (properties.date) columnMeta.append(el('p', formatDate(properties.date), { class: 'diff-article-date muted' }));
-    if (properties.description) columnMeta.append(el('p', properties.description, { class: 'diff-article-description muted' }));
-    if (columnMeta.children.length) column.append(columnMeta);
-    const body = el('div', null, { class: removed ? 'diff-original-body' : 'diff-revision-body' });
-    const definitions = paragraphs(card[`${version}Content`]).filter(p => p.type === 'definition').map(p => p.text).join('\n');
-    for (const change of changes) {
-      const content = change[version]; if (!content) continue;
-      const unchanged = change.kind === 'unchanged';
-      const block = el('div', null, { class: `paragraph-change ${change.kind}`, 'data-position': change[removed ? 'from' : 'to'] });
-      const part = el('div', null, { class: unchanged ? 'diff-unchanged' : removed ? 'diff-removed' : 'diff-added' });
-      if (change.kind === 'moved') {
-        // This only pairs the two rendered positions, not a Heptabase block ID.
-        block.dataset.move = `${change.from}-${change.to}`;
-        const jump = el('button', removed ? `移至第 ${change.to} 段 ↗` : `从原第 ${change.from} 段移入 ↖`, {
-          type: 'button', class: 'diff-move-label', 'aria-label': removed ? `查看移入后的第 ${change.to} 段` : `查看原来的第 ${change.from} 段`,
-        });
-        jump.addEventListener('click', () => {
-          const other = comparison.querySelector(`${removed ? '.diff-revision' : '.diff-original'} [data-move="${block.dataset.move}"]`);
-          other?.scrollIntoView({ block: 'center', behavior: 'instant' });
-          other?.querySelector('button')?.focus({ preventScroll: true });
-        });
-        part.append(jump);
+  const article = el('article', null, { 'aria-label': '全文与修改标记' });
+  const body = el('div', null, { class: 'diff-article-body' });
+  if (!card.beforeContent.trim() && !card.afterContent.trim()) body.append(el('p', '正文为空。', { class: 'muted' }));
+  else if (!card.beforeContent.trim()) body.append(el('p', '首次发布，还没有原文。', { class: 'muted' }));
+  else if (!card.afterContent.trim()) body.append(el('p', '这一版将移除全文。', { class: 'muted' }));
+  const defs = {
+    before: paragraphs(card.beforeContent).filter(p => p.type === 'definition').map(p => p.text).join('\n'),
+    after: paragraphs(card.afterContent).filter(p => p.type === 'definition').map(p => p.text).join('\n'),
+  };
+  const paint = async (part, content, version, unchanged) => {
+    const prose = el(unchanged ? 'div' : version === 'before' ? 'del' : 'ins', null, { class: 'prose-site' });
+    prose.innerHTML = await renderedProse(content, path => referenceHtml(path, cards, doc, `${version}Properties`), defs[version]);
+    // Definitions have no visible Markdown output, but changing a link target
+    // must still be visible to the reviewer.
+    if (!prose.innerHTML.trim()) { if (unchanged) return 'skip'; prose.append(el('code', content)); }
+    part.append(prose);
+    return 'ok';
+  };
+  const place = async (block, part, content, version, unchanged) => {
+    const status = await paint(part, content, version, unchanged);
+    if (status === 'skip') return 'skip';
+    block.append(part);
+    body.append(block);
+    return 'ok';
+  };
+  for (const row of changes) {
+    if (row.kind === 'modified') {
+      const block = el('div', null, { class: 'paragraph-change modified' });
+      if (row.before) {
+        const part = el('div', null, { class: 'diff-removed', 'data-position': row.from });
+        await paint(part, row.before, 'before', false);
+        if (part.querySelector('.prose-site')) block.append(part);
       }
-      const prose = el(unchanged ? 'div' : removed ? 'del' : 'ins', null, { class: 'prose-site' });
-      prose.innerHTML = await renderedProse(content, path => referenceHtml(path, cards, doc, `${version}Properties`), definitions);
-      // Definitions have no visible Markdown output, but changing a link target
-      // must still be visible to the reviewer.
-      if (!prose.innerHTML.trim()) { if (unchanged) continue; prose.append(el('code', content)); }
-      part.append(prose); block.append(part); body.append(block);
+      if (row.after) {
+        const part = el('div', null, { class: 'diff-added', 'data-position': row.to });
+        await paint(part, row.after, 'after', false);
+        if (part.querySelector('.prose-site')) block.append(part);
+      }
+      if (block.childElementCount) body.append(block);
+      continue;
     }
-    if (!card[`${version}Content`].trim()) body.append(el('p', removed ? '首次发布，还没有原文。' : card.beforeContent.trim() ? '这一版将移除全文。' : '正文为空。', { class: 'muted' }));
-    column.append(body);
+    const leaving = row.kind === 'removed';
+    const content = leaving ? row.before : (row.after || row.before);
+    if (!content) continue;
+    const unchanged = row.kind === 'unchanged';
+    const position = leaving ? row.from : (row.to ?? row.from);
+    const block = el('div', null, { class: `paragraph-change ${row.kind}`, ...(position != null ? { 'data-position': position } : {}) });
+    const part = el('div', null, { class: unchanged ? 'diff-unchanged' : leaving ? 'diff-removed' : 'diff-added', ...(position != null ? { 'data-position': position } : {}) });
+    await place(block, part, content, leaving || !row.after ? 'before' : 'after', unchanged);
   }
-  comparison.append(original, revision);
+  article.append(body);
+  comparison.append(article);
   comparison.addEventListener('click', event => {
     if (!event.target.closest?.('a')) return;
     event.preventDefault(); notice('对比中保留链接位置；查看引用资料请点击左侧对应条目，外部链接不会打开。');
   });
   pane.append(comparison);
-  clearMoveLines = connectMovedBlocks(comparison);
 }
-function connectMovedBlocks(comparison) {
-  const pairs = [...comparison.querySelectorAll('.diff-original [data-move]')].map(before => ({ before,
-    after: comparison.querySelector(`.diff-revision [data-move="${before.dataset.move}"]`),
-  })).filter(pair => pair.after);
-  if (!pairs.length) return () => {};
-  const svgNode = (tag, attrs) => {
-    const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-    return node;
-  };
-  const svg = svgNode('svg', { class: 'diff-move-lines', 'aria-hidden': 'true' });
-  comparison.append(svg);
-  let frame, active = true;
-  const draw = () => {
-    if (!active || !comparison.isConnected) return;
-    svg.replaceChildren();
-    const bounds = comparison.getBoundingClientRect();
-    svg.setAttribute('viewBox', `0 0 ${bounds.width} ${bounds.height}`);
-    for (const { before, after } of pairs) {
-      const old = before.getBoundingClientRect(), next = after.getBoundingClientRect();
-      if (next.left <= old.right) continue; // Stacked columns use the position links instead.
-      const x1 = old.right - bounds.left, y1 = old.top + old.height / 2 - bounds.top;
-      const x2 = next.left - bounds.left, y2 = next.top + next.height / 2 - bounds.top;
-      const middle = (x1 + x2) / 2;
-      svg.append(svgNode('path', { class: 'diff-move-path', 'data-move': before.dataset.move,
-        d: `M ${x1} ${y1} C ${middle} ${y1}, ${middle} ${y2}, ${x2} ${y2}` }));
-      svg.append(svgNode('path', { class: 'diff-move-arrow', d: `M ${x2 - 5} ${y2 - 4} L ${x2} ${y2} L ${x2 - 5} ${y2 + 4}` }));
-    }
-  };
-  const schedule = () => { cancelAnimationFrame(frame); if (active) frame = requestAnimationFrame(draw); };
-  const observer = new ResizeObserver(schedule);
-  observer.observe(comparison);
-  comparison.querySelectorAll('article, .paragraph-change').forEach(node => observer.observe(node));
-  document.fonts.ready.then(schedule); document.fonts.addEventListener('loadingdone', schedule);
-  schedule();
-  return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); svg.remove(); };
-}
+
 async function renderRelease() {
   const release = document.querySelector('#release'); if (!release) return;
   const status = el('div', null, { class: 'release-status' }), actions = el('div', null, { class: 'release-actions' });
