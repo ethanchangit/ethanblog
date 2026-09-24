@@ -595,8 +595,7 @@ async function showSelection() {
     meta.append(el('p', `${item.plan.reasonLabel}。下方是将被撤下的现有内容，不是准备重新发布的版本。`, { class: 'removal-notice' }));
     if (item.plan.blockers.length) meta.append(el('p', `仍被这些文章引用：${item.plan.blockers.map(b => b.title).join('、')}。先在 Heptabase 移除引用并审核更新，或先撤下引用它的文章，再重新拉取。`, { role: 'alert' }));
     if (item.plan.keptReferences.length) meta.append(el('p', `共享资料会保留：${item.plan.keptReferences.map(r => r.title).join('、')}。`, { class: 'muted meta-note' }));
-  } else appendTagChanges(meta, card);
-  if (mode === 'diff') appendPropertyChanges(meta, card);
+  }
   pane.append(meta);
   const body = el('section', null, { class: 'review-body', 'aria-label': '正文' });
   body.append(el('h3', mode === 'preview' ? '正文 · 网站排版' : '正文 · 段落对比', { class: 'section-label' }));
@@ -604,6 +603,7 @@ async function showSelection() {
   const previewCards = item.removal ? item.plan.changes.map(c => ({ ...c, afterProperties: c.beforeProperties, afterContent: c.beforeContent })) : item.plan.changes;
   if (mode === 'preview') {
     const frame = el('iframe', null, { title: '网站发布样式预览', sandbox: 'allow-same-origin', class: 'article-preview', referrerpolicy: 'no-referrer' });
+    frame.addEventListener('load', () => fitFrame(frame));
     frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
       const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
       const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path);
@@ -612,6 +612,13 @@ async function showSelection() {
     }));
     frame.srcdoc = await previewHtml(previewCards.find(c => c.id === id), previewCards); body.append(frame);
   } else await showDiff(body, card, item.plan.changes);
+}
+/** Grows the preview to its content so the article scrolls with the pane, as it does on the site. */
+function fitFrame(frame) {
+  const doc = frame.contentDocument; if (!doc?.documentElement) return;
+  const fit = () => { frame.style.height = `${Math.ceil(doc.documentElement.getBoundingClientRect().height)}px`; };
+  fit();
+  new frame.contentWindow.ResizeObserver(fit).observe(doc.documentElement);
 }
 function detailActions(item) {
   const box = el('div', null, { class: 'detail-actions' });
@@ -634,31 +641,44 @@ function contentPath(card) {
   return card.path ? '/' + card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') : '';
 }
 function appendProperties(parent, card, kind, removal) {
-  const p = (removal ? card.beforeProperties : card.afterProperties) || {};
-  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表' }[kind];
+  const before = card.beforeProperties || {}, p = (removal ? card.beforeProperties : card.afterProperties) || {};
+  // Only an already published card has an old value to compare against; removals show what is live.
+  const compare = !removal && Boolean(card.previouslyPublished);
+  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表' };
   const rows = el('dl', null, { class: 'meta-grid' });
-  const row = (name, value) => { const dd = el('dd'); if (typeof value === 'string') dd.textContent = value; else dd.append(value); rows.append(el('dt', name), dd); };
-  row('类型', `${kindLabels[kind]} · ${where}`);
+  const row = (name, value, attrs = {}) => { const dd = el('dd', null, attrs); if (typeof value === 'string') dd.textContent = value; else dd.append(value); rows.append(el('dt', name), dd); };
+  const changed = (oldText, newText) => {
+    const span = el('span', null, { class: 'inline-change' });
+    span.append(el('del', oldText), el('ins', newText));
+    return span;
+  };
+  const scalar = (name, oldText, newText, empty) => {
+    if (compare && oldText !== newText) row(name, changed(oldText || empty, newText || empty));
+    else row(name, newText ? newText : el('span', empty, { class: 'muted' }));
+  };
+  if (compare && before.title && before.title !== p.title) row('标题', changed(before.title, p.title || '未设置'));
+  const oldKind = compare && before.slot ? pageKind({ ...card, afterProperties: before }, false) : kind;
+  scalar('类型', `${kindLabels[oldKind]} · ${where[oldKind]}`, `${kindLabels[kind]} · ${where[kind]}`, '');
   if (contentPath(card)) row('地址', el('code', contentPath(card)));
-  row('日期', formatDate(p.date) || '未设置');
-  const summary = el('span', p.description || '未填写 Summary', p.description ? {} : { class: 'muted' });
-  row('摘要', summary);
-  const tags = el('ul', null, { class: 'meta-tags', 'aria-label': '当前标签' });
-  (p.tags || []).forEach(tag => tags.append(el('li', tag)));
-  row('标签', (p.tags || []).length ? tags : el('span', '没有标签', { class: 'muted' }));
+  scalar('日期', formatDate(before.date), formatDate(p.date), '未设置');
+  scalar('摘要', before.description || '', p.description || '', '未填写 Summary');
+  appendTagRow(row, card, p, removal);
   parent.append(rows);
 }
-function appendPropertyChanges(parent, card) {
-  const props = el('dl', null, { class: 'property-changes' });
-  for (const [key, name] of [['title', '标题'], ['description', '摘要'], ['date', '日期']]) {
-    const text = p => Array.isArray(p[key]) ? p[key].join('、') : String(p[key] || '未设置');
-    if (text(card.beforeProperties) === text(card.afterProperties)) continue;
-    const dd = el('dd');
-    dd.append(el('del', text(card.beforeProperties)), document.createTextNode(' → '), el('ins', text(card.afterProperties)));
-    props.append(el('dt', name), dd);
-  }
-  if (!props.children.length) return;
-  parent.append(el('h3', '属性变化', { class: 'section-label' }), props);
+function appendTagRow(row, card, p, removal) {
+  const { added, removed } = removal ? { added: [], removed: [] } : tagDiff(card.beforeProperties.tags, card.afterProperties.tags);
+  const list = el('ul', null, { class: 'meta-tags', 'aria-label': '标签' });
+  const addedSet = new Set(added);
+  [...new Set(p.tags || [])].forEach(tag => {
+    if (!addedSet.has(tag)) { list.append(el('li', tag)); return; }
+    const li = el('li', null, { class: 'tag-added' }); li.append(document.createTextNode('+ '), el('span', tag)); list.append(li);
+  });
+  removed.forEach(tag => { const li = el('li', null, { class: 'tag-removed' }); li.append(document.createTextNode('− '), el('s', tag)); list.append(li); });
+  const changes = added.length || removed.length;
+  const value = el('div', null, { class: 'meta-tag-row' });
+  if (list.children.length) value.append(list);
+  if (!(p.tags || []).length) value.append(el('span', changes ? '更新后没有标签。' : '没有标签', { class: 'muted' }));
+  row('标签', value, changes ? { class: 'tag-changes', 'aria-label': '标签与标签变化' } : {});
 }
 async function confirmRemoval(item) {
   selected = { item, id: item.card.id }; renderList(); await showSelection();
@@ -717,7 +737,9 @@ function previewThemeStyle(theme) {
   const vars = dark
     ? '--theme-surface-950:rgb(25 25 25);--theme-surface-900:rgb(25 25 25);--theme-surface-800:rgb(38 38 38);--theme-surface-700:rgb(52 52 52);--theme-ink-50:rgb(248 250 252);--theme-ink-100:rgb(241 245 249);--theme-ink-200:rgb(226 232 240);--theme-ink-300:rgb(203 213 225);--theme-ink-400:rgb(148 163 184);--theme-ink-500:rgb(100 116 139);--theme-ink-600:rgb(71 85 105);--theme-accent-deletion:rgb(252 165 165);--theme-accent-insertion:rgb(134 239 172)'
     : '--theme-surface-950:rgb(255 255 255);--theme-surface-900:rgb(255 255 255);--theme-surface-800:rgb(240 240 240);--theme-surface-700:rgb(224 224 224);--theme-ink-50:rgb(255 255 255);--theme-ink-100:rgb(23 23 23);--theme-ink-200:rgb(38 38 38);--theme-ink-300:rgb(64 64 64);--theme-ink-400:rgb(115 115 115);--theme-ink-500:rgb(140 140 140);--theme-ink-600:rgb(163 163 163);--theme-accent-deletion:rgb(153 27 27);--theme-accent-insertion:rgb(22 101 52)';
-  return `html{color-scheme:${theme}!important;${vars}}html,body{background-color:var(--color-surface-950)!important;color:var(--color-ink-300)!important}`;
+  // The site places the article in a 42rem reading column (see .reading-shell in global.css).
+  const column = '.article-shell{max-width:42rem;margin-inline:auto}@media (min-width:768px){.article-shell{padding-top:.75rem}}';
+  return `html{color-scheme:${theme}!important;${vars}}html,body{background-color:var(--color-surface-950)!important;color:var(--color-ink-300)!important}${column}`;
 }
 function absolutizePreviewAssets(doc) {
   const origin = location.origin;
@@ -750,7 +772,8 @@ async function previewHtml(card, cards) {
   const dek = doc.querySelector('.article-dek-text');
   if (dek) { if (p.description) dek.textContent = p.description; else dek.remove(); }
   const tags = doc.querySelector('.article-dek .ui-tag-list');
-  if (tags) {
+  if (!(p.tags || []).length) doc.querySelector('.article-dek .article-meta')?.remove();
+  else if (tags) {
     tags.replaceChildren(...(p.tags || []).map(tag => {
       const li = doc.createElement('li');
       const a = doc.createElement('a');

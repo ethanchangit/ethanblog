@@ -99,9 +99,8 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.diff-revision')).toContainText('标签不是一次完成的分类');
   await expect(page.locator('.full-diff del, .full-diff ins')).toHaveCount(0);
   await expect(page.locator('.diff-move-lines')).toHaveCount(0);
-  await expect(page.locator('#review-preview .tag-changes details')).not.toHaveAttribute('open');
-  await page.getByText('保留 1 个标签', { exact: true }).click();
-  await expect(page.locator('#review-preview .tag-changes details li')).toHaveText('Mission');
+  await expect(page.locator('#review-preview .tag-changes .meta-tags li')).toHaveText(['Mission', '+ Productivity', '− AI Native']);
+  await expect(page.locator('#review-preview section.tag-changes, #review-preview details')).toHaveCount(0);
   await page.getByRole('button', { name: '发布预览', exact: true }).click();
   await expect(page.locator('#review-preview .tag-removed')).toBeVisible();
   await expect(frame.locator('.article-dek .ui-tag-link')).toHaveText(['Mission', 'Productivity']);
