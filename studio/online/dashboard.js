@@ -215,9 +215,15 @@ function reviewGroups() {
   };
 }
 const groupLabels = { new: 'New articles', edited: 'Edited articles', removed: 'Deleted articles' };
-const groupBadges = { new: 'New', edited: 'Edited', removed: 'Deleted' };
+const groupWords = { new: 'New', edited: 'Edited', removed: 'Deleted' };
+const groupMarks = { new: '+', edited: '±', removed: '−' };
 const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference' };
-function badge(text, type) { return el('span', text, { class: 'badge', 'data-type': type }); }
+function typeMark(group) { return el('span', groupMarks[group], { class: 'type-mark', 'data-type': group, 'aria-hidden': 'true' }); }
+function typeLabel(group, kind) {
+  const label = el('span', null, { class: 'type-label', 'data-type': group });
+  label.append(typeMark(group), el('span', `${groupWords[group]} ${kindLabels[kind].toLowerCase()}`));
+  return label;
+}
 function pageKind(change, removal) {
   const p = (removal ? change?.beforeProperties : change?.afterProperties) || {};
   if (p.slot === 'project') return 'project';
@@ -262,7 +268,7 @@ function renderList() {
       'data-review-group': kind,
       'data-type': kind,
     });
-    tab.replaceChildren(el('span', null, { class: 'type-dot', 'aria-hidden': 'true' }), el('span', groupLabels[kind]), el('span', String(by[kind].length), { class: 'tab-count', 'aria-hidden': 'true' }));
+    tab.replaceChildren(typeMark(kind), el('span', groupLabels[kind]), el('span', String(by[kind].length), { class: 'tab-count', 'aria-hidden': 'true' }));
     tabs.append(tab);
   }
   list.append(tabs);
@@ -274,9 +280,7 @@ function renderList() {
   for (const item of group) {
     const active = selected?.item === item;
     const card = el('div', null, { class: 'review-item', 'data-type': focusedGroup, ...(item.decision ? { 'data-decision': item.decision } : {}), ...(active ? { 'data-selected': 'true' } : {}) });
-    const badges = el('div', null, { class: 'item-badges' });
-    badges.append(badge(groupBadges[focusedGroup], focusedGroup), badge(kindLabels[pageKind(rootChange(item), deleting)], pageKind(rootChange(item), deleting)));
-    card.append(badges);
+    card.append(typeLabel(focusedGroup, pageKind(rootChange(item), deleting)));
     card.append(button(title(item), async () => {
       focusedGroup = itemGroup(item);
       selected = { item, id: item.card.id };
@@ -306,15 +310,14 @@ function renderList() {
       for (const refCard of references) {
         const refActive = Boolean(active && selected.id === refCard.id);
         const ref = el('li', null, refActive ? { 'data-selected': 'true' } : {});
-        const kind = refCard.mainArticle ? 'article' : 'reference';
         ref.append(
-          badge(refCard.mainArticle ? 'Article' : 'Reference', kind),
+          el('span', refCard.mainArticle ? 'Article' : 'Reference', { class: 'kind-label' }),
           button(refCard.title, async () => { focusedGroup = itemGroup(item); selected = { item, id: refCard.id }; renderList(); await showSelection(); }, { class: 'card-select', 'aria-pressed': String(refActive) }),
           el('small', `${refCard.mainArticle ? 'article · 需单独审核' : 'page'} · ${refCard.kind}`, { class: 'item-meta' }),
         );
         ul.append(ref);
       }
-      block.append(el('p', `跟随资料 · ${references.length}`, { class: 'references-label' }), ul);
+      block.append(el('p', `跟随资料 ${references.length}`, { class: 'references-label' }), ul);
       card.append(block);
     }
     row.append(card);
@@ -389,7 +392,7 @@ function renderPageChoice(host) {
   const section = el('section', null, { class: 'review-group page-choice', 'data-review-group': 'pages', 'data-type': 'page' });
   const head = el('div', null, { class: 'panel-head' });
   const kept = pageSet.choiceRequired ? pageKeepDraft.size : pageOrderDraft.length;
-  head.append(badge('Site pages', 'page'), el('h2', '站点页面'), el('span', pageSet.choiceRequired ? `已选 ${kept} / 4` : `${kept} 页`, { class: 'page-meter', 'data-full': String(kept >= 4) }));
+  head.append(el('h2', '站点页面'), el('span', pageSet.choiceRequired ? `已选 ${kept} / 4` : `${kept} 页`, { class: 'page-meter', 'data-full': String(kept >= 4) }));
   section.append(head);
   if (pageSet.choiceRequired) section.append(el('p', `站点页面最多显示 4 页。现在有 ${pageSet.cards.length} 张 Page 卡片，请选择留下哪几页。未勾选的不会悄悄去掉：已经在网站上的，要等你确认发布后才撤下；还没上线的，这次不会发布。项目、博客和 Reference 没有上限。勾选之后，拖动手柄排列导航顺序，放开即保存。`, { class: 'muted group-caption' }));
   else section.append(el('p', '这几页都会留在导航上。拖动手柄排列顺序，放开后下次发布时导航按这个顺序显示。', { class: 'muted group-caption' }));
@@ -479,10 +482,10 @@ async function showSelection() {
   const card = item.plan.changes.find(c => c.id === id), group = itemGroup(item), kind = pageKind(card, item.removal);
   const head = el('div', null, { class: 'preview-head', 'data-type': group });
   const titleRow = el('div', null, { class: 'preview-title-row' });
-  const badges = el('div', null, { class: 'item-badges' });
-  badges.append(badge(groupBadges[group], group), badge(kindLabels[kind], kind));
-  if (card.id !== item.card.id) badges.append(el('span', `跟随「${title(item)}」`, { class: 'muted follows' }));
-  titleRow.append(badges, el('h2', card.title, { class: 'preview-title' }));
+  const labels = el('div', null, { class: 'preview-labels' });
+  labels.append(typeLabel(group, kind));
+  if (card.id !== item.card.id) labels.append(el('span', `跟随「${title(item)}」`, { class: 'muted follows' }));
+  titleRow.append(labels, el('h2', card.title, { class: 'preview-title' }));
   const bar = el('div', null, { class: 'preview-bar' });
   const tabs = el('div', null, { class: 'mode-tabs', role: 'group', 'aria-label': '预览方式' });
   for (const [value, text] of [['preview', item.removal ? '现有页面' : '发布预览'], ['diff', '段落对比']]) tabs.append(button(text, async () => { mode = value; await showSelection(); }, { 'aria-pressed': String(mode === value) }));
