@@ -84,14 +84,24 @@ const jsonLd = docJsonLd(doc);
           </p>
         ) : null}
         {isArticle ? (
-          <TagList tags={tags} />
+          (tags.length > 0 || preview) && (
+            <dl class="article-meta">
+              <dt><I18n k="tagsTitle" /></dt>
+              <dd><TagList tags={tags} class="ui-tag-list--start" /></dd>
+            </dl>
+          )
         ) : (
           stack.length > 0 && (
-            <ul class="ui-tag-list mt-5">
-              {stack.map((item) => (
-                <li class="ui-tag">{item}</li>
-              ))}
-            </ul>
+            <dl class="article-meta">
+              <dt><I18n k="techStack" /></dt>
+              <dd>
+                <ul class="ui-tag-list ui-tag-list--start">
+                  {stack.map((item) => (
+                    <li class="ui-tag">{item}</li>
+                  ))}
+                </ul>
+              </dd>
+            </dl>
           )
         )}
       </header>

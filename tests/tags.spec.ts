@@ -52,9 +52,9 @@ test.describe('Tags（内容集合过滤）', () => {
   test('文章页眉标签可点，在 /tags 就地筛出该标签文档', async ({ page }) => {
     await page.goto(ARTICLE, { waitUntil: 'domcontentloaded' });
     const header = page.locator('article header');
-    await expect(header.getByRole('link', { name: '#PKM' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'PKM', exact: true })).toBeVisible();
 
-    await header.getByRole('link', { name: '#PKM' }).click();
+    await header.getByRole('link', { name: 'PKM', exact: true }).click();
     await expect.poll(() => selectedTag(page.url())).toBe('PKM');
     await expect(page).toHaveURL(/\/tags\/?/);
     await expect(page.getByRole('link', { name: "全部" })).toBeVisible();

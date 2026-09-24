@@ -20,4 +20,4 @@ alwaysApply: false
 4. **新组件准入**：满足 media/README 契约（含视觉极简）→ `/lab` 点亮 → 补测试 → 更新 README。
 5. **验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
 6. **后台**：本地 `npm run dev` 的 http://localhost:4321/dashboard 免密码，只在本机 dev。生产 https://ethanchang.io/dashboard 仍要密码。`/studio` 不是写作入口，也不进生产。写作在 Heptabase。push 到 `main` 在验证通过后自动部署。
-7. **视觉**：公开站点不引入边框、背景色块、圆角卡片、色条等装饰（`/dashboard` 为可读性例外）；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。中文 `.i18n-zh` 里 `<a>` 紧贴汉字，不要因换行挤出空格。
+7. **视觉**：公开站点不引入边框、背景色块、圆角卡片、色条等装饰（`/dashboard` 为可读性例外；文章/项目页眉的 `.article-meta` 元数据块也是例外）；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。中文 `.i18n-zh` 里 `<a>` 紧贴汉字，不要因换行挤出空格。

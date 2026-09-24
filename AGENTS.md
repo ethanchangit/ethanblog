@@ -35,6 +35,7 @@
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
 - 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。
 - **不要**使用装饰性边框、背景色块、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。页面靠排版与留白组织，不靠盒子。
+- 唯一例外是文章/项目页眉的元数据块 `.article-meta`（标签、技术栈）：和后台属性块一样用浅底、标签列和方角描边标签，让读者一眼看出这是元数据。别处不要照搬。
 - 后台段落对比的红/绿底属于指定的差异标记，允许使用；颜色取自 accent-deletion / accent-insertion token，原文红底删除线、新文绿底，不给未改动内容加装饰。
 - `.media-frame` / `.media-caption` 只负责间距与图注，**不是**带边框/背景的卡片容器；不要各自发明卡片样式。
 - 中文壳层（`.i18n-zh`）里，`<a>` 紧贴前后汉字（`写信到<a>联系</a>`）。源码空格或换行会变成「写信到 联系」；英文链接前后可以留空格。
