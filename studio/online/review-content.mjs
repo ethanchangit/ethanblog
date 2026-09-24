@@ -41,40 +41,19 @@ export function paragraphs(source) {
 }
 const normalized = block => block.type === 'code' ? block.text : block.text.replace(/\s+/g, ' ').trim();
 
+// Compare blocks in reading order. The same text at the same position is unchanged.
+// Different text at that position is a rewrite. A block that only exists on one
+// side is an addition or a deletion. Text that changed place is not paired.
 export function paragraphDiff(before, after) {
   const a = paragraphs(before), b = paragraphs(after);
   if (a.length > 1000 || b.length > 1000) throw new Error('段落超过 1000 段，请拆分后审核。');
-  const x = a.map(normalized), y = b.map(normalized);
-  const dp = Array.from({ length: a.length + 1 }, () => new Uint16Array(b.length + 1));
-  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) dp[i][j] = x[i] === y[j] ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
-  const edits = []; let i = 0, j = 0;
-  while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && x[i] === y[j]) { edits.push({ kind: 'unchanged', before: a[i].text, after: b[j].text, from: ++i, to: ++j }); }
-    else if (j === b.length || i < a.length && dp[i+1][j] >= dp[i][j+1]) edits.push({ kind: 'removed', before: a[i].text, after: '', from: ++i });
-    else edits.push({ kind: 'added', before: '', after: b[j].text, to: ++j });
-  }
-  // Exact moved paragraphs should not be reported as deletion plus new prose.
-  for (const removed of edits.filter(e => e.kind === 'removed')) {
-    const added = edits.find(e => e.kind === 'added' && e.after === removed.before);
-    if (added) {
-      Object.assign(added, { kind: 'moved', from: removed.from });
-      Object.assign(removed, { kind: 'moved', to: added.to });
-    }
-  }
-  // Pair edits between unchanged anchors, ignoring moved blocks. Keep both
-  // records in place so each column preserves its own complete document order.
-  for (let n = 0; n < edits.length;) {
-    if (edits[n].kind === 'unchanged') { n++; continue; }
-    const deleted = [], added = [];
-    while (n < edits.length && edits[n].kind !== 'unchanged') {
-      const e = edits[n++];
-      if (e.kind === 'removed') deleted.push(e);
-      else if (e.kind === 'added') added.push(e);
-    }
-    for (let k = 0; k < Math.min(deleted.length, added.length); k++) {
-      Object.assign(deleted[k], { kind: 'modified', to: added[k].to });
-      Object.assign(added[k], { kind: 'modified', from: deleted[k].from });
-    }
+  const edits = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const left = a[i], right = b[i], position = i + 1;
+    if (left && right && normalized(left) === normalized(right)) edits.push({ kind: 'unchanged', before: left.text, after: right.text, from: position, to: position });
+    else if (left && right) edits.push({ kind: 'modified', before: left.text, after: right.text, from: position, to: position });
+    else if (left) edits.push({ kind: 'removed', before: left.text, after: '', from: position });
+    else edits.push({ kind: 'added', before: '', after: right.text, to: position });
   }
   return edits;
 }
