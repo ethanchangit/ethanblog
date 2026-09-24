@@ -52,7 +52,7 @@ MCP 暂不能创建选项，缺少时会列出名称，要求先在 Heptabase �
 
 ## 部署与配置
 
-Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
+Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io （英文博客、后台）和 https://cn.ethanchang.io （中文博客）。部署时 `scripts/ensure-domains.mjs` 自动补齐 cn 域名和 DNS。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
 
 Cloudflare production 需要：
 
@@ -121,3 +121,10 @@ node studio/online/preview.mjs
 - Heptabase 授权过期或撤销：重新连接，不把访问令牌粘贴到网页或聊天。更换加密密钥前必须备份并处理旧授权。
 
 本次不接入访问统计、不提供网页编辑器、媒体上传或自动翻译。
+
+## 译文（#blogi18n）
+
+- 译文是 `#blogi18n`（标签 `blog i18n`）里的独立卡片。`#blog` 卡片的关联字段 `blog i18n` 指向它；配对只看关联。
+- 审核时译文列在原文下面（Translation · en），和原文一起通过或拒绝。发布后中文在 cn.ethanchang.io，英文在 ethanchang.io，同一路径。
+- 译文的 `Language` 必填；`URL` 为空或与原文相同。没有加入 `#blogi18n`、URL 不一致、同一语言关联了两张，都会停下并说明原因。
+- 撤下原文时，它的译文一起撤下。从关联里去掉某张译文，不会自动撤下已发布的那一版，需要在 GitHub 删除对应文件。

@@ -73,17 +73,17 @@ test.describe('Agent readiness', () => {
     expect(response.status()).toBe(200);
     const body = await response.text();
     expect(body).toMatch(/User-agent:\s*\*/i);
-    expect(body).toMatch(/Sitemap:\s+https:\/\/ethanchang\.io\/sitemap\.xml/);
+    expect(body).toMatch(/Sitemap:\s+https:\/\/cn\.ethanchang\.io\/sitemap\.xml/);
   });
 
   test('sitemap lists home, contact, and developer resources', async ({ request }) => {
     const response = await request.get('/sitemap.xml');
     expect(response.status()).toBe(200);
     const body = await response.text();
-    expect(body).toContain('https://ethanchang.io/');
-    expect(body).toContain('https://ethanchang.io/contact');
-    expect(body).toContain('https://ethanchang.io/for-agents');
-    expect(body).toContain('https://ethanchang.io/privacy');
+    expect(body).toContain('https://cn.ethanchang.io/');
+    expect(body).toContain('https://cn.ethanchang.io/contact');
+    expect(body).toContain('https://cn.ethanchang.io/for-agents');
+    expect(body).toContain('https://cn.ethanchang.io/privacy');
   });
 
   test('trust pages are real documents', async ({ page }) => {

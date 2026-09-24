@@ -1,6 +1,6 @@
 # MEDIUM.md —— 媒介创作规范（v2）
 
-> **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
+> **这是 Ethan Chang 的个人博客**：中文 https://cn.ethanchang.io ，英文 https://ethanchang.io 。
 > 日常写作在 Heptabase。本文规定 agent 在收到 `/publish` 时，如何把手里的素材
 > ——一段对话、一份笔记、一篇文章草稿——转成 MDX 页面。
 > 新建或更新要有真实的 `heptabaseCardLink`，之后的审查和发布走 `/dashboard`，不在这里改线上正文。
@@ -216,7 +216,7 @@ Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期
 
 ## 9. 语言与调性
 
-- 只有中文正文。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。技术名词、代码和引用保留原文。
+- 正文写中文；译文是 `#blogi18n` 里的独立卡片，不写进同一个文件。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。技术名词、代码和引用保留原文。
 - 宣言式短段落；第二人称克制使用；每个抽象论点尽快落到一个可操作的实证。
 - 机器声组件（`Calc`、AI 补充的 `SideNote`/`VerdictTable`）的 caption 也用创作者语气写——
   声音的区分靠视觉（accent 色），不靠文风突变。

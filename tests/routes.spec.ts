@@ -97,6 +97,12 @@ test.describe('Route crawling', () => {
       );
 
       for (const href of hrefs) {
+        // Language switches redirect to the other host (en.localhost here); check the redirect itself.
+        if (href.startsWith('/_lang/')) {
+          const response = await request.get(href, { maxRedirects: 0 });
+          expect(response.status(), `language switch ${href} on ${route}`).toBe(302);
+          continue;
+        }
         const response = await request.get(href);
         expect(response.status(), `broken link ${href} on ${route}`).toBeLessThan(400);
       }

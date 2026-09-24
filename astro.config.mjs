@@ -9,7 +9,8 @@ import { studioIntegration } from './studio/plugin.mjs';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://ethanchang.io',
+  // cn.ethanchang.io is the Chinese blog; ethanchang.io serves the English build under dist/en.
+  site: 'https://cn.ethanchang.io',
   output: 'static',
   adapter: cloudflare({
     imageService: 'compile',

@@ -81,14 +81,14 @@ export function pageReviewNote(id, { displaced = false, canonicalTitle = '', cho
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
   'slot', 'title', 'description', 'date', 'created', 'updated',
-  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'serial', 'language', 'url', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
+  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'url', 'language', 'translationOf', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
-// A Heptabase URL article may carry a trailing /cn for its Chinese version.
-const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/cn)?$/;
+// A translation from #blogi18n is stored next to its source as <id>/<language>.
+const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/[a-z]{2,3})?$/;
 const DOCREF_RE = /<DocRef\s+of=["']([^"']+)["']\s*\/>/g;
-const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/cn)?$/;
+const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/[a-z]{2,3})?$/;
 
 export function todayIso(date = new Date()) {
   const y = date.getFullYear();

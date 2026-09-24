@@ -217,7 +217,7 @@ function reviewGroups() {
 const groupLabels = { new: 'New articles', edited: 'Edited articles', removed: 'Deleted articles' };
 const groupWords = { new: 'New', edited: 'Edited', removed: 'Deleted' };
 const groupMarks = { new: '+', edited: '±', removed: '−' };
-const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference' };
+const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference', translation: 'Translation' };
 function typeMark(group) { return el('span', groupMarks[group], { class: 'type-mark', 'data-type': group, 'aria-hidden': 'true' }); }
 function typeLabel(group, kind) {
   const label = el('span', null, { class: 'type-label', 'data-type': group });
@@ -225,6 +225,7 @@ function typeLabel(group, kind) {
   return label;
 }
 function pageKind(change, removal) {
+  if (change?.translation) return 'translation';
   const p = (removal ? change?.beforeProperties : change?.afterProperties) || {};
   if (p.slot === 'project') return 'project';
   if (p.slot === 'page') return 'page';
@@ -287,7 +288,7 @@ async function decide(item, verdict) {
   let extra = '';
   if (next === 'approve') {
     if (item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
-    if (first && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged)) {
+    if (first && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged && !c.translation)) {
       await api('/heptabase/mark-references', selection(item));
       item.plan = await api('/heptabase/preview', item.input);
       extra = '引用资料已加入 #blog，Blog Type 为 Reference。';
@@ -402,9 +403,9 @@ function renderList() {
         const refActive = Boolean(active && selected.id === refCard.id);
         const ref = el('li', null, refActive ? { 'data-selected': 'true' } : {});
         ref.append(
-          el('span', refCard.mainArticle ? 'Article' : 'Reference', { class: 'kind-label' }),
+          el('span', refCard.translation ? `Translation · ${refCard.language}` : refCard.mainArticle ? 'Article' : 'Reference', { class: 'kind-label' }),
           button(refCard.title, () => select(item, refCard.id), { class: 'card-select', 'aria-pressed': String(refActive) }),
-          el('small', `${refCard.mainArticle ? 'article · 需单独审核' : 'page'} · ${refCard.kind}`, { class: 'item-meta' }),
+          el('small', refCard.translation ? `译文，随中文原文一起审核 · ${refCard.kind}` : `${refCard.mainArticle ? 'article · 需单独审核' : 'page'} · ${refCard.kind}`, { class: 'item-meta' }),
         );
         ul.append(ref);
       }
@@ -636,7 +637,7 @@ async function showSelection() {
     frame.addEventListener('load', () => fitFrame(frame));
     frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
       const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
-      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => contentPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path);
+      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => !c.translation && (previewPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path));
       if (target) void run(async () => { selected = { item, id: target.id }; renderList(); await showSelection(); });
       else notice('预览中不打开外部链接，以免未发布内容发送到其他网站。');
     }));
@@ -679,18 +680,27 @@ function remarkField(item) {
   box.append(label, area, hint);
   return box;
 }
-/** Public path. A Heptabase URL article (articles/<url>.mdx, articles/<url>/cn.mdx) is served at /<url> and /<url>/cn. */
+/**
+ * Public address. Chinese (#blog) is on cn.ethanchang.io; an English translation has the same
+ * path on ethanchang.io, other languages under ethanchang.io/<language>.
+ */
 function contentPath(card) {
   if (!card.path) return '';
-  const id = card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '');
+  let id = card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '');
+  if (card.translation) id = id.replace(/\/[a-z]{2,3}$/, '');
   const url = card.afterProperties?.url || card.beforeProperties?.url;
-  return url && id.startsWith('articles/') ? '/' + id.slice('articles/'.length) : '/' + id;
+  const path = url && id.startsWith('articles/') ? '/' + id.slice('articles/'.length) : '/' + id;
+  if (!card.translation) return `cn.ethanchang.io${path}`;
+  return card.language === 'en' ? `ethanchang.io${path}` : `ethanchang.io/${card.language}${path}`;
+}
+function previewPath(card) {
+  return contentPath(card).replace(/^(cn\.)?ethanchang\.io/, '');
 }
 function appendProperties(parent, card, kind, removal) {
   const before = card.beforeProperties || {}, p = (removal ? card.beforeProperties : card.afterProperties) || {};
   // Only an already published card has an old value to compare against; removals show what is live.
   const compare = !removal && Boolean(card.previouslyPublished);
-  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表' };
+  const where = { article: '文章列表', project: '项目页', page: '站点页面', reference: '不进文章列表', translation: `${card.language} 译文` };
   const rows = el('dl', null, { class: 'meta-grid' });
   const row = (name, value, attrs = {}) => { const dd = el('dd', null, attrs); if (typeof value === 'string') dd.textContent = value; else dd.append(value); rows.append(el('dt', name), dd); };
   const changed = (oldText, newText) => {

@@ -2,7 +2,8 @@
 import ReadingShell from '@/components/shell/ReadingShell.astro';
 import Doc from '@/layouts/Doc.astro';
 import Toc from '@/components/shell/Toc.astro';
-import { docHref, type DocEntry } from '@/lib/docs';
+import { docHref, languageVersions, type DocEntry } from '@/lib/docs';
+import { siteUrl } from '@/lib/hosts';
 import { hasToc } from '@/lib/toc';
 import { render } from 'astro:content';
 
@@ -17,6 +18,10 @@ const zhHeadings =
   typeof split === 'number' ? rendered.headings.slice(0, split) : rendered.headings;
 const showRail = hasToc(zhHeadings);
 const Content = rendered.Content;
+const alternates = (await languageVersions(article)).map((version) => ({
+  hreflang: version.lang === 'zh' ? 'zh-CN' : 'en',
+  href: siteUrl(version.lang, version.href),
+}));
 ---
 
 <ReadingShell
@@ -25,6 +30,7 @@ const Content = rendered.Content;
   description={article.data.description}
   currentId={article.id}
   docHref={docHref(article)}
+  alternates={alternates}
   showRail={showRail}
 >
   <Doc doc={article}>

@@ -4,7 +4,7 @@
  * Keep parser rules aligned with src/lib/accept.ts.
  */
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import handler from 'serve-handler';
@@ -13,6 +13,7 @@ import {
   preferredType,
   shouldNegotiate,
 } from '../src/lib/accept.ts';
+import { fallbackFor, routeRequest } from '../src/lib/hosts.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, '../dist');
@@ -58,8 +59,26 @@ function send(res, status, contentType, body) {
 
 const port = portFromArgs(process.argv.slice(2));
 
+async function builtPage(pathname) {
+  const base = path.join(dist, decodeURIComponent(pathname).replace(/^\/+/, ''));
+  for (const candidate of [base, `${base}.html`, path.join(base, 'index.html')]) {
+    try { if ((await stat(candidate)).isFile()) return true; } catch { /* try the next form */ }
+  }
+  return false;
+}
+
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  let url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  // Same host routing as scripts/cf-worker-entry.mjs: en.localhost is the English site.
+  const decision = routeRequest(url);
+  if (decision.type === 'redirect') { res.writeHead(decision.status, { location: decision.location }); res.end(); return; }
+  if (decision.type === 'rewrite') {
+    // serve-handler strips trailing slashes by redirecting; do it here so /en never leaks.
+    const built = decision.path.replace(/\/+$/, '') || '/';
+    if (!(await builtPage(built))) { res.writeHead(302, { location: fallbackFor(url) }); res.end(); return; }
+    req.url = built + url.search;
+    url = new URL(req.url, url);
+  }
   if ((url.pathname === '/zh' || url.pathname.startsWith('/zh/')) && !url.pathname.endsWith('.md') && preferredType(req.headers.accept ?? null) !== 'text/markdown') {
     res.writeHead(301, { location: (url.pathname.slice(3) || '/') + url.search }); res.end(); return;
   }

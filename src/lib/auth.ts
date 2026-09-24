@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { EN_ORIGIN, ZH_ORIGIN } from '@/lib/hosts';
 
 /**
  * Create a request-scoped better-auth instance.
@@ -16,6 +17,8 @@ export function createAuth(env: Env, request?: Request) {
   return betterAuth({
     appName: 'ethanchang.io',
     baseURL,
+    // Both blogs sign in: ethanchang.io (English) and cn.ethanchang.io (Chinese).
+    trustedOrigins: [EN_ORIGIN, ZH_ORIGIN],
     secret: env.BETTER_AUTH_SECRET,
     database: env.DB,
     socialProviders: {

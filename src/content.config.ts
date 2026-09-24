@@ -25,9 +25,10 @@ const docSchema = z
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
-    // Heptabase Serial / Language / URL. One Serial is one article; English is served at /<url>, Chinese at /<url>/cn.
-    serial: z.number().optional(),
-    language: z.enum(['en', 'cn']).optional(),
+    // Heptabase URL: the article is /<url> on cn.ethanchang.io, and its translations use the same path on their site.
+    // A translation (from #blogi18n) records its language and the #blog card it translates.
+    language: z.string().regex(/^[a-z]{2,3}$/).optional(),
+    translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),

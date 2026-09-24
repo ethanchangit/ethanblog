@@ -98,7 +98,7 @@ test.describe('Article 论文化接口（T2）', () => {
     );
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(copied).toBe(canonical);
-    expect(copied).toMatch(/^https:\/\/ethanchang\.io\/articles\/pkm-method\/?$/);
+    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/articles\/pkm-method\/?$/);
   });
 
   test('1440×900 下第三栏目录可见、H3 有缩进、可点锚点', async ({ page }) => {

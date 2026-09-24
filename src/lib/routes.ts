@@ -17,11 +17,11 @@ export function articleHref(id: string): string {
  * Top-level paths the site already owns. A Heptabase URL may not take one of these.
  * Keep in sync with RESERVED_URLS in studio/online/card-properties.mjs.
  */
-export const RESERVED_URLS = ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'lab', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'] as const;
+export const RESERVED_URLS = ['en', 'cn', 'now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'lab', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'] as const;
 
-/** A Heptabase URL article: English at /<url>, Chinese at /<url>/cn. */
-export function urlArticleHref(url: string, language?: string): string {
-  return language === 'cn' ? `/${url}/cn` : `/${url}`;
+/** A Heptabase URL article is /<url> on its site (cn.ethanchang.io for Chinese, ethanchang.io for English). */
+export function urlArticleHref(url: string): string {
+  return `/${url}`;
 }
 
 export function projectHref(id: string): string {

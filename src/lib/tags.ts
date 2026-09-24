@@ -1,5 +1,5 @@
 import { formatDate } from '@/lib/format';
-import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
+import { docHref, docsBySlot, englishArticles, isIndexed, type DocEntry } from '@/lib/docs';
 
 export type PublishedArticle = DocEntry;
 
@@ -11,6 +11,16 @@ export async function publishedArticles(): Promise<PublishedArticle[]> {
       if (byDate !== 0) return byDate;
       return a.id.localeCompare(b.id);
     });
+}
+
+const byDateDesc = (a: DocEntry, b: DocEntry) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0) || a.id.localeCompare(b.id);
+
+/** ethanchang.io lists: published English translations, plus the Chinese articles not translated yet. */
+export async function englishSiteArticles(): Promise<{ english: PublishedArticle[]; chineseOnly: PublishedArticle[] }> {
+  const english = (await englishArticles()).sort(byDateDesc);
+  const translated = new Set(english.map((entry) => entry.data.translationOf));
+  const chineseOnly = (await publishedArticles()).filter((entry) => !entry.data.heptabaseCardLink || !translated.has(entry.data.heptabaseCardLink));
+  return { english, chineseOnly };
 }
 
 export function articleYear(date: Date): number {
@@ -51,12 +61,12 @@ export function docCardProps(entry: DocEntry) {
   };
 }
 
-export function articleCardProps(entry: PublishedArticle) {
+export function articleCardProps(entry: PublishedArticle, lang: 'zh-CN' | 'en' = 'zh-CN') {
   const date = entry.data.date;
   if (!date) {
     throw new Error(`slot: article 条目缺少 date：${entry.id}`);
   }
-  const dateZh = formatDate(date, 'zh-CN');
+  const dateZh = formatDate(date, lang);
   return {
     href: docHref(entry),
     title: entry.data.title,

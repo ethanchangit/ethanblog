@@ -26,7 +26,10 @@ export async function removalReason(client, id, schema, blogIds) {
 export function linkedPaths(raw) {
   const body = parseMdx(raw).bodyZh, refs = new Set(blogReferences(body));
   proseParts(body, text => {
-    for (const match of text.matchAll(/(?:\]\(<?|\bhref=["'])(?:https:\/\/ethanchang\.io)?\/(articles|projects)\/([a-z0-9-]+(?:\/\d+)*)(?=[\/#?"')>\s])/g)) refs.add(`${match[1]}/${match[2]}`);
+    for (const match of text.matchAll(/(?:\]\(<?|\bhref=["'])(?:https:\/\/(?:cn\.)?ethanchang\.io)?\/(?:(articles|projects)\/([a-z0-9-]+(?:\/\d+)*)|([a-z0-9]+(?:-[a-z0-9]+)*))(?=[\/#?"')>\s])/g)) {
+      // A Heptabase URL article is linked at the site root: /<url> is articles/<url>.mdx.
+      refs.add(match[3] ? `articles/${match[3]}` : `${match[1]}/${match[2]}`);
+    }
     return text;
   });
   return [...refs].map(ref => `src/content/${ref}.mdx`);
@@ -48,7 +51,10 @@ export function removalScope(files, rootPath) {
   const descendants = [...follow([rootPath])].filter(path => path !== rootPath && data.get(path)?.listed === false && data.get(path)?.heptabaseCardLink);
   const candidates = new Set([rootPath, ...descendants]);
   const needed = follow([...data.keys()].filter(path => !candidates.has(path)));
-  const paths = [rootPath, ...descendants.filter(path => !needed.has(path))];
+  // A withdrawn article takes its translations with it.
+  const rootLink = data.get(rootPath)?.heptabaseCardLink;
+  const translations = rootLink ? [...data].filter(([path, fm]) => path !== rootPath && fm.translationOf === rootLink).map(([path]) => path) : [];
+  const paths = [rootPath, ...translations, ...descendants.filter(path => !needed.has(path) && !translations.includes(path))];
   const deleted = new Set(paths);
   const blockers = [...edges].filter(([path, targets]) => path !== BLOG_INDEX && !deleted.has(path) && targets.some(target => deleted.has(target))).map(([path]) => ({ path, title: data.get(path)?.title || path }));
   return { paths, blockers, keptReferences: descendants.filter(path => needed.has(path)).map(path => ({ path, title: data.get(path)?.title || path })) };

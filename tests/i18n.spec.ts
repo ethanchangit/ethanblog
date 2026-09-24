@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('仅保留中文版', () => {
+test.describe('中文站（cn.ethanchang.io）', () => {
   test('默认中文且不再显示语言切换', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
@@ -31,7 +31,8 @@ test.describe('仅保留中文版', () => {
     const html = await (await request.get('/articles/pkm-method')).text();
     expect(html).not.toContain('My PKM practice: from notes to a knowledge network');
     expect(html).not.toContain('data-lang-split');
-    expect(html).not.toContain('hreflang="en"');
+    // Not translated yet: no English alternate. The nav still links to the English blog's home.
+    expect(html).not.toContain('rel="alternate" hreflang="en"');
   });
 
   test('旧 /zh 地址回到同一篇中文页面', async ({ page }) => {
