@@ -1267,12 +1267,12 @@ async function decideReview(env, identity, input) {
     if (saved?.status === 'complete' && saved.decision === input.decision && sameRequest) {
       const current = await readProperties(client, id, schema);
       const wantRemark = input.decision === 'reject' && remark !== undefined;
-      if (current.status === (saved.decision === 'approve' ? 'published' : 'block') && (!wantRemark || current.remark === remark)) return { id, decision: saved.decision, status: 'complete', properties: current };
+      if (current.status === (saved.decision === 'approve' ? 'published' : 'blocked') && (!wantRemark || current.remark === remark)) return { id, decision: saved.decision, status: 'complete', properties: current };
     }
     // A decided card may be decided again from the same review, as long as nothing else changed.
     // The card is no longer in Review, so the reviewed plan is reused instead of pulled again.
     const revising = saved?.status === 'complete' && sameRequest;
-    const previous = revising ? savedPlan.applied || { status: saved.decision === 'approve' ? 'published' : 'block' } : null;
+    const previous = revising ? savedPlan.applied || { status: saved.decision === 'approve' ? 'published' : 'blocked' } : null;
     if (saved?.status === 'pending' && (!input.sourceHash || sameRequest)) {
       if (input.decision !== saved.decision) throw fail('上次属性回写尚未完成，请先重试原操作。', 409);
       plan = JSON.parse(saved.payload);
@@ -1302,7 +1302,7 @@ async function decideReview(env, identity, input) {
     const root = plan.graph[0];
     const desired = input.decision === 'approve'
       ? { status: 'published', ...(!root.properties.date && !root.created ? { date: plan.date } : {}) }
-      : { status: 'block', ...(remark !== undefined ? { remark } : {}) };
+      : { status: 'blocked', ...(remark !== undefined ? { remark } : {}) };
     const current = await readProperties(client, id, schema);
     // A timed-out write may have applied none, some, or all properties. Accept
     // only those exact intermediate states; never overwrite unrelated edits.

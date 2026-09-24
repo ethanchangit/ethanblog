@@ -125,17 +125,17 @@ export async function fixture(assets = {}) {
           let content;
           if (name === 'list_tags') content = { content: `<tags total="2"><tag id="blog-id" name="blog" cardCount="${properties.size}"><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /></tag><tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" /></tags>` };
           else if (name === 'read_database' && args.tagId === 'i18n-id') content = { configuration: { schema: {
-            url: { name: 'URL', type: 'text' },
+            url: { name: 'slug', type: 'text' },
             language: { name: 'Language', type: 'select', options: [{ id: 'en', name: 'en' }, { id: 'ja', name: 'ja' }] },
           } } };
           else if (name === 'read_database') content = { configuration: { schema: {
-            status: { name: 'Status', type: 'select', options: ['new', 'writing', 'block', 'review', 'published'].map((name) => ({ id: name, name })) },
+            status: { name: 'Status', type: 'select', options: ['new', 'writing', 'blocked', 'review', 'published'].map((name) => ({ id: name, name })) },
             date: { name: 'Publish Date', type: 'date' },
             tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity'].map((name) => ({ id: name, name })) },
             type: { name: 'Blog Type', type: 'select', options: ['Article', 'Project', 'Page', 'Reference'].map((name) => ({ id: name, name })) },
             summary: { name: 'Summary', type: 'text' },
             remark: { name: 'Remark', type: 'text' },
-            url: { name: 'URL', type: 'text' },
+            url: { name: 'slug', type: 'text' },
             i18n: { name: 'blog i18n', type: 'relation', tagId: 'i18n-id' },
           } } };
           else if (name === 'edit_card_properties') {

@@ -236,7 +236,7 @@ function itemMeta(item, deleting, edited) {
   if (item.decision === 'remove') return '已确认删除，待发布';
   if (item.decision === 'skip') return '本次暂不删除';
   if (item.decision === 'approve') return 'article · 已通过，待发布';
-  if (item.decision === 'reject') return 'article · 已拒绝，已回写 Block';
+  if (item.decision === 'reject') return 'article · 已拒绝，已回写 Blocked';
   if (item.error) return '读取失败，尚未审核';
   if (deleting) return item.plan.reasonLabel;
   return `article · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`;
@@ -274,7 +274,7 @@ function remarkChange(item) {
 }
 const decisionNotes = {
   approve: '已通过并回写 Published。只是审核通过，尚未上线。',
-  reject: '已拒绝并回写 Block，线上旧文章保持不变。',
+  reject: '已拒绝并回写 Blocked，线上旧文章保持不变。',
   remove: '已加入待删除清单，网站尚未改变。',
   skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
 };

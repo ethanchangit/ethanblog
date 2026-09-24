@@ -107,7 +107,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('tab', { name: /New articles/ }).click();
   await page.getByRole('button', { name: '拒绝「一次还没想清楚的尝试」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('article · 已拒绝，已回写 Block')).toBeVisible();
+  await expect(page.getByText('article · 已拒绝，已回写 Blocked')).toBeVisible();
   await expect(page.getByRole('button', { name: '拒绝「一次还没想清楚的尝试」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '通过「一次还没想清楚的尝试」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: '将笔记变成可以分享的文章', exact: true }).click();

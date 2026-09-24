@@ -62,16 +62,16 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。
 - **英文博客 ethanchang.io** 是译文。译文是 `#blogi18n`（Heptabase 标签名 `blog i18n`）里的独立卡片，由 `#blog` 卡片上的关联字段 `blog i18n` 指向。配对只看这个关联，不按标题或别的字段猜。译文的 `Language` 决定语言（`en` 等）；中文只写在 `#blog`，不做译文。
 - 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：`src/content/articles/<id>/<language>.mdx`，frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
-- `URL` 字段就是地址，放在站点根路径，不在 `/articles` 下：URL 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的旧文仍在 `/articles/<id>`，英文站同一路径。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的旧文仍在 `/articles/<id>`，英文站同一路径。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出两个站：中文页面在 `dist/` 根目录，英文页面在 `dist/en/`。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）按域名分：ethanchang.io 的请求读 `/en` 下的页面，没有英文版的路径跳到 cn 同一路径；cn.ethanchang.io 读根目录。`/en` 前缀不对外出现。语言切换链接是 `/_lang/<zh|en><路径>`，由 Worker 换到另一个域名。页面语言跟着路由走：英文页（`/en`）的界面、日期、列表都是英文，其余是中文。
 - 本机：`http://localhost:4321` 是中文站，`http://en.localhost:4321` 是英文站（dev 和 `npm run preview` 都支持）。
 - 后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 
 ### `#blog`
 
-拉取读 Heptabase 里准确名为 `blog` 的标签数据库，以及 `blog i18n` 关联指向的译文库 `#blogi18n`。字段按名字从线上表结构读取（`URL`、`Remark`、`blog i18n`；译文库的 `URL`、`Language`），不写死 id。引用资料不再使用单独的 `#blog-reference` 标签。
+拉取读 Heptabase 里准确名为 `blog` 的标签数据库，以及 `blog i18n` 关联指向的译文库 `#blogi18n`。字段按名字从线上表结构读取（`slug`、`Remark`、`blog i18n`；译文库的 `slug`、`Language`），不写死 id。引用资料不再使用单独的 `#blog-reference` 标签。
 
-- 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`block`、`review`、`published`，各一个。`published` 表示已通过审核，不表示网站已上线。
+- 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`blocked`、`review`、`published`，各一个（大小写不敏感；旧名 `block` 不再认）。`published` 表示已通过审核，不表示网站已上线。
 - `Blog Type` 的选项以数据库里的为准，当前是 `Article`、`Project`、`Page` 和 `Reference`。只有 `Article` 进公开文章列表。`Reference` 仍有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
 - 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
 - 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
@@ -83,7 +83,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
 1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
-2. 主卡片上点通过或拒绝，一次点击就决定，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开。决定之后两个按钮都还在，当前选择保持高亮，可以改判。通过则回写 `published`。Publish Date 或创建时间已有则原样保留；两样都空时才补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。拒绝则回写 `block`，不改日期，也不改线上旧文；详情里的「拒绝说明」写回卡片的 `Remark`，没动过就不写，清空后再拒绝会写空。译文跟着主卡片一起通过或拒绝。
+2. 主卡片上点通过或拒绝，一次点击就决定，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开。决定之后两个按钮都还在，当前选择保持高亮，可以改判。通过则回写 `published`。Publish Date 或创建时间已有则原样保留；两样都空时才补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。拒绝则回写 `blocked`，不改日期，也不改线上旧文；详情里的「拒绝说明」写回卡片的 `Remark`，没动过就不写，清空后再拒绝会写空。译文跟着主卡片一起通过或拒绝。
 3. 「提交通过的更新到 GitHub」只提交已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
 5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。

@@ -23,7 +23,7 @@ const docSchema = z
     draft: z.boolean().default(false),
     // 历史页可以没有链接继续构建。经后台新建或更新时必须是真实的 heptabase://card/<uuid>。
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
-    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
     // Heptabase URL: the article is /<url> on cn.ethanchang.io, and its translations use the same path on their site.
     // A translation (from #blogi18n) records its language and the #blog card it translates.
@@ -78,7 +78,7 @@ const pages = defineCollection({
     updated: z.coerce.date().optional(),
     draft: z.boolean().optional(),
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
-    heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
+    heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
   }),
 });

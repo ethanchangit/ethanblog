@@ -1186,7 +1186,7 @@ function metaHtml() {
       ` : ''}
       ${state.doc.collection !== 'pages' ? `
         <label><span class="ui-meta">Heptabase card link · 必填</span><input class="comment-field" data-fm="heptabaseCardLink" placeholder="heptabase://card/…" value="${attr(data.heptabaseCardLink)}" required /></label>
-        <label><span class="ui-meta">写作状态</span><select class="comment-field" data-fm="heptabaseStatus">${['new', 'writing', 'block', 'published'].map(value => `<option value="${value}" ${value === (data.draft ? data.heptabaseStatus === 'published' ? 'writing' : data.heptabaseStatus || 'writing' : 'published') ? 'selected' : ''}>${{ new: 'new · 新建', writing: 'writing · 写作中', block: 'block · 暂停', published: 'published · 准备发布 / 已发布' }[value]}</option>`).join('')}</select></label>
+        <label><span class="ui-meta">写作状态</span><select class="comment-field" data-fm="heptabaseStatus">${['new', 'writing', 'blocked', 'published'].map(value => `<option value="${value}" ${value === (data.draft ? data.heptabaseStatus === 'published' ? 'writing' : data.heptabaseStatus || 'writing' : 'published') ? 'selected' : ''}>${{ new: 'new · 新建', writing: 'writing · 写作中', blocked: 'blocked · 暂停', published: 'published · 准备发布 / 已发布' }[value]}</option>`).join('')}</select></label>
         <div class="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label="收录到">
           ${['article', 'project', 'library'].map((kind) => {
             const current = collectionKind();

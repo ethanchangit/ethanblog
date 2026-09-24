@@ -36,10 +36,10 @@ test('individual approval writes Published and first date immediately; not deplo
   await ok(f.request('/git/commit', 'POST', { message: '审核通过' }));
   assert.equal(f.refs.get('main'), main);
 });
-test('reject writes Block only, keeps date and the old website, does not stage anything', async () => {
+test('reject writes Blocked only, keeps date and the old website, does not stage anything', async () => {
   const f = await setup(); f.properties.get(CARD)['Publish Date'] = { start: '2023-01-02T00:00:00Z' }; f.remote(article.replace('draft: true', 'draft: false'));
   const main = f.refs.get('main'); await ok(decision(f, await preview(f), 'reject'));
-  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2023-01-02T00:00:00Z');
+  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2023-01-02T00:00:00Z');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0); assert.equal(f.refs.get('main'), main); assert.equal(writes(f).length, 0);
 });
 test('edited approval preserves existing publication day', async () => {
@@ -117,7 +117,7 @@ test('rejecting one blog preserves the shared reference needed by an approved bl
   const second = { ...input, cardLink: `heptabase://card/${other}`, id: `hepta-${other}` };
   const plan = await ok(f.request('/heptabase/preview', 'POST', second));
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), ...second, decision: 'reject' }));
-  assert.equal(f.properties.get(other).Status, 'block');
+  assert.equal(f.properties.get(other).Status, 'blocked');
   const drafts = f.DB.sqlite.prepare('SELECT path FROM studio_drafts').all();
   assert.equal(drafts.length, 2); assert.ok(drafts.some(r => r.path.includes(ref)));
   await ok(f.request('/git/commit', 'POST', { message: '只提交通过的第一篇' }));
@@ -135,10 +135,10 @@ test('changed review cannot approve or reject a newer card version', async () =>
 test('reject writes the remark back; an untouched empty remark writes nothing; clearing writes empty', async () => {
   const f = await setup();
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(await preview(f)), decision: 'reject', remark: '第二段需要补例子' }));
-  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD).Remark, '第二段需要补例子');
+  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD).Remark, '第二段需要补例子');
   const g = await setup();
   await ok(decision(g, await preview(g), 'reject'));
-  assert.equal(g.properties.get(CARD).Status, 'block'); assert.equal('Remark' in g.properties.get(CARD), false);
+  assert.equal(g.properties.get(CARD).Status, 'blocked'); assert.equal('Remark' in g.properties.get(CARD), false);
   assert.ok(g.calls.filter(c => c.body?.params?.name === 'edit_card_properties').every(c => c.body.params.arguments.edits.every(e => e.propertyId !== 'remark')));
   const h = await setup(); h.properties.get(CARD).Remark = '旧说明';
   await ok(h.request('/heptabase/decision', 'POST', { ...selection(await preview(h)), decision: 'reject', remark: '' }));
@@ -151,7 +151,7 @@ test('a decision can be changed from the same review without a new pull', async 
   assert.equal(f.properties.get(CARD).Status, 'published');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '先不发' }));
-  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD).Remark, '先不发');
+  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD).Remark, '先不发');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0);
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '换个说法' }));
   assert.equal(f.properties.get(CARD).Remark, '换个说法');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { routeSlug, translationLanguage } from './card-properties.mjs';
+import { propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -13,7 +13,7 @@ async function setup(props = {}, translations = []) {
   const f = await fixture(); globalThis.fetch = f.fetcher; await f.login(); await f.connect();
   f.properties.get(CARD).Status = 'writing';
   f.cardSources.set(ZH, '# 我的工具箱\n\n中文原文。');
-  f.properties.set(ZH, { Status: 'review', URL: 'toolset', 'blog i18n': translations.map(([id]) => `card/${id}`), ...props });
+  f.properties.set(ZH, { Status: 'review', slug: 'toolset', 'blog i18n': translations.map(([id]) => `card/${id}`), ...props });
   for (const [id, title, values] of translations) { f.cardSources.set(id, `# ${title}\n\n${title} body.`); f.i18n.set(id, values); }
   return f;
 }
@@ -37,7 +37,7 @@ test('URL is the slug as written; translation languages become their own site', 
 });
 
 test('a #blog card and its related #blogi18n translation share one path on two sites', async () => {
-  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', URL: 'toolset' }], [JA, '私のツール', { Language: 'ja' }]]);
+  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }], [JA, '私のツール', { Language: 'ja' }]]);
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, 'src/content/articles/toolset.mdx');
   const byId = new Map(plan.changes.map(c => [c.id, c]));
@@ -59,7 +59,7 @@ test('a #blog card and its related #blogi18n translation share one path on two s
 });
 
 test('a translation must be in #blogi18n, carry the same URL, and be the only one for its language', async () => {
-  let f = await setup({}, [[EN, 'My toolset', { Language: 'en', URL: 'tools' }]]);
+  let f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'tools' }]]);
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「tools」和中文原文的 URL「toolset」不一致/);
   f = await setup({ 'blog i18n': [`card/${OLD}`] }); f.cardSources.set(OLD, '# Stray\n\nnot tagged');
   res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /不在 #blogi18n 里/);
@@ -70,8 +70,8 @@ test('a translation must be in #blogi18n, carry the same URL, and be the only on
 });
 
 test('without URL the card keeps its slug and the translation sits beside it', async () => {
-  const f = await setup({ URL: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
-  delete f.properties.get(ZH).URL;
+  const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
+  delete f.properties.get(ZH).slug;
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, `src/content/articles/hepta-${ZH}.mdx`);
   assert.ok(plan.changes.some(c => c.path === `src/content/articles/hepta-${ZH}/en.mdx`));
@@ -81,7 +81,7 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   let f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
-  f = await setup({ URL: 'now' });
+  f = await setup({ slug: 'now' });
   res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
@@ -96,4 +96,12 @@ test('withdrawing an article takes its translations with it', () => {
     ['src/content/articles/other.mdx', doc({ heptabaseCardLink: link(OLD) })],
   ]);
   assert.deepEqual(removalScope(files, 'src/content/articles/toolset.mdx').paths, ['src/content/articles/toolset.mdx', 'src/content/articles/toolset/en.mdx']);
+});
+
+test('the blocked status is Blocked in any case; the old block option is not accepted', () => {
+  const schema = { tagId: 't', status: { name: 'Status' }, date: { name: 'Publish Date' }, tags: { name: 'Tag' }, type: { name: 'Blog Type', options: ['Article', 'Project', 'Page', 'Reference'].map(name => ({ name })) }, summary: { name: 'Summary' }, remark: null, url: null, i18n: null };
+  const card = status => `card "x" [1] 2 lines\n--- Databases ---\n- tag "blog" [t]\n  - "Status": "${status}"\n1\t# x`;
+  assert.equal(propertiesFromRead(card('Blocked'), schema).status, 'blocked');
+  assert.equal(propertiesFromRead(card('blocked'), schema).status, 'blocked');
+  assert.throws(() => propertiesFromRead(card('block'), schema), /Status 选项尚未对应/);
 });
