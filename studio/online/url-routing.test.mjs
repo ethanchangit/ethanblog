@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
+import { assertArticleSlug, propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -24,10 +24,13 @@ const approve = (f, plan) => f.request('/heptabase/decision', 'POST', { ...input
 test('URL is the slug as written; translation languages become their own site', () => {
   assert.equal(routeSlug(' /toolset/ '), 'toolset');
   assert.equal(routeSlug(''), null);
-  assert.throws(() => routeSlug('My Toolset'));
-  assert.throws(() => routeSlug('2024'));
+  // Reading a slug never fails: a Page may be named after its own fixed route.
+  assert.equal(routeSlug('now'), 'now');
+  assert.equal(assertArticleSlug('toolset'), 'toolset');
+  assert.throws(() => assertArticleSlug('My Toolset'));
+  assert.throws(() => assertArticleSlug('2024'));
   for (const fixed of ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'en', 'cn']) {
-    assert.throws(() => routeSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
+    assert.throws(() => assertArticleSlug(fixed), new RegExp(`slug「${fixed}」与网站固定地址 /${fixed} 冲突`));
   }
   assert.equal(translationLanguage('en'), 'en');
   assert.equal(translationLanguage('English'), 'en');
@@ -69,6 +72,31 @@ test('a translation must be in #blogi18n, carry the same URL, and be the only on
   res = await preview(f); assert.equal(res.status, 400); assert.match((await res.json()).error, /中文写在 #blog/);
 });
 
+test('a Page card whose slug is its own site page pulls and updates that page; an Article cannot take the route', async () => {
+  const PAGE = '55555555-5555-4555-8555-555555555555';
+  const f = await setup({ slug: 'now' });
+  f.cardSources.set(PAGE, '# 最近在做什么\n\n写博客。');
+  f.properties.set(PAGE, { Status: 'review', 'Blog Type': 'Page', slug: 'now' });
+  f.remote(serializeMdx({ frontmatter: { slot: 'page', title: 'Now', description: '现在', date: '2026-09-21', heptabaseCardLink: link(PAGE) }, bodyZh: '旧的 Now。' }), 'src/content/pages/now.mdx');
+  const pulled = await ok(f.request('/heptabase/cards'));
+  assert.deepEqual(pulled.cards.map(c => c.id).sort(), [PAGE, ZH].sort());
+  const page = await ok(f.request('/heptabase/preview', 'POST', { cardLink: link(PAGE), collection: 'pages', preparePublish: true, reviewOnly: true }));
+  assert.equal(page.filePath, 'src/content/pages/now.mdx');
+  assert.equal(parseMdx(page.next).bodyZh, '写博客。');
+  const article = await preview(f);
+  assert.equal(article.status, 409);
+  assert.match((await article.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
+});
+
+test('a new Page card named by slug takes its site page even with another title', async () => {
+  const PAGE = '66666666-6666-4666-8666-666666666666';
+  const f = await setup();
+  f.cardSources.set(PAGE, '# 最近\n\n写博客。');
+  f.properties.set(PAGE, { Status: 'review', 'Blog Type': 'Page', slug: 'now' });
+  const page = await ok(f.request('/heptabase/preview', 'POST', { cardLink: link(PAGE), collection: 'pages', preparePublish: true, reviewOnly: true }));
+  assert.equal(page.filePath, 'src/content/pages/now.mdx');
+});
+
 test('without URL the card keeps its slug and the translation sits beside it', async () => {
   const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
   delete f.properties.get(ZH).slug;
@@ -82,7 +110,7 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
   f = await setup({ slug: 'now' });
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
+  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
   res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/articles\/my-toolset/);
