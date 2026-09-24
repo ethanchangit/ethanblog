@@ -19,7 +19,7 @@ import {
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType } from './card-properties.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, urlArticleId } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, removalReason, removalReasons, removalScope, linkedPaths, withoutIndexRefs } from './removals.mjs';
@@ -174,7 +174,8 @@ function summary(collection, id, raw, extra = {}) {
     tags: Array.isArray(data.tags) ? data.tags : [], draft: Boolean(data.draft), listed: data.listed,
     date: data.date ? String(data.date).slice(0, 10) : '',
     slot: data.slot ?? (collection === 'projects' ? 'project' : collection === 'articles' ? 'article' : undefined),
-    href: publicHref(collection, id), heptabaseCardLink: data.heptabaseCardLink || '', series: id.includes('/'), ...extra,
+    href: publicHref(collection, id), heptabaseCardLink: data.heptabaseCardLink || '', series: id.includes('/') && !id.endsWith('/cn'),
+    serial: typeof data.serial === 'number' ? data.serial : null, language: data.language || null, url: typeof data.url === 'string' ? data.url : null, ...extra,
   };
 }
 
@@ -673,7 +674,7 @@ async function heptabaseCards(env, identity) {
     const card = cards[scan.cursor];
     if (card.type !== 'card') { scan.props[card.id] = null; scan.cursor++; continue; }
     const cached = pulls.get(card.id);
-    if (card.updated && cached?.edited_at === card.updated && cached.properties) {
+    if (card.updated && cached?.edited_at === card.updated && currentShape(cached.properties)) {
       scan.props[card.id] = cached.properties;
       scan.cursor++;
       continue;
@@ -877,18 +878,48 @@ async function pullCard(env, client, schema, id, listed) {
     updated = stamps?.updated || '';
   }
   const cached = updated ? await readCardPull(env, id) : null;
-  if (updated && cached?.edited_at === updated && cached.properties && cached.source != null) {
+  if (updated && cached?.edited_at === updated && currentShape(cached.properties) && cached.source != null) {
     return { source: cached.source, properties: cached.properties, created: cached.card_created || created, updated };
   }
   const source = updated && cached?.edited_at === updated && cached.source != null ? cached.source : await readCard(client, id);
-  const properties = updated && cached?.edited_at === updated && cached.properties ? cached.properties : await readProperties(client, id, schema);
+  const properties = updated && cached?.edited_at === updated && currentShape(cached.properties) ? cached.properties : await readProperties(client, id, schema);
   if (updated) await saveCardContent(env, id, updated, created, properties, source);
   return { source, properties, created, updated };
 }
 
+// Properties cached before the Remark / Serial / Language / URL columns existed are read again.
+const currentShape = properties => Boolean(properties && 'url' in properties && 'remark' in properties);
+
 async function rememberProperties(env, id, properties) {
   const cached = await readCardPull(env, id);
   if (cached?.edited_at) await saveCardProperties(env, id, cached.edited_at, cached.card_created, properties);
+}
+
+// URL / Serial routing for articles. The same Serial is the same article: language versions
+// share one URL (English at <url>, Chinese at <url>/cn) and an existing page is updated in place.
+async function articleRoute(env, entries, id, properties) {
+  if (!properties.member || collectionForBlogType(properties.type) !== 'articles') return null;
+  const serial = properties.serial;
+  const sameSerial = serial == null ? [] : entries.filter(doc => doc.collection === 'articles' && doc.serial === serial);
+  let url = properties.url;
+  if (!url && serial != null) {
+    const partner = sameSerial.find(doc => doc.heptabaseCardLink !== `heptabase://card/${id}` && doc.url);
+    if (partner) url = partner.url;
+    else for (const [otherId, row] of await readCardPulls(env)) {
+      if (otherId !== id && row.properties?.serial === serial && row.properties?.url) { url = row.properties.url; break; }
+    }
+  }
+  const language = properties.language === 'cn' ? 'cn' : null;
+  if (url) return { id: urlArticleId(url, language), url };
+  const inPlace = sameSerial.find(doc => (doc.language === 'cn' ? 'cn' : null) === language);
+  return inPlace ? { id: inPlace.id, url: null } : null;
+}
+
+function assertRouteFree(entries, route, cardLink, properties) {
+  const occupant = entries.find(doc => doc.collection === 'articles' && doc.id === route.id);
+  if (!occupant || !occupant.heptabaseCardLink || occupant.heptabaseCardLink === cardLink) return;
+  if (properties.serial != null && occupant.serial === properties.serial) return;
+  throw fail(`地址 /articles/${route.id} 已被「${occupant.title}」使用。请在 Heptabase 换一个 URL，或给两张卡片同一个 Serial（同一篇文章）。`, 409);
 }
 
 async function heptabasePlan(env, identity, input) {
@@ -919,12 +950,18 @@ async function heptabasePlan(env, identity, input) {
   const collection = input.collection || linked[0]?.collection || routed;
   const pageCards = routed === 'pages' ? await loadPageCards(client, schema, cards, await publishedFiles(env, state)) : [];
   const rootPage = routed === 'pages' ? assignPageId(card.title, id, entries, new Map()) : null;
-  const documentId = input.id || linked[0]?.id || rootPage?.id || `hepta-${id}`;
+  const route = collection === 'articles' ? await articleRoute(env, entries, id, rootProperties) : null;
+  if (route) {
+    assertRouteFree(entries, route, card.cardLink, rootProperties);
+    const moved = linked.find(d => d.id !== route.id);
+    if (moved) throw fail(`这张卡片已发布在 /articles/${moved.id}。${route.url ? `URL「${route.url}」` : '同一 Serial'} 会换到 /articles/${route.id}；后台不会自动搬移已发布的文章。请先清空 URL 保持原地址，或在 GitHub 把文件移到新地址后再拉取。`, 409);
+  }
+  const documentId = route?.id || input.id || linked[0]?.id || rootPage?.id || `hepta-${id}`;
   const filePath = docPath(collection, documentId);
   if (collection === 'pages' && documentId === 'blogs') throw fail('博客目录不能绑定为一张内容卡片。');
   if (linked.some((d) => d.collection !== collection || d.id !== documentId)) throw fail('这张卡片已连接另一篇文章，请打开原文章同步。');
   const targets = new Map(entries.filter((d) => d.heptabaseCardLink).map((d) => [cardId(d.heptabaseCardLink), d]));
-  targets.set(id, { collection, id: documentId, displaced: Boolean(rootPage?.displaced), canonicalTitle: rootPage?.canonicalTitle || '' });
+  targets.set(id, { collection, id: documentId, url: route?.url || null, displaced: Boolean(rootPage?.displaced), canonicalTitle: rootPage?.canonicalTitle || '' });
   const graph = [], pending = [id], seen = new Set();
   while (pending.length) {
     const nextId = pending.shift(); if (seen.has(nextId)) continue; seen.add(nextId);
@@ -937,7 +974,9 @@ async function heptabasePlan(env, identity, input) {
     if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
     const heading = (/^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/m.exec(source) || [])[1]?.trim() || '';
     const assigned = routedCollection === 'pages' && !known ? assignPageId(heading, nextId, entries, targets) : null;
-    const target = known || { collection: routedCollection || 'articles', id: assigned?.id || `hepta-${nextId}`, displaced: Boolean(assigned?.displaced), canonicalTitle: assigned?.canonicalTitle || '' };
+    const nodeRoute = !known && routedCollection === 'articles' ? await articleRoute(env, entries, nextId, properties) : null;
+    if (nodeRoute) assertRouteFree(entries, nodeRoute, `heptabase://card/${nextId}`, properties);
+    const target = known || { collection: routedCollection || 'articles', id: nodeRoute?.id || assigned?.id || `hepta-${nextId}`, url: nodeRoute?.url || null, displaced: Boolean(assigned?.displaced), canonicalTitle: assigned?.canonicalTitle || '' };
     targets.set(nextId, target);
     const path = docPath(target.collection, target.id);
     const current = await effectiveFile(env, identity, state, path);
@@ -946,7 +985,8 @@ async function heptabasePlan(env, identity, input) {
     const parsed = current.raw ? parseMdx(current.raw) : { frontmatter: { slot: target.collection === 'pages' ? 'page' : target.collection === 'projects' ? 'project' : 'article', description: '待补充摘要', date: copied.date || publicationDate(), created: stamps.created || undefined, updated: stamps.updated || undefined, draft: true, ...(nextId !== id && target.collection !== 'pages' ? { listed: false } : {}) }, imports: '', bodyZh: '' };
     if (current.draft?.state === 'draft' && current.draft.raw === '') throw fail('这篇文章已在待删除清单，请先取消删除后重新拉取。', 409);
     if (current.raw && !parsed.frontmatter.draft && parsed.frontmatter.listed !== false && !properties.member) throw fail('引用的主文章已移出 #blog，请先处理撤下和引用关系，不能自动作为资料继续公开。', 409);
-    if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== nextId) throw fail('文章已连接另一张卡片。');
+    const sameArticle = properties.serial != null && parsed.frontmatter.serial === properties.serial;
+    if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== nextId && !sameArticle) throw fail('文章已连接另一张卡片。');
     graph.push({ id: nextId, path, target, source, properties, created: stamps.created, updated: stamps.updated, parsed, current });
     for (const ref of references(source)) { if (!seen.has(ref.id)) pending.push(ref.id); }
   }
@@ -964,7 +1004,12 @@ async function heptabasePlan(env, identity, input) {
       date: copied.date || (!rootDraft && properties.member ? publicationDate(new Date(), env.STUDIO_TIMEZONE) : parsed.frontmatter.date || publicationDate(new Date(), env.STUDIO_TIMEZONE)),
       created: node.created || undefined, updated: node.updated || undefined,
       draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.type === 'reference' ? false : properties.member,
-      heptabaseType: properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}` };
+      heptabaseType: properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}`,
+      ...(node.target.collection === 'articles' ? {
+        serial: properties.serial ?? undefined,
+        language: ['cn', 'en'].includes(properties.language) ? properties.language : undefined,
+        url: node.target.url || undefined,
+      } : {}) };
     node.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
     const previous = await firstRow(env, 'SELECT * FROM studio_heptabase_sync WHERE card_id = ?1', node.id);
     node.conflict = Boolean(previous && previous.source !== JSON.stringify([node.source, properties]) && previous.blog_body !== blogProjection(parsed));
@@ -1175,20 +1220,34 @@ async function decideReview(env, identity, input) {
   return withLock(env, 'publication', async lease => {
     const id = cardId(input.cardLink);
     if (!['approve', 'reject'].includes(input.decision)) throw fail('请选择通过或拒绝。');
+    if (input.remark !== undefined && typeof input.remark !== 'string') throw fail('Remark 应是一段文字。');
+    if (typeof input.remark === 'string' && input.remark.length > 2000) throw fail('Remark 最多 2000 字。');
+    const remark = input.remark;
     let saved = await firstRow(env, 'SELECT * FROM studio_review_decisions WHERE card_id = ?1', id), plan;
     const savedPlan = saved ? JSON.parse(saved.payload) : null;
     const sameRequest = savedPlan && input.sourceHash === savedPlan.sourceHash && input.documentHash === savedPlan.documentHash && input.planHash === savedPlan.planHash;
+    const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
     if (saved?.status === 'complete' && saved.decision === input.decision && sameRequest) {
-      const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
       const current = await readProperties(client, id, schema);
-      if (current.status === (saved.decision === 'approve' ? 'published' : 'block')) return { id, decision: saved.decision, status: 'complete' };
+      const wantRemark = input.decision === 'reject' && remark !== undefined;
+      if (current.status === (saved.decision === 'approve' ? 'published' : 'block') && (!wantRemark || current.remark === remark)) return { id, decision: saved.decision, status: 'complete', properties: current };
     }
+    // A decided card may be decided again from the same review, as long as nothing else changed.
+    // The card is no longer in Review, so the reviewed plan is reused instead of pulled again.
+    const revising = saved?.status === 'complete' && sameRequest;
+    const previous = revising ? savedPlan.applied || { status: saved.decision === 'approve' ? 'published' : 'block' } : null;
     if (saved?.status === 'pending' && (!input.sourceHash || sameRequest)) {
       if (input.decision !== saved.decision) throw fail('上次属性回写尚未完成，请先重试原操作。', 409);
       plan = JSON.parse(saved.payload);
+    } else if (revising) {
+      plan = savedPlan;
+      if (input.decision === 'approve' && input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
+      if (input.decision === 'approve' && plan.graph.some(n => !n.properties.member)) throw fail('引用资料还没有加入 #blog。请把卡片重新标为 Review 后拉取，再通过。', 409);
+      await run(env, "UPDATE studio_review_decisions SET decision = ?2, status = 'pending', created_at = ?3 WHERE card_id = ?1", id, input.decision, new Date().toISOString());
     } else {
       plan = await heptabasePlan(env, identity, { ...input, reviewOnly: true, preparePublish: true });
       samePlan(input, plan);
+      // Approving is the public-release confirmation; the dashboard sends it with the single click.
       if (input.decision === 'approve') {
         if (input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
         if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请确认采用 Heptabase 版本。', 409);
@@ -1203,34 +1262,43 @@ async function decideReview(env, identity, input) {
       plan.state = { repository: plan.state.repository, branch: plan.state.branch, commitSha: plan.state.commitSha };
       await run(env, "INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, ?2, 'pending', ?3, ?4) ON CONFLICT(card_id) DO UPDATE SET decision = excluded.decision, status = 'pending', payload = excluded.payload, created_at = excluded.created_at", id, input.decision, JSON.stringify(plan), new Date().toISOString());
     }
-    const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-    const root = plan.graph[0], desired = input.decision === 'approve' ? { status: 'published', ...(!root.properties.date && !root.created ? { date: plan.date } : {}) } : { status: 'block' };
+    const root = plan.graph[0];
+    const desired = input.decision === 'approve'
+      ? { status: 'published', ...(!root.properties.date && !root.created ? { date: plan.date } : {}) }
+      : { status: 'block', ...(remark !== undefined ? { remark } : {}) };
     const current = await readProperties(client, id, schema);
     // A timed-out write may have applied none, some, or all properties. Accept
     // only those exact intermediate states; never overwrite unrelated edits.
     for (const node of plan.graph) {
       const properties = node.id === id ? current : await readProperties(client, node.id, schema);
-      const expected = node.id === id ? { ...properties, status: root.properties.status, date: root.properties.date } : properties;
+      const expected = node.id === id ? { ...properties, status: root.properties.status, date: root.properties.date, remark: root.properties.remark } : properties;
       if (await readCard(client, node.id) !== node.source || JSON.stringify(expected) !== JSON.stringify(node.properties)) throw fail('审核期间内容或属性又有变化，未覆盖新内容。请恢复原版本后重试，或重新拉取审核。', 409);
     }
-    if (![root.properties.status, desired.status].includes(current.status) || ![root.properties.date, desired.date ?? root.properties.date].includes(current.date)) throw fail('Status 或日期又有变化，未覆盖你的新标记。', 409);
+    const statuses = [root.properties.status, desired.status, previous?.status].filter(Boolean);
+    const dates = [root.properties.date, desired.date ?? root.properties.date, previous?.date ?? root.properties.date];
+    if (!statuses.includes(current.status) || !dates.includes(current.date)) throw fail('Status 或日期又有变化，未覆盖你的新标记。', 409);
     // Retry must not overwrite a newer reviewed copy created while a remote
-    // property write was interrupted.
+    // property write was interrupted. A copy staged by this same review's approval is expected.
     for (const node of plan.graph) {
-      const staged = await draftFor(env, identity, node.path);
-      if ((staged?.state === 'draft' ? staged.raw : null) !== (node.current.draft?.state === 'draft' ? node.current.draft.raw : null)) throw fail('已有更新的审核副本，请重新把卡片标为 Review 后拉取。', 409);
+      const staged = await draftFor(env, identity, node.path), stagedRaw = staged?.state === 'draft' ? staged.raw : null;
+      const planned = node.current.draft?.state === 'draft' ? node.current.draft.raw : null;
+      if (stagedRaw !== planned && !(previous && stagedRaw === node.next)) throw fail('已有更新的审核副本，请重新把卡片标为 Review 后拉取。', 409);
     }
     if (input.decision === 'approve' && plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, id);
     await lease(); await writeProperties(client, id, schema, desired);
     const after = await readProperties(client, id, schema);
-    if (await readCard(client, id) !== root.source || JSON.stringify(after) !== JSON.stringify({ ...root.properties, ...desired })) throw fail('属性已回写，但内容或标签同时被修改。请重新标为 Review 后拉取审查，尚未提交 GitHub。', 409);
+    const applied = { ...(previous || {}), ...desired };
+    if (await readCard(client, id) !== root.source || JSON.stringify(after) !== JSON.stringify({ ...root.properties, ...applied })) throw fail('属性已回写，但内容或标签同时被修改。请重新标为 Review 后拉取审查，尚未提交 GitHub。', 409);
     await rememberProperties(env, id, after);
-    const completion = db(env).prepare("UPDATE studio_review_decisions SET status = 'complete' WHERE card_id = ?1").bind(id);
     if (input.decision === 'approve') {
       root.properties = after;
       const parsed = parseMdx(root.next);
       parsed.frontmatter.heptabaseStatus = 'published'; parsed.frontmatter.date = plan.date;
       root.next = serializeMdx(parsed);
+    }
+    const record = JSON.stringify({ ...plan, applied });
+    const completion = db(env).prepare("UPDATE studio_review_decisions SET status = 'complete', payload = ?2 WHERE card_id = ?1").bind(id, record);
+    if (input.decision === 'approve') {
       await savePlan(env, identity, plan, lease, completion);
     } else {
       const remaining = (await draftRows(env, identity)).filter(row => row.path !== root.path);

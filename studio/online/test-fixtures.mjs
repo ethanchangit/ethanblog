@@ -128,10 +128,14 @@ export async function fixture(assets = {}) {
             tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity'].map((name) => ({ id: name, name })) },
             type: { name: 'Blog Type', type: 'select', options: ['Article', 'Project', 'Page', 'Reference'].map((name) => ({ id: name, name })) },
             summary: { name: 'Summary', type: 'text' },
+            remark: { name: 'Remark', type: 'text' },
+            serial: { name: 'Serial', type: 'number' },
+            language: { name: 'Language', type: 'select', options: [{ id: 'zh', name: 'simplified chinese' }, { id: 'en', name: 'english' }] },
+            url: { name: 'URL', type: 'text' },
           } } };
           else if (name === 'edit_card_properties') {
             for (const edit of args.edits) {
-              const values = properties.get(edit.cardId) || {}; const key = { status: 'Status', date: 'Publish Date', tags: 'Tag', type: 'Blog Type' }[edit.propertyId];
+              const values = properties.get(edit.cardId) || {}; const key = { status: 'Status', date: 'Publish Date', tags: 'Tag', type: 'Blog Type', remark: 'Remark' }[edit.propertyId];
               if (edit.value === null) delete values[key]; else values[key] = edit.value;
               properties.set(edit.cardId, values);
             }

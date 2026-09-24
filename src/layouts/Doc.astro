@@ -9,7 +9,7 @@ import TagList from '@/components/shell/TagList.astro';
 import CopyUrl from '@/components/shell/CopyUrl.svelte';
 import SeriesNav from '@/components/shell/SeriesNav.astro';
 import { site } from '@/data/profile';
-import { seriesContext, type DocEntry } from '@/lib/docs';
+import { docHref, isLanguageVariant, languagePartner, seriesContext, type DocEntry } from '@/lib/docs';
 import { localizeHref } from '@/lib/locale';
 import { docJsonLd } from '@/lib/agent';
 
@@ -40,6 +40,8 @@ const canonicalUrl = new URL(
   site.url,
 ).href;
 const series = isArticle && !preview ? await seriesContext(doc) : null;
+const partner = isArticle && !preview ? await languagePartner(doc) : undefined;
+const partnerIsChinese = partner ? isLanguageVariant(partner) : false;
 const jsonLd = docJsonLd(doc);
 ---
 
@@ -63,7 +65,20 @@ const jsonLd = docJsonLd(doc);
               </span>
             )}
           </div>
-          {!preview && <BookmarkButton client:load slug={slug} />}
+          <div class="flex items-center gap-3">
+            {partner && (
+              <a
+                href={Astro.locals.localePath(docHref(partner))}
+                hreflang={partnerIsChinese ? 'zh-CN' : 'en'}
+                lang={partnerIsChinese ? 'zh-CN' : 'en'}
+                class="ui-meta ui-link"
+                data-language-switch
+              >
+                {partnerIsChinese ? '中文' : 'English'}
+              </a>
+            )}
+            {!preview && <BookmarkButton client:load slug={slug} />}
+          </div>
         </div>
       )
     }

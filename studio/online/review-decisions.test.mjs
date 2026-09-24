@@ -131,3 +131,34 @@ test('changed review cannot approve or reject a newer card version', async () =>
   assert.equal(f.properties.get(CARD).Status, 'review');
   assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').length, 0);
 });
+
+test('reject writes the remark back; an untouched empty remark writes nothing; clearing writes empty', async () => {
+  const f = await setup();
+  await ok(f.request('/heptabase/decision', 'POST', { ...selection(await preview(f)), decision: 'reject', remark: '第二段需要补例子' }));
+  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD).Remark, '第二段需要补例子');
+  const g = await setup();
+  await ok(decision(g, await preview(g), 'reject'));
+  assert.equal(g.properties.get(CARD).Status, 'block'); assert.equal('Remark' in g.properties.get(CARD), false);
+  assert.ok(g.calls.filter(c => c.body?.params?.name === 'edit_card_properties').every(c => c.body.params.arguments.edits.every(e => e.propertyId !== 'remark')));
+  const h = await setup(); h.properties.get(CARD).Remark = '旧说明';
+  await ok(h.request('/heptabase/decision', 'POST', { ...selection(await preview(h)), decision: 'reject', remark: '' }));
+  assert.equal('Remark' in h.properties.get(CARD), false);
+});
+
+test('a decision can be changed from the same review without a new pull', async () => {
+  const f = await setup(), plan = await preview(f);
+  await ok(decision(f, plan));
+  assert.equal(f.properties.get(CARD).Status, 'published');
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
+  await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '先不发' }));
+  assert.equal(f.properties.get(CARD).Status, 'block'); assert.equal(f.properties.get(CARD).Remark, '先不发');
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0);
+  await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '换个说法' }));
+  assert.equal(f.properties.get(CARD).Remark, '换个说法');
+  await ok(decision(f, plan));
+  assert.equal(f.properties.get(CARD).Status, 'published'); assert.equal(f.properties.get(CARD).Remark, '换个说法');
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
+  await ok(f.request('/git/commit', 'POST', { message: '改判后仍可提交' }));
+  f.setSource('# 新内容\n\n改判之前卡片又被修改');
+  assert.equal((await f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject' })).status, 409);
+});

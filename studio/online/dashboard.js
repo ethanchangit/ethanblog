@@ -106,11 +106,6 @@ function closeDialog() { document.querySelector('dialog')?.close(); document.que
 function dialog(title) {
   closeDialog(); const d = el('dialog', null, { 'aria-label': title }), h = el('header');
   h.append(el('h2', title), button('关闭', async () => closeDialog())); d.append(h, el('p', '', { class: 'status', role: 'status' }));
-  // Enter on the confirmation checkbox submits, so a keyboard review is A, Space, Enter.
-  d.addEventListener('keydown', event => {
-    if (event.key !== 'Enter' || !event.target.matches?.('input[type=checkbox]')) return;
-    event.preventDefault(); d.querySelector('button.primary, button.danger')?.click();
-  });
   document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal(); return d;
 }
 async function refresh() {
@@ -245,7 +240,6 @@ function itemMeta(item, deleting, edited) {
   if (deleting) return item.plan.reasonLabel;
   return `article · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`;
 }
-const decisionWords = { approve: '通过', reject: '拒绝', remove: '待删除', skip: '暂缓' };
 const reviewKinds = ['new', 'edited', 'removed'];
 const reviewed = item => Boolean(item.decision);
 function reviewQueue() { const by = reviewGroups(); return reviewKinds.flatMap(kind => by[kind]); }
@@ -272,13 +266,47 @@ function afterDecision(item, message) {
   const advanced = advanceFrom(item);
   return advanced ? message : `${message}${doneHint(item)}`;
 }
+/** The remark is written back only when the field differs from the card's current Remark. */
+function remarkChange(item) {
+  const base = item.plan?.properties?.remark || '';
+  return item.remarkDraft !== undefined && item.remarkDraft !== base ? item.remarkDraft : undefined;
+}
+const decisionNotes = {
+  approve: '已通过并回写 Published。只是审核通过，尚未上线。',
+  reject: '已拒绝并回写 Block，线上旧文章保持不变。',
+  remove: '已加入待删除清单，网站尚未改变。',
+  skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
+};
+/** One click decides. A decided item can be decided again; only the first decision advances. */
 async function decide(item, verdict) {
-  if (!item?.plan || reviewed(item)) return;
-  if (verdict === 'approve') return item.removal ? confirmRemoval(item) : confirmDecision(item, 'approve');
-  if (!item.removal) return confirmDecision(item, 'reject');
-  item.decision = 'skip';
-  const message = afterDecision(item, '本次暂不删除，线上页面不变；下次拉取会再次提醒。');
-  renderList(); await showSelection(); notice(message);
+  if (!item?.plan) return;
+  const next = item.removal ? (verdict === 'approve' ? 'remove' : 'skip') : verdict;
+  const remark = next === 'reject' ? remarkChange(item) : undefined;
+  if (item.decision === next && remark === undefined) return;
+  const first = !reviewed(item);
+  let extra = '';
+  if (next === 'approve') {
+    if (item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
+    if (first && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged)) {
+      await api('/heptabase/mark-references', selection(item));
+      item.plan = await api('/heptabase/preview', item.input);
+      extra = '引用资料已加入 #blog，Blog Type 为 Reference。';
+    }
+    await api('/heptabase/decision', { ...selection(item), decision: 'approve', confirmPublic: true, resolveConflict: true });
+  } else if (next === 'reject') {
+    await api('/heptabase/decision', { ...selection(item), decision: 'reject', ...(remark !== undefined ? { remark } : {}) });
+    if (remark !== undefined) { item.plan.properties = { ...item.plan.properties, remark }; extra = remark ? 'Remark 已写回 Heptabase。' : 'Remark 已清空。'; }
+  } else if (next === 'remove') {
+    await api('/heptabase/removal', { ...selection(item), confirmDelete: true });
+  } else if (item.decision === 'remove') {
+    await api('/heptabase/removal-cancel', { cardLink: item.input.cardLink });
+  }
+  const changed = item.decision && item.decision !== next;
+  item.decision = next;
+  const text = `${decisionNotes[next]}${extra}${changed ? '已改判。' : ''}`;
+  const message = first ? afterDecision(item, text) : text;
+  renderList(); await showSelection(); git = await api('/git'); await renderRelease();
+  notice(message);
 }
 function renderSummary(by) {
   const top = document.querySelector('#review-summary'); if (!top) return;
@@ -353,12 +381,13 @@ function renderList() {
     card.append(typeLabel(focusedGroup, pageKind(rootChange(item), deleting)));
     card.append(button(title(item), () => select(item), { class: 'card-select', 'aria-pressed': String(Boolean(active && selected.id === item.card.id)) }));
     const decisions = el('div', null, { class: 'decisions' });
-    if (!item.decision && item.plan) {
+    if (item.plan) {
+      const yes = deleting ? 'remove' : 'approve', no = deleting ? 'skip' : 'reject';
       decisions.append(
-        button('✓', () => decide(item, 'approve'), { class: 'decide', 'data-decide': deleting ? 'remove' : 'approve', 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '审查删除这篇博客' : '通过这篇博客' }),
-        button('×', () => decide(item, 'reject'), { class: 'decide', 'data-decide': deleting ? 'skip' : 'reject', 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
+        button('✓', () => decide(item, 'approve'), { class: 'decide', 'data-decide': yes, 'aria-pressed': String(item.decision === yes), 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '从网站删除这篇博客' : '通过这篇博客，并确认正文和引用可以公开' }),
+        button('×', () => decide(item, 'reject'), { class: 'decide', 'data-decide': no, 'aria-pressed': String(item.decision === no), 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
       );
-    } else if (item.decision) decisions.append(el('span', decisionWords[item.decision], { class: 'item-state', 'data-decision': item.decision, 'aria-hidden': 'true' }));
+    }
     card.append(decisions, el('small', itemMeta(item, deleting, edited), { class: 'item-meta' }));
     const change = rootChange(item);
     if (change && !deleting) {
@@ -587,6 +616,7 @@ async function showSelection() {
   bar.append(detailActions(item));
   head.append(titleRow, bar);
   pane.append(head);
+  if (!item.removal) pane.append(remarkField(item));
   const meta = el('section', null, { class: 'review-meta', 'aria-label': '属性与标签' });
   meta.append(el('h3', '属性', { class: 'section-label' }));
   appendProperties(meta, card, kind, item.removal);
@@ -622,19 +652,31 @@ function fitFrame(frame) {
 }
 function detailActions(item) {
   const box = el('div', null, { class: 'detail-actions' });
-  if (item.decision) {
-    box.append(el('span', itemMeta(item, item.removal, itemGroup(item) === 'edited').replace(/^article · /, ''), { class: 'item-state', 'data-decision': item.decision }));
-    return box;
-  }
-  const action = (text, key, verdict, variant) => {
-    const b = button(text, () => decide(item, verdict), { class: `btn ${variant}`, 'aria-keyshortcuts': key.toLowerCase() });
+  const yes = item.removal ? 'remove' : 'approve', no = item.removal ? 'skip' : 'reject';
+  const action = (text, key, verdict, decision, variant) => {
+    const b = button(text, () => decide(item, verdict), { class: `btn ${variant}`, 'data-decide': decision, 'aria-pressed': String(item.decision === decision), 'aria-keyshortcuts': key.toLowerCase() });
     b.append(el('kbd', key, { 'aria-hidden': 'true' }));
     return b;
   };
   box.append(
-    action(item.removal ? '暂不删除' : '拒绝', 'R', 'reject', ''),
-    action(item.removal ? '删除' : '通过', 'A', 'approve', item.removal ? 'danger' : 'primary'),
+    action(item.removal ? '暂不删除' : '拒绝', 'R', 'reject', no, ''),
+    action(item.removal ? '删除' : '通过', 'A', 'approve', yes, ''),
   );
+  return box;
+}
+/** Remark is written to the card's Remark column when the review is rejected. */
+function remarkField(item) {
+  const box = el('div', null, { class: 'remark-field' });
+  const id = `remark-${item.card.id}`;
+  const label = el('label', null, { for: id });
+  label.append(el('span', '拒绝说明'), el('span', 'Remark', { class: 'muted' }));
+  const area = el('textarea', null, { id, rows: '2', maxlength: '2000', placeholder: '写给自己的修改意见。拒绝时写回 Heptabase，可以留空。' });
+  area.value = item.remarkDraft ?? (item.plan.properties?.remark || '');
+  const hint = el('p', '', { class: 'muted remark-hint', role: 'status' });
+  const sync = () => { hint.textContent = item.decision === 'reject' && remarkChange(item) !== undefined ? '说明已修改，再点一次拒绝写回 Heptabase。' : ''; };
+  area.addEventListener('input', () => { item.remarkDraft = area.value; sync(); });
+  sync();
+  box.append(label, area, hint);
   return box;
 }
 function contentPath(card) {
@@ -679,44 +721,6 @@ function appendTagRow(row, card, p, removal) {
   if (list.children.length) value.append(list);
   if (!(p.tags || []).length) value.append(el('span', changes ? '更新后没有标签。' : '没有标签', { class: 'muted' }));
   row('标签', value, changes ? { class: 'tag-changes', 'aria-label': '标签与标签变化' } : {});
-}
-async function confirmRemoval(item) {
-  selected = { item, id: item.card.id }; renderList(); await showSelection();
-  const d = dialog(`删除「${title(item)}」`);
-  d.append(el('p', '确认后将这些页面加入待删除清单。通过 GitHub 发布后，正文、博客列表和全文搜索都会移除；不会删除或修改 Heptabase 里的其他卡片。历史版本仍可从 GitHub 恢复。'));
-  const list = el('ul'); item.plan.changes.forEach(c => list.append(el('li', `${c.mainArticle ? 'article' : 'page'} · ${c.title}`))); d.append(list);
-  if (item.plan.keptReferences.length) d.append(el('p', `仍有其他文章使用的 ${item.plan.keptReferences.length} 个引用资料页会保留。`));
-  if (item.plan.blockers.length) { d.append(el('p', '仍有其他文章指向这些页面，请先处理右侧列出的引用，再重新拉取。', { role: 'alert' })); return; }
-  const checkbox = el('input', null, { type: 'checkbox', id: 'removal-reviewed' }), label = el('label', null, { for: 'removal-reviewed' });
-  label.append(checkbox, document.createTextNode('我确认将以上页面从网站删除。')); d.append(label, button('确认加入待删除', async () => {
-    if (!checkbox.checked) throw new Error('请先确认要删除的页面。');
-    await api('/heptabase/removal', { ...selection(item), confirmDelete: true });
-    item.decision = 'remove'; closeDialog();
-    const message = afterDecision(item, '已加入待删除清单，网站尚未改变。');
-    renderList(); await showSelection(); git = await api('/git'); await renderRelease(); notice(message);
-  }, { class: 'btn danger' }));
-  setTimeout(() => checkbox.focus());
-}
-function appendTagChanges(parent, card) {
-  const { added, removed, unchanged } = tagDiff(card.beforeProperties.tags, card.afterProperties.tags);
-  if (!added.length && !removed.length) return;
-  const section = el('section', null, { class: 'tag-changes', 'aria-label': '标签变化' });
-  section.append(el('h3', onlyTagsChanged(card) ? '仅标签更新' : '标签变化'));
-  const rows = el('dl');
-  for (const [label, symbol, tags, kind] of [['新增', '+', added, 'added'], ['移除', '−', removed, 'removed']]) {
-    if (!tags.length) continue;
-    const values = el('dd'), list = el('ul');
-    tags.forEach(tag => { const li = el('li', null, { class: `tag-${kind}` }); li.append(document.createTextNode(`${symbol} `), el(kind === 'removed' ? 's' : 'span', tag)); list.append(li); });
-    values.append(list); rows.append(el('dt', `${label} ${tags.length}`), values);
-  }
-  section.append(rows);
-  if (unchanged.length) {
-    const details = el('details'), list = el('ul');
-    unchanged.forEach(tag => list.append(el('li', tag)));
-    details.append(el('summary', `保留 ${unchanged.length} 个标签`), list); section.append(details);
-  }
-  if (!added.length && !unchanged.length) section.append(el('p', '更新后没有标签。', { class: 'muted' }));
-  parent.append(section);
 }
 const formatDate = date => date ? siteDate(new Date(String(date).slice(0,10) + 'T12:00:00Z'), 'zh-CN') : '';
 async function previewTemplate() {
@@ -881,38 +885,6 @@ function connectMovedBlocks(comparison) {
   document.fonts.ready.then(schedule); document.fonts.addEventListener('loadingdone', schedule);
   schedule();
   return () => { active = false; cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); svg.remove(); };
-}
-async function confirmDecision(item, decision) {
-  const approve = decision === 'approve';
-  if (approve && item.plan.pageChoiceRequired && !pageChoice?.keep.includes(item.card.id)) throw new Error('站点页面最多显示 4 页。请先在审核清单里选择留下哪几页。');
-  selected = { item, id: item.card.id }; renderList(); await showSelection();
-  const d = dialog(`${approve ? '通过' : '拒绝'}「${title(item)}」`);
-  d.append(el('p', approve ? `通过这篇博客，也表示你已确认它的 ${item.plan.changes.filter(c => !c.mainArticle).length} 个引用资料页可以公开。将回写 Published。卡片已有发布日期或创建时间时，沿用卡片上的时间，不另填今天。网站仍需下一步提交发布。` : '将回写 Block，不修改发布日期，也不会改动线上已有文章。'));
-  if (approve && item.plan.pageNote) d.append(el('p', item.plan.pageNote));
-  if (approve) appendTagChanges(d, rootChange(item));
-  if (approve && item.plan.changes.some(c => !c.mainArticle && !c.referenceTagged)) {
-    d.append(button('标记引用资料为 Reference', async () => {
-      await api('/heptabase/mark-references', selection(item));
-      item.plan = await api('/heptabase/preview', item.input);
-      closeDialog();
-      renderList();
-      await showSelection();
-      notice('引用已加入 #blog，Blog Type 为 Reference。请确认这些资料不含私人内容。');
-    }, { class: 'btn' }));
-  }
-  let checkbox;
-  if (approve) { checkbox = el('input', null, { type: 'checkbox', id: 'privacy-reviewed' }); const label = el('label', null, { for: 'privacy-reviewed' }); label.append(checkbox, document.createTextNode('我已检查这篇博客和所有引用，确认可以公开。')); d.append(label); }
-  if (item.plan.conflict) d.append(el('p', 'GitHub 与 Heptabase 两边都有变化；通过后将采用已预览的 Heptabase 版本。', { role: 'alert' }));
-  d.append(button(approve ? '确认通过并回写' : '确认拒绝并回写', async () => {
-    if (approve && !checkbox.checked) throw new Error('请先确认这篇博客和所有引用都可以公开。');
-    await api('/heptabase/decision', { ...selection(item), decision, confirmPublic: approve, resolveConflict: true });
-    item.decision = decision; closeDialog();
-    const message = afterDecision(item, approve ? '已通过并回写 Published。只是审核通过，尚未上线。' : '已拒绝并回写 Block，线上旧文章保持不变。');
-    renderList(); await showSelection(); git = await api('/git'); await renderRelease();
-    notice(message);
-  }, { class: approve ? 'btn primary' : 'btn danger' }));
-  // run() re-enables buttons only after this returns.
-  setTimeout(() => (checkbox || d.querySelector('button.primary, button.danger'))?.focus());
 }
 async function renderRelease() {
   const release = document.querySelector('#release'); if (!release) return;

@@ -8,6 +8,12 @@ export async function blogSchema(client, tagId) {
     if (matches.length !== 1) throw fail(`blog 表格需要一个 ${names[0]} 字段（${type}）。`);
     return matches[0];
   };
+  // Newer columns are looked up by name in the live schema. A database without them keeps working; only writing a remark needs one.
+  const optional = (names, type) => {
+    const matches = fields.filter((f) => names.includes(f.name.trim().toLowerCase()) && f.type === type);
+    if (matches.length > 1) throw fail(`blog 表格有多个 ${names[0]} 字段（${type}）。`);
+    return matches[0] || null;
+  };
   const schema = {
     tagId,
     status: field(['status'], 'select'),
@@ -15,6 +21,10 @@ export async function blogSchema(client, tagId) {
     tags: field(['tag', 'tags'], 'multiSelect'),
     type: field(['blog type'], 'select'),
     summary: field(['summary'], 'text'),
+    remark: optional(['remark'], 'text'),
+    serial: optional(['serial'], 'number'),
+    language: optional(['language'], 'select'),
+    url: optional(['url'], 'text'),
   };
   for (const name of ['new', 'writing', 'block', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
   for (const name of ['article', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
@@ -53,7 +63,41 @@ export function propertiesFromRead(content, schema) {
   const summaryValue = values[schema.summary.name];
   if (summaryValue != null && typeof summaryValue !== 'string') throw fail('Summary 应是一段文字。');
   const summary = typeof summaryValue === 'string' ? summaryValue.trim() : '';
-  return { member, status, date, tags: [...new Set(tags)].sort(), type, summary };
+  const remarkValue = schema.remark ? values[schema.remark.name] : null;
+  if (remarkValue != null && typeof remarkValue !== 'string') throw fail('Remark 应是一段文字。');
+  const serialValue = schema.serial ? values[schema.serial.name] : null;
+  if (serialValue != null && (typeof serialValue !== 'number' || !Number.isFinite(serialValue))) throw fail('Serial 应是一个数字。');
+  const languageValue = schema.language ? values[schema.language.name] : null;
+  const urlValue = schema.url ? values[schema.url.name] : null;
+  if (urlValue != null && typeof urlValue !== 'string') throw fail('URL 应是一段文字。');
+  return { member, status, date, tags: [...new Set(tags)].sort(), type, summary,
+    remark: typeof remarkValue === 'string' ? remarkValue : '',
+    serial: serialValue ?? null,
+    language: languageCode(languageValue),
+    url: routeSlug(urlValue) };
+}
+
+/** Chinese is served at /<url>/cn; anything else (including no language) is the default English route. */
+export function languageCode(value) {
+  if (value == null || value === '') return null;
+  const text = String(value).trim().toLowerCase();
+  if (/chinese|中文|^zh|^cn$/.test(text)) return 'cn';
+  if (/english|英文|^en$/.test(text)) return 'en';
+  return text;
+}
+
+/** The URL column is the article slug exactly as written. It is never derived from the title. */
+export function routeSlug(value) {
+  if (value == null) return null;
+  const slug = String(value).trim().replace(/^\/+|\/+$/g, '');
+  if (!slug) return null;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || /^\d+$/.test(slug)) throw fail(`URL「${slug}」只能用小写字母、数字和连字符，且不能只有数字。请在 Heptabase 改好后重新拉取。`);
+  return slug;
+}
+
+/** Article id for a URL card: English is <url>, Chinese is <url>/cn. */
+export function urlArticleId(url, language) {
+  return language === 'cn' ? `${url}/cn` : url;
 }
 
 export async function readProperties(client, cardId, schema) {
@@ -75,6 +119,10 @@ export async function writeProperties(client, id, schema, desired) {
   }
   if (desired.date !== undefined) edits.push({ cardId: id, propertyId: schema.date.id, type: 'date', value: desired.date ? { start: `${desired.date}T00:00:00.000Z` } : null });
   if (desired.tags !== undefined) edits.push({ cardId: id, propertyId: schema.tags.id, type: 'multiSelect', value: desired.tags });
+  if (desired.remark !== undefined) {
+    if (!schema.remark) throw fail('blog 表格没有 Remark 字段，无法写回拒绝说明。');
+    edits.push({ cardId: id, propertyId: schema.remark.id, type: 'text', value: desired.remark || null });
+  }
   if (desired.type !== undefined) {
     const option = schema.type.options.find((o) => o.name.trim().toLowerCase() === desired.type);
     if (!option) throw fail('目标 Blog Type 选项不存在。');
@@ -84,9 +132,9 @@ export async function writeProperties(client, id, schema, desired) {
   const result = await client.call('edit_card_properties', { tagId: schema.tagId, edits });
   if (!result.results || result.results.length !== edits.length || result.results.some((r) => r.status !== 'success')) throw fail('Heptabase 属性没有全部写入，请重新比较后补齐。', 502);
   const actual = await readProperties(client, id, schema);
-  for (const key of ['status', 'date', 'tags', 'type']) {
+  for (const key of ['status', 'date', 'tags', 'type', 'remark']) {
     if (desired[key] === undefined) continue;
-    const expected = key === 'tags' ? [...desired.tags].sort() : desired[key];
+    const expected = key === 'tags' ? [...desired.tags].sort() : key === 'remark' ? desired.remark || '' : desired[key];
     if (JSON.stringify(actual[key]) !== JSON.stringify(expected)) throw fail('Heptabase 属性核验不一致，请重新比较。', 409);
   }
 }

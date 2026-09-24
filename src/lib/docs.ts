@@ -13,16 +13,38 @@ export function docHref(entry: Pick<DocEntry, 'id' | 'data'>): string {
  * `/articles`、标签、RSS 收不收录。全文搜索单独包含所有已发布资料。
  * 默认：id 含 `/` 的是系列子文，不进索引。`listed: false` 可藏顶层文；`listed: true` 可把子文放进索引。
  */
-export function isIndexed(entry: Pick<DocEntry, 'id' | 'data'>): boolean {
+export function isIndexed(
+  entry: Pick<DocEntry, 'id' | 'data'>,
+  _index?: number,
+  all?: readonly Pick<DocEntry, 'id' | 'data'>[],
+): boolean {
   // Reference 有自己的地址，不进文章列表。没写类型的旧文仍视为 article。
   if (entry.data.heptabaseType === 'reference') return false;
   if (entry.data.listed === false) return false;
+  // 中文版（<url>/cn）在英文版存在时只作为语言切换，不在列表里重复一篇。
+  if (isLanguageVariant(entry)) return !all?.some((other) => other !== entry && languagePartnerOf(entry, other));
   if (entry.data.listed === true) return true;
   return !entry.id.includes('/');
 }
 
+/** Heptabase URL 文章的中文版：id 是 `<url>/cn`，不是系列子文。 */
+export function isLanguageVariant(entry: Pick<DocEntry, 'id' | 'data'>): boolean {
+  return entry.data.language === 'cn' && entry.id.endsWith('/cn');
+}
+
+function languagePartnerOf(entry: Pick<DocEntry, 'id' | 'data'>, other: Pick<DocEntry, 'id' | 'data'>): boolean {
+  return entry.data.serial != null && other.data.serial === entry.data.serial && isLanguageVariant(other) !== isLanguageVariant(entry);
+}
+
+/** 同一 Serial 的另一种语言版本。 */
+export async function languagePartner(entry: DocEntry, opts: { includeDrafts?: boolean } = {}): Promise<DocEntry | undefined> {
+  if (entry.data.serial == null) return undefined;
+  return (await docsBySlot('article', opts)).find((other) => other.id !== entry.id && languagePartnerOf(entry, other));
+}
+
 /** `tutorial/1` → `tutorial`。顶层文章没有父级。 */
 export function seriesParentId(id: string): string | undefined {
+  if (id.endsWith('/cn')) return undefined;
   const slash = id.lastIndexOf('/');
   return slash === -1 ? undefined : id.slice(0, slash);
 }

@@ -81,13 +81,14 @@ export function pageReviewNote(id, { displaced = false, canonicalTitle = '', cho
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
   'slot', 'title', 'description', 'date', 'created', 'updated',
-  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
+  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'serial', 'language', 'url', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
-const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
+// A Heptabase URL article may carry a trailing /cn for its Chinese version.
+const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/cn)?$/;
 const DOCREF_RE = /<DocRef\s+of=["']([^"']+)["']\s*\/>/g;
-const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*$/;
+const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/cn)?$/;
 
 export function todayIso(date = new Date()) {
   const y = date.getFullYear();

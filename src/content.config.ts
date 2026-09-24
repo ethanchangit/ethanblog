@@ -24,6 +24,10 @@ const docSchema = z
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'block', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
+    // Heptabase Serial / Language / URL. One Serial is one article; its Chinese version lives at <url>/cn.
+    serial: z.number().optional(),
+    language: z.enum(['en', 'cn']).optional(),
+    url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),

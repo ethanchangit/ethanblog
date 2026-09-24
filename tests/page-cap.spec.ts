@@ -48,11 +48,9 @@ test('超过 4 张站点页时要在审核清单里选择留下哪几页', async
   await expect(page.getByRole('list', { name: '导航顺序' }).locator('li')).toHaveText([/关于/, /Now/, /读书笔记/, /联系/]);
   await expect(page.locator('#notice')).toContainText('导航顺序：');
   await page.getByRole('tab', { name: /New articles/ }).click();
+  await page.getByRole('button', { name: '读书笔记', exact: true }).click();
+  await expect(page.locator('#review-preview .review-meta')).toContainText('最多显示 4 页');
   await page.getByRole('button', { name: '通过「读书笔记」', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('最多显示 4 页');
-  await dialog.getByRole('checkbox', { name: '我已检查这篇博客和所有引用，确认可以公开。' }).check();
-  await dialog.getByRole('button', { name: '确认通过并回写' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('article · 已通过，待发布')).toBeVisible();
   await page.getByRole('tab', { name: /Deleted articles · 3/ }).click();
