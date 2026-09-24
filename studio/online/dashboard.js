@@ -77,7 +77,7 @@ function notice(text, error = false) {
     return;
   }
   if (!pageIsLocal() || !root) return;
-  root.replaceChildren(noticeNode(display, error));
+  delete root.dataset.shell; root.replaceChildren(noticeNode(display, error));
 }
 async function connectHeptabase() {
   notice('正在打开 Heptabase 授权…');
@@ -94,7 +94,7 @@ async function run(action) {
 }
 function showLogin(message = '') {
   if (pageIsLocal()) { localOpen = true; notice(message || '本地后台请求被拒绝，请刷新后重试。', true); return; }
-  clearTimeout(timer); clearMoveLines(); root.replaceChildren(); items = []; selected = null; pulled = false;
+  clearTimeout(timer); clearMoveLines(); root.replaceChildren(); delete root.dataset.shell; items = []; selected = null; pulled = false;
   statusText = ''; statusError = false; focusedGroup = 'new';
   const form = el('form', null, { class: 'login' });
   const password = el('input', null, { id: 'password', type: 'password', autocomplete: 'current-password', required: '', minlength: '12', maxlength: '256' });
@@ -138,6 +138,7 @@ async function refresh() {
     if (!pulled) failed = failed || statusResult.reason?.message;
   }
   clearMoveLines(); root.replaceChildren();
+  if (pulled) root.dataset.shell = 'review'; else delete root.dataset.shell;
   const header = el('header'), actions = el('div', null, { class: 'actions' });
   actions.append(button('切换明暗', async () => {
     document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -159,8 +160,7 @@ async function refresh() {
     stage.append(noticeNode(failed ? friendlyError(failed) : message, Boolean(failed) || statusError));
     root.append(stage);
     root.append(el('section', null, { id: 'release', class: 'release-bar', 'aria-label': '发布进度' }));
-    trackReleaseHeight();
-    try { await renderRelease(); } catch { /* release is optional before pull */ }
+      try { await renderRelease(); } catch { /* release is optional before pull */ }
     if (failed) { statusText = friendlyError(failed); statusError = true; }
     return;
   }
@@ -171,7 +171,6 @@ async function refresh() {
   layout.append(sidebar, el('section', null, { id: 'review-preview', 'aria-label': '卡片预览' }));
   root.append(layout);
   root.append(el('section', null, { id: 'release', class: 'release-bar', 'aria-label': '发布进度' }));
-  trackReleaseHeight();
   renderList();
   await showSelection();
   try { await renderRelease(); } catch { /* release is optional after a completed pull */ }
@@ -390,7 +389,8 @@ function renderList() {
     row.append(card);
   }
   list.append(row);
-  list.querySelector('.review-item[data-selected=true]')?.scrollIntoView({ block: 'nearest' });
+  const sidebar = list.closest('.review-sidebar');
+  if (sidebar && getComputedStyle(sidebar).overflowY === 'auto') list.querySelector('.review-item[data-selected=true]')?.scrollIntoView({ block: 'nearest' });
 }
 async function step(direction) {
   const queue = reviewQueue(); if (!queue.length) return;
@@ -933,13 +933,6 @@ async function renderRelease() {
       }));
     })); legacyHost.append(details);
   }
-}
-let releaseObserver;
-function trackReleaseHeight() {
-  releaseObserver?.disconnect();
-  const release = document.querySelector('#release'); if (!release) return;
-  releaseObserver = new ResizeObserver(() => document.documentElement.style.setProperty('--dash-footer-h', `${release.offsetHeight}px`));
-  releaseObserver.observe(release);
 }
 async function reviewRelease() {
   const review = await api('/git/review'), d = dialog('确认发布到博客');

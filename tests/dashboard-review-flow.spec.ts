@@ -72,16 +72,16 @@ test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审
   expect(errors).toEqual([]);
 });
 
-test('宽屏左右分栏、清单独立滚动，窄屏上下堆叠', async ({ page }) => {
+test('宽屏左右分栏、两栏各自滚动，窄屏上下堆叠', async ({ page }) => {
   await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   await expect(page.locator('#review-list .review-item').first()).toBeVisible();
   const layout = () => page.evaluate(() => {
     const list = document.querySelector('.review-sidebar')!.getBoundingClientRect(), detail = document.querySelector('#review-preview')!.getBoundingClientRect();
-    return { side: detail.left >= list.right, stacked: detail.top >= list.bottom, sticky: getComputedStyle(document.querySelector('.review-sidebar')!).position, overflow: document.documentElement.scrollWidth > innerWidth };
+    return { side: detail.left >= list.right, stacked: detail.top >= list.bottom, scroll: getComputedStyle(document.querySelector('.review-sidebar')!).overflowY, page: document.documentElement.scrollHeight <= innerHeight, overflow: document.documentElement.scrollWidth > innerWidth };
   });
   await page.setViewportSize({ width: 1440, height: 900 });
-  expect(await layout()).toMatchObject({ side: true, sticky: 'sticky', overflow: false });
+  expect(await layout()).toMatchObject({ side: true, scroll: 'auto', page: true, overflow: false });
   await page.setViewportSize({ width: 390, height: 844 });
-  expect(await layout()).toMatchObject({ stacked: true, sticky: 'static', overflow: false });
+  expect(await layout()).toMatchObject({ stacked: true, scroll: 'visible', overflow: false });
 });

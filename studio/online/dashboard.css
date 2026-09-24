@@ -224,15 +224,15 @@ kbd {
 
 /* Master-detail: the queue scrolls on its own; the detail uses the page scroll. */
 .review-layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
-.review-sidebar {
-  position: sticky;
-  top: calc(var(--dash-header-h) + 16px);
-  max-height: calc(100dvh - var(--dash-header-h) - var(--dash-footer-h, 72px) - 32px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  min-width: 0;
-  padding-right: 2px;
+.review-sidebar { min-width: 0; }
+/* Wide screens get an app shell: the page stops scrolling and each column scrolls on its own. */
+@media (min-width: 1101px) {
+  #studio[data-shell=review] { display: flex; flex-direction: column; height: 100dvh; }
+  #studio[data-shell=review] > .review-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  #studio[data-shell=review] .review-sidebar { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; }
+  #studio[data-shell=review] #review-preview { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+  #studio[data-shell=review] .preview-head { top: 0; }
+  #studio[data-shell=review] > .release-bar { position: static; margin-top: 16px; }
 }
 #review-list { width: 100%; min-width: 0; }
 .review-items {
@@ -611,7 +611,6 @@ dialog > button { margin-top: 16px; display: flex; }
 }
 @media (max-width: 1100px) {
   .review-layout { grid-template-columns: minmax(0, 1fr); }
-  .review-sidebar { position: static; max-height: none; overflow: visible; padding-right: 0; }
 }
 @media (max-width: 900px) {
   #studio { padding: 0 24px; }
