@@ -24,3 +24,20 @@ export async function mapLimited(items, limit, fn) {
   if (failure) throw failure;
   return results;
 }
+
+/**
+ * Identity of the preview or diff body. Review decisions are omitted on purpose:
+ * approving a card must not rebuild the iframe.
+ */
+export function previewBodyKey(card, mode, removal) {
+  return JSON.stringify([
+    mode,
+    Boolean(removal),
+    card?.id || '',
+    card?.title || '',
+    card?.beforeContent || '',
+    card?.afterContent || '',
+    card?.beforeProperties || null,
+    card?.afterProperties || null,
+  ]);
+}

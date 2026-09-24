@@ -3,6 +3,7 @@ import { test, afterEach } from 'node:test';
 import { fixture, CARD, LINK, PATH, article } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
 import { onlyTagsChanged, tagDiff } from './review-content.mjs';
+import { signReceipt } from './release-sync.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
 async function setup() { const f = await fixture(); globalThis.fetch = f.fetcher; await f.login(); await f.connect(); f.properties.get(CARD).Status = 'review'; return f; }
@@ -132,17 +133,102 @@ test('changed review cannot approve or reject a newer card version', async () =>
   assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').length, 0);
 });
 
-test('reject writes the remark back; an untouched empty remark writes nothing; clearing writes empty', async () => {
+const remarkEdits = f => f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').flatMap(c => c.body.params.arguments.edits).filter(e => e.propertyId === 'remark');
+const storedPlan = (f, id) => JSON.parse(f.DB.sqlite.prepare('SELECT payload FROM studio_review_decisions WHERE card_id = ?').get(id).payload);
+async function finishDeploy(f) {
+  await ok(f.request('/git/commit', 'POST', { message: '审核通过' }));
+  const review = await ok(f.request('/git/review'));
+  await ok(f.request('/git/publish', 'POST', review));
+  f.deploy();
+  const payload = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: Date.now() });
+  const response = await f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', {
+    method: 'POST', body: payload, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, payload) },
+  }), f.env);
+  const body = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(body));
+  return body;
+}
+
+test('reject stores the remark and writes it once when deploy finishes', async () => {
   const f = await setup();
-  await ok(f.request('/heptabase/decision', 'POST', { ...selection(await preview(f)), decision: 'reject', remark: '第二段需要补例子' }));
-  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD).Remark, '第二段需要补例子');
-  const g = await setup();
-  await ok(decision(g, await preview(g), 'reject'));
-  assert.equal(g.properties.get(CARD).Status, 'blocked'); assert.equal('Remark' in g.properties.get(CARD), false);
-  assert.ok(g.calls.filter(c => c.body?.params?.name === 'edit_card_properties').every(c => c.body.params.arguments.edits.every(e => e.propertyId !== 'remark')));
-  const h = await setup(); h.properties.get(CARD).Remark = '旧说明';
-  await ok(h.request('/heptabase/decision', 'POST', { ...selection(await preview(h)), decision: 'reject', remark: '' }));
-  assert.equal('Remark' in h.properties.get(CARD), false);
+  const third = '34adea15-b8fa-49a2-9e90-922a661d7790';
+  const blank = '6b6309a2-43a9-4c85-9b4f-037dcb0f898b';
+  await ok(decision(f, await preview(f)));
+  f.cardSources.set(other, '# 第二篇\n\n先不发。');
+  f.properties.set(other, { Status: 'review', Remark: '旧说明' });
+  f.cardSources.set(third, '# 第三篇\n\n同样先不发。');
+  f.properties.set(third, { Status: 'review', Remark: '另一条旧说明' });
+  f.cardSources.set(blank, '# 第四篇\n\n空备注。');
+  f.properties.set(blank, { Status: 'review', Remark: '要清空' });
+  const rejectOne = async (id, note) => {
+    const body = { ...input, cardLink: `heptabase://card/${id}`, id: `hepta-${id}` };
+    const plan = await ok(f.request('/heptabase/preview', 'POST', body));
+    await ok(f.request('/heptabase/decision', 'POST', { ...body, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'reject', remark: note }));
+  };
+  await rejectOne(other, '第二段需要补例子');
+  await rejectOne(third, '第二段需要补例子');
+  await rejectOne(blank, '');
+  assert.equal(f.properties.get(other).Status, 'blocked');
+  assert.equal(f.properties.get(other).Remark, '旧说明');
+  assert.equal(f.properties.get(third).Remark, '另一条旧说明');
+  assert.equal(storedPlan(f, other).pendingRemark, '第二段需要补例子');
+  assert.equal(remarkEdits(f).length, 0);
+  await ok(f.request('/heptabase/decision', 'POST', {
+    ...input, cardLink: `heptabase://card/${other}`, id: `hepta-${other}`,
+    sourceHash: storedPlan(f, other).sourceHash, documentHash: storedPlan(f, other).documentHash, planHash: storedPlan(f, other).planHash,
+    decision: 'reject', remark: '换个说法',
+  }));
+  assert.equal(f.properties.get(other).Remark, '旧说明');
+  assert.equal(storedPlan(f, other).pendingRemark, '换个说法');
+  const untouched = await setup();
+  await ok(decision(untouched, await preview(untouched), 'reject'));
+  assert.equal('Remark' in untouched.properties.get(CARD), false);
+  assert.equal(storedPlan(untouched, CARD).remarkPending, undefined);
+  const clearing = await setup();
+  clearing.properties.get(CARD).Remark = '旧说明';
+  await ok(clearing.request('/heptabase/decision', 'POST', { ...selection(await preview(clearing)), decision: 'reject', remark: '' }));
+  assert.equal(clearing.properties.get(CARD).Remark, '旧说明');
+  assert.equal(storedPlan(clearing, CARD).pendingRemark, '');
+  globalThis.fetch = f.fetcher;
+  await finishDeploy(f);
+  assert.equal(f.properties.get(other).Remark, '换个说法');
+  assert.equal(f.properties.get(third).Remark, '第二段需要补例子');
+  assert.equal('Remark' in f.properties.get(blank), false);
+  assert.equal(storedPlan(f, other).remarkPending, false);
+  assert.equal(storedPlan(f, other).remarkWritten, '换个说法');
+  const written = remarkEdits(f).length;
+  const payload = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: Date.now() });
+  const again = await f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', {
+    method: 'POST', body: payload, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, payload) },
+  }), f.env);
+  assert.equal(again.status, 200);
+  assert.equal(remarkEdits(f).length, written);
+  assert.equal(f.properties.get(other).Remark, '换个说法');
+});
+
+test('commit flushes a local decision batch once; status stays Review until that request', async () => {
+  const f = await setup();
+  f.cardSources.set(other, '# 第二篇\n\n先不发。');
+  f.properties.set(other, { Status: 'review', Remark: '旧说明' });
+  const plan = await preview(f);
+  const secondInput = { ...input, cardLink: `heptabase://card/${other}`, id: `hepta-${other}` };
+  const second = await ok(f.request('/heptabase/preview', 'POST', secondInput));
+  assert.equal(f.properties.get(CARD).Status, 'review');
+  assert.equal(f.properties.get(other).Status, 'review');
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').length, 0);
+  await ok(f.request('/git/commit', 'POST', {
+    message: '一次提交本机决定',
+    decisions: [
+      { kind: 'review', ...selection(plan), decision: 'approve', confirmPublic: true, resolveConflict: true },
+      { kind: 'review', ...secondInput, sourceHash: second.sourceHash, documentHash: second.documentHash, planHash: second.planHash, decision: 'reject', remark: '' },
+    ],
+  }));
+  assert.equal(f.properties.get(CARD).Status, 'published');
+  assert.equal(f.properties.get(other).Status, 'blocked');
+  assert.equal(f.properties.get(other).Remark, '旧说明');
+  assert.equal(storedPlan(f, other).pendingRemark, '');
+  assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').length, 2);
+  assert.equal(remarkEdits(f).length, 0);
 });
 
 test('a decision can be changed from the same review without a new pull', async () => {
@@ -151,12 +237,15 @@ test('a decision can be changed from the same review without a new pull', async 
   assert.equal(f.properties.get(CARD).Status, 'published');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '先不发' }));
-  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD).Remark, '先不发');
+  assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD).Remark, undefined);
+  assert.equal(storedPlan(f, CARD).pendingRemark, '先不发');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0);
   await ok(f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject', remark: '换个说法' }));
-  assert.equal(f.properties.get(CARD).Remark, '换个说法');
+  assert.equal(f.properties.get(CARD).Remark, undefined);
+  assert.equal(storedPlan(f, CARD).pendingRemark, '换个说法');
   await ok(decision(f, plan));
-  assert.equal(f.properties.get(CARD).Status, 'published'); assert.equal(f.properties.get(CARD).Remark, '换个说法');
+  assert.equal(f.properties.get(CARD).Status, 'published'); assert.equal(f.properties.get(CARD).Remark, undefined);
+  assert.equal(storedPlan(f, CARD).pendingRemark, '换个说法');
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
   await ok(f.request('/git/commit', 'POST', { message: '改判后仍可提交' }));
   f.setSource('# 新内容\n\n改判之前卡片又被修改');
