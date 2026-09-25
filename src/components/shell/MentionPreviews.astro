@@ -1,0 +1,14 @@
+---
+import MentionPreview from '@/components/media/MentionPreview.svelte';
+import { mentionPreviewEntries } from '@/lib/mention-preview-data';
+
+const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
+const entries = await mentionPreviewEntries(lang);
+---
+
+<!--
+  整页一个岛屿。正文里指向本站目录的链接，以及外链，悬停出同一张预览。
+  外链只显示可见文字和完整 URL，不抓外站。不要求 data-doc-mention。无 JS 时照常点击。
+  审核预览页不用 Base，也不会挂上这个岛屿。
+-->
+<MentionPreview client:visible entries={entries} lang={lang} />

@@ -319,6 +319,11 @@ import I18n from '@/components/shell/I18n.astro';
       </DocList>
     </div>
 
+    <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Mention preview</h2>
+    <div class="prose-site" data-testid="mention-preview">
+      <p class="text-ink-300 leading-loose">悬停<a href="/pkm-method" data-doc-mention>知识网络</a>、<a href="/aletheia" data-doc-mention>Aletheia</a>、<a href="/bitwarden" data-doc-mention>Bitwarden</a>或没有标记的<a href="/pkm-method" data-testid="mention-preview-plain">普通链接</a>会看到标题、摘要和正文开头。外站<a href="https://example.com" data-testid="mention-preview-external">示例</a>只显示链接文字和完整地址。<a href="/missing-doc" data-doc-mention data-testid="mention-preview-missing">缺失卡片</a>不会出现预览。</p>
+    </div>
+
     <h2 class="mb-2 mt-12 text-xl font-semibold text-ink-100">Mention + MentionTarget</h2>
     <div data-testid="mention">
       <p class="text-ink-300 leading-loose">

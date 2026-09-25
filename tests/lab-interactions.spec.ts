@@ -162,9 +162,9 @@ test('DocRef renders article and project cards', async ({ page }) => {
   const section = page.getByTestId('doc-ref');
   await section.scrollIntoViewIfNeeded();
 
-  await expect(section.locator('a[href="/articles/series-demo/1"] h3')).toBeVisible();
-  const pkm = section.locator('a[href="/articles/pkm-method"] h3');
+  await expect(section.locator('a[href="/series-demo/1"] h3')).toBeVisible();
+  const pkm = section.locator('a[href="/pkm-method"] h3');
   await expect(pkm).toHaveCount(2);
   for (const heading of await pkm.all()) await expect(heading).toBeVisible();
-  await expect(section.locator('a[href="/projects/aletheia"] h3')).toBeVisible();
+  await expect(section.locator('a[href="/aletheia"] h3')).toBeVisible();
 });

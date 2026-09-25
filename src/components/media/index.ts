@@ -32,6 +32,8 @@ export { default as VerdictTable } from './VerdictTable.astro';
 // Mention / MentionTarget：正文词语 ↔ 媒介块 的双向高亮（Embark 范式），零 JS 降级为普通文本
 export { default as Mention } from './Mention.astro';
 export { default as MentionTarget } from './MentionTarget.astro';
+// MentionPreview：页面级悬停预览（本站目录与外链），由 MentionPreviews.astro 以 client:visible 挂到 Base。不要写进 MDX。
+export { default as MentionPreview } from './MentionPreview.svelte';
 // DocRef / DocList：合集文里引用一篇文章或项目，渲染成与索引相同的一行卡片
 export { default as DocRef } from './DocRef.astro';
 export { default as DocList } from './DocList.astro';
