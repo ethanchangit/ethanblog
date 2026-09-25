@@ -98,7 +98,7 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
 5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。
 
-撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。无人引用时撤下该文和专属资料。若其他页面仍引用这篇文章，发布不会被拦住：它从文章列表撤下，留下为 reference，地址和链接保留。审核预览和发布栏会点名引用它的页面，并可以一键留下为 reference。站点页和项目不能改成 reference，仍被引用时要先处理引用。不删除、不改写 Heptabase 源卡片，也不直接改 `main`。
+撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。无人引用时撤下该文和专属资料。若其他页面仍引用将被撤下的卡片，发布不会被拦住：它从文章列表、项目列表和站点页面撤下，留下为 reference，地址和链接保留。审核预览和发布栏会点名引用它的页面，并可以一键留下为 reference。仍是文章、项目或站点页的其他卡片保持原类型，不会因为被提到而改成 reference。不删除、不改写 Heptabase 源卡片，也不直接改 `main`。
 
 后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/` 下的 MDX、`src/data/tag-groups.ts` 和 `src/data/page-order.ts`。公开 `/tags` 不读 `tag-groups.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
 

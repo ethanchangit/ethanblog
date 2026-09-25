@@ -57,14 +57,32 @@ export function withoutIndexRefs(raw, paths) {
   return proseParts(raw, text => text.replace(/(?:^[ \t]*)?<DocRef\s+of=["']([^"']+)["']\s*\/>[ \t]*\n?/gm, (whole, ref) => removed.has(ref) ? '' : whole));
 }
 
-/** Keep the same file and address, but stop listing it as an article. */
+/** Keep the same file and address, and leave the article, project, and site-page lists. */
 export function asReferenceSource(raw) {
   const parsed = parseMdx(raw);
   return serializeMdx({ ...parsed, frontmatter: { ...parsed.frontmatter, listed: false, heptabaseType: 'reference' } });
 }
 
-function canKeepAsReference(frontmatter) {
-  return Boolean(frontmatter) && frontmatter.slot !== 'page' && frontmatter.slot !== 'project';
+const PRIMARY_TYPES = new Set(['article', 'page', 'project']);
+
+/** Type property on the card. article, page, and project outrank reference and do not overlap. */
+export function cardType(frontmatter) {
+  const explicit = String(frontmatter?.heptabaseType || '').trim().toLowerCase();
+  if (PRIMARY_TYPES.has(explicit) || explicit === 'reference') return explicit;
+  if (frontmatter?.slot === 'page') return 'page';
+  if (frontmatter?.slot === 'project') return 'project';
+  if (frontmatter?.slot === 'article') return 'article';
+  return '';
+}
+
+/**
+ * The card being withdrawn is no longer staying as article, page, or project.
+ * A card that still is one of those three keeps that type, even when mentioned.
+ */
+function keepAsReference(frontmatter, path, rootPath) {
+  if (!frontmatter) return false;
+  if (path === rootPath) return true;
+  return !PRIMARY_TYPES.has(cardType(frontmatter));
 }
 
 /**
@@ -94,11 +112,16 @@ export function removalScope(files, rootPath, { ignorePaths = [] } = {}) {
     path, title: data.get(path)?.title || path, targets: targets.filter(target => deleted.has(target)),
   }));
   const demote = new Set();
-  for (const link of inbound) for (const target of link.targets) if (canKeepAsReference(data.get(target))) demote.add(target);
+  const preserve = new Set();
+  for (const link of inbound) for (const target of link.targets) {
+    if (keepAsReference(data.get(target), target, rootPath)) demote.add(target);
+    else preserve.add(target);
+  }
   if (demote.has(rootPath)) for (const path of translations) demote.add(path);
   // The page stays, so materials it still links to stay too.
-  const retained = new Set(demote.has(rootPath) ? descendants.filter(path => !demote.has(path)) : []);
-  const dropped = new Set(paths.filter(path => !demote.has(path) && !retained.has(path)));
+  // A card that still is article, page, or project is not rewritten to reference.
+  const retained = new Set(demote.has(rootPath) ? descendants.filter(path => !demote.has(path) && !preserve.has(path)) : []);
+  const dropped = new Set(paths.filter(path => !demote.has(path) && !retained.has(path) && !preserve.has(path)));
   const citations = inbound.filter(link => link.targets.some(target => demote.has(target))).map(({ path, title }) => ({ path, title }));
   const blockers = inbound.filter(link => link.targets.some(target => dropped.has(target))).map(({ path, title }) => ({ path, title }));
   const kept = new Set([...descendants.filter(path => needed.has(path)), ...retained]);

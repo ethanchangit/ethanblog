@@ -7,7 +7,7 @@ import { pagePath } from '@/lib/locale';
 import { HOME_PATH, SEARCH_PATH, TAGS_PATH, sitePageHref } from '@/lib/routes';
 import { englishPages, translationSourceId } from '@/lib/docs';
 const lp = Astro.locals.localePath;
-const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft && !data.translationOf);
+const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft && !data.translationOf && data.heptabaseType !== 'reference');
 const rank = new Map<string, number>(pageOrder.map((id, index) => [id, index]));
 // 字标回首页文章列表。关于页在 /about，不走这个链接。
 const hrefFor = (id: string) => (id === 'about' ? HOME_PATH : sitePageHref(id));

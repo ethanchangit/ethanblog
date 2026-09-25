@@ -29,13 +29,18 @@ export function docHref(entry: EntryLike): string {
   return articleHref(id);
 }
 
+/** reference 不进文章列表、项目列表和站点页面。地址还在，提到它的链接不断。 */
+export function isReference(entry: { data: { heptabaseType?: string | null } }): boolean {
+  return entry.data.heptabaseType === 'reference';
+}
+
 /**
  * `/articles`、标签、RSS 收不收录。全文搜索单独包含所有已发布资料。
  * 默认：id 含 `/` 的是系列子文，不进索引。`listed: false` 可藏顶层文；`listed: true` 可把子文放进索引。
  */
 export function isIndexed(entry: EntryLike): boolean {
   // Reference 有自己的地址，不进文章列表。没写类型的旧文仍视为 article。
-  if (entry.data.heptabaseType === 'reference') return false;
+  if (isReference(entry)) return false;
   if (isTranslation(entry)) return false;
   if (entry.data.listed === false) return false;
   if (entry.data.listed === true) return true;

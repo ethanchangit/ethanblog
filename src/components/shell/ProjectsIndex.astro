@@ -5,7 +5,7 @@ import Bi from '@/components/shell/Bi.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
-import { docsBySlot } from '@/lib/docs';
+import { docsBySlot, isReference } from '@/lib/docs';
 import { HOME_PATH, PROJECTS_PATH, projectHref } from '@/lib/routes';
 
 interface Props {
@@ -14,7 +14,9 @@ interface Props {
 
 const { currentId } = Astro.props;
 const lp = Astro.locals.localePath;
-const projects = (await docsBySlot('project')).sort(
+const projects = (await docsBySlot('project'))
+  .filter((project) => !isReference(project))
+  .sort(
   (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
 const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
