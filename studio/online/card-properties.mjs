@@ -146,8 +146,8 @@ export function routeSlug(value) {
  * and may not take over a fixed route.
  */
 export function assertArticleSlug(slug) {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || /^\d+$/.test(slug)) throw fail(`slug「${slug}」只能用小写字母、数字和连字符，且不能只有数字。请在 Heptabase 改好后重新拉取。`);
-  if (RESERVED_URLS.includes(slug)) throw fail(`slug「${slug}」与网站固定地址 /${slug} 冲突。文章不能占用固定地址，请在 Heptabase 换一个 slug 后重新拉取。`, 409);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || /^\d+$/.test(slug)) throw fail(`URL「${slug}」只能用小写字母、数字和连字符，且不能只有数字。请在 Heptabase 改好后重新拉取。`);
+  if (RESERVED_URLS.includes(slug)) throw fail(`URL「${slug}」与网站固定地址 /${slug} 冲突。文章不能占用固定地址，请在 Heptabase 换一个 slug 后重新拉取。`, 409);
   return slug;
 }
 

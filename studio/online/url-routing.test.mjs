@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
+import { propertiesFromRead, routeSlug, assertArticleSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -24,10 +24,15 @@ const approve = (f, plan) => f.request('/heptabase/decision', 'POST', { ...input
 test('URL is the slug as written; translation languages become their own site', () => {
   assert.equal(routeSlug(' /toolset/ '), 'toolset');
   assert.equal(routeSlug(''), null);
-  assert.throws(() => routeSlug('My Toolset'));
-  assert.throws(() => routeSlug('2024'));
+  // Reading a slug never rejects it. A Page named now must not abort the whole pull.
+  // Article slugs are checked when that card is routed.
+  assert.equal(routeSlug('My Toolset'), 'My Toolset');
+  assert.equal(routeSlug('2024'), '2024');
+  assert.throws(() => assertArticleSlug('My Toolset'));
+  assert.throws(() => assertArticleSlug('2024'));
   for (const fixed of ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'en', 'cn']) {
-    assert.throws(() => routeSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
+    assert.equal(routeSlug(fixed), fixed);
+    assert.throws(() => assertArticleSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
   }
   assert.equal(translationLanguage('en'), 'en');
   assert.equal(translationLanguage('English'), 'en');
