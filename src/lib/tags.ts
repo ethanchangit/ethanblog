@@ -23,6 +23,24 @@ export async function englishSiteArticles(): Promise<{ english: PublishedArticle
   return { english, chineseOnly };
 }
 
+/**
+ * English tag index. Tags stay on the Chinese source card. Only indexed articles that
+ * have an English translation are listed; a Chinese-only article is left out.
+ */
+export async function englishTaggedArticles(): Promise<PublishedArticle[]> {
+  const [english, sources] = await Promise.all([englishArticles(), publishedArticles()]);
+  const byLink = new Map(
+    sources.flatMap((entry) => (entry.data.heptabaseCardLink ? [[entry.data.heptabaseCardLink, entry] as const] : [])),
+  );
+  const paired: PublishedArticle[] = [];
+  for (const entry of english) {
+    const source = entry.data.translationOf ? byLink.get(entry.data.translationOf) : undefined;
+    if (!source) continue;
+    paired.push({ ...entry, data: { ...entry.data, tags: source.data.tags, date: entry.data.date ?? source.data.date } });
+  }
+  return paired.sort(byDateDesc);
+}
+
 export function articleYear(date: Date): number {
   return date.getUTCFullYear();
 }

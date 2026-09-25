@@ -1,14 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const ARTICLE = '/articles/pkm-method/';
+const ARTICLE = '/pkm-method/';
 const TITLE = "我的 PKM 实践：从笔记到知识网络";
 
 function selectedTag(url: string): string | null {
   return new URL(url).searchParams.get('tag');
-}
-
-function selectedGroup(url: string): string | null {
-  return new URL(url).searchParams.get('group');
 }
 
 function tagCloudLink(page: Page, tag: string) {
@@ -16,7 +12,7 @@ function tagCloudLink(page: Page, tag: string) {
 }
 
 test.describe('Tags（内容集合过滤）', () => {
-  test('导航有标签入口，/tags 默认全部标签加分组切换', async ({ page }) => {
+  test('导航有标签入口，/tags 平铺全部标签', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     const nav = page.locator('header.site-nav a[href="/tags"]');
     await expect(nav).toHaveText("标签", { useInnerText: true });
@@ -24,29 +20,25 @@ test.describe('Tags（内容集合过滤）', () => {
     await nav.click();
     await expect(page).toHaveURL(/\/tags\/?$/);
     await expect(page.getByRole('heading', { name: "标签" })).toBeVisible();
-    await expect(page.getByRole('link', { name: "全部" })).toBeVisible();
-    await expect(page.getByRole('link', { name: '写作与知识' })).toBeVisible();
+    await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '写作与知识' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '媒介与研究' })).toHaveCount(0);
     await expect(tagCloudLink(page, '知识管理')).toBeVisible();
+    await expect(tagCloudLink(page, '媒介')).toBeVisible();
     await expect(page.getByRole('heading', { name: '文档' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: TITLE })).toBeHidden();
 
     const item = page.locator('[data-tag-item][data-tag-name="知识管理"]');
     await expect(item.getByRole('link')).toHaveText('知识管理', { useInnerText: true });
     await expect(item.locator('.ui-meta')).toHaveText(/^\d+$/);
-    await expect(page.locator('[data-tag-group-tabs]')).toBeVisible();
     await expect(page.locator('[data-tag-list]')).toBeVisible();
   });
 
-  test('点分组标题只显示该组标签', async ({ page }) => {
-    await page.goto('/tags', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('link', { name: '写作与知识' }).click();
-    await expect.poll(() => selectedGroup(page.url())).toBe('writing');
+  test('旧的分组参数不再藏起标签', async ({ page }) => {
+    await page.goto('/tags?group=writing', { waitUntil: 'domcontentloaded' });
     await expect(tagCloudLink(page, '知识管理')).toBeVisible();
-    await expect(tagCloudLink(page, '媒介')).toBeHidden();
-
-    await page.getByRole('link', { name: "全部" }).click();
-    await expect.poll(() => selectedGroup(page.url())).toBeNull();
-    await expect(tagCloudLink(page, '知识管理')).toBeVisible();
+    await expect(tagCloudLink(page, '媒介')).toBeVisible();
+    await expect(page.locator('[data-tag-item][hidden]')).toHaveCount(0);
   });
 
   test('文章页眉标签可点，在 /tags 就地筛出该标签文档', async ({ page }) => {
@@ -57,7 +49,7 @@ test.describe('Tags（内容集合过滤）', () => {
     await header.getByRole('link', { name: 'PKM', exact: true }).click();
     await expect.poll(() => selectedTag(page.url())).toBe('PKM');
     await expect(page).toHaveURL(/\/tags\/?/);
-    await expect(page.getByRole('link', { name: "全部" })).toBeVisible();
+    await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: '#PKM' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: TITLE })).toBeVisible();
   });
@@ -67,15 +59,11 @@ test.describe('Tags（内容集合过滤）', () => {
     await tagCloudLink(page, 'PKM').click();
     await expect.poll(() => selectedTag(page.url())).toBe('PKM');
     await expect(page).toHaveURL(/\/tags\/?/);
-    await expect(page.getByRole('link', { name: '写作与知识' })).toBeVisible();
+    await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: TITLE })).toBeVisible();
     await expect(
       page.locator('[data-doc-item]:not([hidden]) .ui-tag').filter({ hasText: 'PKM' }),
     ).toHaveText('PKM', { useInnerText: true });
-
-    await page.getByRole('link', { name: "全部" }).click();
-    await expect.poll(() => selectedTag(page.url())).toBeNull();
-    await expect(page.getByRole('heading', { name: TITLE })).toBeHidden();
   });
 
   test('再点同一标签会清除筛选', async ({ page }) => {

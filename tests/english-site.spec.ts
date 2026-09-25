@@ -18,6 +18,25 @@ test.describe('English site (ethanchang.io)', () => {
     await expect(chinese.locator('a[href="/_lang/zh/pkm-method"]')).toHaveCount(1);
   });
 
+  test('the tags page is the English index of the same tags', async ({ page }) => {
+    const response = await page.goto(`${EN}/tags`, { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveURL(/\/tags\/?$/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { name: 'Tags', exact: true })).toBeVisible();
+    await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '写作与知识' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: '知识管理', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: '媒介', exact: true })).toBeVisible();
+    // No English translation is published, so Chinese articles are not listed as if they were.
+    await expect(page.locator('[data-doc-item]')).toHaveCount(0);
+
+    await page.goto(`${EN}/tags/PKM`, { waitUntil: 'domcontentloaded' });
+    await expect.poll(() => new URL(page.url()).searchParams.get('tag')).toBe('PKM');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { name: '我的 PKM 实践：从笔记到知识网络' })).toHaveCount(0);
+  });
+
   test('pages without an English version open on the Chinese site', async ({ page }) => {
     await page.goto(`${EN}/about`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/^http:\/\/localhost:4322\/about\/?$/);

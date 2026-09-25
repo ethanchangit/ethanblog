@@ -1,12 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ALL_GROUP } from '@/data/tag-groups';
   import { tagsPageHref } from '@/lib/routes';
   import { localeFromPath, localizeHref } from '@/lib/locale';
 
-  function localeTagsHref(opts?: Parameters<typeof tagsPageHref>[0]): string {
+  function localeTagsHref(tag?: string | null): string {
     const locale = typeof location === 'undefined' ? 'en' : localeFromPath(location.pathname);
-    return localizeHref(tagsPageHref(opts), locale);
+    return localizeHref(tagsPageHref({ tag }), locale);
   }
 
   function selectedTag(): string {
@@ -14,46 +13,13 @@
     return new URLSearchParams(location.search).get('tag')?.trim() ?? '';
   }
 
-  function selectedGroup(root: HTMLElement): string {
-    if (typeof location === 'undefined') return ALL_GROUP;
-    const raw = new URLSearchParams(location.search).get('group')?.trim() || ALL_GROUP;
-    if (raw === ALL_GROUP) return ALL_GROUP;
-    return root.querySelector(`[data-tag-group-select="${CSS.escape(raw)}"]`) ? raw : ALL_GROUP;
-  }
-
-  function applyVisibility(root: HTMLElement) {
-    const group = selectedGroup(root);
-    const tag = selectedTag();
-
-    root.querySelectorAll<HTMLAnchorElement>('a[data-tag-group-select]').forEach((a) => {
-      const slug = a.dataset.tagGroupSelect ?? ALL_GROUP;
-      const on = slug === group;
-      a.setAttribute('href', localeTagsHref({
-        group: slug,
-        tag: slug === ALL_GROUP ? null : tag || null,
-      }));
-      if (on) a.setAttribute('aria-current', 'true');
-      else a.removeAttribute('aria-current');
-    });
-
-    let tagVisible = 0;
-    root.querySelectorAll<HTMLElement>('[data-tag-item]').forEach((el) => {
-      const show = group === ALL_GROUP || el.dataset.tagGroup === group;
-      el.hidden = !show;
-      if (show) tagVisible += 1;
-    });
-    const tagEmpty = root.querySelector<HTMLElement>('[data-tag-empty]');
-    if (tagEmpty) tagEmpty.hidden = tagVisible > 0;
-  }
-
   function applySelection(root: HTMLElement) {
     const selected = selectedTag();
-    const group = selectedGroup(root);
 
     root.querySelectorAll<HTMLAnchorElement>('a[data-tag-select]').forEach((a) => {
       const tag = a.dataset.tagSelect ?? '';
       const on = Boolean(selected) && tag === selected;
-      a.setAttribute('href', localeTagsHref({ group, tag: on ? null : tag }));
+      a.setAttribute('href', localeTagsHref(on ? null : tag));
       if (on) a.setAttribute('aria-current', 'true');
       else a.removeAttribute('aria-current');
     });
@@ -87,7 +53,6 @@
     if (typeof document === 'undefined') return;
     const root = document.querySelector<HTMLElement>('[data-tag-index]');
     if (!root) return;
-    applyVisibility(root);
     applySelection(root);
   }
 
@@ -98,28 +63,16 @@
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
-      const target = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
-        'a[data-tag-group-select], a[data-tag-select]',
-      );
+      const target = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[data-tag-select]');
       if (!target || !root?.contains(target)) return;
       event.preventDefault();
 
-      const group = selectedGroup(root);
       const currentTag = selectedTag();
-
-      if (target.hasAttribute('data-tag-group-select')) {
-        const nextGroup = target.dataset.tagGroupSelect ?? ALL_GROUP;
-        const keepTag = nextGroup !== ALL_GROUP && currentTag ? currentTag : null;
-        history.pushState(null, '', localeTagsHref({ group: nextGroup, tag: keepTag }));
-        sync();
-        return;
-      }
-
       const next = target.dataset.tagSelect ?? '';
       if (!next || next === currentTag) {
-        history.pushState(null, '', localeTagsHref({ group }));
+        history.pushState(null, '', localeTagsHref(null));
       } else {
-        history.pushState(null, '', localeTagsHref({ group, tag: next }));
+        history.pushState(null, '', localeTagsHref(next));
       }
       sync();
     };
