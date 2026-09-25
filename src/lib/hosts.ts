@@ -1,14 +1,11 @@
 /**
- * Two sites from one build:
- * - cn.ethanchang.io serves the Chinese blog (#blog cards) from the root of dist/.
- * - ethanchang.io serves the English blog (#blogi18n translations) from dist/en/.
- * Links inside each site are plain paths; a request on the English host for /toolset is
- * served from /en/toolset. Pages that have no English version send the reader to the
- * same path on the Chinese site. Language switches link to /_lang/<zh|en><path>, which
- * resolves to the other host without hard-coding it into static HTML.
+ * One English blog, built at the root of dist/ and served on ethanchang.io.
+ * cn.ethanchang.io, en.localhost, /en and /zh redirect to that same path.
+ * /_lang/<zh|en> stays on this host; there is no second site.
  *
  * Used by scripts/cf-worker-entry.mjs, scripts/preview.mjs and the dev middleware.
  */
+import { isZhPath, stripLocalePrefix } from './locale.ts';
 import { legacyContentRedirect } from './routes.ts';
 
 export const ZH_ORIGIN = 'https://cn.ethanchang.io';
@@ -32,9 +29,8 @@ function hostname(host: string): string {
   return host.replace(/:\d+$/, '').toLowerCase();
 }
 
-export function hostLang(host: string): SiteLang {
-  const name = hostname(host);
-  return name === 'ethanchang.io' || name === 'www.ethanchang.io' || name.startsWith('en.') ? 'en' : 'zh';
+export function hostLang(_host: string): SiteLang {
+  return 'en';
 }
 
 /** Host of the other language, keeping the port (en.localhost:4321 <-> localhost:4321). */
@@ -58,40 +54,48 @@ export type HostDecision =
   | { type: 'redirect'; location: string; status: 301 | 302 };
 
 /**
- * What to do with a request. `rewrite` means: serve this build path, and if it does not exist,
- * redirect to the same path on the Chinese site (fallbackFor).
+ * What to do with a request. The public site is one English blog.
+ * Old hosts and prefixes redirect onto the same path.
  */
 export function routeRequest(url: URL): HostDecision {
   const { pathname, search, host, protocol } = url;
-  const lang = hostLang(host);
-  const to = (target: SiteLang, path: string, status: 301 | 302 = 302): HostDecision => ({
-    type: 'redirect', location: `${protocol}//${hostFor(target, host)}${path}${search}`, status,
+  const name = hostname(host);
+  const port = host.slice(name.length);
+  const here = (path: string): HostDecision => ({
+    type: 'redirect', location: `${protocol}//${host}${path}${search}`, status: 301,
   });
-  const switchMatch = /^\/_lang\/(zh|en)(\/.*)?$/.exec(pathname);
-  if (switchMatch) return to(switchMatch[1] as SiteLang, switchMatch[2] || '/');
-  if (SHARED.test(pathname)) return { type: 'pass' };
-  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
-    // The dashboard and its login cookie live on ethanchang.io only.
-    return hostname(host) === 'cn.ethanchang.io' ? to('en', pathname, 301) : { type: 'pass' };
+  const canonicalName = name === 'www.ethanchang.io' || name === 'cn.ethanchang.io'
+    ? 'ethanchang.io'
+    : name.startsWith('en.') ? name.slice(3) : name;
+  if (SHARED.test(pathname) || pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+    if (canonicalName !== name) {
+      return { type: 'redirect', location: `${protocol}//${canonicalName}${port}${pathname}${search}`, status: 301 };
+    }
+    return { type: 'pass' };
   }
-  // Old single-page URLs move before the English host is rewritten onto /en.
-  if (!isEnglishBuildPath(pathname)) {
-    const legacy = legacyContentRedirect(pathname);
-    if (legacy) return { type: 'redirect', location: `${protocol}//${host}${legacy}${search}`, status: 301 };
+  let path = pathname;
+  const switchMatch = /^\/_lang\/(?:zh|en)(\/.*)?$/.exec(path);
+  if (switchMatch) path = switchMatch[1] || '/';
+  if (isEnglishBuildPath(path)) path = englishPublicPath(path);
+  if (isZhPath(path)) path = stripLocalePrefix(path);
+  const legacy = legacyContentRedirect(path);
+  if (legacy) path = legacy;
+  if (canonicalName !== name) {
+    return { type: 'redirect', location: `${protocol}//${canonicalName}${port}${path}${search}`, status: 301 };
   }
-  if (lang === 'zh') return isEnglishBuildPath(pathname) ? to('en', englishPublicPath(pathname), 301) : { type: 'pass' };
-  if (isEnglishBuildPath(pathname)) return to('en', englishPublicPath(pathname), 301);
-  return { type: 'rewrite', path: `${EN_PREFIX}${pathname === '/' ? '/' : pathname}` };
+  if (path !== pathname) return here(path);
+  return { type: 'pass' };
 }
 
-/** Where an English-host request goes when there is no English page. */
+/** A missing page stays on the English site. */
 export function fallbackFor(url: URL): string {
-  return `${url.protocol}//${hostFor('zh', url.host)}${url.pathname}${url.search}`;
+  return `${EN_ORIGIN}${url.pathname}${url.search}`;
 }
 
-/** Canonical URL of a built page: English pages drop /en and live on ethanchang.io. */
+/** Canonical URL of a built page. Old /en and /zh prefixes are not part of it. */
 export function canonicalUrl(buildPath: string): string {
-  return isEnglishBuildPath(buildPath) ? new URL(englishPublicPath(buildPath), EN_ORIGIN).href : new URL(buildPath, ZH_ORIGIN).href;
+  const path = isEnglishBuildPath(buildPath) ? englishPublicPath(buildPath) : stripLocalePrefix(buildPath);
+  return new URL(path, EN_ORIGIN).href;
 }
 
 /** Absolute URL of a public path on one language's site. */

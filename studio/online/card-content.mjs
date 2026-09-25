@@ -56,7 +56,29 @@ export function blogReferences(body) {
   return [...paths];
 }
 
+/**
+ * Space bilingual layout: an English bullet, with the Chinese gloss indented under it
+ * and without its own bullet. The site publishes the English line. Headings and tables stay.
+ */
+export function englishFromBilingual(markdown) {
+  return proseParts(String(markdown || ''), (part) => {
+    const out = [];
+    let bulletIndent = null;
+    for (const line of part.split('\n')) {
+      if (!line.trim()) { out.push(line); bulletIndent = null; continue; }
+      const bullet = /^([ \t]*)- /.exec(line);
+      if (bullet) { bulletIndent = bullet[1].length; out.push(line); continue; }
+      const indent = /^([ \t]*)/.exec(line)[1].length;
+      if (bulletIndent != null && indent > bulletIndent && !/^\s*[#|]/.test(line)) continue;
+      bulletIndent = null;
+      out.push(line);
+    }
+    return out.join('\n');
+  });
+}
+
 export function fromHeptabase(source, targets, imports = '') {
+  source = englishFromBilingual(source);
   const lines = source.split('\n');
   // Reference cards also use lower-level headings for their title.
   const heading = /^#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(lines[0]);

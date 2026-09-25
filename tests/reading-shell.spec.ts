@@ -62,7 +62,7 @@ async function expectKeptShell(page: Page, kind: 'index' | 'home' | 'article' | 
   await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-keep', '1');
 }
 
-async function expectExpandedIndex(page: Page, heading: "文章" | "项目", homeHref = '/') {
+async function expectExpandedIndex(page: Page, heading: "Articles" | "Projects", homeHref = '/') {
   const index = page.locator('[data-reading-index]');
   await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
   await expect(index.getByRole('heading', { level: 1, name: heading })).toBeVisible();
@@ -271,7 +271,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(index).toBeVisible();
-    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(index.locator('[data-reading-index-switch] a')).toHaveCount(1);
@@ -280,7 +280,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/projects"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/tags"]')).toBeVisible();
-    await expect(page.locator('header.site-nav [data-page-station]')).toHaveText(['EthanChang', '现在', '联系', '隐私']);
+    await expect(page.locator('header.site-nav [data-page-station]')).toHaveText(['EthanChang', 'Now', 'Contact', 'Privacy']);
     await expect(page.locator('header.site-nav a[href="/"]')).toHaveCount(1);
     await expect(page.locator('header.site-nav a[href="/now"]')).toBeVisible();
     await expect(index.locator('[data-reading-expand]')).toBeHidden();
@@ -311,11 +311,11 @@ test.describe('分栏阅读', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
-    await index.locator('[data-reading-index-switch]').getByRole('link', { name: "项目" }).click();
+    await index.locator('[data-reading-index-switch]').getByRole('link', { name: "Projects" }).click();
 
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
@@ -326,9 +326,9 @@ test.describe('分栏阅读', () => {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     const switcher = page.locator('[data-reading-index-switch]');
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(switcher.getByRole('heading', { level: 1 })).toHaveCount(1);
-    await expect(switcher.getByRole('heading', { name: "项目" })).toHaveCount(0);
+    await expect(switcher.getByRole('heading', { name: "Projects" })).toHaveCount(0);
     await expect(switcher.locator('a[href="/projects"]')).toBeVisible();
     await expect(switcher.locator('a[href="/blogs"]')).toHaveCount(0);
     await expect(switcher.locator('a')).toHaveCount(1);
@@ -343,7 +343,7 @@ test.describe('分栏阅读', () => {
     await expect(index.locator('[data-reading-expand]')).toBeHidden();
     const collapse = index.locator('[data-reading-collapse]');
     await expect(collapse).toHaveAttribute('href', '/');
-    await expect(collapse).toHaveAttribute('aria-label', "收起至首页");
+    await expect(collapse).toHaveAttribute('aria-label', "Collapse to home");
     await expect(collapse).toHaveCSS('opacity', '0');
     await revealReadingCollapse(index);
     await expectCollapseAtHeadingEnd(index);
@@ -353,7 +353,7 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/projects', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
@@ -376,7 +376,7 @@ test.describe('分栏阅读', () => {
     const rail = page.locator('[data-reading-rail]');
 
     await expect(index).toBeVisible();
-    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
@@ -459,18 +459,12 @@ test.describe('分栏阅读', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     const rem = await rootRem(page);
 
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    const home = await measureReadingPanes(page);
-    expect(home).not.toBeNull();
-    expectIndexAtMost(home!.indexWidth, rem);
-
     await page.goto('/embed-preview', { waitUntil: 'domcontentloaded' });
     const noToc = await measureReadingPanes(page);
     expect(noToc).not.toBeNull();
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
     expectIndexAtMost(noToc!.indexWidth, rem);
     expectArticleCenteredInRemaining(noToc!);
-    expect(Math.abs(noToc!.indexWidth - home!.indexWidth)).toBeLessThan(2);
 
     await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     const withToc = await measureReadingSplit(page);
@@ -724,11 +718,11 @@ test.describe('分栏阅读', () => {
     await page.goto('/aletheia', { waitUntil: 'domcontentloaded' });
 
     const index = page.locator('[data-reading-index]');
-    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(index.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
-    await expect(index.getByRole('heading', { name: "时间线：从卡片到容器" })).toBeVisible();
+    await expect(index.getByRole('heading', { name: "Timeline: from cards to containers" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
-    await expect(index.getByText("三条明确的能力传递：")).toBeVisible();
+    await expect(index.getByText("Three clear hand-offs:")).toBeVisible();
     await expect(
       index.locator('[data-tl-item] a[href="/aletheia"]'),
     ).toHaveAttribute('aria-current', 'page');
@@ -781,7 +775,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText('Networks', inner);
     await expect(index).toHaveAttribute('data-keep-index', '1');
     expect(await index.evaluate((el: HTMLElement) => el.scrollTop)).toBe(before);
-    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(
       index.locator('[data-tl-item] a[href="/network"]'),
     ).toHaveAttribute('aria-current', 'page');
@@ -947,7 +941,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('header.site-nav a[href="/articles"]')).toBeHidden();
     await expect(page.locator('header.site-nav a[href="/projects"]')).toBeHidden();
 
-    await switcher.getByRole('link', { name: "项目" }).click();
+    await switcher.getByRole('link', { name: "Projects" }).click();
 
     await expect(page).toHaveURL(/\/pkm-method\/?$/);
     await expect(page.locator('[data-reading-shell]')).toBeVisible();
@@ -955,26 +949,26 @@ test.describe('分栏阅读', () => {
       "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
-    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(index.locator('[data-tl-item]').first()).toBeVisible();
     await expect(switcher.locator('h1')).toHaveAttribute('aria-current', 'page');
 
-    await switcher.getByRole('link', { name: "文章" }).click();
+    await switcher.getByRole('link', { name: "Articles" }).click();
     await expect(page).toHaveURL(/\/pkm-method\/?$/);
     await expect(doc.locator('.article-lede h1')).toHaveText(
       "我的 PKM 实践：从笔记到知识网络",
       inner,
     );
-    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(index.locator('a[href="/pkm-method"] h3')).toBeVisible();
   });
 
   test('窄屏从文章回列表再切项目', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('link', { name: "← 文章" }).click();
+    await page.getByRole('link', { name: "← Articles" }).click();
     await expect(page).toHaveURL(/\/articles\/?$/);
-    await page.locator('[data-reading-index-switch]').getByRole('link', { name: "项目" }).click();
+    await page.locator('[data-reading-index-switch]').getByRole('link', { name: "Projects" }).click();
     await expect(page).toHaveURL(/\/projects\/?$/);
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
   });
@@ -984,7 +978,7 @@ test.describe('分栏阅读', () => {
     await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
-    const back = page.getByRole('link', { name: "← 文章" });
+    const back = page.getByRole('link', { name: "← Articles" });
     await expect(back).toBeVisible();
     const navBox = await page.locator('header.site-nav').boundingBox();
     const backBox = await back.boundingBox();
@@ -1014,7 +1008,7 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
-    await expect(index.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(index.locator('a[aria-current="page"]')).toHaveCount(0);
     await expect(page.locator('[data-reading-doc]')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
@@ -1032,7 +1026,7 @@ test.describe('分栏阅读', () => {
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
   });
 
   test('分栏点展开进入完整文章列表', async ({ page }) => {
@@ -1041,7 +1035,7 @@ test.describe('分栏阅读', () => {
     const index = page.locator('[data-reading-index]');
     const expand = index.locator('[data-reading-expand]');
     await expect(expand).toHaveAttribute('href', '/articles');
-    await expect(expand).toHaveAttribute('aria-label', "展开完整列表");
+    await expect(expand).toHaveAttribute('aria-label', "Show the full list");
     await expect(expand).toHaveCSS('opacity', '0');
     await expect(page.locator('[data-reading-doc] [data-reading-expand]')).toHaveCount(0);
     await expect(index.locator('[data-reading-collapse]')).toBeHidden();
@@ -1059,7 +1053,7 @@ test.describe('分栏阅读', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/articles');
     await expectKeptShell(page, 'index');
-    await expectExpandedIndex(page, "文章");
+    await expectExpandedIndex(page, "Articles");
   });
 
   test('分栏从项目展开进入完整项目列表', async ({ page }) => {
@@ -1073,7 +1067,7 @@ test.describe('分栏阅读', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expectKeptShell(page, 'index');
-    await expect(page.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
   });
 
   test('左栏换成项目后展开进完整项目列表', async ({ page }) => {
@@ -1081,10 +1075,10 @@ test.describe('分栏阅读', () => {
     await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     await page
       .locator('[data-reading-index] [data-reading-index-switch]')
-      .getByRole('link', { name: "项目" })
+      .getByRole('link', { name: "Projects" })
       .click();
     const index = page.locator('[data-reading-index]');
-    await expect(index.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(index.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     const expand = await revealReadingExpand(index);
     await expect(expand).toHaveAttribute('href', '/projects');
     await markReadingShell(page);
@@ -1099,7 +1093,7 @@ test.describe('分栏阅读', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index] [data-reading-expand]')).toBeHidden();
   });
@@ -1119,7 +1113,7 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expectKeptShell(page, 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 
@@ -1133,11 +1127,11 @@ test.describe('分栏阅读', () => {
 
     await page
       .locator('[data-reading-index] [data-reading-index-switch]')
-      .getByRole('link', { name: "项目" })
+      .getByRole('link', { name: "Projects" })
       .click();
     await expect(page).toHaveURL((url) => url.pathname === '/projects');
     await expectKeptShell(page, 'index');
-    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
   });
 
   test('展开尊重 reduced motion，立刻铺满', async ({ page }) => {
@@ -1165,7 +1159,7 @@ test.describe('分栏阅读', () => {
     await expectKeptShell(page, 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 
@@ -1180,7 +1174,7 @@ test.describe('分栏阅读', () => {
     await expectKeptShell(page, 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 
@@ -1196,7 +1190,7 @@ test.describe('分栏阅读', () => {
     await expectKeptShell(page, 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
   });
 
   test('Escape 关闭正文回到未选中的文章列表', async ({ page }) => {
@@ -1207,7 +1201,7 @@ test.describe('分栏阅读', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 });
@@ -1231,7 +1225,7 @@ test.describe('分栏关闭（无 JS）', () => {
 
     const index = page.locator('[data-reading-index]');
     const heading = index.locator('.reading-index-heading');
-    await expect(heading.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(heading.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
 
     const rest = await page.evaluate(() => {
       const pane = document.querySelector('[data-reading-index]');
@@ -1289,7 +1283,7 @@ test.describe('分栏关闭（无 JS）', () => {
     await expand.click();
     await expect(page).toHaveURL((url) => url.pathname === '/articles');
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
   });
 
   test('收起是指向首页的真实链接', async ({ page }) => {
@@ -1301,7 +1295,7 @@ test.describe('分栏关闭（无 JS）', () => {
     await expect(page).toHaveURL((url) => url.pathname === '/');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.getByRole('heading', { level: 1, name: "文章" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
 });

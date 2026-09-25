@@ -6,8 +6,6 @@ import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
 import { pagePath } from '@/lib/locale';
 import { HOME_PATH, SEARCH_PATH, TAGS_PATH, sitePageHref } from '@/lib/routes';
 import { englishPages, translationSourceId } from '@/lib/docs';
-import { languageSwitchHref } from '@/lib/hosts';
-
 const lp = Astro.locals.localePath;
 const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft && !data.translationOf);
 const rank = new Map<string, number>(pageOrder.map((id, index) => [id, index]));
@@ -34,11 +32,6 @@ const [lead, ...rest] = stations;
 const tools: { href: string; key: CopyKey }[] = [{ href: TAGS_PATH, key: 'navTags' }];
 
 const path = pagePath(Astro.url.pathname);
-// The other site: ethanchang.io (English) <-> cn.ethanchang.io (Chinese). Articles also switch in place.
-const english = Astro.locals.lang === 'en';
-const otherSite = english
-  ? { href: languageSwitchHref('zh', '/'), text: '中', label: '中文博客', hreflang: 'zh-CN' }
-  : { href: languageSwitchHref('en', '/'), text: 'EN', label: 'English blog', hreflang: 'en' };
 const isActive = (href: string) => (href === HOME_PATH ? path === HOME_PATH : path === href || path.startsWith(href + '/'));
 ---
 
@@ -124,17 +117,6 @@ const isActive = (href: string) => (href === HOME_PATH ? path === HOME_PATH : pa
           </li>
         ))
       }
-      <li class="shrink-0">
-        <a
-          href={otherSite.href}
-          hreflang={otherSite.hreflang}
-          aria-label={otherSite.label}
-          data-site-switch
-          class="inline-flex min-h-11 min-w-11 items-center justify-center px-1.5 text-xs text-ink-400 transition-colors hover:text-ink-100 sm:px-2 sm:text-sm md:min-h-0 md:min-w-0 md:py-1.5"
-        >
-          {otherSite.text}
-        </a>
-      </li>
       <li class="shrink-0">
         <a
           href={lp(SEARCH_PATH)}

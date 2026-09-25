@@ -40,7 +40,7 @@ test.describe('系列子文', () => {
 
     const listing = page.locator(HUB_LISTING);
     await expect(listing).toBeVisible();
-    await expect(listing.getByRole('heading', { level: 2, name: "篇目" })).toBeVisible();
+    await expect(listing.getByRole('heading', { level: 2, name: "Chapters" })).toBeVisible();
     await expect(listing.locator(`a[href="${PART1}"] h3`)).toHaveText(PART1_TITLE, {
       useInnerText: true,
     });
@@ -133,8 +133,11 @@ test('行内 mention 和引用中的下一层 mention 在右栏打开，主文�
   await page.route('**/series-demo/1', async route => {
     const response = await route.fetch();
     const html = await response.text();
-    const body = html.replace('这是教程的第 1 页。读者从总览进来，再翻到下一页。',
-      '这是教程的第 1 页。<a href="/robert" data-doc-mention>下一层引用资料</a>');
+    const marker = '<p>这是教程的第 1 页。读者从总览进来，再翻到下一页。</p>';
+    const body = html.replace(
+      marker,
+      '<p>这是教程的第 1 页。<a href="/robert" data-doc-mention>下一层引用资料</a></p>',
+    );
     expect(body).not.toBe(html);
     await route.fulfill({ response, body });
   });

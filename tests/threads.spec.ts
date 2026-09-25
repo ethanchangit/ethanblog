@@ -15,7 +15,7 @@ test.describe('Threads routes removed', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('header.site-nav a[href="/threads"]')).toHaveCount(0);
     await expect(page.locator('header.site-nav a[href="/articles"]')).toHaveCount(0);
-    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText("标签", {
+    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText("Tags", {
       useInnerText: true,
     });
   });

@@ -6,6 +6,7 @@
  */
 import type { TocHeading } from '@/lib/toc';
 import { DOC_TITLE_ID, tocEntries } from '@/lib/toc';
+import { copy } from '@/lib/i18n';
 
 interface Props {
   headings: TocHeading[];
@@ -29,7 +30,7 @@ const activeCss = [DOC_TITLE_ID, ...items.map((h) => h.slug)]
 
 {
   items.length > 0 && (
-    <nav class="toc" aria-label="目录" data-i18n-aria="tocAria">
+    <nav class="toc" aria-label={copy.en.tocAria} data-i18n-aria="tocAria">
       {activeCss && (
         <Fragment
           set:html={`<style>${activeCss}{color:var(--color-ink-200);text-decoration-color:var(--color-ink-500)}</style>`}

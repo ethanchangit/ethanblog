@@ -1,4 +1,4 @@
-/** Canonical pages are Chinese; old /zh URLs remain redirect aliases. */
+/** The blog is English. Old /zh URLs redirect to the same path. */
 
 export const ZH_PREFIX = '/zh';
 export type UrlLocale = 'en' | 'zh';
@@ -20,12 +20,12 @@ export function isZhPath(pathname: string): boolean {
   return pathname === ZH_PREFIX || pathname === `${ZH_PREFIX}/` || pathname.startsWith(`${ZH_PREFIX}/`);
 }
 
-export function localeFromPath(pathname: string): UrlLocale {
-  return 'zh';
+export function localeFromPath(_pathname: string): UrlLocale {
+  return 'en';
 }
 
-export function langFromPath(pathname: string): 'zh-CN' | 'en' {
-  return 'zh-CN';
+export function langFromPath(_pathname: string): 'zh-CN' | 'en' {
+  return 'en';
 }
 
 export function stripLocalePrefix(pathname: string): string {

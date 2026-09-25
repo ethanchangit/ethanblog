@@ -20,8 +20,9 @@ import {
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation } from './card-properties.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
+import { ensureReferenceTags } from './reference-tags.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, asReferenceSource, removalReason, removalReasons, removalScope, settleRemovals, linkedPaths, withoutIndexRefs } from './removals.mjs';
 import { IO_CONCURRENCY, mapLimited } from './pool.mjs';
@@ -1172,7 +1173,8 @@ async function rememberProperties(env, id, properties) {
 // at the same path on their language's site). Without URL it keeps its current slug.
 function articleRoute(properties) {
   if (!properties.member || collectionForBlogType(properties.type) !== 'articles' || !properties.url) return null;
-  return { id: properties.url, url: properties.url };
+  const slug = assertArticleSlug(properties.url);
+  return { id: slug, url: slug };
 }
 
 function assertRouteFree(entries, route, cardLink) {
@@ -1305,25 +1307,22 @@ async function heptabasePlan(env, identity, input) {
   const root = graph[0];
   if (input.reviewOnly && root.properties.status !== 'review') throw fail('这张卡片已不在 Review，请重新拉取。', 409);
   const { nodes: translations, i18n } = await loadTranslations(env, identity, state, client, schema, root, documentId, collection);
-  const rootFront = parseMdx(root.next).frontmatter;
-  for (const node of translations) {
-    const content = fromHeptabase(node.source, targets, node.parsed.imports);
-    const slot = node.target.collection === 'pages' ? 'page' : node.target.collection === 'projects' ? 'project' : 'article';
-    const frontmatter = { ...node.parsed.frontmatter, slot, title: content.title || rootFront.title, description: '',
-      date: rootFront.date, created: node.created || undefined, updated: node.updated || undefined, draft: rootFront.draft,
-      heptabaseType: rootFront.heptabaseType, heptabaseStatus: rootFront.heptabaseStatus,
-      heptabaseCardLink: `heptabase://card/${node.id}`, translationOf: `heptabase://card/${id}`, language: node.language };
-    if (slot === 'page') { delete frontmatter.tags; delete frontmatter.listed; delete frontmatter.url; }
-    else { frontmatter.tags = rootFront.tags; frontmatter.listed = false; delete frontmatter.url; }
-    if (slot === 'article') frontmatter.url = rootFront.url || undefined;
-    node.next = serializeMdx({ ...node.parsed, imports: content.imports, bodyZh: content.body, frontmatter });
-    node.conflict = false;
-    graph.push(node);
+  const extras = translations.filter((node) => node.language !== 'en');
+  if (extras.length) throw fail('博客只发布英文。请只关联 Language 为 en 的卡片。', 409);
+  const english = translations.find((node) => node.language === 'en');
+  if (english) {
+    const content = fromHeptabase(english.source, targets, root.parsed.imports);
+    const parsed = parseMdx(root.next);
+    const frontmatter = { ...parsed.frontmatter, title: content.title || parsed.frontmatter.title, language: 'en' };
+    root.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
   }
   return { id, collection, documentId, filePath, source: root.source, raw: root.current.raw, next: root.next,
     blog: root.current.raw ? blogBody(root.parsed) : '尚未创建', nextBlog: blogBody(parseMdx(root.next)),
     properties: root.properties,
-    sourceHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.source, n.i18nProperties || n.properties, n.created || '', n.updated || '']))),
+    sourceHash: await hash(JSON.stringify([
+      ...graph.map((n) => [n.id, n.source, n.i18nProperties || n.properties, n.created || '', n.updated || '']),
+      ...translations.map((n) => [n.id, n.source, n.i18nProperties, n.language]),
+    ])),
     pageNote: root.target.collection === 'pages' ? pageReviewNote(root.target.id, { ...root.target, choiceRequired: pageCards.length > PAGE_CAP }) : undefined,
     pageChoiceRequired: root.target.collection === 'pages' && pageCards.length > PAGE_CAP,
     documentHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.current.raw]))),
@@ -1377,7 +1376,8 @@ async function markReferences(env, identity, input) {
         await rememberProperties(env, id, actual);
       }
     }
-    return { marked: ids.length };
+    const applied = await ensureReferenceTags(client, plan.graph.map((node) => ({ id: node.id, source: node.source })));
+    return { marked: ids.length, referencesTagged: applied.tagged.length };
   });
 }
 
