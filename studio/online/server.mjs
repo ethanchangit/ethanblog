@@ -1169,8 +1169,7 @@ async function rememberProperties(env, id, properties) {
   if (cached?.edited_at) await saveCardProperties(env, id, cached.edited_at, cached.card_created, properties);
 }
 
-// A #blog article with URL is served at /<url> (Chinese on cn.ethanchang.io, its translations
-// at the same path on their language's site). Without URL it keeps its current slug.
+// A #blog article with URL is served at /<url>. Without URL it keeps its current slug.
 function articleRoute(properties) {
   if (!properties.member || collectionForBlogType(properties.type) !== 'articles' || !properties.url) return null;
   const slug = assertArticleSlug(properties.url);
@@ -1183,8 +1182,8 @@ function assertRouteFree(entries, route, cardLink) {
   throw fail(`地址 /${route.id} 已被「${occupant.title}」使用。请在 Heptabase 换一个 URL。`, 409);
 }
 
-// Translations live in #blogi18n and are paired only through the #blog card's relation.
-// Each is reviewed and published together with its #blog card.
+// Linked #blogi18n cards are checked with the #blog card. They are not written into the
+// page and are not published as their own files.
 async function loadTranslations(env, identity, state, client, schema, root, documentId, collection) {
   const ids = root.properties.translations || [];
   if (!ids.length) return { nodes: [], i18n: null };
@@ -1299,6 +1298,7 @@ async function heptabasePlan(env, identity, input) {
       created: node.created || undefined, updated: node.updated || undefined,
       draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.type === 'reference' ? false : properties.member,
       heptabaseType: properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}`,
+      language: undefined,
       ...(node.target.collection === 'articles' ? { url: node.target.url || undefined } : {}) };
     node.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
     const previous = await firstRow(env, 'SELECT * FROM studio_heptabase_sync WHERE card_id = ?1', node.id);
@@ -1307,15 +1307,7 @@ async function heptabasePlan(env, identity, input) {
   const root = graph[0];
   if (input.reviewOnly && root.properties.status !== 'review') throw fail('这张卡片已不在 Review，请重新拉取。', 409);
   const { nodes: translations, i18n } = await loadTranslations(env, identity, state, client, schema, root, documentId, collection);
-  const extras = translations.filter((node) => node.language !== 'en');
-  if (extras.length) throw fail('博客只发布英文。请只关联 Language 为 en 的卡片。', 409);
-  const english = translations.find((node) => node.language === 'en');
-  if (english) {
-    const content = fromHeptabase(english.source, targets, root.parsed.imports);
-    const parsed = parseMdx(root.next);
-    const frontmatter = { ...parsed.frontmatter, title: content.title || parsed.frontmatter.title, language: 'en' };
-    root.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
-  }
+  // The published page stays the #blog card, including its bilingual layout.
   return { id, collection, documentId, filePath, source: root.source, raw: root.current.raw, next: root.next,
     blog: root.current.raw ? blogBody(root.parsed) : '尚未创建', nextBlog: blogBody(parseMdx(root.next)),
     properties: root.properties,

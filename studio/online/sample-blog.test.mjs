@@ -21,13 +21,13 @@ test('the sample blog lists published titles and hides unlisted references', asy
   const html = await index.text();
   assert.equal(index.status, 200);
   assert.match(html, /lang="zh-CN"/);
-  assert.match(html, /Start with connections/);
+  assert.match(html, /知识管理，先从连接开始/);
   assert.match(html, /让标签跟着想法生长/);
   assert.match(html, /href="\/sample-blog\/pages\/notes"/);
   assert.match(html, /href="\/sample-blog\/pages\/shelf"/);
   assert.doesNotMatch(html, /仅由旧笔记引用的资料/);
   const article = await sampleBlogResponse('http://localhost/sample-blog/articles/example');
-  assert.match(await article.text(), /Start from a question/);
+  assert.match(await article.text(), /从一个问题开始/);
   assert.equal((await sampleBlogResponse('http://localhost/sample-blog/missing')).status, 404);
   if (previous === undefined) delete process.env.STUDIO_PAGE_CAP_FIXTURE;
   else process.env.STUDIO_PAGE_CAP_FIXTURE = previous;

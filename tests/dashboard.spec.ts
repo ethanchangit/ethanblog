@@ -48,7 +48,7 @@ test('预览收到网页错误后显示可读原因，并能重新拉取恢复',
   await expect(page.locator('#studio')).not.toContainText('private diagnostic details');
   await page.unroute('**/dashboard/api/heptabase/preview');
   await pullLatest(page);
-  await expect(page.locator('.preview-title')).toHaveText('Start with connections');
+  await expect(page.locator('.preview-title')).toHaveText('知识管理，先从连接开始');
   await expect(page.frameLocator('iframe[title="网站发布样式预览"]').locator('h1')).toHaveCount(0);
 });
 
@@ -134,10 +134,10 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('tab', { name: /Edited articles · 2/ }).click();
   await expect(page.locator('.review-items[data-review-group=edited] .review-item')).toHaveCount(2);
   const frame = page.frameLocator('iframe[title="网站发布样式预览"]');
-  await expect(page.locator('.preview-title')).toHaveText('Start with connections');
+  await expect(page.locator('.preview-title')).toHaveText('知识管理，先从连接开始');
   await expect(page.locator('.preview-date')).toContainText('2024 年 2 月 1 日');
   await expect(frame.locator('h1, time')).toHaveCount(0);
-  await expect(frame.locator('.prose-site')).toContainText('only sort the notes it actually needs');
+  await expect(frame.locator('.prose-site')).toContainText('只整理当下真正用得上的笔记');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   await expect(page.locator('.diff-summary, .diff-basis, .diff-legend')).toHaveCount(0);
   await expect(page.locator('.diff-move-label, .paragraph-change.moved')).toHaveCount(0);
@@ -146,9 +146,9 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.diff-original, .diff-revision, .diff-column-label, .diff-move-lines')).toHaveCount(0);
   await expect(page.locator('.full-diff article')).toHaveCount(1);
   await expect(page.locator('.full-diff article')).toHaveCSS('border-top-width', '0px');
-  const modified = page.locator('.paragraph-change.modified').filter({ hasText: 'I used to file every note once a week' });
-  await expect(modified.locator('.diff-removed')).toContainText('I used to file every note once a week');
-  await expect(modified.locator('.diff-added')).toContainText('I now start from the piece I am writing');
+  const modified = page.locator('.paragraph-change.modified').filter({ hasText: '以前每周整理一次笔记，再按分类归档。' });
+  await expect(modified.locator('.diff-removed')).toContainText('以前每周整理一次笔记，再按分类归档。');
+  await expect(modified.locator('.diff-added')).toContainText('现在，我会从正在写的文章出发，只整理当下真正用得上的笔记。');
   expect(await modified.evaluate(node => {
     const old = node.querySelector('.diff-removed')!.getBoundingClientRect();
     const next = node.querySelector('.diff-added')!.getBoundingClientRect();
@@ -167,12 +167,12 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.diff-move-path')).toHaveCount(0);
   await expect(page.locator('.full-diff details')).toHaveCount(0);
   await expect(page.locator('.full-diff .unchanged')).toHaveCount(1);
-  await expect(page.locator('.full-diff article')).toContainText('Knowledge work is linking ideas you already have');
-  await expect(page.locator('.paragraph-change.unchanged').filter({ hasText: 'I now start from the piece I am writing' })).toHaveCount(0);
-  await expect(page.locator('.modified .diff-removed', { hasText: 'I now start from the piece I am writing' })).toHaveCount(0);
-  await expect(page.locator('.full-diff article')).toContainText('A good system makes writing feel natural');
-  await expect(modified.locator('.diff-removed del')).toContainText('I used to file every note once a week');
-  await expect(modified.locator('.diff-added ins')).toContainText('I now start from the piece I am writing');
+  await expect(page.locator('.full-diff article')).toContainText('知识管理并不是把更多资料放进一个地方，而是让已有的想法发生连接。');
+  await expect(page.locator('.paragraph-change.unchanged').filter({ hasText: '只整理当下真正用得上的笔记' })).toHaveCount(0);
+  await expect(page.locator('.modified .diff-removed', { hasText: '只整理当下真正用得上的笔记' })).toHaveCount(0);
+  await expect(page.locator('.full-diff article')).toContainText('好的系统应该让写作更自然，而不是让整理本身成为负担。');
+  await expect(modified.locator('.diff-removed del')).toContainText('以前每周整理一次笔记，再按分类归档。');
+  await expect(modified.locator('.diff-added ins')).toContainText('现在，我会从正在写的文章出发，只整理当下真正用得上的笔记。');
   await page.getByRole('button', { name: '让标签跟着想法生长', exact: true }).click();
   await expect(page.locator('#review-items .item-meta')).toHaveCount(0);
   await expect(page.getByText('article · 仅标签更新', { exact: true })).toHaveCount(0);

@@ -13,14 +13,10 @@ export function seedSampleReview(local) {
   const first = '知识管理并不是把更多资料放进一个地方，而是让已有的想法发生连接。';
   const last = '好的系统应该让写作更自然，而不是让整理本身成为负担。';
   const table = '| 阶段 | 做法 |\n| --- | --- |\n| 写作 | 从一个问题开始 |\n| 发布 | 检查正文与引用 |';
-  const publishedFirst = 'Knowledge work is linking ideas you already have.';
-  const publishedOld = 'I used to file every note once a week, then sort them into categories.';
-  const publishedLast = 'A good system makes writing feel natural, not like another chore.';
-  const publishedTable = '| Stage | Practice |\n| --- | --- |\n| Writing | Start from a question |\n| Publishing | Check the text and its references |';
-  const publishedNext = 'I now start from the piece I am writing, and only sort the notes it actually needs.';
-  local.remote(article.replace('title: 测试文章', 'title: Start with connections').replace('draft: true', 'draft: false').replace('中文正文。', `${publishedFirst}\n\n${publishedOld}\n\n${publishedTable}\n\n${publishedLast}`));
+  const publishedOld = '以前每周整理一次笔记，再按分类归档。';
+  local.remote(article.replace('title: 测试文章', 'title: 知识管理，先从连接开始').replace('draft: true', 'draft: false').replace('中文正文。', `${first}\n\n${publishedOld}\n\n${table}\n\n${last}`));
   local.i18n.set(enArticle, { Language: 'en' });
-  const englishBody = `${publishedFirst}\n\n${publishedNext}\n\n${publishedLast}\n\n${publishedTable}\n\n## Bring the links to the reader\n\nNotes mentioned in the piece can ship with it, without joining the blog list.`;
+  const englishBody = 'Knowledge work is linking ideas you already have.\n\nI now start from the piece I am writing, and only sort the notes it actually needs.\n\nA good system makes writing feel natural, not like another chore.\n\n| Stage | Practice |\n| --- | --- |\n| Writing | Start from a question |\n| Publishing | Check the text and its references |\n\n## Bring the links to the reader\n\nNotes mentioned in the piece can ship with it, without joining the blog list.';
   local.cardSources.set(enArticle, `# Start with connections\n\n${englishBody}`);
   local.remote(serializeMdx({ frontmatter: { slot: 'article', title: 'Start with connections', description: '', date: '2024-02-01', tags: ['Mission'], draft: false, listed: false, language: 'en', translationOf: `heptabase://card/${CARD}`, heptabaseType: 'article', heptabaseCardLink: `heptabase://card/${enArticle}` }, bodyZh: englishBody }), 'src/content/articles/example/en.mdx');
   const projectCard = 'c31ada66-3333-4759-8b1f-830c8374fcae', enProject = 'c41ada66-4444-4759-8b1f-830c8374fcae';

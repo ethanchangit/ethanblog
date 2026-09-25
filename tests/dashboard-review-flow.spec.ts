@@ -52,7 +52,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   await expect(page.locator('#release')).toContainText('还有 6 条待审');
   const pressed = () => page.locator('#review-list .review-item[data-selected=true] > .card-select');
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
-  await expect(pressed()).toHaveText('Start with connections'); await idle();
+  await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
   await expect(page.locator('iframe.article-preview')).toBeVisible();
   const edges = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
@@ -81,11 +81,11 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
     if (path.endsWith('/git') || path.endsWith('/docs')) reviewRequests.git += 1;
   });
   const detail = page.locator('#review-preview .detail-actions');
-  await page.getByRole('button', { name: '通过「Start with connections」', exact: true }).click();
+  await page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
-  await expect(page.getByRole('button', { name: '通过「Start with connections」', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: '拒绝「Start with connections」', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '拒绝「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.review-meta code').first()).toHaveText(/^\/[^/].*/);
   await expect(page.locator('.review-meta')).not.toContainText('ethanchang.io');
   await expect(page.locator('.review-meta')).not.toContainText('/articles/');

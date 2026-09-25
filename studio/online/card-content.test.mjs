@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { englishFromBilingual, fromHeptabase, references } from './card-content.mjs';
+import { fromHeptabase, references } from './card-content.mjs';
 
 const heptabase = '158824e6-cf72-4754-9a76-152c03dde273';
 const targets = new Map([
@@ -22,10 +22,9 @@ test('a mention with no readable card is not published as its label', () => {
   assert.throws(() => fromHeptabase('# 标题\n\n<hepta-mention type="card">Heptabase</hepta-mention>', targets), /纯文字/);
 });
 
-test('bilingual bullets keep the English line and drop the indented Chinese gloss', () => {
+test('bilingual bullets keep the English line and the indented Chinese gloss', () => {
   const source = `# Practice\n\n- Notes are a tool for thinking.\n  笔记是思考的工具。\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |`;
-  assert.equal(englishFromBilingual(source), `# Practice\n\n- Notes are a tool for thinking.\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |`);
-  assert.equal(fromHeptabase(source, new Map()).body, '- Notes are a tool for thinking.\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |');
+  assert.equal(fromHeptabase(source, new Map()).body, '- Notes are a tool for thinking.\n  笔记是思考的工具。\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |');
 });
 
 test('a mention inside code stays literal', () => {
