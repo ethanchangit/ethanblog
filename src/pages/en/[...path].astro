@@ -1,5 +1,5 @@
 ---
-// English translations (#blogi18n), built under /en and served on ethanchang.io at the
+// English translations (#i18n, same slug), built under /en and served on ethanchang.io at the
 // same path as their Chinese source. Missing translations are not generated, so the
 // English host sends the reader to that path on the Chinese site.
 import ArticleView from '@/components/shell/ArticleView.astro';
@@ -56,7 +56,7 @@ export async function getStaticPaths() {
     paths.push({ params: { path }, props: { kind: 'doc', entry: project } });
   }
   if (projects.length) paths.push({ params: { path: 'projects' }, props: { kind: 'projects' } });
-  // /tags is a site index, not a #blogi18n card. The English host rewrites /tags here.
+  // /tags is a site index, not an #i18n card. The English host rewrites /tags here.
   paths.push({ params: { path: 'tags' }, props: { kind: 'tags' } });
   for (const tag of uniqueTags(await publishedArticles())) {
     paths.push({ params: { path: `tags/${tag}` }, props: { kind: 'tag', tag } });

@@ -9,9 +9,10 @@ export async function blogSchema(client, tagId) {
     return matches[0];
   };
   // Newer columns are looked up by name in the live schema. A database without them keeps working; only writing a remark needs one.
-  const optional = (names, type) => {
-    const matches = fields.filter((f) => names.includes(f.name.trim().toLowerCase()) && f.type === type);
-    if (matches.length > 1) throw fail(`blog 表格有多个 ${names[0]} 字段（${type}）。`);
+  const optional = (names, types) => {
+    const accepted = Array.isArray(types) ? types : [types];
+    const matches = fields.filter((f) => names.includes(f.name.trim().toLowerCase()) && accepted.includes(f.type));
+    if (matches.length > 1) throw fail(`blog 表格有多个 ${names[0]} 字段。`);
     return matches[0] || null;
   };
   const schema = {
@@ -22,10 +23,9 @@ export async function blogSchema(client, tagId) {
     type: field(['blog type'], 'select'),
     summary: field(['summary'], 'text'),
     remark: optional(['remark'], 'text'),
-    // Ethan renamed URL to slug in Heptabase; the column id is unchanged.
-    url: optional(['slug', 'url'], 'text'),
-    // #blog is the Chinese source. This relation points at its translation cards in #blogi18n.
-    i18n: optional(['blog i18n', 'blogi18n'], 'relation'),
+    // Ethan renamed URL to slug. The live column is a select; older copies were text. The id is read from the database.
+    url: optional(['slug', 'url'], ['text', 'select']),
+    language: optional(['language'], 'select'),
   };
   for (const name of ['new', 'writing', 'blocked', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
   for (const name of ['article', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
@@ -71,29 +71,22 @@ export function propertiesFromRead(content, schema) {
   return { member, status, date, tags: [...new Set(tags)].sort(), type, summary,
     remark: typeof remarkValue === 'string' ? remarkValue : '',
     url: routeSlug(urlValue),
-    translations: relationIds(schema.i18n ? values[schema.i18n.name] : null) };
+    language: sourceLanguage(schema.language ? values[schema.language.name] : null) };
 }
 
-function relationIds(value) {
-  if (value == null) return [];
-  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) throw fail('blog i18n 应是指向译文卡片的关联。', 502);
-  const ids = value.map((v) => /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(v)?.[1]?.toLowerCase());
-  if (ids.some((id) => !id)) throw fail('blog i18n 关联的卡片无法识别。', 502);
-  return [...new Set(ids)].sort();
-}
-
-/** Schema of the #blogi18n database that the #blog relation points at. */
+/** Schema of the #i18n database. Property ids come from that live database. */
 export async function i18nSchema(client, tagId) {
   const db = await client.call('read_database', { tagId });
   const fields = Object.entries(db.configuration?.schema || {}).map(([id, field]) => ({ id, ...field }));
   const find = (name, type) => fields.filter((f) => f.name.trim().toLowerCase() === name && f.type === type);
-  const language = find('language', 'select'), url = [...find('slug', 'text'), ...find('url', 'text')];
-  if (language.length !== 1) throw fail('blog i18n 表格需要一个 Language 字段（select）。');
-  if (url.length > 1) throw fail('blog i18n 表格有多个 URL 字段。');
-  return { tagId, language: language[0], url: url[0] || null };
+  const language = find('language', 'select');
+  const url = fields.filter((f) => ['slug', 'url'].includes(f.name.trim().toLowerCase()) && (f.type === 'text' || f.type === 'select'));
+  if (language.length !== 1) throw fail('#i18n 表格需要一个 Language 字段（select）。');
+  if (url.length > 1) throw fail('#i18n 表格有多个 slug 字段。');
+  return { tagId, language: language[0], url: url[0] || null, databaseId: db.id || null };
 }
 
-/** Properties of a translation card, read from its #blogi18n row. */
+/** Properties of a translation card, read from its #i18n row. */
 export function translationFromRead(content, schema) {
   const values = {}; let matching = false, member = false;
   for (const line of content.split('\n')) {
@@ -107,7 +100,16 @@ export function translationFromRead(content, schema) {
   }
   const urlValue = schema.url ? values[schema.url.name] : null;
   if (urlValue != null && typeof urlValue !== 'string') throw fail('译文的 URL 应是一段文字。');
-  return { i18n: true, member, language: translationLanguage(values[schema.language.name]), url: routeSlug(urlValue) };
+  return { i18n: true, member, language: versionLanguage(values[schema.language.name]), url: routeSlug(urlValue) };
+}
+
+/**
+ * Same slug is the same page. A #i18n card is the English (or other) version only when
+ * its language is not Chinese. The relation property is not consulted.
+ */
+export function sharesSlug(blog, translated) {
+  if (!blog?.url || !translated?.member || !translated.url || !translated.language || translated.language === 'zh') return false;
+  return translated.url === blog.url;
 }
 
 export async function readTranslation(client, cardId, schema) {
@@ -115,16 +117,34 @@ export async function readTranslation(client, cardId, schema) {
 }
 
 const LANGUAGE_CODES = { english: 'en', japanese: 'ja', '日本語': 'ja', french: 'fr', 'français': 'fr', german: 'de', deutsch: 'de', spanish: 'es', 'español': 'es', korean: 'ko', '한국어': 'ko', italian: 'it', portuguese: 'pt', russian: 'ru' };
+
+function languageCode(value) {
+  const text = String(value).trim().toLowerCase();
+  if (/chinese|中文|^zh$|^cn$/.test(text)) return 'zh';
+  const code = LANGUAGE_CODES[text] || text;
+  if (!/^[a-z]{2,3}$/.test(code)) throw fail(`无法识别语言「${value}」。请用 en、ja、fr 或 cn 这样的语言。`);
+  return code;
+}
+
+/** Language of a #blog card. Empty means the Chinese source. */
+export function sourceLanguage(value) {
+  if (value == null || value === '') return 'zh';
+  return languageCode(value);
+}
+
+/** Language of a #i18n card. Empty is unknown and does not pair. Chinese is `zh`, not an English page. */
+export function versionLanguage(value) {
+  if (value == null || value === '') return null;
+  return languageCode(value);
+}
+
 /**
- * Language code of a translation. It becomes the site that serves it: en is ethanchang.io,
- * other codes build under /<code>/. Chinese is the #blog source itself, never a translation.
+ * Language code of a non-Chinese translation. Chinese stays on the #blog card.
  */
 export function translationLanguage(value) {
   if (value == null || value === '') throw fail('译文卡片需要填写 Language。');
-  const text = String(value).trim().toLowerCase();
-  if (/chinese|中文|^zh|^cn$/.test(text)) throw fail('中文写在 #blog 原卡片里；#blogi18n 只放其他语言的译文。');
-  const code = LANGUAGE_CODES[text] || text;
-  if (!/^[a-z]{2,3}$/.test(code)) throw fail(`无法识别译文语言「${value}」。请用 en、ja、fr 这样的语言代码。`);
+  const code = languageCode(value);
+  if (code === 'zh') throw fail('中文写在 #blog 原卡片里；#i18n 的中文卡片不是英文页。');
   return code;
 }
 

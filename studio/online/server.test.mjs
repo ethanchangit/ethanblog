@@ -709,7 +709,7 @@ test('a second large pull still lists every card, skips unchanged bodies, and ba
 const pullRow = (f, id, edited, source, properties) => f.DB.sqlite.prepare(
   'INSERT INTO studio_card_pulls (card_id, edited_at, properties, source, card_created, pulled_at) VALUES (?, ?, ?, ?, ?, ?)',
 ).run(id, edited, JSON.stringify(properties), source, '2026-09-21T00:00:00Z', '2026-09-23T00:00:00.000Z');
-const cachedProperties = { member: true, status: 'review', date: null, tags: [], type: 'article', summary: '', remark: '', url: null, translations: [] };
+const cachedProperties = { member: true, status: 'review', date: null, tags: [], type: 'article', summary: '', remark: '', url: null, language: 'zh' };
 
 test('unchanged editedTime does not fetch properties or content', async () => {
   const f = await setup();

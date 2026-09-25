@@ -33,6 +33,23 @@ test('approve and reject are recorded locally and do not need a server', () => {
   assert.equal(batch.pageChoice, undefined);
 });
 
+test('one slug stays one item until both languages are decided', () => {
+  const card = item();
+  card.plan.changes.push({ id: 'en', translation: true, language: 'en', title: 'Start with connections' });
+  assert.equal(applyLocalDecision(card, 'approve', { lang: 'zh' }).next, '');
+  assert.equal(card.decision, '');
+  assert.equal(decisionBatch([card]).decisions.length, 0);
+  applyLocalDecision(card, 'approve', { lang: 'en' });
+  assert.equal(card.decision, 'approve');
+  const batch = decisionBatch([card]);
+  assert.equal(batch.decisions.length, 1);
+  assert.deepEqual(batch.decisions[0].languages, { zh: 'approve', en: 'approve' });
+  const missing = item();
+  applyLocalDecision(missing, 'approve', { lang: 'zh' });
+  assert.equal(missing.decision, 'approve');
+  assert.equal(decisionBatch([missing]).decisions[0].languages.en, 'missing');
+});
+
 test('a second click with the same verdict does not grow the batch, and a change clears flushed', () => {
   const card = item({ decision: 'approve', flushed: true });
   assert.equal(applyLocalDecision(card, 'approve'), null);

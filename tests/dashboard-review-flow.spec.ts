@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 
 let process: ChildProcess, url: string;
-test.beforeAll(async () => {
+test.beforeEach(async () => {
   process = spawn(globalThis.process.execPath, ['studio/online/preview.mjs'], {
     env: { ...globalThis.process.env, STUDIO_PREVIEW_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -16,7 +16,7 @@ test.beforeAll(async () => {
     });
   });
 });
-test.afterAll(() => { process?.kill('SIGTERM'); });
+test.afterEach(() => { process?.kill('SIGTERM'); });
 
 async function openLocal(page: Page) {
   await page.goto(url);
@@ -32,7 +32,8 @@ test('本地预览打开后就是审核界面，不用先拉取', async ({ page 
   await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Deleted articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Pages/ })).toBeVisible();
-  await expect(page.locator('#release [data-release-notice]')).not.toContainText('请先拉取');
+  await expect(page.locator('#release')).toContainText('还有 6 条待审');
+  await expect(page.locator('#release')).not.toContainText('请先拉取');
 });
 
 test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
@@ -59,6 +60,11 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
   await expect(page.locator('iframe.article-preview')).toBeVisible();
+  await expect(page.locator('iframe.translation-preview')).toBeVisible();
+  await expect(page.frameLocator('iframe.translation-preview').locator('body')).toContainText('Knowledge work is linking ideas');
+  await expect(page.frameLocator('iframe.translation-preview').locator('body')).not.toContainText('知识管理并不是把更多资料放进一个地方');
+  await expect(page.locator('#review-list')).toContainText('英文 · Start with connections');
+  await expect(page.locator('#review-list')).toContainText('缺少英文译文');
   const edges = await page.evaluate(() => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
     const frame = box('iframe.article-preview');
@@ -88,6 +94,9 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const detail = page.locator('#review-preview .detail-actions');
   await page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
+  await expect(page.locator('#release')).toContainText('还有 6 条待审');
+  await page.getByRole('button', { name: '通过英文「Start with connections」', exact: true }).click();
   await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
   await expect(page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '拒绝「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'false');
@@ -118,6 +127,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
 test('审核列表只有标题，Shift 连选停在当前可见条目', async ({ page }) => {
   await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await page.getByRole('tab', { name: /New articles/ }).click();
   const fresh = page.locator('#review-items');
   await expect(fresh.locator('.item-meta')).toHaveCount(0);

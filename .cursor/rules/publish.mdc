@@ -19,6 +19,6 @@ alwaysApply: false
    - 文章 → `src/content/articles/<slug>.mdx`（`slot: article`）
    - 系列子文 → `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`；子文默认不进 `/articles`）
    - 项目 → `src/content/projects/<slug>.mdx`（`slot: project`）
-6. **正文**：写中文（`#blog` 原文）；英文等译文是 `#blogi18n` 里的独立卡片，由后台发布，不写进同一个文件。要有标题、摘要、正文和 `slot`。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。新建或更新必须关联真实 `heptabaseCardLink`。写作在 Heptabase；`/studio` 不是写作应用。
+6. **正文**：写中文（`#blog` 原文）；英文等译文是 `#i18n` 里同一 slug 的卡片，由后台发布，不写进同一个文件。要有标题、摘要、正文和 `slot`。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。新建或更新必须关联真实 `heptabaseCardLink`。写作在 Heptabase；`/studio` 不是写作应用。
 7. **验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
 8. **汇报**：slug、draft 状态、预览路径。

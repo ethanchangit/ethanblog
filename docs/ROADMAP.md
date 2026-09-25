@@ -3,7 +3,7 @@
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
 > 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
-> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。正文写中文（`#blog`），译文来自 `#blogi18n`：中文站 cn.ethanchang.io，英文站 ethanchang.io。没有 `CLAUDE.md`。
+> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。正文写中文（`#blog`），译文来自 `#i18n`（同一 slug）：中文站 cn.ethanchang.io，英文站 ethanchang.io。没有 `CLAUDE.md`。
 
 ## 一、愿景与核心理念
 
@@ -31,7 +31,7 @@
 | 内容 | MDX 同一形态；`slot`（article / project）决定索引 | 散文为主，交互组件按需嵌入 |
 | 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
 | 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | pull request 只验证；push 到 `main` 在验证通过后自动部署 |
-| 语言 | 中文原文 + `#blogi18n` 译文，按域名分站（cn / 英文主域名） | 一次构建两个站，Worker 按域名选；不引入 i18n 框架 |
+| 语言 | 中文原文 + `#i18n` 译文（同一 slug），按域名分站（cn / 英文主域名） | 一次构建两个站，Worker 按域名选；不引入 i18n 框架 |
 | 主题 | 浅色 / 深色双主题 | 跟随系统，可手动切换 |
 
 ## 三、站点架构

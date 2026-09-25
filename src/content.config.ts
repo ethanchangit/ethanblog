@@ -26,7 +26,7 @@ const docSchema = z
     heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
     // Heptabase URL: the article is /<url> on cn.ethanchang.io, and its translations use the same path on their site.
-    // A translation (from #blogi18n) records its language and the #blog card it translates.
+    // A translation (from #i18n, paired by slug) records its language and the #blog card it translates.
     language: z.string().regex(/^[a-z]{2,3}$/).optional(),
     translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
@@ -80,7 +80,7 @@ const pages = defineCollection({
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
-    // A #blogi18n page sits beside its source: pages/<id>/<language>.mdx.
+    // An #i18n page sits beside its source: pages/<id>/<language>.mdx.
     language: z.string().regex(/^[a-z]{2,3}$/).optional(),
     translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
   }),

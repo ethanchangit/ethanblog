@@ -7,21 +7,21 @@ export function seedSampleReview(local) {
   const child = '9732c208-c3b1-4a7b-a922-0c3483475d6b';
   const fresh = '122560bd-b99f-4fb9-9fa5-742090feacb1', rejected = '34adea15-b8fa-49a2-9e90-922a661d7790';
   const enArticle = 'e11ada66-1111-4759-8b1f-830c8374fcae';
-  local.properties.set(CARD, { Status: 'review', 'Publish Date': { start: '2024-02-01T00:00:00Z' }, Tag: ['Mission'], 'blog i18n': [`card/${enArticle}`] });
+  local.properties.set(CARD, { Status: 'review', 'Publish Date': { start: '2024-02-01T00:00:00Z' }, Tag: ['Mission'], slug: 'example', Language: 'cn', 'blog i18n': ['card/aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'] });
   local.properties.set(fresh, { Status: 'review', Tag: ['AI Native'] });
   local.properties.set(rejected, { Status: 'review', Tag: [] });
   const first = '知识管理并不是把更多资料放进一个地方，而是让已有的想法发生连接。';
   const last = '好的系统应该让写作更自然，而不是让整理本身成为负担。';
   const table = '| 阶段 | 做法 |\n| --- | --- |\n| 写作 | 从一个问题开始 |\n| 发布 | 检查正文与引用 |';
   local.remote(article.replace('title: 测试文章', 'title: 知识管理，先从连接开始').replace('draft: true', 'draft: false').replace('中文正文。', `${first}\n\n过去，我会每周整理一次所有笔记，再为它们添加分类。\n\n${table}\n\n${last}`));
-  local.i18n.set(enArticle, { Language: 'en' });
+  local.i18n.set(enArticle, { Language: 'en', slug: 'example' });
   local.cardSources.set(enArticle, '# Start with connections\n\nKnowledge work is linking ideas you already have.\n\nA good system makes writing feel natural.');
   local.remote(serializeMdx({ frontmatter: { slot: 'article', title: 'Start with connections', description: '', date: '2024-02-01', tags: ['Mission'], draft: false, listed: false, language: 'en', translationOf: `heptabase://card/${CARD}`, heptabaseType: 'article', heptabaseCardLink: `heptabase://card/${enArticle}` }, bodyZh: 'Knowledge work is linking ideas you already have.\n\nA good system makes writing feel natural.' }), 'src/content/articles/example/en.mdx');
   const projectCard = 'c31ada66-3333-4759-8b1f-830c8374fcae', enProject = 'c41ada66-4444-4759-8b1f-830c8374fcae';
-  local.properties.set(projectCard, { Status: 'published', 'Blog Type': 'Project', 'Publish Date': { start: '2024-05-01T00:00:00.000Z' }, 'blog i18n': [`card/${enProject}`] });
+  local.properties.set(projectCard, { Status: 'published', 'Blog Type': 'Project', slug: 'trace', 'Publish Date': { start: '2024-05-01T00:00:00.000Z' }, 'blog i18n': ['card/aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'] });
   local.cardSources.set(projectCard, '# 痕迹\n\n一个还在继续的项目。');
   local.remote(serializeMdx({ frontmatter: { slot: 'project', title: '痕迹', description: '一个还在继续的项目。', date: '2024-05-01', heptabaseType: 'project', heptabaseCardLink: `heptabase://card/${projectCard}` }, bodyZh: '一个还在继续的项目。' }), 'src/content/projects/sample-trace.mdx');
-  local.i18n.set(enProject, { Language: 'en' });
+  local.i18n.set(enProject, { Language: 'en', slug: 'trace' });
   local.cardSources.set(enProject, '# Trace\n\nA project you can read in English.');
   local.remote(serializeMdx({ frontmatter: { slot: 'project', title: 'Trace', description: 'A project you can read in English.', date: '2024-05-01', tags: [], draft: false, listed: false, language: 'en', translationOf: `heptabase://card/${projectCard}`, heptabaseType: 'project', heptabaseCardLink: `heptabase://card/${enProject}` }, bodyZh: 'A project you can read in English.\n\nThe notes stay with the work.' }), 'src/content/projects/sample-trace/en.mdx');
   local.setSource(`# 知识管理，先从连接开始\n\n${first}\n\n现在，我会从正在写的文章出发，只整理当下真正用得上的笔记。\n\n${last}\n\n${table}\n\n## 把连接带给读者\n\n文章提到的资料可以跟随正文发布，但不需要进入博客列表。`);
@@ -67,8 +67,8 @@ export function seedSampleReview(local) {
       local.remote(`---\nslot: page\ntitle: ${title}\ndescription: ${title}\ndate: 2024-04-02\nheptabaseCardLink: heptabase://card/${id}\n---\n\n${title}页。\n`, `src/content/pages/${slug}.mdx`);
     }
     const notesId = 'f11ada66-1111-4759-9b1f-830c8374fcae', enNotes = 'e21ada66-2222-4759-8b1f-830c8374fcae';
-    local.properties.get(notesId)['blog i18n'] = [`card/${enNotes}`];
-    local.i18n.set(enNotes, { Language: 'en' });
+    local.properties.get(notesId).slug = 'notes';
+    local.i18n.set(enNotes, { Language: 'en', slug: 'notes' });
     local.cardSources.set(enNotes, '# Notes\n\nA page of notes in English.');
     local.remote(serializeMdx({ frontmatter: { slot: 'page', title: 'Notes', description: 'A page of notes in English.', date: '2024-04-02', language: 'en', translationOf: `heptabase://card/${notesId}`, heptabaseType: 'page', heptabaseCardLink: `heptabase://card/${enNotes}` }, bodyZh: 'A page of notes in English.\n\nThe same path as the Chinese page.' }), 'src/content/pages/notes/en.mdx');
   }

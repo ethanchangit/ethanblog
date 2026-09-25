@@ -18,7 +18,7 @@
 
 - **禁止**新建或修改组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
 - 新页面默认 `draft: true`
-- 正文写中文（`#blog` 原文）。译文不写进同一个文件，而是 `#blogi18n` 里的独立卡片，由后台发布（见下文「两种语言」）。定稿要有标题、摘要、正文和 `slot`（`article` / `project`）。不要写 `titleEn` / `descriptionEn`，不要插入 `<div data-lang-split>`。技术名词、代码和引用保留原文。
+- 正文写中文（`#blog` 原文）。译文不写进同一个文件，而是 `#i18n` 里同一 slug 的卡片，由后台发布（见下文「两种语言」）。定稿要有标题、摘要、正文和 `slot`（`article` / `project`）。不要写 `titleEn` / `descriptionEn`，不要插入 `<div data-lang-split>`。技术名词、代码和引用保留原文。
 - 新建或更新须关联真实 `heptabaseCardLink`（`heptabase://card/<uuid>`）。不能编造。历史页可以暂时没有链接继续展示，更新前要补上。
 - 系列子文放 `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`）；子文默认不进 `/articles`
 - 操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
@@ -60,16 +60,16 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 ### 两种语言
 
 - **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组，也不按标题猜测。英文站用同一套标签，文章仍只列出已有译文的。
-- **英文博客 ethanchang.io** 是译文。译文是 `#blogi18n`（Heptabase 标签名 `blog i18n`）里的独立卡片，由 `#blog` 卡片上的关联字段 `blog i18n` 指向。配对只看这个关联，不按标题或别的字段猜。译文的 `Language` 决定语言（`en` 等）；中文只写在 `#blog`，不做译文。
-- 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：文章 `src/content/articles/<id>/<language>.mdx`，项目 `src/content/projects/<id>/<language>.mdx`，站点页 `src/content/pages/<id>/<language>.mdx`。frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
-- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`，英文站同一路径。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- **英文博客 ethanchang.io** 是译文。译文在标签数据库 `#i18n` 里。同一 `slug` 是同一页；`Language` 标明这张卡片是哪一个语言版本。英文标题和正文来自 `#i18n` 里 slug 相同且 Language 为 `en` 的卡片。中文标题和正文来自 `#blog` 卡片。没有这张英文卡片时，英文页就是缺少，不用中文正文填上。
+- `#blog` 和 `#i18n` 一起拉取。审核清单里一个 slug 是一条，中文和英文都看得见。两种语言都要单独通过或拒绝，通过一种不会跳过另一种；缺英文不需要审，也不显示中文正文。状态、日期、标签，以及译文自己的标题和正文以外的字段，都跟 `#blog` 卡片。文件在原文旁边：文章 `src/content/articles/<id>/<language>.mdx`，项目 `src/content/projects/<id>/<language>.mdx`，站点页 `src/content/pages/<id>/<language>.mdx`。frontmatter 有 `translationOf`（原文卡片链接）和 `language`。中文站的列表、标签、搜索、RSS 不收译文。
+- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。没写 slug 的文章、项目和站点页也在 `/<id>`，这时无法和 `#i18n` 配对。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。文章的 slug 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出两个站：中文页面在 `dist/` 根目录，英文页面在 `dist/en/`。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）按域名分：ethanchang.io 的请求读 `/en` 下的页面，没有英文版的路径跳到 cn 同一路径；cn.ethanchang.io 读根目录。`/en` 前缀不对外出现。语言切换链接是 `/_lang/<zh|en><路径>`，由 Worker 换到另一个域名。页面语言跟着路由走：英文页（`/en`）的界面、日期、列表都是英文，其余是中文。
 - 本机：`http://localhost:4321` 是中文站，`http://en.localhost:4321` 是英文站（dev 和 `npm run preview` 都支持）。
 - 后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 
 ### `#blog`
 
-拉取读 Heptabase 里准确名为 `blog` 的标签数据库，以及 `blog i18n` 关联指向的译文库 `#blogi18n`。字段按名字从线上表结构读取（`slug`、`Remark`、`blog i18n`；译文库的 `slug`、`Language`），不写死 id。引用资料不再使用单独的 `#blog-reference` 标签。
+拉取读 Heptabase 里准确名为 `blog` 和 `i18n` 的标签数据库。字段按名字从线上表结构读取（两边的 `slug`、`Language`，以及 `#blog` 的 `Remark`），不写死 id。同一 slug 配成一页，不按关联字段配对。引用资料不再使用单独的 `#blog-reference` 标签。
 
 - 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`blocked`、`review`、`published`，各一个（大小写不敏感；旧名 `block` 不再认）。`published` 表示已通过审核，不表示网站已上线。
 - `Blog Type` 的选项以数据库里的为准，当前是 `Article`、`Project`、`Page` 和 `Reference`。只有 `Article` 进公开文章列表。`Reference` 仍有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
@@ -83,7 +83,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
 1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
-2. 拉取完成后，审核都在本机进行，不再逐次访问 Heptabase 或 GitHub。主卡片上点通过是一次点击，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开，并记入本机决定。拒绝会先打开备注对话框，通过不会。可以勾选多篇后批量通过或批量拒绝；批量拒绝共用一次备注。删除和暂不删除仍是一次点击，不写 Remark。决定之后两个按钮都还在，当前选择保持高亮，可以改判。站点页的勾选、从导航隐藏和拖动顺序也只改本机清单。这些点击不锁住整页。Publish Date 或创建时间已有则原样保留；两样都空时才在发布时补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。Heptabase 的 Status 要等这次发布提交时才回写：通过写成 `published`，拒绝写成 `blocked`，不改日期，也不改线上旧文。对话框里的备注留在本机决定里，等这次发布上线（deploy 回执，`completeWriteback`）再写回卡片的 `Remark`。留空会在那时清空 Remark。译文跟着主卡片一起通过或拒绝。底部「直接发布」把本机决定一次提交，并发布这次拉取里尚未拒绝的更新和尚未跳过的删除，不再弹出确认框。发布失败不表示网站已经改变。
+2. 拉取完成后，审核都在本机进行，不再逐次访问 Heptabase 或 GitHub。一个 slug 在清单里是一条，中文和英文都列出来。点一种语言的通过是一次点击，没有确认弹窗；点中文通过即确认中文正文、全部引用可以公开。英文通过只确认那张 `#i18n` 卡片。拒绝中文会先打开备注对话框，通过不会。两种都决定之后这条才算审完；只通过一种不会跳过另一种，也不会自动通过另一种。缺英文标成缺少，不拿中文正文充数。可以勾选多篇后批量通过或批量拒绝；批量拒绝共用一次备注。删除和暂不删除仍是一次点击，不写 Remark。决定之后按钮都还在，当前选择保持高亮，可以改判。站点页的勾选、从导航隐藏和拖动顺序也只改本机清单。这些点击不锁住整页。Publish Date 或创建时间已有则原样保留；两样都空时才在发布时补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。Heptabase 的 Status 要等这次发布提交时才回写：中文通过写成 `published`，中文拒绝写成 `blocked`，不改日期，也不改线上旧文。对话框里的备注留在本机决定里，等这次发布上线（deploy 回执，`completeWriteback`）再写回卡片的 `Remark`。留空会在那时清空 Remark。底部「直接发布」把本机决定一次提交，并发布这次拉取里尚未拒绝的语言和尚未跳过的删除，不再弹出确认框。发布失败不表示网站已经改变。
 3. 「提交通过的更新到 GitHub」把尚未送出的本机决定一次提交，只包含已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
 5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。

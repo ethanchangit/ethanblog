@@ -72,7 +72,7 @@ export async function fixture(assets = {}) {
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
   let pr = null, checksPass = true, deployConclusion = 'success', liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
   const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
-  // Translation cards in #blogi18n: id -> { Language, URL }.
+  // Translation cards in #i18n: id -> { Language, slug }. Pairing uses slug plus language, not a relation.
   const i18n = new Map();
   const baselines = new Map();
   // Heptabase bumps a card's edited time when its body or properties change.
@@ -123,7 +123,7 @@ export async function fixture(assets = {}) {
         else {
           const { name, arguments: args } = body.params;
           let content;
-          if (name === 'list_tags') content = { content: `<tags total="2"><tag id="blog-id" name="blog" cardCount="${properties.size}"><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /></tag><tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" /></tags>` };
+          if (name === 'list_tags') content = { content: `<tags total="2"><tag id="blog-id" name="blog" cardCount="${properties.size}"><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /></tag><tag id="i18n-id" name="i18n" cardCount="${i18n.size}" /></tags>` };
           else if (name === 'read_database' && args.tagId === 'i18n-id') content = { configuration: { schema: {
             url: { name: 'slug', type: 'text' },
             language: { name: 'Language', type: 'select', options: [{ id: 'en', name: 'en' }, { id: 'ja', name: 'ja' }] },
@@ -171,7 +171,7 @@ export async function fixture(assets = {}) {
             const lines = (args.objectId === CARD ? source : cardSources.get(args.objectId)).split('\n');
             const values = properties.get(args.objectId), translated = i18n.get(args.objectId);
             const shown = values ? { 'Blog Type': 'Article', ...values } : translated || null;
-            const metadata = shown ? `--- Databases ---\n- tag ${values ? '"blog" [blog-id]' : '"blog i18n" [i18n-id]'}\n` + Object.entries(shown).filter(([, v]) => v != null).map(([k, v]) => `  - ${JSON.stringify(k)}: ${JSON.stringify(v)}\n`).join('') : '';
+            const metadata = shown ? `--- Databases ---\n- tag ${values ? '"blog" [blog-id]' : '"i18n" [i18n-id]'}\n` + Object.entries(shown).filter(([, v]) => v != null).map(([k, v]) => `  - ${JSON.stringify(k)}: ${JSON.stringify(v)}\n`).join('') : '';
             content = { content: `card "测试文章" [${args.objectId}] ${lines.length} lines\n` + metadata + lines.slice(args.offset, args.offset + args.limit).map((l, i) => `${args.offset + i + 1}\t${l}`).join('\n'), totalLines: lines.length, hasMore: args.offset + args.limit < lines.length };
           } else if (name === 'edit_object_content') {
             const old = args.objectId === CARD ? source : cardSources.get(args.objectId);

@@ -56,7 +56,7 @@ export function pageIdFromPath(filePath) {
   return match[1];
 }
 
-/** A #blogi18n page sits beside its source: pages/<id>/<language>.mdx. It is not another site page. */
+/** An #i18n page sits beside its source: pages/<id>/<language>.mdx. It is not another site page. */
 export function pageTranslationId(filePath) {
   const match = /^src\/content\/pages\/([a-z0-9]+(?:-[a-z0-9]+)*)\/([a-z]{2,3})\.mdx$/.exec(filePath || '');
   if (!match || match[1] === 'blogs') return null;
@@ -91,7 +91,7 @@ export const CANONICAL_KEYS = [
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
-// A translation from #blogi18n is stored next to its source as <id>/<language>.
+// A translation from #i18n is stored next to its source as <id>/<language>.
 const ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/[a-z]{2,3})?$/;
 const DOCREF_RE = /<DocRef\s+of=["']([^"']+)["']\s*\/>/g;
 const OF_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/\d+)*(?:\/[a-z]{2,3})?$/;

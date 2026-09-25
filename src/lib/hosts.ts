@@ -1,7 +1,7 @@
 /**
  * Two sites from one build:
  * - cn.ethanchang.io serves the Chinese blog (#blog cards) from the root of dist/.
- * - ethanchang.io serves the English blog (#blogi18n translations) from dist/en/.
+ * - ethanchang.io serves the English blog (#i18n cards with the same slug) from dist/en/.
  * Links inside each site are plain paths; a request on the English host for /toolset is
  * served from /en/toolset. Pages that have no English version send the reader to the
  * same path on the Chinese site. Language switches link to /_lang/<zh|en><path>, which

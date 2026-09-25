@@ -312,6 +312,12 @@ code { font-family: var(--font-mono); font-size: .9em; }
 .review-item[data-selected=true] { background: var(--dash-selected); }
 .review-item:is([data-decision=reject], [data-decision=skip]) > :not(.decisions, .batch-pick) { opacity: .65; }
 .review-item > .batch-pick { grid-column: 1; grid-row: 1 / span 2; align-self: center; margin: 0; accent-color: var(--dash-primary); }
+.review-item > .lang-lines { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.review-item:has(> .lang-lines) > .card-select { grid-row: 1; }
+.lang-line { display: flex; gap: 8px; align-items: center; min-width: 0; color: var(--color-ink-400); font-size: 12px; line-height: 1.5; }
+.lang-line > span { min-width: 0; overflow-wrap: anywhere; }
+.lang-line .decide { width: 22px; height: 22px; font-size: 12px; }
+.missing-translation { color: var(--color-ink-400); }
 .review-item > .card-select {
   grid-column: 2;
   grid-row: 1 / span 2;

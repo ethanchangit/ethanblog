@@ -8,7 +8,7 @@ export type DocSlot = 'article' | 'project';
 export type DocEntry = CollectionEntry<'articles'> | CollectionEntry<'projects'>;
 type EntryLike = Pick<DocEntry, 'id' | 'data'>;
 
-/** 译文（#blogi18n）存在原文旁边：articles/<id>/<language>.mdx。中文站不收录它们。 */
+/** 译文（#i18n，同一 slug）存在原文旁边：articles/<id>/<language>.mdx。中文站不收录它们。 */
 export function isTranslation(entry: EntryLike): boolean {
   return Boolean(entry.data.translationOf);
 }

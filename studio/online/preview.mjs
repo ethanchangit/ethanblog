@@ -30,7 +30,7 @@ const vite = await createViteServer({
     },
   ],
   resolve: { alias: { '@': path.join(repo, 'src') } },
-  server: { middlewareMode: true, hmr: false, fs: { allow: [repo] } },
+  server: { middlewareMode: true, hmr: false, allowedHosts: ['dashboard.test'], fs: { allow: [repo] } },
 });
 
 const local = await fixture(assets);
@@ -46,9 +46,36 @@ function handsToVite(url) {
   return pathname === '/dashboard' || pathname === '/dashboard/' || pathname.startsWith('/dashboard/');
 }
 
+const viteClientStub = `const sheets = new Map();
+export function createHotContext() {
+  return { accept() {}, dispose() {}, prune() {}, decline() {}, invalidate() {}, on() {}, off() {}, send() {} };
+}
+export function updateStyle(id, content) {
+  let style = sheets.get(id);
+  if (!style) {
+    style = document.createElement('style');
+    style.setAttribute('data-vite-dev-id', id);
+    document.head.append(style);
+    sheets.set(id, style);
+  }
+  style.textContent = content;
+}
+export function removeStyle(id) {
+  const style = sheets.get(id);
+  if (!style) return;
+  style.remove();
+  sheets.delete(id);
+}
+`;
+
 const server = createServer(async (req, res) => {
   try {
     const url = req.url || '/';
+    if (req.method === 'GET' && url.split('?')[0] === '/dashboard/@vite/client') {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(viteClientStub);
+      return;
+    }
     if (req.method === 'GET' && url.split('?')[0].startsWith('/sample-blog')) {
       const { sampleBlogResponse } = await import('./sample-blog.mjs');
       const host = req.headers.host || `localhost:${server.address().port}`;

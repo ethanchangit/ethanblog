@@ -19,8 +19,8 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation } from './card-properties.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists, tagByName } from './heptabase.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, sharesSlug, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, asReferenceSource, removalReason, removalReasons, removalScope, settleRemovals, linkedPaths, withoutIndexRefs } from './removals.mjs';
@@ -664,8 +664,7 @@ async function assertReviewed(env, state, rows) {
     const approved = await firstRow(env, 'SELECT * FROM studio_reviews WHERE path = ?1', row.path);
     if (!approved || approved.card_id !== id || approved.raw_hash !== await hash(row.raw)) throw fail('内容未通过隐私审查，或审查后已有变化，请重新拉取并确认。', 409);
     const translation = Boolean(parsed.frontmatter.translationOf);
-    if (translation && !i18n) i18n = schema.i18n ? await i18nSchema(client, schema.i18n.tagId) : null;
-    if (translation && !i18n) throw fail('blog 表格没有 blog i18n 关联字段，不能发布译文。', 409);
+    if (translation && !i18n) i18n = await i18nSchema(client, (await tagByName(client, 'i18n')).id);
     let source, properties;
     try { source = await readCard(client, id); properties = translation ? await readTranslation(client, id, i18n) : await readProperties(client, id, schema); }
     catch (error) {
@@ -673,7 +672,7 @@ async function assertReviewed(env, state, rows) {
       throw error;
     }
     const stamps = (await cardTimestamps(client, [id])).get(id);
-    if (!properties.member) throw fail(translation ? '译文卡片已移出 #blogi18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
+    if (!properties.member) throw fail(translation ? '译文卡片已移出 #i18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
     if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
     const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
     const expectedDay = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
@@ -703,7 +702,7 @@ function propertiesFromPublished(fm) {
   if (fm.translationOf) {
     const language = typeof fm.language === 'string' ? fm.language.trim().toLowerCase() : '';
     if (!/^[a-z]{2,3}$/.test(language)) return null;
-    return { i18n: true, member: true, language, url: fm.url || null };
+    return { i18n: true, member: true, language, url: typeof fm.url === 'string' ? fm.url : null };
   }
   const status = String(fm.heptabaseStatus || '').trim().toLowerCase();
   if (!['new', 'writing', 'blocked', 'published'].includes(status)) return null;
@@ -714,7 +713,7 @@ function propertiesFromPublished(fm) {
     tags: Array.isArray(fm.tags) ? fm.tags.filter((tag) => typeof tag === 'string') : [],
     type: typeValue ? String(typeValue).trim().toLowerCase() : null,
     summary: typeof fm.description === 'string' ? fm.description : '',
-    remark: '', url: typeof fm.url === 'string' ? fm.url : null, translations: [],
+    remark: '', url: typeof fm.url === 'string' ? fm.url : null, language: 'zh',
   };
 }
 
@@ -734,12 +733,22 @@ async function publishedCardMeta(env) {
   return meta;
 }
 
-function reviewTranslationIds(cards, pulls) {
-  const ids = new Set();
+function reviewSlugs(cards, pulls) {
+  const slugs = new Set();
   for (const card of cards) {
     const properties = pulls.get(card.id)?.properties;
-    if (properties?.status !== 'review') continue;
-    for (const id of properties.translations || []) ids.add(id);
+    if (properties?.status === 'review' && properties.url) slugs.add(properties.url);
+  }
+  return slugs;
+}
+
+/** #i18n cards whose slug matches a review #blog card and whose language is not Chinese. */
+function matchingTranslationIds(i18nCards, pulls, slugs) {
+  const ids = new Set();
+  for (const card of i18nCards) {
+    const properties = pulls.get(card.id)?.properties;
+    if (!slugs.has(properties?.url) || !sharesSlug({ url: properties.url }, properties)) continue;
+    ids.add(card.id);
   }
   return ids;
 }
@@ -767,47 +776,49 @@ async function startPullScan(env, client) {
     changed.push(pullTask(card, 'blog', false));
   }
   const blogCount = changed.length;
-  const needed = reviewTranslationIds(blog.cards, await readCardPulls(env));
+  const propertyReads = [];
   for (const card of i18n.cards) {
     if (card.type !== 'card') continue;
     const cached = pulls.get(card.id);
-    const linked = needed.has(card.id);
-    if (sameEdit(card, cached)) {
-      if (linked && !cached.has_source) changed.push(pullTask(card, 'i18n', true));
-      continue;
-    }
+    if (sameEdit(card, cached)) continue;
     const fm = published.get(card.id);
     const properties = fm && fm.updated === card.updated ? propertiesFromPublished(fm) : null;
-    if (properties?.i18n && !linked) {
+    if (properties?.i18n) {
       await saveCardProperties(env, card.id, card.updated, card.created, properties);
       continue;
     }
-    changed.push(pullTask(card, 'i18n', false));
+    propertyReads.push({ ...pullTask(card, 'i18n', false), propertiesOnly: true });
   }
   return {
     phase: 'fetch', tagId: blog.tagId, i18nTagId: i18n.tagId,
-    blogCards: blog.cards, i18nCards: i18n.cards, changed, blogCount, cursor: 0, linksChecked: false,
+    blogCards: blog.cards, i18nCards: i18n.cards, changed, propertyReads, bodies: [],
+    blogCount, cursor: 0, propsCursor: 0, bodyCursor: 0, linksChecked: false,
   };
 }
 
 async function appendLinkedTranslations(env, scan) {
   const pulls = await readCardPulls(env);
-  const needed = reviewTranslationIds(scan.blogCards, pulls);
-  const queued = new Set(scan.changed.map((item) => item.id));
+  const needed = matchingTranslationIds(scan.i18nCards, pulls, reviewSlugs(scan.blogCards, pulls));
+  const queued = new Set([...(scan.changed || []), ...(scan.bodies || [])].map((item) => item.id));
+  scan.bodies = scan.bodies || [];
   for (const card of scan.i18nCards) {
     if (card.type !== 'card' || queued.has(card.id) || !needed.has(card.id)) continue;
     const cached = pulls.get(card.id);
     if (sameEdit(card, cached) && cached.has_source) continue;
-    scan.changed.push(pullTask(card, 'i18n', sameEdit(card, cached)));
+    scan.bodies.push(pullTask(card, 'i18n', sameEdit(card, cached)));
   }
 }
 
 async function fetchChangedCard(env, client, schema, i18n, item) {
-  const cached = item.bodyOnly ? await readCardPull(env, item.id) : null;
-  const trusted = Boolean(item.bodyOnly && currentShape(cached?.properties));
+  const cached = item.bodyOnly || item.propertiesOnly ? await readCardPull(env, item.id) : null;
+  const trusted = Boolean((item.bodyOnly || item.propertiesOnly) && currentShape(cached?.properties));
   try {
     const properties = trusted ? cached.properties
       : item.kind === 'i18n' ? await readTranslation(client, item.id, i18n) : await readProperties(client, item.id, schema);
+    if (item.propertiesOnly) {
+      if (item.updated) await saveCardProperties(env, item.id, item.updated, item.created, properties);
+      return;
+    }
     const source = await readCard(client, item.id);
     if (item.updated) await saveCardContent(env, item.id, item.updated, item.created, properties, source);
   } catch (error) {
@@ -818,33 +829,45 @@ async function fetchChangedCard(env, client, schema, i18n, item) {
 async function heptabaseCards(env, identity) {
   const client = await mcpClient(env);
   let scan = await readPullScan(env, identity.sessionId);
-  // Step 1 is CardList + editedTime for #blog and #blogi18n. A resumed request
+  // Step 1 is CardList + editedTime for #blog and #i18n. A resumed request
   // only continues step 2, so an unchanged card never gets a properties or body read.
   if (scan?.phase !== 'fetch' || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
+  scan.propertyReads = scan.propertyReads || [];
+  scan.bodies = scan.bodies || [];
+  scan.propsCursor = scan.propsCursor || 0;
+  scan.bodyCursor = scan.bodyCursor || 0;
   const schema = await blogSchema(client, scan.tagId);
   let i18n = null, fetched = 0;
   while (fetched < CHANGED_BATCH) {
-    if (scan.cursor === scan.blogCount && !scan.linksChecked) {
+    let batch = [], advance = null;
+    const room = CHANGED_BATCH - fetched;
+    if (scan.cursor < scan.blogCount) {
+      const end = Math.min(scan.cursor + room, scan.blogCount);
+      batch = scan.changed.slice(scan.cursor, end);
+      advance = () => { scan.cursor = end; };
+    } else if (scan.propsCursor < scan.propertyReads.length) {
+      const end = Math.min(scan.propsCursor + room, scan.propertyReads.length);
+      batch = scan.propertyReads.slice(scan.propsCursor, end);
+      advance = () => { scan.propsCursor = end; };
+    } else if (!scan.linksChecked) {
       await appendLinkedTranslations(env, scan);
       scan.linksChecked = true;
-    }
-    if (scan.cursor >= scan.changed.length) break;
-    const room = CHANGED_BATCH - fetched;
-    const end = scan.cursor < scan.blogCount ? Math.min(scan.cursor + room, scan.blogCount) : Math.min(scan.cursor + room, scan.changed.length);
-    const batch = scan.changed.slice(scan.cursor, end);
+      continue;
+    } else if (scan.bodyCursor < scan.bodies.length) {
+      const end = Math.min(scan.bodyCursor + room, scan.bodies.length);
+      batch = scan.bodies.slice(scan.bodyCursor, end);
+      advance = () => { scan.bodyCursor = end; };
+    } else break;
     if (!batch.length) break;
     if (batch.some((item) => item.kind === 'i18n') && !i18n) i18n = await i18nSchema(client, scan.i18nTagId);
     await mapLimited(batch, IO_CONCURRENCY, (item) => fetchChangedCard(env, client, schema, i18n, item));
-    scan.cursor += batch.length;
+    advance();
     fetched += batch.length;
   }
-  if (scan.cursor === scan.blogCount && !scan.linksChecked) {
-    await appendLinkedTranslations(env, scan);
-    scan.linksChecked = true;
-  }
-  if (scan.cursor < scan.changed.length || !scan.linksChecked) {
+  const pullDone = scan.cursor >= scan.blogCount && scan.propsCursor >= scan.propertyReads.length && scan.linksChecked && scan.bodyCursor >= scan.bodies.length;
+  if (!pullDone) {
     await writePullScan(env, identity.sessionId, scan);
-    return { partial: true, phase: 'fetch', fetched: scan.cursor, changed: scan.changed.length };
+    return { partial: true, phase: 'fetch', fetched: scan.cursor + scan.propsCursor + scan.bodyCursor, changed: scan.blogCount + scan.propertyReads.length + scan.bodies.length };
   }
   await clearPullScan(env, identity.sessionId);
   const cards = scan.blogCards;
@@ -1160,8 +1183,8 @@ async function pullCard(env, client, schema, id, listed, read = readProperties) 
   return { source, properties, created, updated };
 }
 
-// Properties cached before the Remark / URL / blog i18n columns were read are read again.
-const currentShape = properties => Boolean(properties && (properties.i18n ? 'language' in properties : 'url' in properties && 'remark' in properties && 'translations' in properties));
+// Properties cached before slug and language were both stored are read again.
+const currentShape = properties => Boolean(properties && (properties.i18n ? 'language' in properties && 'url' in properties : 'url' in properties && 'remark' in properties && 'language' in properties));
 
 async function rememberProperties(env, id, properties) {
   const cached = await readCardPull(env, id);
@@ -1172,7 +1195,8 @@ async function rememberProperties(env, id, properties) {
 // at the same path on their language's site). Without URL it keeps its current slug.
 function articleRoute(properties) {
   if (!properties.member || collectionForBlogType(properties.type) !== 'articles' || !properties.url) return null;
-  return { id: properties.url, url: properties.url };
+  const slug = assertArticleSlug(properties.url);
+  return { id: slug, url: slug };
 }
 
 function assertRouteFree(entries, route, cardLink) {
@@ -1181,34 +1205,43 @@ function assertRouteFree(entries, route, cardLink) {
   throw fail(`地址 /${route.id} 已被「${occupant.title}」使用。请在 Heptabase 换一个 URL。`, 409);
 }
 
-// Translations live in #blogi18n and are paired only through the #blog card's relation.
-// Each is reviewed and published together with its #blog card.
+async function translationProperties(env, client, schema, card) {
+  const cached = card.updated ? await readCardPull(env, card.id) : null;
+  if (card.updated && cached?.edited_at === card.updated && currentShape(cached.properties)) return cached.properties;
+  const properties = await readTranslation(client, card.id, schema);
+  if (card.updated) await saveCardProperties(env, card.id, card.updated, card.created || '', properties);
+  return properties;
+}
+
+// The same slug is the same page. Language on the #i18n card says which version it is.
+// Title and body come from that card. A missing English card stays missing.
 async function loadTranslations(env, identity, state, client, schema, root, documentId, collection) {
-  const ids = root.properties.translations || [];
-  if (!ids.length) return { nodes: [], i18n: null };
-  if (!schema.i18n) throw fail('blog 表格没有 blog i18n 关联字段。');
-  const i18n = await i18nSchema(client, schema.i18n.tagId);
+  if (!root.properties.url) return { nodes: [], i18n: null };
   const { cards, tagId } = await i18nCards(client);
-  if (tagId !== schema.i18n.tagId) throw fail('blog i18n 关联指向的数据库和 #blogi18n 标签不一致，请在 Heptabase 检查关联设置。');
-  const listed = new Map(cards.map(card => [card.id, card])), seen = new Set(), nodes = [];
+  const i18n = await i18nSchema(client, tagId);
+  const matches = [];
+  for (const card of cards) {
+    if (card.type !== 'card') continue;
+    const properties = await translationProperties(env, client, i18n, card);
+    if (!sharesSlug(root.properties, properties)) continue;
+    matches.push(card);
+  }
+  const seen = new Map(), nodes = [];
   const slot = collection === 'pages' ? 'page' : collection === 'projects' ? 'project' : 'article';
-  for (const id of ids) {
-    const card = listed.get(id);
-    if (!card) throw fail('关联的译文卡片不在 #blogi18n 里，请先把它加入 #blogi18n 再拉取。', 409);
-    if (card.type !== 'card') throw fail(`译文「${card.title}」不是文字卡片。`);
-    const loaded = await pullCard(env, client, i18n, id, card, readTranslation);
+  for (const card of matches) {
+    const loaded = await pullCard(env, client, i18n, card.id, card, readTranslation);
     const properties = loaded.properties;
-    if (!properties.member) throw fail(`译文「${card.title}」不在 #blogi18n 里。`, 409);
-    if (properties.url && properties.url !== root.properties.url) throw fail(`译文「${card.title}」的 URL「${properties.url}」和中文原文的 URL「${root.properties.url || '（空）'}」不一致。`, 409);
-    if (seen.has(properties.language)) throw fail(`关联了两张 ${properties.language} 译文，请只保留一张。`, 409);
-    seen.add(properties.language);
+    if (!properties.member) continue;
+    const prior = seen.get(properties.language);
+    if (prior) throw fail(`同一 slug「${root.properties.url}」有两张 ${properties.language} 译文，请只保留一张。`, 409);
+    seen.set(properties.language, card.id);
     const target = { collection, id: `${documentId}/${properties.language}`, url: collection === 'articles' ? (root.properties.url || null) : null, translation: true };
     const path = docPath(collection, target.id);
     const current = await effectiveFile(env, identity, state, path);
     if (current.draft?.state === 'draft' && current.draft.raw === '') throw fail('这篇译文已在待删除清单，请先取消删除后重新拉取。', 409);
     const parsed = current.raw ? parseMdx(current.raw) : { frontmatter: { slot, description: '', ...(slot === 'page' ? {} : { listed: false }), draft: true }, imports: '', bodyZh: '' };
-    if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== id) throw fail('译文地址已连接另一张卡片。');
-    nodes.push({ id, path, target, source: loaded.source, i18nProperties: properties, language: properties.language, translation: true,
+    if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== card.id) throw fail('译文地址已连接另一张卡片。');
+    nodes.push({ id: card.id, path, target, source: loaded.source, i18nProperties: properties, language: properties.language, translation: true,
       properties: { member: true, status: root.properties.status, type: 'translation' },
       created: loaded.created, updated: loaded.updated, parsed, current });
   }
@@ -1309,7 +1342,8 @@ async function heptabasePlan(env, identity, input) {
   for (const node of translations) {
     const content = fromHeptabase(node.source, targets, node.parsed.imports);
     const slot = node.target.collection === 'pages' ? 'page' : node.target.collection === 'projects' ? 'project' : 'article';
-    const frontmatter = { ...node.parsed.frontmatter, slot, title: content.title || rootFront.title, description: '',
+    // The English route publishes this card only. Never substitute the Chinese title or body.
+    const frontmatter = { ...node.parsed.frontmatter, slot, title: content.title, description: '',
       date: rootFront.date, created: node.created || undefined, updated: node.updated || undefined, draft: rootFront.draft,
       heptabaseType: rootFront.heptabaseType, heptabaseStatus: rootFront.heptabaseStatus,
       heptabaseCardLink: `heptabase://card/${node.id}`, translationOf: `heptabase://card/${id}`, language: node.language };
@@ -1560,6 +1594,33 @@ async function reviewDecisions(env) {
   }) };
 }
 
+function languageChoices(input) {
+  if (!input.languages) return null;
+  if (typeof input.languages !== 'object') throw fail('请分别审核中文和英文。');
+  const zh = input.languages.zh;
+  const en = input.languages.en ?? 'missing';
+  if (zh !== 'approve' && zh !== 'reject') throw fail('请审核中文原文。');
+  if (!['approve', 'reject', 'missing'].includes(en)) throw fail('英文译文的审核结果无法识别。');
+  if (zh !== input.decision) throw fail('中文审核结果和发布决定不一致。');
+  for (const [lang, verdict] of Object.entries(input.languages)) {
+    if (lang === 'zh' || lang === 'en') continue;
+    if (!['approve', 'reject', 'missing'].includes(verdict)) throw fail('译文的审核结果无法识别。');
+  }
+  return { ...input.languages, zh, en };
+}
+
+function publishesLanguages(input) {
+  const choices = languageChoices(input);
+  return choices ? Object.values(choices).includes('approve') : input.decision === 'approve';
+}
+
+/** Files written for this review. Without per-language verdicts, one decision still covers the whole graph. */
+function nodesToPublish(graph, input) {
+  const choices = languageChoices(input);
+  if (!choices) return input.decision === 'approve' ? graph : [];
+  return graph.filter((node) => node.translation ? choices[node.language] === 'approve' : choices.zh === 'approve');
+}
+
 async function decideReview(env, identity, input) {
   return withLock(env, 'publication', async lease => {
     const id = cardId(input.cardLink);
@@ -1600,17 +1661,17 @@ async function decideReview(env, identity, input) {
       plan = JSON.parse(saved.payload);
     } else if (revising) {
       plan = savedPlan;
-      if (input.decision === 'approve' && input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
-      if (input.decision === 'approve' && plan.graph.some(n => !n.properties.member)) throw fail('引用资料还没有加入 #blog。请把卡片重新标为 Review 后拉取，再通过。', 409);
+      if (publishesLanguages(input) && input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
+      if (publishesLanguages(input) && (!input.languages || input.languages.zh === 'approve') && plan.graph.some(n => !n.properties.member)) throw fail('引用资料还没有加入 #blog。请把卡片重新标为 Review 后拉取，再通过。', 409);
       await run(env, "UPDATE studio_review_decisions SET decision = ?2, status = 'pending', created_at = ?3 WHERE card_id = ?1", id, input.decision, new Date().toISOString());
     } else {
       plan = await heptabasePlan(env, identity, { ...input, reviewOnly: true, preparePublish: true });
       samePlan(input, plan);
       // Approving is the public-release confirmation; the dashboard sends it with the single click.
-      if (input.decision === 'approve') {
+      if (publishesLanguages(input)) {
         if (input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
         if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请确认采用 Heptabase 版本。', 409);
-        if (plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
+        if ((!input.languages || input.languages.zh === 'approve') && plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
       }
       // Other #blog cards always need their own decision. A mention must never
       // smuggle a rejected or still-unreviewed blog into this approval.
@@ -1649,28 +1710,34 @@ async function decideReview(env, identity, input) {
       const planned = node.current.draft?.state === 'draft' ? node.current.draft.raw : null;
       if (stagedRaw !== planned && !(previous && stagedRaw === node.next)) throw fail('已有更新的审核副本，请重新把卡片标为 Review 后拉取。', 409);
     }
-    if (input.decision === 'approve' && plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, id);
+    const publishing = nodesToPublish(plan.graph, input);
+    if (publishing.some((node) => node.id === id) && plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, id);
     await lease(); await writeProperties(client, id, schema, desired);
     const after = await readProperties(client, id, schema);
     const applied = { ...(previous || {}), ...desired };
     if (await readCard(client, id) !== root.source || JSON.stringify(after) !== JSON.stringify({ ...root.properties, ...applied })) throw fail('属性已回写，但内容或标签同时被修改。请重新标为 Review 后拉取审查，尚未提交 GitHub。', 409);
     await rememberProperties(env, id, after);
-    if (input.decision === 'approve') {
+    if (publishing.some((node) => node.id === id)) {
       root.properties = after;
       const parsed = parseMdx(root.next);
       parsed.frontmatter.heptabaseStatus = 'published'; parsed.frontmatter.date = plan.date;
       root.next = serializeMdx(parsed);
-      for (const node of plan.graph.filter(n => n.translation)) {
-        const translated = parseMdx(node.next);
-        translated.frontmatter.heptabaseStatus = 'published'; translated.frontmatter.date = plan.date; translated.frontmatter.draft = false;
-        node.next = serializeMdx(translated);
-      }
+    }
+    for (const node of publishing.filter((item) => item.translation)) {
+      const translated = parseMdx(node.next);
+      translated.frontmatter.heptabaseStatus = 'published'; translated.frontmatter.date = plan.date; translated.frontmatter.draft = false;
+      node.next = serializeMdx(translated);
     }
     stageRemark(plan);
-    const record = JSON.stringify({ ...plan, applied });
+    const record = JSON.stringify({ ...plan, applied, languages: languageChoices(input) });
     const completion = db(env).prepare("UPDATE studio_review_decisions SET status = 'complete', payload = ?2 WHERE card_id = ?1").bind(id, record);
-    if (input.decision === 'approve') {
-      await savePlan(env, identity, plan, lease, completion);
+    if (publishing.length) {
+      await savePlan(env, identity, { ...plan, graph: publishing }, lease, completion);
+      const drops = plan.graph.filter((node) => !publishing.includes(node)).flatMap((node) => [
+        db(env).prepare("DELETE FROM studio_drafts WHERE path = ?1 AND state = 'draft'").bind(node.path),
+        db(env).prepare('DELETE FROM studio_reviews WHERE path = ?1').bind(node.path),
+      ]);
+      if (drops.length) { await lease(); await db(env).batch(drops); }
     } else {
       const remaining = (await draftRows(env, identity)).filter(row => row.path !== root.path);
       const byPath = new Map(remaining.map(row => [row.path, row])), reachable = new Set();

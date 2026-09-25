@@ -4,7 +4,7 @@ import { formatDate as siteDate } from '../../src/lib/format.ts';
 import { IO_CONCURRENCY, mapLimited, previewBodyKey } from './pool.mjs';
 import { auditAddress } from './audit-address.mjs';
 import { directPublishFeedback, directPublishPlan } from './direct-publish.mjs';
-import { applyLocalDecision, decisionBatch, pageChoicePayload, referenceKeepBatchCopy, referenceKeepCopy } from './local-decisions.mjs';
+import { applyLocalDecision, decisionBatch, languageSlots, pageChoicePayload, referenceKeepBatchCopy, referenceKeepCopy } from './local-decisions.mjs';
 import { blogViewHref } from './blog-href.mjs';
 
 const root = document.querySelector('#studio');
@@ -428,8 +428,8 @@ function localContext() {
   return { pageKeep: pageKeepDraft, choiceRequired: Boolean(pageSet?.choiceRequired) };
 }
 /** Records one decision on the card. Heptabase and GitHub hear about it at publish. */
-function applyOne(item, verdict, remark) {
-  return applyLocalDecision(item, verdict, { ...localContext(), remark });
+function applyOne(item, verdict, remark, lang) {
+  return applyLocalDecision(item, verdict, { ...localContext(), remark, lang });
 }
 function citedRemovals() {
   return items.filter(item => item.removal && item.plan?.citations?.length && item.decision !== 'skip');
@@ -453,15 +453,16 @@ function keepCitedAsReference(list) {
   for (const item of targets) applyOne(item, 'approve');
   paintAfterDecision(citationCopy(targets));
 }
-function decide(item, verdict, remark) {
-  const result = applyOne(item, verdict, remark);
+function decide(item, verdict, remark, lang) {
+  const result = applyOne(item, verdict, remark, lang);
   if (!result) return;
-  const text = `${decisionNotes[result.next]}${result.extra}${result.changed ? '已改判。' : ''}`;
-  paintAfterDecision(result.first ? afterDecision(item, text) : text);
+  const note = decisionNotes[result.next] || (item.decision ? '这一语言已记下，另一语言还要审。' : '这一语言已记下，另一语言还要审。');
+  const text = `${note}${result.extra}${result.changed ? '已改判。' : ''}`;
+  paintAfterDecision(result.first && item.decision ? afterDecision(item, text) : text);
 }
-function requestDecision(item, verdict) {
-  if (!item?.removal && verdict === 'reject') { openRemarkDialog([item]); return; }
-  decide(item, verdict);
+function requestDecision(item, verdict, lang) {
+  if (!item?.removal && verdict === 'reject' && (!lang || lang === 'zh')) { openRemarkDialog([item]); return; }
+  decide(item, verdict, undefined, item?.removal ? undefined : (lang || 'zh'));
 }
 function applyMany(list, verdict, remark) {
   const targets = list.filter(item => item?.plan && !item.error);
@@ -487,7 +488,7 @@ function openRemarkDialog(targets) {
   d.append(label, area, button(list.length > 1 ? '拒绝这些文章' : '拒绝', async () => {
     const remark = area.value;
     closeDialog();
-    if (list.length === 1) await decide(list[0], 'reject', remark);
+    if (list.length === 1) await decide(list[0], 'reject', remark, 'zh');
     else await applyMany(list, 'reject', remark);
   }, { class: 'btn primary' }));
   setTimeout(() => area.focus(), 0);
@@ -504,9 +505,13 @@ function localReleaseStats() {
   const paths = new Set();
   let deletes = 0;
   for (const item of items) {
-    if (item.flushed || !item.plan || (item.decision !== 'approve' && item.decision !== 'remove')) continue;
+    if (item.flushed || !item.plan) continue;
     for (const change of item.plan.changes || []) {
       if (paths.has(change.path)) continue;
+      const chosen = item.removal ? item.decision === 'remove'
+        : change.translation ? item.langDecisions?.[change.language] === 'approve'
+          : item.langDecisions?.zh === 'approve' || (!item.langDecisions && item.decision === 'approve');
+      if (!chosen) continue;
       paths.add(change.path);
       if (item.decision === 'remove') deletes += 1;
     }
@@ -538,7 +543,7 @@ async function publishWithoutReview() {
     throw new Error(feedback.message);
   }
   showReleaseNotice(feedback.message);
-  for (const item of plan.approve) applyOne(item, 'approve');
+  for (const item of plan.approve) applyLocalDecision(item, 'approve', { ...localContext(), fillOnly: true });
   for (const item of plan.remove) applyOne(item, 'approve');
   const payload = releasePayload();
   if (plan.commit || payload.decisions.length || payload.pageChoice) {
@@ -660,7 +665,12 @@ function paintListSelection(list, group) {
     if (active) row.dataset.selected = 'true'; else delete row.dataset.selected;
     if (item.decision) row.dataset.decision = item.decision; else delete row.dataset.decision;
     row.querySelector(':scope > .card-select')?.setAttribute('aria-pressed', String(Boolean(active && selected.id === item.card.id)));
-    for (const node of row.querySelectorAll(':scope > .decisions .decide')) node.setAttribute('aria-pressed', String(item.decision === node.getAttribute('data-decide')));
+    for (const node of row.querySelectorAll('.decide')) {
+      const lang = node.getAttribute('data-lang');
+      const want = node.getAttribute('data-decide') === 'approve' || node.getAttribute('data-decide') === 'remove' ? 'approve' : 'reject';
+      const pressed = lang && item.langDecisions ? item.langDecisions[lang] === want : item.decision === node.getAttribute('data-decide');
+      node.setAttribute('aria-pressed', String(pressed));
+    }
   });
   return true;
 }
@@ -787,6 +797,29 @@ function shiftSelectVisible(currentId) {
   }
   return true;
 }
+function languagePressed(item, lang, verdict) {
+  return String(item.langDecisions?.[lang] === verdict);
+}
+function languageLines(item) {
+  const lines = el('div', null, { class: 'lang-lines' });
+  for (const slot of languageSlots(item)) {
+    const line = el('div', null, { class: 'lang-line', 'data-lang': slot.lang, ...(slot.missing ? { 'data-missing': 'true' } : {}) });
+    const label = slot.lang === 'zh' ? '中文' : slot.lang === 'en' ? '英文' : slot.lang;
+    if (slot.missing) {
+      line.append(el('span', `${label} · 缺少英文译文`));
+    } else {
+      line.append(el('span', slot.title ? `${label} · ${slot.title}` : label));
+      if (slot.lang !== 'zh') {
+        line.append(
+          button('✓', () => requestDecision(item, 'approve', slot.lang), { class: 'decide', 'data-decide': 'approve', 'data-lang': slot.lang, 'aria-pressed': languagePressed(item, slot.lang, 'approve'), 'aria-label': `通过${label}「${slot.title || title(item)}」` }),
+          button('×', () => requestDecision(item, 'reject', slot.lang), { class: 'decide', 'data-decide': 'reject', 'data-lang': slot.lang, 'aria-pressed': languagePressed(item, slot.lang, 'reject'), 'aria-label': `拒绝${label}「${slot.title || title(item)}」` }),
+        );
+      }
+    }
+    lines.append(line);
+  }
+  return lines;
+}
 function renderList() {
   const list = document.querySelector('#review-list'); if (!list) return;
   if (!pulled) { list.replaceChildren(); listStamp = ''; listDecisionStamp = ''; return; }
@@ -794,7 +827,7 @@ function renderList() {
   if (focusedGroup !== 'pages' && focusedGroup !== 'references' && !reviewKinds.includes(focusedGroup)) focusedGroup = 'new';
   if (focusedGroup === 'references') { renderReferenceList(list, by); return; }
   const stamp = focusedGroup === 'pages' ? 'pages' : `${focusedGroup}\n${groupStamp(by[focusedGroup])}\n${[...picked].sort().join(',')}`;
-  const decisionStamp = items.map(item => item.decision || '').join('\n');
+  const decisionStamp = items.map(item => `${item.decision || ''}:${JSON.stringify(item.langDecisions || {})}`).join('\n');
   const sameList = focusedGroup === 'pages' ? list.childElementCount === 0 : Boolean(list.querySelector('#review-items'));
   if (stamp === listStamp && sameList && (focusedGroup === 'pages' || paintListSelection(list, by[focusedGroup]))) {
     if (decisionStamp !== listDecisionStamp) renderSummary(by);
@@ -840,11 +873,12 @@ function renderList() {
     if (item.plan) {
       const yes = deleting ? 'remove' : 'approve', no = deleting ? 'skip' : 'reject';
       decisions.append(
-        button('✓', () => requestDecision(item, 'approve'), { class: 'decide', 'data-decide': yes, 'aria-pressed': String(item.decision === yes), 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '从网站删除这篇博客' : '通过这篇博客，并确认正文和引用可以公开' }),
-        button('×', () => requestDecision(item, 'reject'), { class: 'decide', 'data-decide': no, 'aria-pressed': String(item.decision === no), 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
+        button('✓', () => requestDecision(item, 'approve', deleting ? undefined : 'zh'), { class: 'decide', 'data-decide': yes, ...(deleting ? {} : { 'data-lang': 'zh' }), 'aria-pressed': String(deleting ? item.decision === yes : item.langDecisions?.zh === 'approve'), 'aria-label': `${deleting ? '删除' : '通过'}「${title(item)}」`, title: deleting ? '从网站删除这篇博客' : '通过中文，并确认正文和引用可以公开' }),
+        button('×', () => requestDecision(item, 'reject', deleting ? undefined : 'zh'), { class: 'decide', 'data-decide': no, ...(deleting ? {} : { 'data-lang': 'zh' }), 'aria-pressed': String(deleting ? item.decision === no : item.langDecisions?.zh === 'reject'), 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝中文' }),
       );
     }
     card.append(decisions);
+    if (!deleting && item.plan) card.append(languageLines(item));
     card.addEventListener('click', event => {
       if (event.target.closest('button, a, input, label')) return;
       void select(item);
@@ -1178,12 +1212,15 @@ async function showSelection() {
   actions.append(detailActions(item));
   head.append(titleRow);
   const translations = (item.plan.changes || []).filter(change => change.translation);
-  if (!item.removal && translations.length) {
+  const english = translations.find(change => change.language === 'en') || null;
+  const paired = !item.removal && id === item.card.id;
+  if (paired) {
     const row = el('div', null, { class: 'translation-row' });
-    row.append(button('原文', () => select(item, item.card.id), { 'aria-pressed': String(id === item.card.id) }));
+    row.append(el('span', '中文'));
+    row.append(el('span', english ? `英文 · ${english.title}` : '缺少英文译文'));
     for (const change of translations) {
-      const label = change.language ? `Translation · ${change.language}` : 'Translation';
-      row.append(button(label, () => select(item, change.id), { 'aria-pressed': String(id === change.id) }));
+      if (!change.language || change.language === 'en') continue;
+      row.append(el('span', `${change.language} · ${change.title}`));
     }
     head.append(row);
   }
@@ -1202,21 +1239,31 @@ async function showSelection() {
   const body = el('section', null, { class: 'review-body', 'aria-label': '正文' });
   pane.append(body);
   const previewCards = item.removal ? item.plan.changes.map(c => ({ ...c, afterProperties: c.beforeProperties, afterContent: c.beforeContent })) : item.plan.changes;
-  if (mode === 'preview') {
-    const frame = el('iframe', null, { title: '网站发布样式预览', sandbox: 'allow-same-origin', class: 'article-preview', referrerpolicy: 'no-referrer' });
-    frame.addEventListener('load', () => fitFrame(frame));
-    frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
-      const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
-      const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => !c.translation && (previewPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path));
-      if (target) void select(item, target.id);
-      else notice('预览中不打开外部链接，以免未发布内容发送到其他网站。');
-    }));
+  if (paired && mode === 'preview') {
+    body.dataset.lang = 'zh';
+    if (!await appendPreviewFrame(body, previewCards.find(c => c.id === item.card.id), previewCards, 'article-preview', gen, item)) return;
+    const englishPane = await englishSection(item, english, previewCards, gen);
+    if (!englishPane || gen !== previewGen) return;
+    pane.append(englishPane);
+    for (const change of translations) {
+      if (!change.language || change.language === 'en') continue;
+      const extra = el('section', null, { class: 'review-body', 'data-lang': change.language });
+      extra.append(el('h3', change.language, { class: 'section-label' }));
+      if (!await appendPreviewFrame(extra, change, previewCards, 'translation-preview', gen, item)) return;
+      pane.append(extra);
+    }
+  } else if (paired) {
     await new Promise(resolve => requestAnimationFrame(resolve));
     if (gen !== previewGen) return;
-    const html = await previewHtml(previewCards.find(c => c.id === id), previewCards);
-    if (gen !== previewGen) return;
-    frame.srcdoc = html;
-    body.append(frame);
+    if (!await showDiff(body, card, item.plan.changes, gen)) return;
+    if (english) {
+      const holder = el('div');
+      if (!await showDiff(holder, english, item.plan.changes, gen)) return;
+      holder.querySelector('.full-diff')?.classList.replace('full-diff', 'translation-diff');
+      pane.append(holder);
+    } else pane.append(el('p', '缺少英文译文', { class: 'missing-translation' }));
+  } else if (mode === 'preview') {
+    if (!await appendPreviewFrame(body, previewCards.find(c => c.id === id), previewCards, 'article-preview', gen, item)) return;
   } else {
     await new Promise(resolve => requestAnimationFrame(resolve));
     if (gen !== previewGen) return;
@@ -1224,6 +1271,37 @@ async function showSelection() {
   }
   if (gen !== previewGen) return;
   shownPreview = { key: `${item.card.id}:${id}:${previewBodyKey(card, mode, item.removal)}`, theme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' };
+}
+async function englishSection(item, english, cards, gen) {
+  const section = el('section', null, { class: 'review-body', 'data-lang': 'en', 'aria-label': '英文正文' });
+  section.append(el('h3', '英文', { class: 'section-label' }));
+  if (!english) {
+    section.append(el('p', '缺少英文译文', { class: 'missing-translation' }));
+    return section;
+  }
+  section.append(
+    button('拒绝英文', () => requestDecision(item, 'reject', 'en'), { class: 'btn', 'aria-pressed': languagePressed(item, 'en', 'reject') }),
+    button('通过英文', () => requestDecision(item, 'approve', 'en'), { class: 'btn', 'aria-pressed': languagePressed(item, 'en', 'approve') }),
+  );
+  if (!await appendPreviewFrame(section, english, cards, 'translation-preview', gen, item)) return null;
+  return section;
+}
+async function appendPreviewFrame(parent, card, cards, className, gen, item) {
+  const frame = el('iframe', null, { title: className === 'article-preview' ? '网站发布样式预览' : '英文发布样式预览', sandbox: 'allow-same-origin', class: className, referrerpolicy: 'no-referrer' });
+  frame.addEventListener('load', () => fitFrame(frame));
+  frame.addEventListener('load', () => frame.contentDocument?.addEventListener('click', event => {
+    const anchor = event.target.closest?.('a'); if (!anchor) return; event.preventDefault();
+    const path = new URL(anchor.href).pathname, target = item.plan.changes.find(c => !c.translation && (previewPath(c) === path || '/' + c.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '') === path));
+    if (target) void select(item, target.id);
+    else notice('预览中不打开外部链接，以免未发布内容发送到其他网站。');
+  }));
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  if (gen !== previewGen || !card) return false;
+  const html = await previewHtml(card, cards);
+  if (gen !== previewGen) return false;
+  frame.srcdoc = html;
+  parent.append(frame);
+  return true;
 }
 /** Grows the preview to its content so the article scrolls with the pane, as it does on the site. */
 function fitFrame(frame) {
@@ -1235,7 +1313,7 @@ function fitFrame(frame) {
 function detailActions(item) {
   const box = el('div', null, { class: 'detail-actions' });
   const yes = item.removal ? 'remove' : 'approve', no = item.removal ? 'skip' : 'reject';
-  const action = (text, verdict, decision, variant) => button(text, () => requestDecision(item, verdict), { class: `btn ${variant}`, 'data-decide': decision, 'aria-pressed': String(item.decision === decision) });
+  const action = (text, verdict, decision, variant) => button(text, () => requestDecision(item, verdict, item.removal ? undefined : 'zh'), { class: `btn ${variant}`, 'data-decide': decision, ...(item.removal ? {} : { 'data-lang': 'zh' }), 'aria-pressed': String(item.removal ? item.decision === decision : item.langDecisions?.zh === (decision === 'approve' ? 'approve' : 'reject')) });
   box.append(
     action(item.removal ? '暂不删除' : '拒绝', 'reject', no, ''),
     action(item.removal ? '删除' : '通过', 'approve', yes, ''),

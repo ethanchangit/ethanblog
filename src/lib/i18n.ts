@@ -1,5 +1,5 @@
 /**
- * cn.ethanchang.io 是中文站（#blog 原文），ethanchang.io 是英文站（#blogi18n 译文）。
+ * cn.ethanchang.io 是中文站（#blog 原文），ethanchang.io 是英文站（#i18n 里同一 slug 的英文卡片）。
  * 页面语言由路由决定：英文页面构建在 /en 下，其余是中文。
  */
 export type Lang = 'zh-CN' | 'en';

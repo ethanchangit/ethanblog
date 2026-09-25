@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
+import { assertArticleSlug, propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -13,7 +13,7 @@ async function setup(props = {}, translations = []) {
   const f = await fixture(); globalThis.fetch = f.fetcher; await f.login(); await f.connect();
   f.properties.get(CARD).Status = 'writing';
   f.cardSources.set(ZH, '# 我的工具箱\n\n中文原文。');
-  f.properties.set(ZH, { Status: 'review', slug: 'toolset', 'blog i18n': translations.map(([id]) => `card/${id}`), ...props });
+  f.properties.set(ZH, { Status: 'review', slug: 'toolset', Language: 'cn', 'blog i18n': [`card/${OLD}`], ...props });
   for (const [id, title, values] of translations) { f.cardSources.set(id, `# ${title}\n\n${title} body.`); f.i18n.set(id, values); }
   return f;
 }
@@ -24,10 +24,13 @@ const approve = (f, plan) => f.request('/heptabase/decision', 'POST', { ...input
 test('URL is the slug as written; translation languages become their own site', () => {
   assert.equal(routeSlug(' /toolset/ '), 'toolset');
   assert.equal(routeSlug(''), null);
-  assert.throws(() => routeSlug('My Toolset'));
-  assert.throws(() => routeSlug('2024'));
+  assert.equal(routeSlug('My Toolset'), 'My Toolset');
+  assert.equal(routeSlug('2024'), '2024');
+  assert.equal(routeSlug('now'), 'now');
+  assert.throws(() => assertArticleSlug('My Toolset'), /小写字母/);
+  assert.throws(() => assertArticleSlug('2024'), /不能只有数字/);
   for (const fixed of ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'en', 'cn']) {
-    assert.throws(() => routeSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
+    assert.throws(() => assertArticleSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
   }
   assert.equal(translationLanguage('en'), 'en');
   assert.equal(translationLanguage('English'), 'en');
@@ -36,8 +39,8 @@ test('URL is the slug as written; translation languages become their own site', 
   assert.throws(() => translationLanguage(null), /Language/);
 });
 
-test('a #blog card and its related #blogi18n translation share one path on two sites', async () => {
-  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }], [JA, '私のツール', { Language: 'ja' }]]);
+test('the same slug pairs a #blog card with its #i18n language versions', async () => {
+  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }], [JA, '私のツール', { Language: 'ja', slug: 'toolset' }]]);
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, 'src/content/articles/toolset.mdx');
   const byId = new Map(plan.changes.map(c => [c.id, c]));
@@ -58,23 +61,52 @@ test('a #blog card and its related #blogi18n translation share one path on two s
   assert.notEqual(parseMdx(f.text('src/content/articles/toolset/en.mdx')).frontmatter.draft, true);
 });
 
-test('a translation must be in #blogi18n, carry the same URL, and be the only one for its language', async () => {
+test('pairing ignores the relation and never fills English from the Chinese body', async () => {
   let f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'tools' }]]);
-  let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「tools」和中文原文的 URL「toolset」不一致/);
-  f = await setup({ 'blog i18n': [`card/${OLD}`] }); f.cardSources.set(OLD, '# Stray\n\nnot tagged');
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /不在 #blogi18n 里/);
-  f = await setup({}, [[EN, 'My toolset', { Language: 'en' }], [JA, 'Toolset again', { Language: 'en' }]]);
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /两张 en 译文/);
-  f = await setup({}, [[EN, '工具箱', { Language: 'simplified chinese' }]]);
-  res = await preview(f); assert.equal(res.status, 400); assert.match((await res.json()).error, /中文写在 #blog/);
+  let plan = await ok(preview(f));
+  assert.equal(plan.changes.some(change => change.id === EN), false);
+  f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }]]);
+  f.cardSources.set(OLD, '# Stray\n\nnot tagged');
+  f.i18n.set(OLD, { Language: 'en', slug: 'other' });
+  plan = await ok(preview(f));
+  assert.equal(plan.changes.some(change => change.id === OLD), false);
+  assert.equal(plan.changes.some(change => change.id === EN), true);
+  const en = plan.changes.find(change => change.id === EN);
+  assert.match(en.afterContent, /My toolset body/);
+  assert.doesNotMatch(en.afterContent, /中文原文/);
+  f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }], [JA, 'Toolset again', { Language: 'en', slug: 'toolset' }]]);
+  const res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /两张 en 译文/);
+  f = await setup({}, [[EN, '工具箱', { Language: 'cn', slug: 'toolset' }]]);
+  plan = await ok(preview(f));
+  assert.equal(plan.changes.some(change => change.translation), false);
+  assert.equal(plan.changes.some(change => /中文原文/.test(change.afterContent) && change.language === 'en'), false);
 });
 
-test('without URL the card keeps its slug and the translation sits beside it', async () => {
-  const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
+test('without a slug there is no English page to pair', async () => {
+  const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }]]);
   delete f.properties.get(ZH).slug;
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, `src/content/articles/hepta-${ZH}.mdx`);
-  assert.ok(plan.changes.some(c => c.path === `src/content/articles/hepta-${ZH}/en.mdx`));
+  assert.equal(plan.changes.some(c => c.translation), false);
+});
+
+test('each language is published only when that language is approved', async () => {
+  const decide = async (languages, decision) => {
+    const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }]]);
+    const plan = await ok(preview(f));
+    const res = await f.request('/heptabase/decision', 'POST', { ...input(), sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision, confirmPublic: true, languages });
+    assert.equal(res.status, 200, await res.clone().text());
+    return f;
+  };
+  let f = await decide({ zh: 'approve', en: 'reject' }, 'approve');
+  assert.equal(f.DB.sqlite.prepare("SELECT raw FROM studio_drafts WHERE path = 'src/content/articles/toolset/en.mdx'").get(), undefined);
+  assert.match(f.DB.sqlite.prepare("SELECT raw FROM studio_drafts WHERE path = 'src/content/articles/toolset.mdx'").get().raw, /中文原文/);
+  f = await decide({ zh: 'reject', en: 'approve' }, 'reject');
+  const english = parseMdx(f.DB.sqlite.prepare("SELECT raw FROM studio_drafts WHERE path = 'src/content/articles/toolset/en.mdx'").get().raw);
+  assert.match(english.bodyZh, /My toolset body/);
+  assert.doesNotMatch(english.bodyZh, /中文原文/);
+  assert.equal(english.frontmatter.title, 'My toolset');
+  assert.equal(f.DB.sqlite.prepare("SELECT raw FROM studio_drafts WHERE path = 'src/content/articles/toolset.mdx'").get(), undefined);
 });
 
 test('a URL taken by another article or a fixed route is refused; a linked article is not moved', async () => {
@@ -82,7 +114,7 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
   f = await setup({ slug: 'now' });
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
+  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
   res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/my-toolset/);
@@ -95,11 +127,11 @@ test('a project and a page publish the related English translation beside the so
   await f.connect();
   f.properties.get(CARD).Status = 'writing';
   const project = 'c31ada66-3333-4759-8b1f-830c8374fcae', projectEn = 'c41ada66-4444-4759-8b1f-830c8374fcae';
-  f.properties.set(project, { Status: 'review', 'Blog Type': 'Project', 'blog i18n': [`card/${projectEn}`] });
+  f.properties.set(project, { Status: 'review', 'Blog Type': 'Project', slug: 'trace', 'blog i18n': [`card/${OLD}`] });
   f.cardSources.set(project, '# 痕迹\n\n中文项目。');
   f.remote(serializeMdx({ frontmatter: { slot: 'project', title: '痕迹', description: '中文', heptabaseCardLink: link(project) }, bodyZh: '中文项目。' }), 'src/content/projects/sample-trace.mdx');
   f.cardSources.set(projectEn, '# Trace\n\nEnglish project.');
-  f.i18n.set(projectEn, { Language: 'en' });
+  f.i18n.set(projectEn, { Language: 'en', slug: 'trace' });
   const preview = (card, collection) => f.request('/heptabase/preview', 'POST', { cardLink: link(card), collection, preparePublish: true, reviewOnly: true });
   let plan = await ok(preview(project, 'projects'));
   let en = plan.changes.find(change => change.id === projectEn);
@@ -109,11 +141,11 @@ test('a project and a page publish the related English translation beside the so
   assert.equal((await ok(f.request('/doc?collection=projects&id=sample-trace%2Fen'))).href, '/sample-trace');
 
   const page = 'f11ada66-1111-4759-9b1f-830c8374fcae', pageEn = 'e21ada66-2222-4759-8b1f-830c8374fcae';
-  f.properties.set(page, { Status: 'review', 'Blog Type': 'Page', 'Publish Date': { start: '2024-04-02T00:00:00.000Z' }, 'blog i18n': [`card/${pageEn}`] });
+  f.properties.set(page, { Status: 'review', 'Blog Type': 'Page', slug: 'notes', 'Publish Date': { start: '2024-04-02T00:00:00.000Z' }, 'blog i18n': [`card/${OLD}`] });
   f.cardSources.set(page, '# 笔记\n\n中文页面。');
   f.remote(serializeMdx({ frontmatter: { slot: 'page', title: '笔记', description: '笔记', date: '2024-04-02', heptabaseCardLink: link(page) }, bodyZh: '中文页面。' }), 'src/content/pages/notes.mdx');
   f.cardSources.set(pageEn, '# Notes\n\nEnglish page.');
-  f.i18n.set(pageEn, { Language: 'en' });
+  f.i18n.set(pageEn, { Language: 'en', slug: 'notes' });
   plan = await ok(preview(page, 'pages'));
   en = plan.changes.find(change => change.id === pageEn);
   assert.deepEqual([en.path, en.translation, en.language, en.afterProperties.title, en.afterProperties.slot], ['src/content/pages/notes/en.mdx', true, 'en', 'Notes', 'page']);

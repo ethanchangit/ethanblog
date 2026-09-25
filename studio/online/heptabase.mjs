@@ -270,6 +270,10 @@ function tagNamed(tags, name) {
   return matches[0];
 }
 
+export async function tagByName(client, name) {
+  return tagNamed(await allTags(client), name);
+}
+
 // CardList only: id, title, and edited time. No properties and no body.
 async function cardsInTag(client, tag) {
   const cards = [], seen = new Set();
@@ -315,17 +319,17 @@ export async function taggedCards(client, name) {
 }
 
 export const blogCards = (client) => taggedCards(client, 'blog');
-// Translations of #blog cards. Ethan also writes this tag as #blogi18n.
-export const i18nCards = (client) => taggedCards(client, 'blog i18n');
+// English (and other) translations live in the tag database named i18n.
+export const i18nCards = (client) => taggedCards(client, 'i18n');
 
-// One tag walk, then CardList + edited time for #blog and #blogi18n. No card bodies.
+// One tag walk, then CardList + edited time for #blog and #i18n. No card bodies.
 export async function dashboardCardLists(client) {
   let last;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const tags = await allTags(client);
       const blog = await cardsInTag(client, tagNamed(tags, 'blog'));
-      const i18n = await cardsInTag(client, tagNamed(tags, 'blog i18n'));
+      const i18n = await cardsInTag(client, tagNamed(tags, 'i18n'));
       return { blog, i18n };
     } catch (error) {
       last = error;
