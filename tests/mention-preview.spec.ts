@@ -175,7 +175,7 @@ test.describe('mention 悬停预览', () => {
       link.href = 'https://example.com/toc-external';
       link.textContent = '目录外链';
       link.dataset.testid = 'toc-external';
-      toc?.append(link);
+      toc?.appendChild(link);
     });
     await page.getByTestId('toc-external').hover();
     await page.waitForTimeout(450);
@@ -301,7 +301,7 @@ test.describe('mention 悬停预览', () => {
         anchor.style.pointerEvents = 'auto';
         anchor.style.position = 'relative';
         anchor.style.zIndex = '80';
-        host?.append(anchor);
+        host?.appendChild(anchor);
       }
     });
     await page.getByTestId('footer-external').hover();
