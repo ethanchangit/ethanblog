@@ -1,26 +1,27 @@
 ---
 /**
- * 目录 —— 只收 depth 2-3；没有条目时不渲染。
+ * 目录 —— 第一行是文章标题，点它回到页顶；其余只收 depth 2-3。没有小标题时不渲染。
  * 分栏阅读时浮在阅读区右侧（.reading-rail）；窄屏随 rail 一起隐藏。
- * 无 JS 时靠 :target 标明当前条；有 JS 时按阅读栏滚动位置写 aria-current。
+ * 无 JS 时标题行仍是指向文首的锚点，当前条靠 :target 标明；有 JS 时按阅读栏滚动位置写 aria-current。
  */
 import type { TocHeading } from '@/lib/toc';
-import { tocEntries } from '@/lib/toc';
+import { DOC_TITLE_ID, tocEntries } from '@/lib/toc';
 
 interface Props {
   headings: TocHeading[];
+  title: string;
 }
 
-const { headings } = Astro.props as Props;
+const { headings, title } = Astro.props as Props;
 const items = tocEntries(headings);
 
 function attr(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-const activeCss = items
-  .map((h) => {
-    const id = attr(h.slug);
+const activeCss = [DOC_TITLE_ID, ...items.map((h) => h.slug)]
+  .map((slug) => {
+    const id = attr(slug);
     return `html:not([data-toc-ready]) body:has([id="${id}"]:target) nav.toc a[href="#${id}"]`;
   })
   .join(',\n');
@@ -35,6 +36,11 @@ const activeCss = items
         />
       )}
       <ul>
+        <li>
+          <a href={'#' + DOC_TITLE_ID} data-toc-title title={title}>
+            <span class="toc-label">{title}</span>
+          </a>
+        </li>
         {items.map((h) => (
           <li><a href={'#' + h.slug} data-depth={h.depth} title={h.text}><span class="toc-label">{h.text}</span></a></li>
         ))}
@@ -101,12 +107,25 @@ const activeCss = items
     });
   }
 
+  function scrollToPageTop() {
+    const root = pane();
+    if (root) root.scrollTo({ top: 0, left: 0 });
+    window.scrollTo({ top: 0, left: 0 });
+  }
+
   function onClick(event: MouseEvent) {
     const a = (event.target as HTMLElement | null)?.closest?.<HTMLAnchorElement>(TOC_SEL);
     if (!a) return;
     const id = hashId(a);
-    const el = document.getElementById(id);
     const root = pane();
+    if (a.hasAttribute('data-toc-title')) {
+      event.preventDefault();
+      scrollToPageTop();
+      history.replaceState(null, '', `#${id}`);
+      setCurrent(id);
+      return;
+    }
+    const el = document.getElementById(id);
     if (!el) return;
     if (root) {
       event.preventDefault();

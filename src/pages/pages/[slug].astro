@@ -1,21 +1,21 @@
 ---
-import { getCollection, render } from 'astro:content';
-import Base from '@/layouts/Base.astro';
+import { getCollection } from 'astro:content';
+import { includeDraftsInDev } from '@/lib/docs';
+import { FIXED_PAGE_IDS, sitePageHref } from '@/lib/routes';
 
+export const prerender = import.meta.env.PROD;
+
+// 旧地址 /pages/<id> 转到 /<id>。关于、Now、联系、隐私和博客目录不从这里生成。
 export async function getStaticPaths() {
-  const reserved = new Set(['blogs', 'about', 'now', 'contact', 'privacy']);
-  const pages = await getCollection('pages', ({ id, data }) => !reserved.has(id) && !data.draft);
-  return pages.map((page) => ({ params: { slug: page.id }, props: { page } }));
+  const pages = await getCollection(
+    'pages',
+    ({ id, data }) => !data.translationOf && !FIXED_PAGE_IDS.has(id) && (includeDraftsInDev || !data.draft),
+  );
+  return pages.map((page) => ({ params: { slug: page.id }, props: { target: sitePageHref(page.id) } }));
 }
 
-const { page } = Astro.props;
-if (!page) return new Response(null, { status: 404 });
-const { Content } = await render(page);
+const slug = Astro.params.slug ?? '';
+const target = (Astro.props.target as string | undefined) ?? (slug ? sitePageHref(slug) : '');
+if (!target || FIXED_PAGE_IDS.has(slug)) return Astro.rewrite('/404');
+return Astro.redirect(target, 301);
 ---
-
-<Base title={page.data.title} description={page.data.description}>
-  <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 prose-site">
-    <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">{page.data.title}</h1>
-    <Content />
-  </article>
-</Base>

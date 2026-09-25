@@ -9,11 +9,11 @@ const MOBILE = [
 const ROUTES = [
   '/',
   '/articles',
-  '/articles/heptabase-method',
-  '/articles/pkm-method',
-  '/articles/embed-preview',
+  '/heptabase-method',
+  '/pkm-method',
+  '/embed-preview',
   '/projects',
-  '/projects/aletheia',
+  '/aletheia',
   '/tags',
   '/search',
 ] as const;
@@ -89,7 +89,7 @@ test.describe('手机阅读', () => {
 
   test('长文不显示 TOC，返回键靠左，列表与正文不同时出现', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/articles/heptabase-method', { waitUntil: 'domcontentloaded' });
+    await page.goto('/heptabase-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
@@ -118,7 +118,7 @@ test.describe('手机阅读', () => {
 
   test('iPad 横屏仍是三栏，目录在右', async ({ page }) => {
     await page.setViewportSize({ width: 1180, height: 820 });
-    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+    await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
     await expect(page.locator('[data-reading-rail] nav.toc').filter({ visible: true })).toBeVisible();
@@ -127,7 +127,7 @@ test.describe('手机阅读', () => {
 
   test('留言发送键不掉出视口宽，热区够点', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+    await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     const send = page.locator('.comment-send');
     await send.scrollIntoViewIfNeeded();
     await expect(send).toBeVisible();
@@ -140,7 +140,7 @@ test.describe('手机阅读', () => {
 
   test('embed 页推文与视频不撑出页面', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
+    await page.goto('/embed-preview', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-tweet-embed]').filter({ visible: true })).toBeVisible();
     await expect(page.locator('[data-video-embed]').filter({ visible: true })).toBeVisible();
     await expectNoPageOverflow(page);
@@ -151,7 +151,7 @@ test.describe('手机阅读', () => {
 
   test('横屏 667 可滚且不横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 667, height: 375 });
-    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+    await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     await expectNoPageOverflow(page);
     const html = await page.evaluate(() => getComputedStyle(document.documentElement).overflow);
     expect(html).not.toBe('hidden');

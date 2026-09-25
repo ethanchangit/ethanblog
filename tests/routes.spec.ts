@@ -9,13 +9,13 @@ test.describe('Route crawling', () => {
     });
   }
 
-  test('/ is the about/home page', async ({ page }) => {
+  test('/ is the article list with nothing selected', async ({ page }) => {
     const response = await page.goto('/', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     expect(new URL(page.url()).pathname).toBe('/');
-    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
-      useInnerText: true,
-    });
+    await expect(page.locator('[data-about-panel]')).toHaveCount(0);
+    await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', { useInnerText: true });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
@@ -25,9 +25,7 @@ test.describe('Route crawling', () => {
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(url => url.pathname === '/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
-      useInnerText: true,
-    });
+    await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', {
       useInnerText: true,
     });
@@ -36,14 +34,16 @@ test.describe('Route crawling', () => {
     await expect(page.locator('[data-reading-index]')).toBeVisible();
   });
 
-  test('/about redirects to /', async ({ page }) => {
+  test('/about is the about page', async ({ page }) => {
     const response = await page.goto('/about', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe('/');
-    expect(response?.request().redirectedFrom()).toBeTruthy();
+    expect(new URL(page.url()).pathname).toBe('/about');
+    expect(response?.request().redirectedFrom()).toBeFalsy();
     await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', {
       useInnerText: true,
     });
+    await expect(page.getByRole('heading', { name: '我在做什么' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '技术栈' })).toBeVisible();
   });
 
   test('/now renders the living status', async ({ page }) => {

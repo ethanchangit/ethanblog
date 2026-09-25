@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('article can embed a tweet and a YouTube video together', async ({ page }) => {
-  await page.goto('/articles/embed-preview', { waitUntil: 'domcontentloaded' });
+  await page.goto('/embed-preview', { waitUntil: 'domcontentloaded' });
 
   const tweet = page.locator('[data-tweet-embed]').filter({ visible: true });
   await expect(tweet).toBeVisible();

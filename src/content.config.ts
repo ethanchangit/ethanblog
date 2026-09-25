@@ -80,6 +80,9 @@ const pages = defineCollection({
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
+    // A #blogi18n page sits beside its source: pages/<id>/<language>.mdx.
+    language: z.string().regex(/^[a-z]{2,3}$/).optional(),
+    translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
   }),
 });
 

@@ -44,7 +44,7 @@ test.describe('Theme（浅色/深色）', () => {
   });
 
   test('页脚钉在视口底，滚动后仍可点', async ({ page }) => {
-    await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+    await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     const footer = page.getByRole('contentinfo');
     await expect(footer).toBeInViewport();
     await page.evaluate(() => window.scrollTo(0, 0));

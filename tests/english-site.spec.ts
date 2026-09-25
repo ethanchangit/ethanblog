@@ -9,21 +9,24 @@ test.describe('English site (ethanchang.io)', () => {
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(`${EN}/`);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles');
     await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('Tags');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://ethanchang.io/');
     // Before translations are published, Chinese articles are listed and open on the Chinese site.
     const chinese = page.locator('[data-chinese-only]');
-    await expect(chinese.getByRole('heading', { name: 'In Chinese' })).toBeVisible();
-    await expect(chinese.locator('a[href="/_lang/zh/articles/pkm-method"]')).toHaveCount(1);
+    await expect(chinese.locator('a[href="/_lang/zh/pkm-method"]')).toHaveCount(1);
   });
 
   test('pages without an English version open on the Chinese site', async ({ page }) => {
+    await page.goto(`${EN}/about`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/^http:\/\/localhost:4322\/about\/?$/);
+    await expect(page.locator('[data-about-panel] h1')).toHaveText('Ethan Chang · 张峻源', { useInnerText: true });
     await page.goto(`${EN}/now`, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/^http:\/\/localhost:4322\/now\/?$/);
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-    await page.goto(`${EN}/articles/pkm-method`, { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/^http:\/\/localhost:4322\/articles\/pkm-method\/?$/);
+    await page.goto(`${EN}/pkm-method`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/^http:\/\/localhost:4322\/pkm-method\/?$/);
   });
 
   test('the language switch moves between the two hosts and keeps the path', async ({ page }) => {

@@ -420,7 +420,8 @@ export function filterSlashCommands(query, lang = 'zh') {
 export function hrefForOf(of) {
   const raw = String(of ?? '').trim();
   if (raw === 'pages/blogs' || raw === 'blogs') return '/blogs';
-  if (raw.startsWith('articles/') || raw.startsWith('projects/')) return `/${raw}`;
+  const match = /^(articles|projects|pages)\/(.+)$/.exec(raw);
+  if (match) return `/${match[2].replace(/\/[a-z]{2,3}$/, '')}`;
   return '/';
 }
 

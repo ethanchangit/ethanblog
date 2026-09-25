@@ -9,13 +9,13 @@ test.describe('文章列表', () => {
     await expect(page.locator(CARD)).toHaveCount(28);
     await expect(page.getByRole('heading', { level: 2, name: '2026' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: '2025' })).toBeVisible();
-    await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/series-demo"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2026-05"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
-    await expect(page.locator('a[href="/articles/series-demo/2"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/embed-preview"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/series-demo"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2026-05"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2026-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2025-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/series-demo/1"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/series-demo/2"]')).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: '文章分页' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: '更早', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: '更新', exact: true })).toHaveCount(0);
@@ -23,8 +23,8 @@ test.describe('文章列表', () => {
 
   test('文章索引不收录项目', async ({ page }) => {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('a[href="/projects/robert"]')).toHaveCount(0);
-    await expect(page.locator('a[href="/articles/robert"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/robert"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/robert"]')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Robert' })).toHaveCount(0);
   });
 
@@ -34,9 +34,9 @@ test.describe('文章列表', () => {
     expect(new URL(page.url()).pathname).toBe('/articles');
     expect(response?.request().redirectedFrom()).toBeTruthy();
     await expect(page.locator(CARD)).toHaveCount(28);
-    await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2026-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2025-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/embed-preview"] h3')).toBeVisible();
   });
 });
 
@@ -46,8 +46,8 @@ test.describe('文章列表（无 JS）', () => {
   test('完整列表仍在，没有分页链', async ({ page }) => {
     await page.goto('/articles', { waitUntil: 'domcontentloaded' });
     await expect(page.locator(CARD)).toHaveCount(28);
-    await expect(page.locator('a[href="/articles/dummy-2026-01"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/dummy-2025-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2026-01"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/dummy-2025-01"] h3')).toBeVisible();
     await expect(page.getByRole('link', { name: '更早', exact: true })).toHaveCount(0);
   });
 });

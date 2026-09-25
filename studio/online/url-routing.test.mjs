@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { assertArticleSlug, propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
+import { propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -24,13 +24,10 @@ const approve = (f, plan) => f.request('/heptabase/decision', 'POST', { ...input
 test('URL is the slug as written; translation languages become their own site', () => {
   assert.equal(routeSlug(' /toolset/ '), 'toolset');
   assert.equal(routeSlug(''), null);
-  // Reading a slug never fails: a Page may be named after its own fixed route.
-  assert.equal(routeSlug('now'), 'now');
-  assert.equal(assertArticleSlug('toolset'), 'toolset');
-  assert.throws(() => assertArticleSlug('My Toolset'));
-  assert.throws(() => assertArticleSlug('2024'));
+  assert.throws(() => routeSlug('My Toolset'));
+  assert.throws(() => routeSlug('2024'));
   for (const fixed of ['now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'en', 'cn']) {
-    assert.throws(() => assertArticleSlug(fixed), new RegExp(`slug「${fixed}」与网站固定地址 /${fixed} 冲突`));
+    assert.throws(() => routeSlug(fixed), new RegExp(`与网站固定地址 /${fixed} 冲突`));
   }
   assert.equal(translationLanguage('en'), 'en');
   assert.equal(translationLanguage('English'), 'en');
@@ -72,31 +69,6 @@ test('a translation must be in #blogi18n, carry the same URL, and be the only on
   res = await preview(f); assert.equal(res.status, 400); assert.match((await res.json()).error, /中文写在 #blog/);
 });
 
-test('a Page card whose slug is its own site page pulls and updates that page; an Article cannot take the route', async () => {
-  const PAGE = '55555555-5555-4555-8555-555555555555';
-  const f = await setup({ slug: 'now' });
-  f.cardSources.set(PAGE, '# 最近在做什么\n\n写博客。');
-  f.properties.set(PAGE, { Status: 'review', 'Blog Type': 'Page', slug: 'now' });
-  f.remote(serializeMdx({ frontmatter: { slot: 'page', title: 'Now', description: '现在', date: '2026-09-21', heptabaseCardLink: link(PAGE) }, bodyZh: '旧的 Now。' }), 'src/content/pages/now.mdx');
-  const pulled = await ok(f.request('/heptabase/cards'));
-  assert.deepEqual(pulled.cards.map(c => c.id).sort(), [PAGE, ZH].sort());
-  const page = await ok(f.request('/heptabase/preview', 'POST', { cardLink: link(PAGE), collection: 'pages', preparePublish: true, reviewOnly: true }));
-  assert.equal(page.filePath, 'src/content/pages/now.mdx');
-  assert.equal(parseMdx(page.next).bodyZh, '写博客。');
-  const article = await preview(f);
-  assert.equal(article.status, 409);
-  assert.match((await article.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
-});
-
-test('a new Page card named by slug takes its site page even with another title', async () => {
-  const PAGE = '66666666-6666-4666-8666-666666666666';
-  const f = await setup();
-  f.cardSources.set(PAGE, '# 最近\n\n写博客。');
-  f.properties.set(PAGE, { Status: 'review', 'Blog Type': 'Page', slug: 'now' });
-  const page = await ok(f.request('/heptabase/preview', 'POST', { cardLink: link(PAGE), collection: 'pages', preparePublish: true, reviewOnly: true }));
-  assert.equal(page.filePath, 'src/content/pages/now.mdx');
-});
-
 test('without URL the card keeps its slug and the translation sits beside it', async () => {
   const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
   delete f.properties.get(ZH).slug;
@@ -110,10 +82,43 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
   f = await setup({ slug: 'now' });
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
+  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
-  res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/articles\/my-toolset/);
+  res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/my-toolset/);
+});
+
+test('a project and a page publish the related English translation beside the source', async () => {
+  const f = await fixture();
+  globalThis.fetch = f.fetcher;
+  await f.login();
+  await f.connect();
+  f.properties.get(CARD).Status = 'writing';
+  const project = 'c31ada66-3333-4759-8b1f-830c8374fcae', projectEn = 'c41ada66-4444-4759-8b1f-830c8374fcae';
+  f.properties.set(project, { Status: 'review', 'Blog Type': 'Project', 'blog i18n': [`card/${projectEn}`] });
+  f.cardSources.set(project, '# 痕迹\n\n中文项目。');
+  f.remote(serializeMdx({ frontmatter: { slot: 'project', title: '痕迹', description: '中文', heptabaseCardLink: link(project) }, bodyZh: '中文项目。' }), 'src/content/projects/sample-trace.mdx');
+  f.cardSources.set(projectEn, '# Trace\n\nEnglish project.');
+  f.i18n.set(projectEn, { Language: 'en' });
+  const preview = (card, collection) => f.request('/heptabase/preview', 'POST', { cardLink: link(card), collection, preparePublish: true, reviewOnly: true });
+  let plan = await ok(preview(project, 'projects'));
+  let en = plan.changes.find(change => change.id === projectEn);
+  assert.deepEqual([en.path, en.translation, en.language, en.afterProperties.title, en.afterProperties.slot, en.afterProperties.translationOf], ['src/content/projects/sample-trace/en.mdx', true, 'en', 'Trace', 'project', link(project)]);
+  assert.equal(en.afterProperties.date, plan.changes.find(change => change.id === project).afterProperties.date);
+  await ok(f.request('/heptabase/decision', 'POST', { cardLink: link(project), collection: 'projects', preparePublish: true, reviewOnly: true, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'approve', confirmPublic: true }));
+  assert.equal((await ok(f.request('/doc?collection=projects&id=sample-trace%2Fen'))).href, '/sample-trace');
+
+  const page = 'f11ada66-1111-4759-9b1f-830c8374fcae', pageEn = 'e21ada66-2222-4759-8b1f-830c8374fcae';
+  f.properties.set(page, { Status: 'review', 'Blog Type': 'Page', 'Publish Date': { start: '2024-04-02T00:00:00.000Z' }, 'blog i18n': [`card/${pageEn}`] });
+  f.cardSources.set(page, '# 笔记\n\n中文页面。');
+  f.remote(serializeMdx({ frontmatter: { slot: 'page', title: '笔记', description: '笔记', date: '2024-04-02', heptabaseCardLink: link(page) }, bodyZh: '中文页面。' }), 'src/content/pages/notes.mdx');
+  f.cardSources.set(pageEn, '# Notes\n\nEnglish page.');
+  f.i18n.set(pageEn, { Language: 'en' });
+  plan = await ok(preview(page, 'pages'));
+  en = plan.changes.find(change => change.id === pageEn);
+  assert.deepEqual([en.path, en.translation, en.language, en.afterProperties.title, en.afterProperties.slot], ['src/content/pages/notes/en.mdx', true, 'en', 'Notes', 'page']);
+  assert.equal(en.afterProperties.translationOf, link(page));
+  assert.equal(Boolean(en.afterProperties.tags), false);
 });
 
 test('withdrawing an article takes its translations with it', () => {

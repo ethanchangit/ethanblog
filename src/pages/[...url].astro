@@ -1,22 +1,66 @@
 ---
+import { render } from 'astro:content';
 import ArticleView from '@/components/shell/ArticleView.astro';
-import { docHref, docsBySlot, includeDraftsInDev } from '@/lib/docs';
+import ReadingShell from '@/components/shell/ReadingShell.astro';
+import Doc from '@/layouts/Doc.astro';
+import Toc from '@/components/shell/Toc.astro';
+import Base from '@/layouts/Base.astro';
+import { includeDraftsInDev, publicContentRoutes, resolvePublicPath, type PublicRoute } from '@/lib/docs';
+import { hasToc } from '@/lib/toc';
 
-export const prerender = true;
+export const prerender = import.meta.env.PROD;
 
-// Articles whose Heptabase card sets URL: English at /<url>, Chinese at /<url>/cn.
-// Fixed routes always win; content.config and the dashboard both refuse reserved URLs.
+// 文章、项目、以及没有固定地址的站点页都在 /<slug>。固定路由优先。
 export async function getStaticPaths() {
-  const articles = await docsBySlot('article', { includeDrafts: includeDraftsInDev });
-  return articles
-    .filter((article) => article.data.url)
-    .map((article) => ({
-      params: { url: docHref(article).slice(1) },
-      props: { article },
-    }));
+  const routes = await publicContentRoutes({ includeDrafts: includeDraftsInDev });
+  return routes.map((route) => ({ params: { url: route.path }, props: route }));
 }
 
-const { article } = Astro.props;
+const param = Astro.params.url ?? '';
+const route = (Astro.props.kind ? Astro.props : await resolvePublicPath(param, { includeDrafts: includeDraftsInDev })) as
+  | PublicRoute
+  | undefined;
+if (!route) return Astro.rewrite('/404');
+if (route.kind === 'redirect') return Astro.redirect(route.target, 301);
+
+const projectRendered = route.kind === 'project' ? await render(route.project) : null;
+const pageRendered = route.kind === 'page' ? await render(route.page) : null;
+const ProjectContent = projectRendered?.Content;
+const PageContent = pageRendered?.Content;
+const split = projectRendered?.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
+const projectHeadings = projectRendered?.headings ?? [];
+const zhHeadings = typeof split === 'number' ? projectHeadings.slice(0, split) : projectHeadings;
+const showRail = route.kind === 'project' ? hasToc(zhHeadings) : false;
 ---
 
-<ArticleView article={article} />
+{
+  route.kind === 'article' && <ArticleView article={route.article} />
+}
+{
+  route.kind === 'project' && projectRendered && (
+    <ReadingShell
+      kind="project"
+      title={route.project.data.title}
+      description={route.project.data.description}
+      currentId={route.project.id}
+      showRail={showRail}
+    >
+      <Doc doc={route.project}>
+        {ProjectContent && <ProjectContent />}
+      </Doc>
+      <Fragment slot="rail">
+        <Toc headings={zhHeadings} title={route.project.data.title} />
+      </Fragment>
+    </ReadingShell>
+  )
+}
+{
+  route.kind === 'page' && pageRendered && (
+    <Base title={route.page.data.title} description={route.page.data.description}>
+      <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 prose-site">
+        <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">{route.page.data.title}</h1>
+        {PageContent && <PageContent />}
+      </article>
+    </Base>
+  )
+}

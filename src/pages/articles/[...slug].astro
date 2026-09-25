@@ -1,31 +1,20 @@
 ---
-import ArticleView from '@/components/shell/ArticleView.astro';
-import { docHref, docsBySlot, findDoc, includeDraftsInDev } from '@/lib/docs';
+import { docHref, docsBySlot, includeDraftsInDev } from '@/lib/docs';
 
 export const prerender = import.meta.env.PROD;
 
-// 纯数字 slug 留给旧分页 URL（`/articles/2` → `/articles`），避免和文章抢路径。
-// 写了 Heptabase URL 的文章住在站点根路径（`/<url>`、`/<url>/cn`），不在这里重复生成。
+// 旧地址 /articles/<id> 转到 /<slug>。纯数字留给分页（/articles/2 → /articles）。
 export async function getStaticPaths() {
   const articles = await docsBySlot('article', { includeDrafts: includeDraftsInDev });
   return articles
-    .filter((article) => !/^\d+$/.test(article.id) && !article.data.url)
+    .filter((article) => !/^\d+$/.test(article.id))
     .map((article) => ({
       params: { slug: article.id },
-      props: { article },
+      props: { target: docHref(article) },
     }));
 }
 
-const slug = Astro.params.slug ?? '';
-const article =
-  Astro.props.article ??
-  (await findDoc('articles', slug, { includeDrafts: includeDraftsInDev }));
-if (!article || /^\d+$/.test(article.id)) {
-  return Astro.rewrite('/404');
-}
-if (article.data.url) {
-  return Astro.redirect(docHref(article), 301);
-}
+const target = Astro.props.target as string | undefined;
+if (!target) return Astro.rewrite('/404');
+return Astro.redirect(target, 301);
 ---
-
-<ArticleView article={article} />

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const FINAL = '/articles/pkm-method/';
+const FINAL = '/pkm-method/';
 
 test.describe('Article 论文化接口（T2）', () => {
   test('定稿页无摘要小标，无页眉作者行', async ({ page }) => {
@@ -15,7 +15,7 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(header.getByText(/文 \//)).toHaveCount(0);
   });
 
-  test('摘要是导语档：字号行距与正文不同，底下有发丝线', async ({ page }) => {
+  test('摘要是导语档：字重行距字色与正文不同，底下有发丝线', async ({ page }) => {
     await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
     const dek = page.locator('header.article-dek');
@@ -29,10 +29,11 @@ test.describe('Article 论文化接口（T2）', () => {
       const dekEl = document.querySelector('.article-dek');
       const dekText = document.querySelector('.article-dek-text');
       const column = document.querySelector('.article-page');
-      const proseP = [...document.querySelectorAll('.prose-site p')].find(
+      const proseP = [...document.querySelectorAll('.prose-site > p')].find(
         (el) => el.getClientRects().length > 0,
       );
-      if (!dekEl || !dekText || !column || !proseP) return null;
+      const first = document.querySelector('.prose-site')?.firstElementChild;
+      if (!dekEl || !dekText || !column || !proseP || !first) return null;
       const d = getComputedStyle(dekEl);
       const t = getComputedStyle(dekText);
       const p = getComputedStyle(proseP);
@@ -40,6 +41,8 @@ test.describe('Article 论文化接口（T2）', () => {
         borderBottomWidth: parseFloat(d.borderBottomWidth),
         dekSize: parseFloat(t.fontSize),
         dekLine: parseFloat(t.lineHeight),
+        dekWeight: Number(t.fontWeight),
+        proseWeight: Number(p.fontWeight),
         dekWidth: dekText.getBoundingClientRect().width,
         columnWidth: column.getBoundingClientRect().width,
         proseWidth: proseP.getBoundingClientRect().width,
@@ -48,17 +51,29 @@ test.describe('Article 论文化接口（T2）', () => {
         dekColor: t.color,
         proseColor: p.color,
         marginBottom: parseFloat(d.marginBottom),
+        paddingBottom: parseFloat(d.paddingBottom),
+        proseMargin: parseFloat(p.marginBottom),
+        dekToBody: first.getBoundingClientRect().top - dekEl.getBoundingClientRect().bottom,
       };
     });
 
     expect(styles).not.toBeNull();
     expect(styles!.borderBottomWidth).toBe(1);
     expect(styles!.dekSize).toBeGreaterThan(styles!.proseSize);
-    expect(styles!.dekLine).toBeGreaterThan(styles!.proseLine);
+    expect(styles!.dekSize).toBeLessThan(styles!.proseSize * 1.2);
+    expect(styles!.dekLine / styles!.dekSize).toBeCloseTo(1.5, 1);
+    expect(styles!.proseLine / styles!.proseSize).toBeCloseTo(1.5, 1);
+    expect(styles!.dekLine / styles!.dekSize - styles!.proseLine / styles!.proseSize).toBeLessThan(0.15);
+    expect(styles!.dekWeight).toBeGreaterThan(styles!.proseWeight);
     expect(Math.abs(styles!.dekWidth - styles!.proseWidth)).toBeLessThan(2);
     expect(styles!.dekWidth).toBeLessThanOrEqual(styles!.columnWidth + 1);
     expect(styles!.dekColor).not.toBe(styles!.proseColor);
-    expect(styles!.marginBottom).toBeGreaterThanOrEqual(40);
+    expect(styles!.marginBottom + styles!.paddingBottom).toBeGreaterThan(8);
+    expect(styles!.marginBottom + styles!.paddingBottom).toBeLessThan(20);
+    expect(styles!.proseMargin).toBeGreaterThan(0);
+    expect(styles!.proseMargin).toBeLessThan(styles!.proseLine * 0.6);
+    expect(styles!.dekToBody).toBeGreaterThan(0);
+    expect(styles!.dekToBody).toBeLessThan(styles!.proseLine * 0.6);
   });
 
   test('标题下可复制规范 URL，且在摘要之上', async ({ page }) => {
@@ -98,7 +113,7 @@ test.describe('Article 论文化接口（T2）', () => {
     );
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(copied).toBe(canonical);
-    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/articles\/pkm-method\/?$/);
+    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/pkm-method\/?$/);
   });
 
   test('1440×900 下第三栏目录可见、H3 有缩进、可点锚点', async ({ page }) => {
@@ -116,6 +131,7 @@ test.describe('Article 论文化接口（T2）', () => {
     const firstLabel = toc.locator('a .toc-label').filter({ visible: true }).first();
     await expect(firstLabel).toBeVisible();
     await expect(firstLabel).toHaveCSS('opacity', '1');
+    await expect(firstLabel).toHaveText('我的 PKM 实践：从笔记到知识网络');
 
     const h3 = toc.locator('a[data-depth="3"]').filter({ visible: true }).first();
     await expect(h3).toBeVisible();
@@ -123,12 +139,36 @@ test.describe('Article 论文化接口（T2）', () => {
     expect(indent).toBeGreaterThanOrEqual(12);
 
     const firstLink = toc.locator('a').filter({ visible: true }).first();
+    await expect(firstLink).toHaveAttribute('href', '#doc-title');
     await firstLink.focus();
     await expect(firstLink).toBeFocused();
 
+    const section = toc.locator('a[data-depth="2"]').filter({ visible: true }).first();
+    await section.click();
+    await expect(page).toHaveURL(/#(?!doc-title).+/);
+    await expect(section).toHaveAttribute('aria-current', 'true');
+    const scrolled = await page.evaluate(() => {
+      const pane = document.querySelector('[data-reading-pane]');
+      return pane instanceof HTMLElement ? pane.scrollTop : window.scrollY;
+    });
+    expect(scrolled).toBeGreaterThan(40);
+
     await firstLink.click();
-    await expect(page).toHaveURL(/#.+/);
+    await expect(page).toHaveURL(/#doc-title$/);
     await expect(firstLink).toHaveAttribute('aria-current', 'true');
+    const top = await page.evaluate(() => {
+      const pane = document.querySelector('[data-reading-pane]');
+      const title = document.querySelector('.article-lede h1');
+      if (!(pane instanceof HTMLElement) || !(title instanceof HTMLElement)) return null;
+      return {
+        scrollTop: pane.scrollTop,
+        titleTop: title.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+      };
+    });
+    expect(top).not.toBeNull();
+    expect(top!.scrollTop).toBeLessThan(2);
+    expect(top!.titleTop).toBeGreaterThanOrEqual(0);
+    expect(top!.titleTop).toBeLessThan(160);
   });
 
   test('390×844 下左栏与目录都隐藏，只显示正文，无横向溢出', async ({ page }) => {

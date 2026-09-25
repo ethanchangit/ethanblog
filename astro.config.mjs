@@ -28,14 +28,6 @@ export default defineConfig({
     },
   }),
   redirects: {
-    '/about': {
-      status: 301,
-      destination: '/',
-    },
-    '/zh/about': {
-      status: 301,
-      destination: '/',
-    },
     '/articles/1': {
       status: 301,
       destination: '/articles',

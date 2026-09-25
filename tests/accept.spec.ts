@@ -18,7 +18,7 @@ test('markdown asset paths and negotiation skip list', () => {
   expect(shouldNegotiate('/')).toBe(true);
   expect(shouldNegotiate('/api/me')).toBe(false);
   expect(shouldNegotiate('/llms.txt')).toBe(false);
-  expect(shouldNegotiate('/articles/pkm-method.md')).toBe(false);
+  expect(shouldNegotiate('/pkm-method.md')).toBe(false);
 });
 
 test('Cloudflare wrapper serves markdown before Astro can short-circuit to HTML', async () => {

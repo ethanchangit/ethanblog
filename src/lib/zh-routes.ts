@@ -1,5 +1,5 @@
 import { getCollection } from 'astro:content';
-import { docsBySlot, includeDraftsInDev } from '@/lib/docs';
+import { docHref, docsBySlot, includeDraftsInDev, sitePageHref } from '@/lib/docs';
 import { publishedArticles, uniqueTags } from '@/lib/tags';
 
 const STATIC_SEGMENTS = [
@@ -13,6 +13,7 @@ const STATIC_SEGMENTS = [
   '404',
   'contact',
   'privacy',
+  'about',
   'for-agents',
 ] as const;
 
@@ -22,18 +23,24 @@ export async function zhRestPaths(): Promise<string[]> {
     docsBySlot('article', { includeDrafts: includeDraftsInDev }),
     publishedArticles(),
     docsBySlot('project', { includeDrafts: includeDraftsInDev }),
-    getCollection('pages', ({ id, data }) => !['blogs', 'about', 'now', 'contact', 'privacy'].includes(id) && (includeDraftsInDev || !data.draft)),
+    getCollection('pages', ({ id, data }) => !['blogs', 'about', 'now', 'contact', 'privacy'].includes(id) && !data.translationOf && (includeDraftsInDev || !data.draft)),
   ]);
   const paths = new Set<string>(STATIC_SEGMENTS);
 
   for (const article of articles) {
     if (/^\d+$/.test(article.id)) continue;
     paths.add(`articles/${article.id}`);
+    paths.add(docHref(article).replace(/^\//, ''));
   }
   for (const project of projects) {
     paths.add(`projects/${project.id}`);
+    paths.add(docHref(project).replace(/^\//, ''));
   }
-  for (const page of sitePages) paths.add(`pages/${page.id}`);
+  for (const page of sitePages) {
+    paths.add(`pages/${page.id}`);
+    const href = sitePageHref(page.id);
+    if (href !== '/') paths.add(href.replace(/^\//, ''));
+  }
   for (const tag of uniqueTags(indexed)) {
     paths.add(`tags/${tag}`);
   }

@@ -12,6 +12,8 @@ interface Props {
 }
 
 const { article } = Astro.props;
+const kind = article.data.slot === 'project' ? 'project' : 'article';
+const readingId = kind === 'project' ? article.id.replace(/\/[a-z]{2,3}$/, '') : article.id;
 const rendered = await render(article);
 const split = rendered.remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
 const zhHeadings =
@@ -25,10 +27,10 @@ const alternates = (await languageVersions(article)).map((version) => ({
 ---
 
 <ReadingShell
-  kind="article"
+  kind={kind}
   title={article.data.title}
   description={article.data.description}
-  currentId={article.id}
+  currentId={readingId}
   docHref={docHref(article)}
   alternates={alternates}
   showRail={showRail}
@@ -37,6 +39,6 @@ const alternates = (await languageVersions(article)).map((version) => ({
     <Content />
   </Doc>
   <Fragment slot="rail">
-    <Toc headings={zhHeadings} />
+    <Toc headings={zhHeadings} title={article.data.title} />
   </Fragment>
 </ReadingShell>
