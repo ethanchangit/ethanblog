@@ -1,0 +1,80 @@
+---
+import Base from '@/layouts/Base.astro';
+import Card from '@/components/shell/Card.astro';
+import I18n from '@/components/shell/I18n.astro';
+import TagFilter from '@/components/shell/TagFilter.svelte';
+import { copy } from '@/lib/i18n';
+import { isEnglishBuildPath } from '@/lib/hosts';
+import { tagHref } from '@/lib/routes';
+import { articleCardProps, englishTaggedArticles, publishedArticles, uniqueTags } from '@/lib/tags';
+
+const lang = Astro.locals.lang === 'en' || isEnglishBuildPath(Astro.url.pathname) ? 'en' : 'zh-CN';
+// Tag names are the #blog Tag field on the Chinese source card. The list is flat.
+// Chinese lists do not include translations. The English page only lists articles
+// that have a translation; it does not drop tags by group.
+const sources = await publishedArticles();
+const articles = lang === 'en' ? await englishTaggedArticles() : sources;
+const tags = uniqueTags(sources);
+const counts = Object.fromEntries(
+  tags.map((tag) => [tag, articles.filter((entry) => entry.data.tags.includes(tag)).length])
+);
+const cards = articles.filter((entry) => entry.data.tags.length > 0).map((entry) => articleCardProps(entry, lang));
+const lp = Astro.locals.localePath;
+const text = copy[lang];
+---
+
+<Base title={text.tagsTitle} description={text.tagsDesc}>
+  <section class="mx-auto max-w-3xl px-4 py-14 sm:px-6" data-tag-index>
+    <header class="mb-8">
+      <h1 class="text-3xl font-semibold tracking-tight text-ink-100 sm:text-4xl">
+        <I18n k="tagsTitle" />
+      </h1>
+    </header>
+
+    <TagFilter client:load />
+
+    <div data-tag-cloud>
+      <ul
+        class="tag-index-list"
+        data-tag-list
+        aria-label={text.tagsListAria}
+        data-i18n-aria="tagsListAria"
+      >
+        {
+          tags.map((tag) => (
+            <li data-tag-item data-tag-name={tag.toLowerCase()}>
+              <a href={lp(tagHref(tag))} class="ui-tag-link text-sm" data-tag-select={tag}>
+                {tag}
+              </a>
+              <span class="ui-meta tabular-nums">{counts[tag]}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <p class="mt-2 text-sm text-ink-500" data-tag-empty hidden={tags.length > 0}>
+      <I18n k="tagsEmpty" />
+    </p>
+
+    <div class="mt-10" data-doc-results hidden>
+      <div class="flex flex-col">
+        {
+          cards.map((card) => (
+            <div data-doc-item data-doc-tags={card.tags.join('\n')} hidden>
+              <Card
+                href={lp(card.href)}
+                title={card.title}
+                description={card.description}
+                meta={card.meta}
+                tags={card.tags}
+              />
+            </div>
+          ))
+        }
+      </div>
+      <p class="mt-4 text-sm text-ink-500" data-doc-empty hidden>
+        <I18n k="tagsNoDocs" />
+      </p>
+    </div>
+  </section>
+</Base>
