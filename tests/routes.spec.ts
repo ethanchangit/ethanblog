@@ -15,7 +15,7 @@ test.describe('Route crawling', () => {
     expect(new URL(page.url()).pathname).toBe('/');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-shell]')).toHaveAttribute('data-reading-shell', 'index');
-    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', { useInnerText: true });
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', { useInnerText: true });
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-index] a[aria-current="page"]')).toHaveCount(0);
   });
@@ -24,9 +24,9 @@ test.describe('Route crawling', () => {
     const response = await page.goto('/zh', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     await expect(page).toHaveURL(url => url.pathname === '/');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
-    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章', {
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', {
       useInnerText: true,
     });
     await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
@@ -50,8 +50,8 @@ test.describe('Route crawling', () => {
     const response = await page.goto('/now', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
     const lede = page.locator('article > header.mb-10');
-    await expect(lede.locator('h1')).toHaveText('现在', { useInnerText: true });
-    await expect(lede.locator('p.ui-meta')).toHaveText('更新于 2026 年 8 月 21 日', {
+    await expect(lede.locator('h1')).toHaveText('Now', { useInnerText: true });
+    await expect(lede.locator('p.ui-meta')).toHaveText('Updated August 21, 2026', {
       useInnerText: true,
     });
     await expect(page.getByText('这是一页 Now：最近在做什么。', { exact: false })).toBeVisible();
@@ -64,13 +64,13 @@ test.describe('Route crawling', () => {
   test('/404 page renders', async ({ page }) => {
     const response = await page.goto('/404', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);
-    await expect(page.getByRole('heading', { name: "这个页面不存在" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "This page does not exist" })).toBeVisible();
   });
 
   test('unknown route serves 404 content', async ({ page }) => {
     const response = await page.goto('/this-route-does-not-exist', { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(404);
-    await expect(page.getByRole('heading', { name: "这个页面不存在" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "This page does not exist" })).toBeVisible();
   });
 
   test('/studio is not shipped in the production preview', async ({ page, request }) => {

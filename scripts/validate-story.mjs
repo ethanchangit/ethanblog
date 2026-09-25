@@ -2,7 +2,7 @@
 /**
  * validate-story —— 内容校验闸门（npm run validate:content）。
  * 检查 src/content/articles 与 src/content/projects 中 astro check（schema）
- * 查不到的创作规约：主标题、摘要、正文、slot、注水指令、组件用法、Var/Calc 顺序等。
+ * 查不到的创作规约：主标题、摘要、正文、slot、注水指令、组件用法。
  * 不要求英文标题、摘要或正文副本。
  * 规则清单与 docs/MEDIUM.md / .claude/skills/publish/SKILL.md 保持同步。
  *
@@ -18,34 +18,18 @@ const PROJECTS_DIR = join(ROOT, 'src/content/projects');
 
 // 组件清单 —— 与 src/components/media/index.ts barrel 保持同步
 const SVELTE_ISLANDS = [
-  'ParamSlider',
-  'BeforeAfterSlider',
-  'ScrollScene',
   'Timeline',
-  'StatCounter',
-  'AudioClip',
   'InteractiveDemo',
-  'ImageGallery',
-  'Scene3D',
-  'Var',
-  'Calc',
 ];
 const ASTRO_ONLY = [
   'VideoEmbed',
   'TweetEmbed',
-  'CodePlayground',
-  'MediaFrame',
   'SideNote',
   'RuleGarden',
   'RuleTarget',
-  'VerdictTable',
-  'Mention',
-  'MentionTarget',
   'DocList',
   'DocRef',
 ];
-// Calc 表达式里的函数白名单（与 src/lib/reactive/eval.ts 同步）
-const EVAL_FUNCTIONS = new Set(['min', 'max', 'round', 'floor', 'ceil', 'abs', 'sqrt', 'clamp']);
 
 /** 递归收集 .mdx 文件 */
 function collectMdx(dir) {
@@ -84,7 +68,7 @@ function splitDoc(raw) {
 /**
  * 全局找一个组件的所有调用：返回 { index, line, call }。
  * call 只截开标签区（到第一个不在字符串字面量里的 ">"）——指令与 props 都在这里；
- * 带引号状态机，模板字符串里演示的 "/>"（如 CodePlayground 的 code prop）不会导致误截。
+ * 带引号状态机，模板字符串里演示的 "/>" 不会导致误截。
  */
 function findCalls(bodyText, tag) {
   const out = [];
@@ -115,7 +99,7 @@ function findCalls(bodyText, tag) {
   return out;
 }
 
-/** 剥掉字符串/模板字面量内容（如 CodePlayground 的 code prop 里演示的 client:visible），避免指令检查误报 */
+/** 剥掉字符串/模板字面量内容，避免指令检查误报 */
 function stripStrings(s) {
   return s
     .replace(/`(?:\\.|[^`\\])*`/g, '``')
@@ -187,9 +171,6 @@ function validateFile(file) {
       if (!/client:/.test(stripStrings(call))) {
         errors.push(`第 ${line} 行：<${tag}> 是 Svelte 岛屿，必须写 client:* 指令（默认 client:visible）`);
       }
-      if (tag === 'ScrollScene' && !/client:visible=\{\{\s*rootMargin:\s*'150% 0px'\s*\}\}/.test(call)) {
-        errors.push(`第 ${line} 行：<ScrollScene> 必须写 client:visible={{ rootMargin: '150% 0px' }}`);
-      }
     }
   }
 
@@ -209,43 +190,6 @@ function validateFile(file) {
     const ruleCount = (call.match(/when:/g) ?? []).length;
     if (ruleCount > 0 && (ruleCount < 2 || ruleCount > 4)) {
       errors.push(`第 ${line} 行：RuleGarden 初始规则应为 2–4 条（现在 ${ruleCount} 条）`);
-    }
-  }
-
-  // 反应式散文：Var 声明与 Calc 依赖按文档顺序核对（SSR 初值依赖 Var 先于 Calc）
-  const reactive = [
-    ...findCalls(bodyText, 'Var').map((c) => ({ ...c, tag: 'Var' })),
-    ...findCalls(bodyText, 'Calc').map((c) => ({ ...c, tag: 'Calc' })),
-  ].sort((a, b) => a.index - b.index);
-
-  const varsByScope = new Map(); // scope -> Set<name>
-  for (const { line, call, tag } of reactive) {
-    const scope = /scope=["']([\w-]+)["']/.exec(call)?.[1] ?? 'page';
-    if (tag === 'Var') {
-      const name = /name=["'](\w+)["']/.exec(call)?.[1];
-      if (!name) {
-        errors.push(`第 ${line} 行：<Var> 缺少 name`);
-        continue;
-      }
-      const names = varsByScope.get(scope) ?? new Set();
-      if (names.has(name)) errors.push(`第 ${line} 行：Var "${name}" 在 scope "${scope}" 里重复声明`);
-      names.add(name);
-      varsByScope.set(scope, names);
-    } else {
-      const expr = /expr=["']([^"']+)["']/.exec(call)?.[1];
-      if (!expr) {
-        errors.push(`第 ${line} 行：<Calc> 缺少 expr`);
-        continue;
-      }
-      const names = varsByScope.get(scope) ?? new Set();
-      const idents = (expr.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []).filter((id) => !EVAL_FUNCTIONS.has(id));
-      for (const id of idents) {
-        if (!names.has(id)) {
-          errors.push(
-            `第 ${line} 行：Calc 引用了 "${id}"，但 scope "${scope}" 里没有更早声明的同名 Var（SSR 初值依赖文档顺序）`
-          );
-        }
-      }
     }
   }
 

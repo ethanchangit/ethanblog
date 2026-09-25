@@ -1,9 +1,9 @@
 /**
- * cn.ethanchang.io 是中文站（#blog 原文），ethanchang.io 是英文站（#blogi18n 译文）。
- * 页面语言由路由决定：英文页面构建在 /en 下，其余是中文。
+ * The public blog is English. Chinese copy remains for cards that have not been
+ * republished, and for the dashboard.
  */
 export type Lang = 'zh-CN' | 'en';
-export const DEFAULT_LANG = 'zh-CN' as const;
+export const DEFAULT_LANG = 'en' as const;
 export const LANG_STORAGE_KEY = 'lang';
 export const LANG_EVENT = 'ethan:lang';
 
@@ -124,9 +124,6 @@ export const copy = {
     aboutIos: 'iOS 开发 —— 用 Swift 和 SwiftUI 构建原生应用',
     aboutAi: 'AI 集成 —— 用 LLM 和语音 AI 增强生产力工具',
     aboutPkm: '个人知识管理 —— 打造帮助捕捉和组织思考的工具与方法',
-    labTitle: '组件试验场',
-    labDesc: '媒介组件试验场',
-    labLead: '媒介组件库的现场演示与 QA 页面。',
     updatedPrefix: '更新于',
     abstract: '摘要',
     commentsHeading: '留言',
@@ -279,9 +276,6 @@ export const copy = {
     aboutIos: 'iOS development: native apps with Swift and SwiftUI',
     aboutAi: 'AI integration: LLMs and voice AI in productivity tools',
     aboutPkm: 'Personal knowledge management: tools and methods for capturing and organizing thought',
-    labTitle: 'Component lab',
-    labDesc: 'Media component lab',
-    labLead: 'Live demos and QA for the media component library.',
     updatedPrefix: 'Updated',
     abstract: 'Abstract',
     commentsHeading: 'Leave a note',

@@ -9,7 +9,7 @@
 - 站点页来自 `#blog` 里 Blog Type 为 Page 的卡片，最多显示 4 页。不超过 4 张时全部发布，审核里不出现挑选。超过 4 张时，拉取后的审核清单顶部写明「站点页面最多显示 4 页」，并要求勾选留下哪几页；未勾选的不会悄悄去掉，已在网站上的要等确认发布后才撤下。无论是否超过 4 张，导航顺序的每一行都可以单独隐藏。隐藏记在本机，发布时和顺序一起写入 `src/data/page-order.ts`：未隐藏的按拖动顺序进导航，隐藏的不进导航。隐藏不撤下页面，也不改 Heptabase 卡片。每一行可以在新标签打开对应卡片，地址用这张卡片自己的 `heptabaseCardLink`。关于、Now、联系、隐私继续用原来的地址；留下的新 Page 卡片发布到 `/<id>`。固定地址已被占用时，审核预览会写明新页面的地址，两张都保留。发布副本在 `src/content/pages/`。Blog Type 的选项以数据库为准，当前是 Article、Project、Page 和 Reference。只有 Article 进入文章列表。Reference 有自己的页面，不进文章列表。项目和文章没有篇数上限。卡片已有的发布日期和创建时间原样复制，不另造一个今天。标题下的预览段落来自 Summary；Summary 为空时留空，不把正文第一段当成摘要。
 - **Cloudflare 私有存储只保留待提交快照、审查记录、授权、发布进度，以及每张卡片上次成功拉取的编辑时间。** 编辑时间在 D1 表 `studio_card_pulls` 的 `edited_at`。每次拉取先只读 `#blog` 和 `#blogi18n` 的卡片列表和编辑时间，用来发现移出 `#blog` 或已删除的卡片；这一步不下载属性和正文。编辑时间没变的卡片不再读取，沿用上次拉到的内容；编辑时间变了，或还没有可信的上次拉取，才读取属性和正文。已发布正文里的 `updated` 也可以当作比较基准。后台重启后仍用这张表比较。拉取或保存审查结果不会直接更新网站。后台不会直接覆盖 `main`。
 - 每篇文章或项目用真实的 `heptabaseCardLink: heptabase://card/<uuid>` 一对一关联，不靠标题猜测。历史文章可以继续展示，但更新前需要关联；不能编造链接。
-- 中文正文在 `#blog`。英文译文是 `#blogi18n` 的独立卡片，和主卡片一起审核、一起发布，见下文「译文」。不在中文正文里再放一份英文副本。
+- 公开页的正文是 `#blog` 卡片原文，包括卡片里的双语版式。关联的 `#blogi18n` 卡片不写进这一页，也不另建译文页。见下文「译文」。
 
 ## 日常发布
 
@@ -36,7 +36,7 @@ Reference 卡片在 `#blog` 里，用 Blog Type 的 Reference 选项和文章、
 3. 确认后只是「待发布」。提交前可在审核清单里改判为暂不删除，恢复之前的待发布更新。已经提交 GitHub 的删除需要通过 GitHub 调整，后台不会覆盖已提交的审查结果。
 4. 与新增、编辑一起提交 GitHub，检查通过后明确确认发布，才会从线上正文、列表和搜索中移除。只在本地待发布、从未提交的新文章被撤回时，清理待发布清单即可，不需要创建空的发布。
 
-如果其他页面仍引用将被撤下的文章，预览区 `#notice` 和发布栏 `.release-alert` 会点名这些页面，并提供「留下为 reference」。发布不会被拦住：这篇文章从文章列表撤下，文件和地址留下，链接不断；没有人引用的专属资料仍会撤下。站点页和项目不能改成 reference，仍被引用时要先处理引用。拉取不完整、授权失败、暂时不可访问都不会被当作删除；只有完整标签清单和源卡片检查一致，或 Heptabase 明确报告卡片不存在，才会生成删除建议。提交和正式发布前都会重新核对；卡片重新加入 `#blog`、删除原因改变、网站内容变化时会要求重新审查。后台不直接改公开站正文，也不直接改 `main`。
+如果其他页面仍引用将被撤下的卡片，预览区 `#notice` 和发布栏 `.release-alert` 会点名这些页面，并提供「留下为 reference」。发布不会被拦住：这张卡片从文章列表、项目列表和站点页面撤下，文件和地址留下，链接不断；没有人引用的专属资料仍会撤下。仍是文章、项目或站点页的其他卡片保持原类型，不会因为被提到而改成 reference。拉取不完整、授权失败、暂时不可访问都不会被当作删除；只有完整标签清单和源卡片检查一致，或 Heptabase 明确报告卡片不存在，才会生成删除建议。提交和正式发布前都会重新核对；卡片重新加入 `#blog`、删除原因改变、网站内容变化时会要求重新审查。后台不直接改公开站正文，也不直接改 `main`。
 
 撤下不是抹除历史：GitHub 已公开的历史版本和外部缓存仍可能保留内容。网站撤下可通过 GitHub 的新更新恢复，但不能保证已公开的私人资料被彻底收回。
 
@@ -52,7 +52,7 @@ MCP 暂不能创建选项，缺少时会列出名称，要求先在 Heptabase �
 
 ## 部署与配置
 
-Cloudflare Pages 项目 `ethanblog`，域名 https://ethanchang.io （英文博客、后台）和 https://cn.ethanchang.io （中文博客）。部署时 `scripts/ensure-domains.mjs` 自动补齐 cn 域名和 DNS。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
+Cloudflare Pages 项目 `ethanblog`，站点是 https://ethanchang.io （博客和后台）。https://cn.ethanchang.io 跳到同一路径。部署时 `scripts/ensure-domains.mjs` 仍检查 cn 域名和 DNS。保留 `DB`、`SESSION`、`GUESTBOOK` 绑定；后台使用 `studio_` 表，迁移不重建原数据库。GitHub Actions 使用 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。
 
 Cloudflare production 需要：
 
@@ -92,11 +92,11 @@ npm run test
 npm run dev
 ```
 
-打开 http://localhost:4321/dashboard。这条路由只在 `astro dev` 注入，本机不要求后台密码，改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。`npm run studio` 与 `npm run dev` 是同一条命令。
+打开 http://localhost:4321/dashboard。这条路由只在 `astro dev` 注入，本机不要求后台密码，改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。
 
 本机拉取读 `.dev.vars` 里的 `GITHUB_TOKEN_BLOG`（或 `GITHUB_TOKEN`）和 `STUDIO_SECRET`。云端 Cursor Secrets 用同名 `GITHUB_TOKEN_BLOG`，类型是 Runtime Secret。生产 Pages 仍用 `GITHUB_TOKEN`。`STUDIO_SECRET` 加密 Heptabase 授权；令牌只授权 `ethanchangit/ethanblog`，Contents 与 Pull requests 读写，Actions 只读。不要复用 `gh` 的登录令牌，也不要把令牌写进仓库。授权和拉取缓存写在 `.studio/dashboard.sqlite`，重启后还在。
 
-同一进程的 http://localhost:4321/studio 只能改本机文件。它不是写作应用，生产构建不注入、不部署。
+本机没有单独的 `/studio` 编辑器。写作留在 Heptabase。
 
 内存验收（不连接真实 GitHub 或 Heptabase）：
 
@@ -124,7 +124,6 @@ node studio/online/preview.mjs
 
 ## 译文（#blogi18n）
 
-- 译文是 `#blogi18n`（标签 `blog i18n`）里的独立卡片。`#blog` 卡片的关联字段 `blog i18n` 指向它；配对只看关联。文章、项目和站点页用同一条规则，文件在原文旁边：`src/content/<articles|projects|pages>/<id>/<language>.mdx`。
-- 审核时译文列在原文下面（Translation · en），和原文一起通过或拒绝。发布后中文在 cn.ethanchang.io，英文在 ethanchang.io，同一路径。
-- 译文的 `Language` 必填；`URL` 为空或与原文相同。没有加入 `#blogi18n`、URL 不一致、同一语言关联了两张，都会停下并说明原因。
-- 撤下原文时，它的译文一起撤下。从关联里去掉某张译文，不会自动撤下已发布的那一版，需要在 GitHub 删除对应文件。
+- 公开页是 `#blog` 卡片原文。关联的 `#blogi18n` 卡片不替换标题或正文，也不写成 `src/content/<articles|projects|pages>/<id>/<language>.mdx`。
+- 关联如果还在：`Language` 必填，`URL` 为空或与原文相同。没有加入 `#blogi18n`、URL 不一致、同一语言关联了两张，都会停下并说明原因。中文不放进 `#blogi18n`。这些检查不把译文发布成页面。
+- 撤下原文时，已经发布过的旧译文文件仍会一起撤下。从关联里去掉某张译文，不会自动撤下已发布的那一版，需要在 GitHub 删除对应文件。

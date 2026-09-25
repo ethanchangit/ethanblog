@@ -49,10 +49,10 @@ test('外链预览只有可见文字和完整地址', () => {
     { title: 'nownownow.com', url: 'https://nownownow.com/about' },
   );
   assert.deepEqual(
-    externalMention('https://example.com/path?q=1#part', '  示例  ', 'http://localhost:4321/lab'),
+    externalMention('https://example.com/path?q=1#part', '  示例  ', 'http://localhost:4321/pkm-method'),
     { title: '示例', url: 'https://example.com/path?q=1#part' },
   );
-  assert.equal(externalMention('https://example.com', '示例', 'http://localhost:4321/lab')?.url, 'https://example.com/');
+  assert.equal(externalMention('https://example.com', '示例', 'http://localhost:4321/pkm-method')?.url, 'https://example.com/');
   assert.equal(externalMention('mailto:me@example.com', '信', 'http://localhost:4321/now'), null);
   assert.equal(externalMention('https://cn.ethanchang.io/now', 'Now', 'http://localhost:4321/'), null);
   assert.equal(externalMention('https://evil.test/a', '   ', 'http://localhost:4321/now'), null);

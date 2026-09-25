@@ -196,7 +196,7 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
     corePageMarkdown('privacy'),
   ]);
   const staticPages: { path: string; zh: string }[] = [
-    { path: '/', zh: shortIndexMarkdown('文章', copy['zh-CN'].articlesDesc, '/') },
+    { path: '/', zh: shortIndexMarkdown('Articles', copy.en.articlesDesc, '/') },
     { path: '/about', zh: about },
     ...(nowPage ? [{ path: NOW_PATH, zh: `${nowPage}\n` }] : []),
     ...(contactPage ? [{ path: CONTACT_PATH, zh: `${contactPage}\n` }] : []),
@@ -204,48 +204,38 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
     { path: FOR_AGENTS_PATH, zh: forAgentsMarkdown('zh') },
     {
       path: ARTICLES_PATH,
-      zh: shortIndexMarkdown('文章', copy['zh-CN'].articlesDesc, ARTICLES_PATH),
+      zh: shortIndexMarkdown('Articles', copy.en.articlesDesc, ARTICLES_PATH),
     },
     {
       path: PROJECTS_PATH,
-      zh: shortIndexMarkdown('项目', copy['zh-CN'].projectsDesc, PROJECTS_PATH),
+      zh: shortIndexMarkdown('Projects', copy.en.projectsDesc, PROJECTS_PATH),
     },
     {
       path: BLOGS_PATH,
-      zh: shortIndexMarkdown('博客', copy['zh-CN'].blogsDesc, BLOGS_PATH),
+      zh: shortIndexMarkdown('Blogs', copy.en.blogsDesc, BLOGS_PATH),
     },
     {
       path: SEARCH_PATH,
-      zh: shortIndexMarkdown('搜索', copy['zh-CN'].searchDesc, SEARCH_PATH),
+      zh: shortIndexMarkdown('Search', copy.en.searchDesc, SEARCH_PATH),
     },
     {
       path: TAGS_PATH,
-      zh: shortIndexMarkdown('标签', copy['zh-CN'].tagsDesc, TAGS_PATH),
-    },
-    {
-      path: '/lab',
-      zh: shortIndexMarkdown('组件试验场', copy['zh-CN'].labDesc, '/lab'),
+      zh: shortIndexMarkdown('Tags', copy.en.tagsDesc, TAGS_PATH),
     },
   ];
 
   for (const page of staticPages) {
     pages.push({ slug: page.path === '/' ? 'index' : page.path.slice(1), body: page.zh });
-    pages.push({
-      slug: page.path === '/' ? 'zh' : `zh${page.path}`,
-      body: page.zh,
-    });
   }
 
   for (const entry of articles) {
     if (/^\d+$/.test(entry.id)) continue;
     const href = docHref(entry);
     pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
-    pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
   for (const entry of projects) {
     const href = docHref(entry);
     pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
-    pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
 
   return pages;
@@ -273,7 +263,6 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
     FOR_AGENTS_PATH,
     SEARCH_PATH,
     TAGS_PATH,
-    '/lab',
   ]);
   const lastmod = new Map<string, string>();
 
@@ -500,7 +489,7 @@ export function siteJsonLd(): string {
         url: site.url,
         name: site.title,
         description: site.description,
-        inLanguage: ['en', 'zh-CN'],
+        inLanguage: ['en'],
         publisher: { '@id': `${site.url}/#person` },
         potentialAction: {
           '@type': 'SearchAction',
@@ -541,7 +530,7 @@ export function docJsonLd(entry: DocEntry): string {
     url,
     datePublished: entry.data.date?.toISOString(),
     dateModified: (entry.data.updated ?? entry.data.date)?.toISOString(),
-    inLanguage: ['en', 'zh-CN'],
+    inLanguage: ['en'],
     author: { '@id': `${site.url}/#person` },
     publisher: { '@id': `${site.url}/#person` },
     mainEntityOfPage: url,

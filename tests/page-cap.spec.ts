@@ -27,7 +27,13 @@ test('超过 4 张站点页时要在审核清单里选择留下哪几页', async
   await expect(page.getByLabel('后台密码')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
   const pagesTab = page.getByRole('tab', { name: /Pages/ });
-  if (await pagesTab.count() === 0) await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  if (await pagesTab.count() === 0) {
+    const button = page.getByRole('button', { name: '拉取最新更新', exact: true });
+    const cards = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname.endsWith('/heptabase/cards'));
+    await button.click();
+    await cards;
+    await expect(button).toBeEnabled({ timeout: 15_000 });
+  }
   await pagesTab.click();
   const choice = page.locator('#review-preview .page-choice');
   await expect(page.locator('#page-nav, .review-sidebar .page-choice')).toHaveCount(0);

@@ -3,9 +3,8 @@ import Card from '@/components/shell/Card.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { ARTICLES_PATH, HOME_PATH } from '@/lib/routes';
-import { docHref, seriesParentId } from '@/lib/docs';
-import { languageSwitchHref } from '@/lib/hosts';
-import { articleCardProps, englishSiteArticles, groupArticlesByYear, publishedArticles } from '@/lib/tags';
+import { seriesParentId } from '@/lib/docs';
+import { articleCardProps, groupArticlesByYear, publishedArticles } from '@/lib/tags';
 
 interface Props {
   currentId?: string;
@@ -14,9 +13,7 @@ interface Props {
 const { currentId } = Astro.props;
 const lp = Astro.locals.localePath;
 const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
-// ethanchang.io lists English translations; Chinese-only articles follow and open on cn.ethanchang.io.
-const englishSite = lang === 'en' ? await englishSiteArticles() : null;
-const all = englishSite ? englishSite.english : await publishedArticles();
+const all = await publishedArticles();
 const groups = groupArticlesByYear(all);
 const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefined;
 ---
@@ -47,25 +44,5 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
         </div>
       </section>
     ))
-  }
-  {
-    englishSite && englishSite.chineseOnly.length > 0 && (
-      <section class:list={[groups.length > 0 && 'mt-14']} data-chinese-only lang="zh-CN">
-        <div class="flex flex-col">
-          {englishSite.chineseOnly.map((entry) => {
-            const card = articleCardProps(entry, 'en');
-            return (
-              <Card
-                href={languageSwitchHref('zh', docHref(entry))}
-                title={card.title}
-                description={card.description}
-                meta={card.meta}
-                tags={card.tags}
-              />
-            );
-          })}
-        </div>
-      </section>
-    )
   }
 </section>

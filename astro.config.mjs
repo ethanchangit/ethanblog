@@ -4,13 +4,13 @@ import mdx from '@astrojs/mdx';
 import svelte from '@astrojs/svelte';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
-import { remarkSourceView } from './plugins/remark-source-view.mjs';
+import { remarkHeptabaseMentions } from './plugins/remark-heptabase-mentions.mjs';
 import { studioIntegration } from './studio/plugin.mjs';
 
 // https://astro.build/config
 export default defineConfig({
-  // cn.ethanchang.io is the Chinese blog; ethanchang.io serves the English build under dist/en.
-  site: 'https://cn.ethanchang.io',
+  // One English blog at ethanchang.io. cn.ethanchang.io redirects here.
+  site: 'https://ethanchang.io',
   output: 'static',
   adapter: cloudflare({
     imageService: 'compile',
@@ -45,7 +45,7 @@ export default defineConfig({
       destination: '/articles',
     },
   },
-  integrations: [mdx({ remarkPlugins: [remarkSourceView] }), svelte(), studioIntegration()],
+  integrations: [mdx({ remarkPlugins: [remarkHeptabaseMentions] }), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
   },

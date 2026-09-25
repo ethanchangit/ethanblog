@@ -11,7 +11,7 @@ test.describe('Agent readiness', () => {
     const response = await request.get('/this-route-does-not-exist');
     expect(response.status()).toBe(404);
     const body = await response.text();
-    expect(body).toContain("这个页面不存在");
+    expect(body).toContain("This page does not exist");
     expect(body).toContain('href="/llms.txt"');
     expect(body).toContain('href="/sitemap.xml"');
     expect(body).toContain('href="/for-agents"');
@@ -37,8 +37,8 @@ test.describe('Agent readiness', () => {
     expect(header(response.headers(), 'content-type')).toMatch(/text\/markdown;\s*charset=utf-8/i);
     expect(header(response.headers(), 'vary').toLowerCase()).toContain('accept');
     const body = await response.text();
-    expect(body).toContain('# Ethan Chang');
-    expect(body).toContain("怎么读这个网站");
+    expect(body).toContain('# Articles');
+    expect(body).toContain('Articles.');
   });
 
   test('browser Accept still gets HTML', async ({ request }) => {
@@ -73,17 +73,17 @@ test.describe('Agent readiness', () => {
     expect(response.status()).toBe(200);
     const body = await response.text();
     expect(body).toMatch(/User-agent:\s*\*/i);
-    expect(body).toMatch(/Sitemap:\s+https:\/\/cn\.ethanchang\.io\/sitemap\.xml/);
+    expect(body).toMatch(/Sitemap:\s+https:\/\/ethanchang\.io\/sitemap\.xml/);
   });
 
   test('sitemap lists home, contact, and developer resources', async ({ request }) => {
     const response = await request.get('/sitemap.xml');
     expect(response.status()).toBe(200);
     const body = await response.text();
-    expect(body).toContain('https://cn.ethanchang.io/');
-    expect(body).toContain('https://cn.ethanchang.io/contact');
-    expect(body).toContain('https://cn.ethanchang.io/for-agents');
-    expect(body).toContain('https://cn.ethanchang.io/privacy');
+    expect(body).toContain('https://ethanchang.io/');
+    expect(body).toContain('https://ethanchang.io/contact');
+    expect(body).toContain('https://ethanchang.io/for-agents');
+    expect(body).toContain('https://ethanchang.io/privacy');
   });
 
   test('trust pages are real documents', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Agent readiness', () => {
       const text = await page.locator('article').innerText();
       expect(text.length, route).toBeGreaterThan(100);
     }
-    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
   test('developer resources page uses that name in the H1', async ({ page }) => {

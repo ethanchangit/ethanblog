@@ -79,7 +79,7 @@ test.describe('Article 论文化接口（T2）', () => {
   test('标题下可复制规范 URL，且在摘要之上', async ({ page }) => {
     await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
 
-    const copy = page.getByRole('button', { name: "复制本页链接" });
+    const copy = page.getByRole('button', { name: "Copy link" });
     const island = page.locator('astro-island').filter({ has: copy });
     await expect(copy).toBeVisible();
     await expect(island).not.toHaveAttribute('ssr');
@@ -106,14 +106,14 @@ test.describe('Article 论文化接口（T2）', () => {
     });
 
     await copy.click();
-    await expect(page.getByRole('button', { name: "已复制" })).toBeVisible();
+    await expect(page.getByRole('button', { name: "Copied" })).toBeVisible();
 
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedUrl?: string }).__copiedUrl,
     );
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(copied).toBe(canonical);
-    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/pkm-method\/?$/);
+    expect(copied).toMatch(/^https:\/\/ethanchang\.io\/pkm-method\/?$/);
   });
 
   test('1440×900 下第三栏目录可见、H3 有缩进、可点锚点', async ({ page }) => {
@@ -122,7 +122,7 @@ test.describe('Article 论文化接口（T2）', () => {
 
     const toc = page.locator('nav.toc');
     await expect(toc).toBeVisible();
-    await expect(toc).toHaveAttribute('aria-label', "目录");
+    await expect(toc).toHaveAttribute('aria-label', "Contents");
     await expect(toc.locator('.toc-title')).toHaveCount(0);
     await expect(toc.getByText('目录', { exact: true })).toHaveCount(0);
     await expect(toc.getByText("目录", { exact: true })).toHaveCount(0);
@@ -180,7 +180,7 @@ test.describe('Article 论文化接口（T2）', () => {
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
     await expect(page.locator('.article-body-row > details')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: "← 文章" })).toBeVisible();
+    await expect(page.getByRole('link', { name: "← Articles" })).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
 
     const stacked = await page.evaluate(() => {
