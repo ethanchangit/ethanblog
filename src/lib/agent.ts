@@ -222,10 +222,6 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
       path: TAGS_PATH,
       zh: shortIndexMarkdown('标签', copy['zh-CN'].tagsDesc, TAGS_PATH),
     },
-    {
-      path: '/lab',
-      zh: shortIndexMarkdown('组件试验场', copy['zh-CN'].labDesc, '/lab'),
-    },
   ];
 
   for (const page of staticPages) {
@@ -273,7 +269,6 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
     FOR_AGENTS_PATH,
     SEARCH_PATH,
     TAGS_PATH,
-    '/lab',
   ]);
   const lastmod = new Map<string, string>();
 

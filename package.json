@@ -5,14 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "studio": "astro dev",
     "build": "astro build && node studio/online/build-site.mjs && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs && node scripts/release-manifest.mjs",
     "build:dashboard": "node studio/online/build-site.mjs",
     "dashboard:password": "node studio/online/password.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
-    "test": "node --experimental-strip-types --test src/lib/mention-preview.test.mjs src/lib/routes.test.mjs && node --test studio/*.test.mjs studio/online/*.test.mjs scripts/*.test.mjs && playwright test",
+    "test": "node --experimental-strip-types --test src/lib/mention-preview.test.mjs src/lib/routes.test.mjs && node --test studio/online/*.test.mjs scripts/*.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
   },
@@ -22,31 +21,27 @@
     "@astrojs/mdx": "^4.2.0",
     "@astrojs/rss": "^4.0.11",
     "@astrojs/svelte": "^7.0.0",
-    "@codesandbox/sandpack-client": "^2.19.8",
     "@fontsource-variable/inter": "^5.2.0",
     "@fontsource/jetbrains-mono": "^5.2.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.1.0",
     "astro": "^5.7.0",
     "better-auth": "^1.6.23",
-    "gsap": "^3.13.0",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "remark-smartypants": "^3.0.2",
     "svelte": "^5.28.0",
     "tailwindcss": "^4.1.0",
-    "three": "^0.185.1",
     "typescript": "^5.8.0",
-    "yaml": "^2.9.0",
     "unified": "^11.0.5",
-    "remark-parse": "^11.0.0",
-    "remark-gfm": "^4.0.1",
-    "remark-rehype": "^11.1.2",
-    "rehype-stringify": "^10.0.1",
-    "remark-smartypants": "^3.0.2"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260703.1",
     "@playwright/test": "^1.52.0",
     "@types/node": "^22.15.0",
-    "@types/three": "^0.185.0",
     "serve": "^14.2.6"
   }
 }

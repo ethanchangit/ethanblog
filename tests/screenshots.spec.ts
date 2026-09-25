@@ -6,7 +6,6 @@ const SCREENSHOT_DIR = path.join('tests', 'screenshots');
 
 const PAGES = [
   { route: '/', name: 'home' },
-  { route: '/lab', name: 'lab' },
   { route: '/pkm-method', name: 'article-pkm-method' },
 ] as const;
 

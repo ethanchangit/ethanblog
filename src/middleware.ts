@@ -41,7 +41,7 @@ async function loadMarkdownAsset(
 
 export const onRequest = defineMiddleware(async (context, next) => {
   // Production does this in scripts/cf-worker-entry.mjs; astro dev needs it for en.localhost.
-  if (import.meta.env.DEV && !context.locals.hostRouted && !context.url.pathname.startsWith('/dashboard') && !context.url.pathname.startsWith('/studio')) {
+  if (import.meta.env.DEV && !context.locals.hostRouted && !context.url.pathname.startsWith('/dashboard')) {
     const decision = routeRequest(context.url);
     if (decision.type === 'redirect') return Response.redirect(decision.location, decision.status);
     if (decision.type === 'rewrite') {

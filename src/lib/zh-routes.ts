@@ -9,7 +9,6 @@ const STATIC_SEGMENTS = [
   'now',
   'search',
   'tags',
-  'lab',
   '404',
   'contact',
   'privacy',

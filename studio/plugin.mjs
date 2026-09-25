@@ -1,29 +1,14 @@
 /**
  * Dev-only routes.
  * `astro dev` / `npm run dev` → http://localhost:4321/dashboard（免密码，仅本机）。
- * `/studio` 只能改本机文件，不是写作入口，生产不注入。写作在 Heptabase。
+ * 写作在 Heptabase。本机不再提供 /studio 编辑器。
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  addDocRefToDoc,
-  createDoc,
-  gitCommit,
-  gitPush,
-  gitStatus,
-  isLocalHost,
-  listDocs,
-  readDoc,
-  saveDoc,
-  setBlogsRef,
-} from './lib.mjs';
-import { readTagTaxonomy, saveTagGroups } from './tag-groups.mjs';
+import { isLocalHost } from './local-host.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const INDEX = fileURLToPath(new URL('./ui/index.html', import.meta.url));
 const DASHBOARD_INDEX = fileURLToPath(new URL('./online/index.html', import.meta.url));
-const MAX_BODY = 2_000_000;
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -33,95 +18,7 @@ function json(res, status, payload) {
   res.end(body);
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let size = 0;
-    req.on('data', (chunk) => {
-      size += chunk.length;
-      if (size > MAX_BODY) {
-        reject(new Error('正文太大'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
-}
-
-async function readJson(req) {
-  const raw = await readBody(req);
-  if (!raw) return {};
-  return JSON.parse(raw);
-}
-
-export async function handleStudioApi(root, req, url) {
-  const pathname = url.pathname.replace(/\/$/, '') || '/';
-  const method = req.method ?? 'GET';
-
-  if (pathname === '/__studio/api/docs' && method === 'GET') {
-    return { status: 200, body: await listDocs(root) };
-  }
-
-  if (pathname === '/__studio/api/doc' && method === 'GET') {
-    const collection = url.searchParams.get('collection') ?? '';
-    const id = url.searchParams.get('id') ?? '';
-    return { status: 200, body: await readDoc(root, collection, id) };
-  }
-
-  if (pathname === '/__studio/api/doc' && method === 'PUT') {
-    const payload = await readJson(req);
-    return { status: 200, body: await saveDoc(root, payload) };
-  }
-
-  if (pathname === '/__studio/api/create' && method === 'POST') {
-    const payload = await readJson(req);
-    const created = await createDoc(root, payload);
-    return { status: 201, body: created };
-  }
-
-  if (pathname === '/__studio/api/blogs' && method === 'POST') {
-    const payload = await readJson(req);
-    const refs = await setBlogsRef(root, payload.of, payload.present !== false);
-    return { status: 200, body: { refs } };
-  }
-
-  if (pathname === '/__studio/api/link' && method === 'POST') {
-    const payload = await readJson(req);
-    const doc = await addDocRefToDoc(root, payload.collection, payload.id, payload.of, {
-      pane: payload.pane,
-    });
-    return { status: 200, body: doc };
-  }
-
-  if (pathname === '/__studio/api/git' && method === 'GET') {
-    return { status: 200, body: await gitStatus(root) };
-  }
-
-  if (pathname === '/__studio/api/git/commit' && method === 'POST') {
-    const payload = await readJson(req);
-    return { status: 200, body: await gitCommit(root, payload.message) };
-  }
-
-  if (pathname === '/__studio/api/git/push' && method === 'POST') {
-    return { status: 200, body: await gitPush(root) };
-  }
-
-  if (pathname.endsWith('/tag-groups') && method === 'GET') {
-    return { status: 200, body: await readTagTaxonomy(root) };
-  }
-
-  if (pathname.endsWith('/tag-groups') && method === 'PUT') {
-    const payload = await readJson(req);
-    return { status: 200, body: await saveTagGroups(root, payload.groups) };
-  }
-
-  return { status: 404, body: { error: 'not found' } };
-}
-
-function studioDevPlugin(root = ROOT) {
+function studioDevPlugin() {
   return {
     name: 'ethan-studio',
     configureServer(server) {
@@ -171,33 +68,7 @@ function studioDevPlugin(root = ROOT) {
           }
           return;
         }
-        if (pathname === '/studio' || pathname === '/studio/') {
-          if (!isLocalHost(req.headers.host)) {
-            res.statusCode = 403;
-            res.end('studio 只接受本机请求');
-            return;
-          }
-          const html = await readFile(INDEX, 'utf8');
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.setHeader('Cache-Control', 'no-store');
-          res.end(html);
-          return;
-        }
-        if (!rawUrl.startsWith('/__studio/api')) return next();
-        if (!isLocalHost(req.headers.host)) {
-          json(res, 403, { error: 'studio API 只接受本机请求' });
-          return;
-        }
-        try {
-          const url = new URL(rawUrl, 'http://127.0.0.1');
-          const result = await handleStudioApi(root, req, url);
-          json(res, result.status, result.body);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          const status = /不合法|请填写|没有可提交|已存在|未知的/.test(message) ? 400 : 500;
-          json(res, status, { error: message });
-        }
+        return next();
       });
     },
     handleHotUpdate(ctx) {
@@ -220,7 +91,6 @@ export function studioIntegration() {
           },
         });
         logger.info('本地后台：http://localhost:4321/dashboard（免密码，仅本机 dev）');
-        logger.info('本机文件工具：http://localhost:4321/studio（不是写作入口，不部署）');
       },
     },
   };

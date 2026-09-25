@@ -10,7 +10,6 @@ const LOCALIZABLE_PREFIXES = [
   '/tags',
   '/search',
   '/now',
-  '/lab',
   '/about',
   '/contact',
   '/privacy',

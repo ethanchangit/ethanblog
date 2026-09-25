@@ -4,7 +4,6 @@ import mdx from '@astrojs/mdx';
 import svelte from '@astrojs/svelte';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
-import { remarkSourceView } from './plugins/remark-source-view.mjs';
 import { studioIntegration } from './studio/plugin.mjs';
 
 // https://astro.build/config
@@ -45,7 +44,7 @@ export default defineConfig({
       destination: '/articles',
     },
   },
-  integrations: [mdx({ remarkPlugins: [remarkSourceView] }), svelte(), studioIntegration()],
+  integrations: [mdx(), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
   },

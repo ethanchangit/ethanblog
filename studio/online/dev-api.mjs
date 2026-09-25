@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHandler } from './server.mjs';
-import { isLocalHost } from '../lib.mjs';
+import { isLocalHost } from '../local-host.mjs';
 
 export function parseDevVars(text) {
   const out = {};

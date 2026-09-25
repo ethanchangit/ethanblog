@@ -1,7 +1,7 @@
 # AGENTS.md
 
 > **这是 Ethan Chang（张峻源）的个人博客**，分两个站：中文博客 https://cn.ethanchang.io ，英文博客 https://ethanchang.io 。
-> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4、GSAP。Cloudflare Pages 项目名 `ethanblog`。
+> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4。Cloudflare Pages 项目名 `ethanblog`。
 > 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
 > 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
 
@@ -42,7 +42,7 @@
 
 ## 交互组件约束（可选升档时的契约）
 
-- Svelte 岛屿在 MDX/页面里必须显式写 `client:*` 指令；默认 `client:visible`，首屏才用 `client:load`；ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`（避免注水膨胀导致布局跳动）。
+- Svelte 岛屿在 MDX/页面里必须显式写 `client:*` 指令；默认 `client:visible`，首屏才用 `client:load`。
 - 跨岛屿边界的 props 必须 JSON 可序列化。
 - 所有组件必须在无 JS 时渲染出有意义的静态内容（内容优先；交互是可选升档）。
 - 动效必须尊重 `prefers-reduced-motion`（用 `@/lib/motion` 的 `reducedMotion()`）。
@@ -96,12 +96,12 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 
 - Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
 - 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 GitHub 令牌时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。云端密钥名是 `GITHUB_TOKEN_BLOG`，本机同名写在 `.dev.vars`。生产 Pages 仍用 `GITHUB_TOKEN`。后台两条都认。`STUDIO_SECRET` 也放在 `.dev.vars`（见 `.dev.vars.example`），不要写进仓库。
-- `npm run studio` 与 `npm run dev` 是同一条命令。同一进程的 http://localhost:4321/studio 只能改本机文件，是迁移期留下的工具。它不是写作应用，生产构建不注入、不部署。日常写作在 Heptabase。
+- 日常写作在 Heptabase。本机不再提供 `/studio` 编辑器；`astro dev` 只注入 http://localhost:4321/dashboard。生产构建不包含这个开发路由。
 - `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。它用 `studio/online/sample-review.mjs` 的示例数据（新文、已编辑、删除、站点页、段落对比、通过和拒绝），并直接提供当前的 `studio/online` 界面源码，所以本机改后台后刷新就能看到。打开或刷新后直接是审核界面，不用点「拉取最新更新」。这套数据只在这个本地进程里。`npm run dev` 的后台、正式发布、生产后台和真实拉取仍走 Heptabase 与 GitHub。
 - `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
 - `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
-- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件先在 `/lab` 放最小示例。
+- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件直接接在用到它的文章或项目上，并补测试。
 - 公开导航没有登录。收藏、阅读进度和留言走 `src/lib/user.ts` 与 `src/pages/api/`（better-auth，博客可以不启用）。这和后台密码是两套登录。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
 - 两个域名都挂在 Pages 项目 `ethanblog`：`ethanchang.io`（英文）和 `cn.ethanchang.io`（中文）。部署时 `scripts/ensure-domains.mjs` 检查 cn 域名是否已挂到项目、DNS 是否有指向 `ethanblog.pages.dev` 的 CNAME，缺了就补；这要求 `CLOUDFLARE_API_TOKEN` 有 Pages 编辑和 ethanchang.io 的 DNS 编辑权限，权限不够时只留警告，不挡发布。
 - 部署是 `.github/workflows/deploy.yml`。pull request 只跑 `verify`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages 项目 `ethanblog`。在 `main` 上 `workflow_dispatch` 也会部署。
