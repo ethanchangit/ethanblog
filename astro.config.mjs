@@ -4,6 +4,7 @@ import mdx from '@astrojs/mdx';
 import svelte from '@astrojs/svelte';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
+import { remarkHeptabaseMentions } from './plugins/remark-heptabase-mentions.mjs';
 import { remarkSourceView } from './plugins/remark-source-view.mjs';
 import { studioIntegration } from './studio/plugin.mjs';
 
@@ -45,7 +46,7 @@ export default defineConfig({
       destination: '/articles',
     },
   },
-  integrations: [mdx({ remarkPlugins: [remarkSourceView] }), svelte(), studioIntegration()],
+  integrations: [mdx({ remarkPlugins: [remarkHeptabaseMentions, remarkSourceView] }), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
   },
