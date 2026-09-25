@@ -2,6 +2,7 @@ import { fail } from './auth.mjs';
 import { cardId } from './heptabase.mjs';
 import { ensureMediaImport } from '../blocks.mjs';
 import { publicHref } from '../core.mjs';
+import { escapeProse, mentionFrom, mentionMarkup, mentionPattern } from '../../src/lib/heptabase-mentions.mjs';
 
 // Do not turn code examples into links, dependencies, or executable MDX.
 export function proseParts(text, transform) {
@@ -10,28 +11,31 @@ export function proseParts(text, transform) {
   for (const match of text.matchAll(code)) { out += transform(text.slice(offset, match.index)) + match[0]; offset = match.index + match[0].length; }
   return out + transform(text.slice(offset));
 }
-// Attribute order is not fixed. A mention is never reduced to its label.
-const mention = /<hepta-mention\b([^>]*)>([\s\S]*?)<\/hepta-mention>|\[([^\]\n]*)\]\(heptabase:\/\/card\/([0-9a-f-]+)\)/gi;
-const escapeText = (s) => s.replace(/[<>{}]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '{': '&#123;', '}': '&#125;' })[c]);
+// Attribute order is not fixed. A mention with a published page becomes a link.
+// A mention with no site page keeps its readable title, never the raw tag.
 const unescapeText = (s) => s.replace(/&(lt|gt|amp|quot|#123|#125);/g, (_, c) => ({ lt: '<', gt: '>', amp: '&', quot: '"', '#123': '{', '#125': '}' })[c]);
 
-function mentionFrom(match) {
-  if (match[4]) return { type: 'card', id: match[4], label: match[3] ?? '' };
-  const attrs = match[1] ?? '';
-  const type = /(?:^|\s)type\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2] || 'card';
-  const id = /(?:^|\s)id\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2] || '';
-  if (!id) throw fail('mention 没有卡片 id，未把它收成纯文字。');
-  return { type, id, label: match[2] ?? '' };
+function pageFor(target) {
+  if (!target?.collection || !target?.id) return null;
+  const href = typeof target.href === 'string' && target.href.startsWith('/')
+    ? target.href
+    : (target.collection === 'articles' && target.url ? `/${String(target.url).replace(/^\/+|\/+$/g, '')}` : publicHref(target.collection, target.id));
+  return { href, of: `${target.collection}/${target.id}`, title: target.title || '' };
+}
+
+function cardKey(id) {
+  try { return cardId(`heptabase://card/${id}`); } catch { return ''; }
 }
 
 export function references(source) {
   const refs = new Map();
   proseParts(source, (part) => {
-    mention.lastIndex = 0;
+    const mention = mentionPattern();
     for (const match of part.matchAll(mention)) {
       const parsed = mentionFrom(match);
-      if (parsed.type !== 'card') throw fail(`暂不能发布 ${parsed.type} 类型的 mention。请先转成文字卡片，未忽略这条引用。`);
-      const id = cardId(`heptabase://card/${parsed.id}`);
+      if (parsed.type !== 'card' || !parsed.id) continue;
+      const id = cardKey(parsed.id);
+      if (!id) continue;
       refs.set(id, { id, title: parsed.label });
     }
     return part;
@@ -66,26 +70,22 @@ export function fromHeptabase(source, targets, imports = '') {
   let hasBlock = false;
   const body = proseParts(lines.join('\n').trim(), (part) => {
     const tokens = [];
-    mention.lastIndex = 0;
+    const mention = mentionPattern();
     let text = part.replace(mention, (whole, attrs, inner, linkLabel, linkId, offset) => {
       const parsed = mentionFrom([whole, attrs, inner, linkLabel, linkId]);
-      if (parsed.type !== 'card') throw fail(`暂不能发布 ${parsed.type} 类型的 mention。`);
-      const id = cardId(`heptabase://card/${parsed.id}`);
-      const target = targets.get(id);
-      if (!target) throw fail('引用的卡片尚未完整读取，未继续发布。');
+      const page = parsed.type === 'card' && parsed.id ? pageFor(targets.get(cardKey(parsed.id))) : null;
       const lineStart = part.lastIndexOf('\n', offset - 1) + 1;
       const end = part.indexOf('\n', offset + whole.length);
       const standalone = !part.slice(lineStart, offset).trim() && !part.slice(offset + whole.length, end < 0 ? part.length : end).trim();
-      const of = `${target.collection}/${target.id}`;
-      hasBlock ||= standalone;
-      const label = parsed.label || target.title;
-      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="${publicHref(target.collection, target.id)}" data-doc-of="${of}" data-doc-mention>${escapeText(label)}</a>`;
+      const rendered = mentionMarkup({ ...parsed, label: parsed.label || page?.title || '' }, page, { standalone: Boolean(page) && standalone });
+      if (rendered.html?.startsWith('<DocList')) hasBlock = true;
+      const markup = rendered.html ?? escapeProse(rendered.text || '');
       return `\u0001${tokens.push(markup) - 1}\u0002`;
     });
     // Preserve the text of colors; other protected objects require explicit handling.
     text = text.replace(/<hepta-color\s+[^>]*>([\s\S]*?)<\/hepta-color>/g, '$1');
     if (/<\/?hepta-/.test(text)) throw fail('卡片包含暂不能安全转换的嵌入或复杂表格，未丢弃内容。');
-    text = escapeText(text).replace(/^(import|export)\s/gm, (_, word) => `&#${word.charCodeAt(0)};${word.slice(1)} `);
+    text = escapeProse(text).replace(/^(import|export)\s/gm, (_, word) => `&#${word.charCodeAt(0)};${word.slice(1)} `);
     return text.replace(/\u0001(\d+)\u0002/g, (_, i) => tokens[Number(i)]);
   });
   return { title, body, imports: hasBlock ? ensureMediaImport(imports) : imports };
@@ -116,7 +116,7 @@ export function toHeptabase(parsed, docs) {
   // Existing arbitrary MDX is kept byte-for-byte in a standard code fence when it
   // cannot be represented as native Heptabase prose. No component is discarded.
   let needsArchive = false;
-  proseParts(body, (part) => { mention.lastIndex = 0; needsArchive ||= /<\/?[A-Za-z]|^import\s|^export\s/m.test(part.replace(mention, '')); return part; });
+  proseParts(body, (part) => { needsArchive ||= /<\/?[A-Za-z]|^import\s|^export\s/m.test(part.replace(mentionPattern(), '')); return part; });
   if (needsArchive) {
     const raw = [parsed.imports, parsed.bodyZh].filter(Boolean).join('\n\n');
     const fence = '`'.repeat(Math.max(3, ...[...raw.matchAll(/`+/g)].map((m) => m[0].length + 1)));

@@ -52,7 +52,7 @@ function inline(text, docs = []) {
   const source = String(text)
     .replace(/<hepta-mention\b([^>]*)>([\s\S]*?)<\/hepta-mention>/gi, (whole, attrs, inner) => {
       const id = /(?:^|\s)id\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2] || '';
-      const href = mentionHref(docs, id) || (id ? `heptabase://card/${id}` : '');
+      const href = mentionHref(docs, id);
       if (!href) return inner;
       kept.push(`<a href="${escapeHtml(href)}" data-doc-mention>${escapeHtml(inner)}</a>`);
       return keepLink(kept.length - 1);
