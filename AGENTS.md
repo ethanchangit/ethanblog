@@ -1,9 +1,20 @@
 # AGENTS.md
 
-> **这是 Ethan Chang（张峻源）的个人博客**，分两个站：中文博客 https://cn.ethanchang.io ，英文博客 https://ethanchang.io 。
-> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4、GSAP。Cloudflare Pages 项目名 `ethanblog`。
+> **这是 Ethan Chang（张峻源）的个人博客**，只有英文站 https://ethanchang.io 。cn.ethanchang.io 会跳到同一路径。
+> 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4。Cloudflare Pages 项目名 `ethanblog`。
 > 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
 > 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
+
+## 用法上下文
+
+在这个博客里工作，或要弄清框架怎么读取每一个属性，先读 Heptabase 卡片 **skill blogcontext**。
+
+- 卡片 id：`60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
+- 打开：`heptabase://card/60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
+
+这张卡说明怎么在这个博客里工作：Heptabase 是写作来源，网站呈现卡片，`/dashboard` 负责审核和发布。它也说明框架实际读取的每个属性是什么意思，包括 slug、Language、Status（含 `blocked`）、Summary、Remark、Tag，以及代码还会读的其他字段。
+
+**项目的用法逻辑变了，就在同一次改动里更新这张卡。** 用法逻辑包括怎么工作，以及框架如何读取、写回每一个属性。同一次改动里改仓库说明，也改这张卡，后来的 agent 才读得到当前约定。
 
 ## 任务路由
 
@@ -42,7 +53,7 @@
 
 ## 交互组件约束（可选升档时的契约）
 
-- Svelte 岛屿在 MDX/页面里必须显式写 `client:*` 指令；默认 `client:visible`，首屏才用 `client:load`；ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`（避免注水膨胀导致布局跳动）。
+- Svelte 岛屿在 MDX/页面里必须显式写 `client:*` 指令；默认 `client:visible`，首屏才用 `client:load`。
 - 跨岛屿边界的 props 必须 JSON 可序列化。
 - 所有组件必须在无 JS 时渲染出有意义的静态内容（内容优先；交互是可选升档）。
 - 动效必须尊重 `prefers-reduced-motion`（用 `@/lib/motion` 的 `reducedMotion()`）。
@@ -57,15 +68,14 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于在 `/about`，首页 `/` 是文章列表。Now、联系、隐私仍用原来的地址（`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。每次审核都可以拖动手柄排列这几页，确认后写入 `src/data/page-order.ts`，导航按这个顺序显示。导航顺序的每一行都可以单独隐藏。隐藏记在本机决定里，和顺序一起在发布时写入这份文件：未隐藏的按拖动顺序出现在导航上，隐藏的不写入顺序，因此不进公开导航。隐藏不是撤下，也不改 Heptabase 卡片。不足 4 页时同样可以隐藏。每一行可以在新标签打开对应卡片，地址用这张卡片自己的 `heptabaseCardLink`。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
-### 两种语言
+### 英文站
 
-- **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组，也不按标题猜测。英文站用同一套标签，文章仍只列出已有译文的。
-- **英文博客 ethanchang.io** 是译文。译文是 `#blogi18n`（Heptabase 标签名 `blog i18n`）里的独立卡片，由 `#blog` 卡片上的关联字段 `blog i18n` 指向。配对只看这个关联，不按标题或别的字段猜。译文的 `Language` 决定语言（`en` 等）；中文只写在 `#blog`，不做译文。
-- 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：文章 `src/content/articles/<id>/<language>.mdx`，项目 `src/content/projects/<id>/<language>.mdx`，站点页 `src/content/pages/<id>/<language>.mdx`。frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
-- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`，英文站同一路径。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
-- 一次构建出两个站：中文页面在 `dist/` 根目录，英文页面在 `dist/en/`。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）按域名分：ethanchang.io 的请求读 `/en` 下的页面，没有英文版的路径跳到 cn 同一路径；cn.ethanchang.io 读根目录。`/en` 前缀不对外出现。语言切换链接是 `/_lang/<zh|en><路径>`，由 Worker 换到另一个域名。页面语言跟着路由走：英文页（`/en`）的界面、日期、列表都是英文，其余是中文。
-- 本机：`http://localhost:4321` 是中文站，`http://en.localhost:4321` 是英文站（dev 和 `npm run preview` 都支持）。
-- 后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
+- 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
+- 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
+- 被提到的卡片打上 Heptabase 标签 `references`。已经是文章的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
+- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。
+- 本机 `http://localhost:4321` 就是这个英文站。后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 
 ### `#blog`
 
@@ -96,12 +106,12 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 
 - Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
 - 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 GitHub 令牌时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。云端密钥名是 `GITHUB_TOKEN_BLOG`，本机同名写在 `.dev.vars`。生产 Pages 仍用 `GITHUB_TOKEN`。后台两条都认。`STUDIO_SECRET` 也放在 `.dev.vars`（见 `.dev.vars.example`），不要写进仓库。
-- `npm run studio` 与 `npm run dev` 是同一条命令。同一进程的 http://localhost:4321/studio 只能改本机文件，是迁移期留下的工具。它不是写作应用，生产构建不注入、不部署。日常写作在 Heptabase。
+- 日常写作在 Heptabase。本机不再提供 `/studio` 编辑器；`astro dev` 只注入 http://localhost:4321/dashboard。生产构建不包含这个开发路由。
 - `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。它用 `studio/online/sample-review.mjs` 的示例数据（新文、已编辑、删除、站点页、段落对比、通过和拒绝），并直接提供当前的 `studio/online` 界面源码，所以本机改后台后刷新就能看到。打开或刷新后直接是审核界面，不用点「拉取最新更新」。这套数据只在这个本地进程里。`npm run dev` 的后台、正式发布、生产后台和真实拉取仍走 Heptabase 与 GitHub。
 - `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
 - `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
-- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件先在 `/lab` 放最小示例。
+- 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件直接接在用到它的文章或项目上，并补测试。
 - 公开导航没有登录。收藏、阅读进度和留言走 `src/lib/user.ts` 与 `src/pages/api/`（better-auth，博客可以不启用）。这和后台密码是两套登录。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
 - 两个域名都挂在 Pages 项目 `ethanblog`：`ethanchang.io`（英文）和 `cn.ethanchang.io`（中文）。部署时 `scripts/ensure-domains.mjs` 检查 cn 域名是否已挂到项目、DNS 是否有指向 `ethanblog.pages.dev` 的 CNAME，缺了就补；这要求 `CLOUDFLARE_API_TOKEN` 有 Pages 编辑和 ethanchang.io 的 DNS 编辑权限，权限不够时只留警告，不挡发布。
 - 部署是 `.github/workflows/deploy.yml`。pull request 只跑 `verify`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages 项目 `ethanblog`。在 `main` 上 `workflow_dispatch` 也会部署。

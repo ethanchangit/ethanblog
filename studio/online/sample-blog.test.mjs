@@ -14,7 +14,7 @@ test('localhost opens the Chinese sample blog, production keeps the live site', 
   assert.equal(blogViewHref('cn.ethanchang.io'), 'https://ethanchang.io');
 });
 
-test('the sample blog lists the seeded Chinese articles and hides unlisted references', async () => {
+test('the sample blog lists published titles and hides unlisted references', async () => {
   const previous = process.env.STUDIO_PAGE_CAP_FIXTURE;
   delete process.env.STUDIO_PAGE_CAP_FIXTURE;
   const index = await sampleBlogResponse('http://localhost/sample-blog/');
@@ -26,7 +26,6 @@ test('the sample blog lists the seeded Chinese articles and hides unlisted refer
   assert.match(html, /href="\/sample-blog\/pages\/notes"/);
   assert.match(html, /href="\/sample-blog\/pages\/shelf"/);
   assert.doesNotMatch(html, /仅由旧笔记引用的资料/);
-  assert.doesNotMatch(html, /Start with connections/);
   const article = await sampleBlogResponse('http://localhost/sample-blog/articles/example');
   assert.match(await article.text(), /从一个问题开始/);
   assert.equal((await sampleBlogResponse('http://localhost/sample-blog/missing')).status, 404);

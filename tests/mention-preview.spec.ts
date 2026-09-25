@@ -1,22 +1,22 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
-async function ready(page: Page) {
-  await page.goto('/lab', { waitUntil: 'domcontentloaded' });
+async function openArticle(page: Page) {
+  await page.goto('/heptabase-method', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-mention-preview-ready]')).toBeAttached();
-  const section = page.getByTestId('mention-preview');
-  await section.scrollIntoViewIfNeeded();
-  return section;
+  const link = page.locator('[data-reading-doc] .prose-site a[href="/pkm-method"]', { hasText: 'PKM 实践' });
+  await expect(link).toHaveCount(1);
+  await link.scrollIntoViewIfNeeded();
+  return link;
 }
 
-function articleLink(section: Locator) {
-  return section.locator('a[data-doc-mention][href="/pkm-method"]');
+async function dismissPreview(page: Page) {
+  await page.getByRole('heading', { level: 1, name: '我是如何使用 Heptabase 进行深度学习的' }).hover();
 }
 
 test.describe('mention 悬停预览', () => {
   test('悬停约 300ms 后显示标题、摘要和正文开头，鼠标能进入，移出后关闭', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1100 });
-    const section = await ready(page);
-    const link = articleLink(section);
+    const link = await openArticle(page);
     const preview = page.locator('[data-mention-preview]');
 
     await expect(preview).toBeHidden();
@@ -79,54 +79,67 @@ test.describe('mention 悬停预览', () => {
     await page.waitForTimeout(450);
     await expect(preview).toBeVisible();
 
-    await page.getByRole('heading', { name: '组件试验场' }).hover();
+    await dismissPreview(page);
     await expect(preview).toBeHidden();
   });
 
   test('项目和 reference 用自己的类型，普通站内链接也预览，外站只显示地址，未知卡片不预览', async ({ page }) => {
-    const section = await ready(page);
+    await page.setViewportSize({ width: 1280, height: 1100 });
+    await page.goto('/chunk', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-mention-preview-ready]')).toBeAttached();
     const preview = page.locator('[data-mention-preview]');
 
-    await section.locator('a[data-doc-mention][href="/aletheia"]').hover();
+    const project = page.locator('[data-reading-doc] .prose-site a[href="/network"]', { hasText: 'Networks' });
+    await project.scrollIntoViewIfNeeded();
+    await project.hover();
     await expect(preview).toBeVisible();
-    await expect(preview).toContainText('Aletheia');
-    await expect(preview).toContainText('英文阅读时的语境查词');
-    await expect(preview).toContainText('照亮');
+    await expect(preview).toContainText('Networks');
+    await expect(preview).toContainText('卡片既是文件夹也是文档');
 
-    await section.locator('a[data-doc-mention][href="/bitwarden"]').hover();
+    await page.goto('/blogs', { waitUntil: 'domcontentloaded' });
+    const reference = page.locator('a[href="/bitwarden"]');
+    await reference.scrollIntoViewIfNeeded();
+    await reference.hover();
+    await expect(preview).toBeVisible();
     await expect(preview).toContainText('Bitwarden');
     await expect(preview).toContainText('Free Password Manager');
-    await expect(preview).toContainText('支持全端同步');
     const metaText = await preview.locator('.mention-preview-meta').evaluate((el) => el.textContent ?? '');
-    expect(metaText).toContain('资料');
+    expect(metaText).toContain('Reference');
 
-    await page.getByRole('heading', { name: '组件试验场' }).hover();
-    await expect(preview).toBeHidden();
-
-    const plain = section.getByTestId('mention-preview-plain');
-    await expect(plain).not.toHaveAttribute('data-doc-mention');
-    await plain.hover();
+    const link = await openArticle(page);
+    await expect(link).not.toHaveAttribute('data-doc-mention');
+    await link.hover();
     await expect(preview).toBeVisible();
     await expect(preview).toContainText('我的 PKM 实践');
-
-    await page.getByRole('heading', { name: '组件试验场' }).hover();
+    await dismissPreview(page);
     await expect(preview).toBeHidden();
 
-    const external = section.getByTestId('mention-preview-external');
+    await page.locator('[data-reading-doc] .prose-site').evaluate((root) => {
+      const external = document.createElement('a');
+      external.href = 'https://example.com/preview';
+      external.textContent = '示例';
+      external.dataset.testid = 'mention-preview-external';
+      const missing = document.createElement('a');
+      missing.href = '/missing-doc';
+      missing.textContent = '缺失卡片';
+      missing.dataset.testid = 'mention-preview-missing';
+      missing.dataset.docMention = '';
+      root.insertAdjacentElement('beforeend', external);
+      root.insertAdjacentElement('beforeend', missing);
+    });
+
+    const external = page.getByTestId('mention-preview-external');
     const externalHref = await external.evaluate((el) => (el as HTMLAnchorElement).href);
-    const externalTarget = await external.getAttribute('target');
     await external.hover();
     await expect(preview).toBeVisible();
     await expect(preview.locator('.mention-preview-title')).toHaveText('示例');
     await expect(preview.locator('.mention-preview-url')).toHaveText(externalHref);
     await expect(preview.locator('.mention-preview-summary, .mention-preview-body, .mention-preview-meta')).toHaveCount(0);
     await expect(preview).not.toContainText('未填写');
-    expect(await external.getAttribute('target')).toBe(externalTarget);
 
-    await page.getByRole('heading', { name: '组件试验场' }).hover();
+    await dismissPreview(page);
     await expect(preview).toBeHidden();
-
-    await section.getByTestId('mention-preview-missing').hover();
+    await page.getByTestId('mention-preview-missing').hover();
     await page.waitForTimeout(450);
     await expect(preview).toBeHidden();
   });
@@ -175,7 +188,7 @@ test.describe('mention 悬停预览', () => {
       link.href = 'https://example.com/toc-external';
       link.textContent = '目录外链';
       link.dataset.testid = 'toc-external';
-      toc?.appendChild(link);
+      toc?.insertAdjacentElement('beforeend', link);
     });
     await page.getByTestId('toc-external').hover();
     await page.waitForTimeout(450);
@@ -193,8 +206,7 @@ test.describe('mention 悬停预览', () => {
   });
 
   test('键盘聚焦后可见，Esc 关闭，焦点还在原链接', async ({ page }) => {
-    const section = await ready(page);
-    const link = articleLink(section);
+    const link = await openArticle(page);
     const preview = page.locator('[data-mention-preview]');
 
     await link.focus();
@@ -209,8 +221,7 @@ test.describe('mention 悬停预览', () => {
   });
 
   test('短按仍会打开链接；长按才打开预览且不导航', async ({ page }) => {
-    const section = await ready(page);
-    const link = articleLink(section);
+    const link = await openArticle(page);
     const preview = page.locator('[data-mention-preview]');
 
     await link.evaluate((el) => {
@@ -232,22 +243,22 @@ test.describe('mention 悬停预览', () => {
       return { followed, path: location.pathname };
     });
     expect(blocked.followed).toBe(false);
-    expect(blocked.path).toBe('/lab');
+    expect(blocked.path).toBe('/heptabase-method');
     await expect(preview).toBeVisible();
   });
 
   test('点击 mention 仍然进入目标页', async ({ page }) => {
-    const section = await ready(page);
-    await articleLink(section).click();
+    const link = await openArticle(page);
+    await link.click();
     await expect(page).toHaveURL(/\/pkm-method$/);
     await expect(page.getByRole('heading', { level: 1, name: '我的 PKM 实践：从笔记到知识网络' })).toBeVisible();
   });
 
   test('减少动效时预览没有过渡', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    const section = await ready(page);
+    const link = await openArticle(page);
     const preview = page.locator('[data-mention-preview]');
-    await articleLink(section).hover();
+    await link.hover();
     await expect(preview).toBeVisible();
     const duration = await preview.evaluate((el) => getComputedStyle(el).transitionDuration);
     expect(duration === '0s' || duration === '0ms').toBeTruthy();
@@ -301,7 +312,7 @@ test.describe('mention 悬停预览', () => {
         anchor.style.pointerEvents = 'auto';
         anchor.style.position = 'relative';
         anchor.style.zIndex = '80';
-        host?.appendChild(anchor);
+        host?.insertAdjacentElement('beforeend', anchor);
       }
     });
     await page.getByTestId('footer-external').hover();
@@ -317,15 +328,13 @@ test.describe('mention 悬停预览', () => {
     expect((await opened).url()).toBe('https://nownownow.com/about');
   });
 
-  test('无 JS 时 mention 仍是紧贴汉字的链接，审核预览页没有这个岛屿', async ({ page }) => {
-    const lab = await (await page.request.get('/lab')).text();
-    expect(lab).toMatch(/悬停<a [^>]*data-doc-mention[^>]*>知识网络<\/a>/);
-    expect(lab).not.toMatch(/悬停\s+<a/);
-    expect(lab).toMatch(/知识网络<\/a>、/);
-    expect(lab).toContain('data-mention-preview-root');
-
-    const article = await (await page.request.get('/pkm-method')).text();
+  test('无 JS 时正文链接仍可点，审核预览页没有这个岛屿', async ({ page }) => {
+    const article = await (await page.request.get('/heptabase-method')).text();
+    expect(article).toMatch(/我的 <a [^>]*href="\/pkm-method"[^>]*>PKM 实践<\/a>/);
     expect(article).toContain('data-mention-preview-root');
+
+    const method = await (await page.request.get('/pkm-method')).text();
+    expect(method).toContain('data-mention-preview-root');
 
     const preview = await (await page.request.get('/dashboard/preview')).text();
     expect(preview).not.toContain('data-mention-preview');

@@ -4,9 +4,9 @@ test.describe('Projects 集合页', () => {
   test('/projects 是导语 + 时间线，不是项目长文', async ({ page }) => {
     await page.goto('/projects', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
     await expect(page.locator('.ui-eyebrow')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: "时间线：从卡片到容器" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "Timeline: from cards to containers" })).toBeVisible();
     await expect(page.locator('[data-tl-item]').first()).toBeVisible();
 
     // 旧版卡片网格不应存在
@@ -75,13 +75,13 @@ test.describe('Projects 集合页', () => {
     await expect(page.locator('article .grid.lg\\:grid-cols-\\[1fr_240px\\]')).toHaveCount(0);
     await expect(page.locator('article.article-page > header .ui-tag-list .ui-tag').first()).toBeVisible();
     await expect(page.locator('[data-reading-index]')).toBeVisible();
-    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: "项目" })).toBeVisible();
+    await expect(page.locator('[data-reading-index]').getByRole('heading', { level: 1, name: "Projects" })).toBeVisible();
   });
 
   test('项目页标题下可复制规范 URL，且在导语之上', async ({ page }) => {
     await page.goto('/ethanchang-io', { waitUntil: 'domcontentloaded' });
 
-    const copy = page.getByRole('button', { name: "复制本页链接" });
+    const copy = page.getByRole('button', { name: "Copy link" });
     const island = page.locator('astro-island').filter({ has: copy });
     await expect(copy).toBeVisible();
     await expect(island).not.toHaveAttribute('ssr');
@@ -108,14 +108,14 @@ test.describe('Projects 集合页', () => {
     });
 
     await copy.click();
-    await expect(page.getByRole('button', { name: "已复制" })).toBeVisible();
+    await expect(page.getByRole('button', { name: "Copied" })).toBeVisible();
 
     const copied = await page.evaluate(
       () => (window as unknown as { __copiedUrl?: string }).__copiedUrl,
     );
     const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
     expect(copied).toBe(canonical);
-    expect(copied).toMatch(/^https:\/\/cn\.ethanchang\.io\/ethanchang-io\/?$/);
+    expect(copied).toMatch(/^https:\/\/ethanchang\.io\/ethanchang-io\/?$/);
   });
 
   test('项目索引不收录文章', async ({ page }) => {

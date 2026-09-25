@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
-import { propertiesFromRead, routeSlug, assertArticleSlug, translationLanguage } from './card-properties.mjs';
+import { assertArticleSlug, propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
 import { removalScope } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
@@ -21,7 +21,7 @@ const input = (extra = {}) => ({ cardLink: link(ZH), collection: 'articles', pre
 const preview = (f, extra) => f.request('/heptabase/preview', 'POST', input(extra));
 const approve = (f, plan) => f.request('/heptabase/decision', 'POST', { ...input(), sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'approve', confirmPublic: true });
 
-test('URL is the slug as written; translation languages become their own site', () => {
+test('URL is the slug as written; translation language codes stay on the card', () => {
   assert.equal(routeSlug(' /toolset/ '), 'toolset');
   assert.equal(routeSlug(''), null);
   // Reading a slug never rejects it. A Page named now must not abort the whole pull.
@@ -41,26 +41,40 @@ test('URL is the slug as written; translation languages become their own site', 
   assert.throws(() => translationLanguage(null), /Language/);
 });
 
-test('a #blog card and its related #blogi18n translation share one path on two sites', async () => {
-  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }], [JA, '私のツール', { Language: 'ja' }]]);
+test('a linked English card does not replace the #blog page', async () => {
+  const f = await setup({}, [[EN, 'My toolset', { Language: 'en', slug: 'toolset' }]]);
+  f.cardSources.set(ZH, '# 我的工具箱\n\n- Notes are a tool for thinking.\n  笔记是思考的工具。\n\n中文原文。');
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, 'src/content/articles/toolset.mdx');
-  const byId = new Map(plan.changes.map(c => [c.id, c]));
-  assert.equal(byId.get(ZH).afterProperties.url, 'toolset');
-  assert.equal(byId.get(ZH).afterProperties.language, undefined);
-  const en = byId.get(EN), ja = byId.get(JA);
-  assert.deepEqual([en.path, en.translation, en.language, en.mainArticle], ['src/content/articles/toolset/en.mdx', true, 'en', false]);
-  assert.equal(ja.path, 'src/content/articles/toolset/ja.mdx');
-  assert.deepEqual([en.afterProperties.title, en.afterProperties.translationOf, en.afterProperties.url, en.afterProperties.listed], ['My toolset', link(ZH), 'toolset', false]);
-  assert.equal(en.afterProperties.date, byId.get(ZH).afterProperties.date);
+  assert.equal(plan.changes.length, 1);
+  const page = plan.changes[0];
+  assert.equal(page.id, ZH);
+  assert.equal(page.afterProperties.url, 'toolset');
+  assert.equal(page.afterProperties.language, undefined);
+  assert.equal(page.afterProperties.title, '我的工具箱');
+  assert.match(page.afterContent, /- Notes are a tool for thinking\.\n {2}笔记是思考的工具。/);
+  assert.match(page.afterContent, /中文原文/);
+  assert.doesNotMatch(page.afterContent, /My toolset body/);
   await ok(approve(f, plan));
   assert.equal(f.properties.get(ZH).Status, 'published');
-  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 3);
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 1);
   assert.equal((await ok(f.request('/doc?collection=articles&id=toolset'))).href, '/toolset');
-  assert.equal((await ok(f.request('/doc?collection=articles&id=toolset%2Fen'))).href, '/toolset');
-  await ok(f.request('/git/commit', 'POST', { message: '中文和译文一起发布' }));
-  assert.deepEqual(f.changedFiles().map(c => c.filename).sort(), ['src/content/articles/toolset.mdx', 'src/content/articles/toolset/en.mdx', 'src/content/articles/toolset/ja.mdx']);
-  assert.notEqual(parseMdx(f.text('src/content/articles/toolset/en.mdx')).frontmatter.draft, true);
+  await ok(f.request('/git/commit', 'POST', { message: '按卡片原文发布' }));
+  assert.deepEqual(f.changedFiles().map(c => c.filename), ['src/content/articles/toolset.mdx']);
+  const published = parseMdx(f.text('src/content/articles/toolset.mdx'));
+  assert.equal(published.frontmatter.language, undefined);
+  assert.equal(published.frontmatter.title, '我的工具箱');
+  assert.match(published.bodyZh, /笔记是思考的工具/);
+});
+
+test('a non-English translation is not published beside the page', async () => {
+  const f = await setup({}, [[EN, 'My toolset', { Language: 'en' }], [JA, '私のツール', { Language: 'ja' }]]);
+  const plan = await ok(preview(f));
+  assert.equal(plan.changes.length, 1);
+  assert.equal(plan.changes[0].id, ZH);
+  assert.equal(plan.changes[0].afterProperties.title, '我的工具箱');
+  assert.match(plan.changes[0].afterContent, /中文原文/);
+  assert.equal(plan.changes.some((change) => change.id === EN || change.id === JA), false);
 });
 
 test('a translation must be in #blogi18n, carry the same URL, and be the only one for its language', async () => {
@@ -74,12 +88,15 @@ test('a translation must be in #blogi18n, carry the same URL, and be the only on
   res = await preview(f); assert.equal(res.status, 400); assert.match((await res.json()).error, /中文写在 #blog/);
 });
 
-test('without URL the card keeps its slug and the translation sits beside it', async () => {
+test('without URL the card keeps its slug and the linked translation is not a second page', async () => {
   const f = await setup({ slug: undefined }, [[EN, 'My toolset', { Language: 'en' }]]);
   delete f.properties.get(ZH).slug;
   const plan = await ok(preview(f));
   assert.equal(plan.filePath, `src/content/articles/hepta-${ZH}.mdx`);
-  assert.ok(plan.changes.some(c => c.path === `src/content/articles/hepta-${ZH}/en.mdx`));
+  assert.equal(plan.changes.length, 1);
+  assert.equal(plan.changes[0].afterProperties.title, '我的工具箱');
+  assert.match(plan.changes[0].afterContent, /中文原文/);
+  assert.equal(plan.changes[0].afterProperties.language, undefined);
 });
 
 test('a URL taken by another article or a fixed route is refused; a linked article is not moved', async () => {
@@ -87,13 +104,13 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
   f = await setup({ slug: 'now' });
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
+  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
   res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/my-toolset/);
 });
 
-test('a project and a page publish the related English translation beside the source', async () => {
+test('a project and a page publish the #blog card as the only page', async () => {
   const f = await fixture();
   globalThis.fetch = f.fetcher;
   await f.login();
@@ -107,11 +124,13 @@ test('a project and a page publish the related English translation beside the so
   f.i18n.set(projectEn, { Language: 'en' });
   const preview = (card, collection) => f.request('/heptabase/preview', 'POST', { cardLink: link(card), collection, preparePublish: true, reviewOnly: true });
   let plan = await ok(preview(project, 'projects'));
-  let en = plan.changes.find(change => change.id === projectEn);
-  assert.deepEqual([en.path, en.translation, en.language, en.afterProperties.title, en.afterProperties.slot, en.afterProperties.translationOf], ['src/content/projects/sample-trace/en.mdx', true, 'en', 'Trace', 'project', link(project)]);
-  assert.equal(en.afterProperties.date, plan.changes.find(change => change.id === project).afterProperties.date);
+  const projectPage = plan.changes.find(change => change.id === project);
+  assert.equal(plan.changes.some(change => change.id === projectEn), false);
+  assert.match(projectPage.afterContent, /中文项目/);
+  assert.doesNotMatch(projectPage.afterContent, /English project/);
+  assert.deepEqual([projectPage.path, projectPage.afterProperties.title, projectPage.afterProperties.slot, projectPage.afterProperties.language], ['src/content/projects/sample-trace.mdx', '痕迹', 'project', undefined]);
   await ok(f.request('/heptabase/decision', 'POST', { cardLink: link(project), collection: 'projects', preparePublish: true, reviewOnly: true, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, decision: 'approve', confirmPublic: true }));
-  assert.equal((await ok(f.request('/doc?collection=projects&id=sample-trace%2Fen'))).href, '/sample-trace');
+  assert.equal((await ok(f.request('/doc?collection=projects&id=sample-trace'))).href, '/sample-trace');
 
   const page = 'f11ada66-1111-4759-9b1f-830c8374fcae', pageEn = 'e21ada66-2222-4759-8b1f-830c8374fcae';
   f.properties.set(page, { Status: 'review', 'Blog Type': 'Page', 'Publish Date': { start: '2024-04-02T00:00:00.000Z' }, 'blog i18n': [`card/${pageEn}`] });
@@ -120,10 +139,12 @@ test('a project and a page publish the related English translation beside the so
   f.cardSources.set(pageEn, '# Notes\n\nEnglish page.');
   f.i18n.set(pageEn, { Language: 'en' });
   plan = await ok(preview(page, 'pages'));
-  en = plan.changes.find(change => change.id === pageEn);
-  assert.deepEqual([en.path, en.translation, en.language, en.afterProperties.title, en.afterProperties.slot], ['src/content/pages/notes/en.mdx', true, 'en', 'Notes', 'page']);
-  assert.equal(en.afterProperties.translationOf, link(page));
-  assert.equal(Boolean(en.afterProperties.tags), false);
+  const notes = plan.changes.find(change => change.id === page);
+  assert.equal(plan.changes.some(change => change.id === pageEn), false);
+  assert.match(notes.afterContent, /中文页面/);
+  assert.doesNotMatch(notes.afterContent, /English page/);
+  assert.deepEqual([notes.path, notes.afterProperties.title, notes.afterProperties.slot, notes.afterProperties.language], ['src/content/pages/notes.mdx', '笔记', 'page', undefined]);
+  assert.equal(Boolean(notes.afterProperties.tags), false);
 });
 
 test('withdrawing an article takes its translations with it', () => {

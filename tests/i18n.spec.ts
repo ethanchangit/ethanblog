@@ -1,24 +1,24 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('中文站（cn.ethanchang.io）', () => {
-  test('默认中文且不再显示语言切换', async ({ page }) => {
+test.describe('英文站', () => {
+  test('界面是英文，没有语言切换', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('文章');
-    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('标签');
-    await expect(page.locator('header.site-nav a[href="/search"]')).toHaveAttribute('aria-label', '搜索');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles');
+    await expect(page.locator('header.site-nav a[href="/tags"]')).toHaveText('Tags');
+    await expect(page.locator('header.site-nav a[href="/search"]')).toHaveAttribute('aria-label', 'Search');
     await expect(page.getByRole('button', { name: /选择语言|Choose language/ })).toHaveCount(0);
-    await expect(page.locator('.i18n-en, .i18n-en-block, .i18n-en-only')).toHaveCount(0);
+    await expect(page.locator('header.site-nav [data-site-switch]')).toHaveCount(0);
   });
 
-  test('旧浏览器英文偏好不改变内容，换页后仍为中文', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('lang', 'en'));
+  test('旧的语言偏好不会切回另一套站点', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lang', 'zh-CN'));
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.locator('header.site-nav a[href="/now"]').click();
     await expect(page).toHaveURL(/\/now\/?$/);
-    await expect(page.locator('h1')).toHaveText('现在');
+    await expect(page.locator('h1')).toHaveText('Now');
     await page.reload();
-    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByText('写博客，打磨笔记与项目页')).toBeVisible();
   });
 
@@ -26,9 +26,9 @@ test.describe('中文站（cn.ethanchang.io）', () => {
     await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络');
     await expect(page.locator('.article-lede time')).toHaveCount(0);
-    await expect(page.locator('.article-meta time')).toHaveText('2026 年 3 月 1 日');
-    await expect(page.locator('.article-meta dt', { hasText: '发布日期' })).toBeVisible();
-    await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', '目录');
+    await expect(page.locator('.article-meta time')).toHaveText('March 1, 2026');
+    await expect(page.locator('.article-meta dt', { hasText: 'Published' })).toBeVisible();
+    await expect(page.locator('nav.toc')).toHaveAttribute('aria-label', 'Contents');
     await expect(page.locator('nav.toc a').first()).toHaveText('我的 PKM 实践：从笔记到知识网络');
     await expect(page.locator('nav.toc a').first()).toHaveAttribute('href', '#doc-title');
     await expect(page.getByText('你的笔记系统不是存储信息的仓库')).toBeVisible();
@@ -43,7 +43,7 @@ test.describe('中文站（cn.ethanchang.io）', () => {
     for (const path of ['/', '/now', '/pkm-method']) {
       await page.goto(path === '/' ? '/zh' : '/zh' + path, { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL(url => (url.pathname.replace(/\/$/, '') || '/') === path);
-      await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     }
   });
 
@@ -58,7 +58,7 @@ test.describe('中文站（cn.ethanchang.io）', () => {
     expect(md).toContain('# 我的 PKM 实践：从笔记到知识网络');
     expect(md).not.toContain('My PKM practice');
     const rss = await (await request.get('/rss.xml')).text();
-    expect(rss).toContain('<language>zh-CN</language>');
+    expect(rss).toContain('<language>en</language>');
     expect(rss).not.toContain('My PKM practice');
   });
 

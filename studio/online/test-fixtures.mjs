@@ -71,7 +71,7 @@ export async function fixture(assets = {}) {
   function commit(treeSha, parents = []) { const sha = digest([treeSha, parents]); commits.set(sha, { tree: { sha: treeSha }, parents: parents.map((sha) => ({ sha })) }); return sha; }
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
   let pr = null, checksPass = true, deployConclusion = 'success', liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
-  const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
+  const cardSources = new Map(), referenceCards = new Set(), referencesTag = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
   // Translation cards in #blogi18n: id -> { Language, URL }.
   const i18n = new Map();
   const baselines = new Map();
@@ -123,7 +123,7 @@ export async function fixture(assets = {}) {
         else {
           const { name, arguments: args } = body.params;
           let content;
-          if (name === 'list_tags') content = { content: `<tags total="2"><tag id="blog-id" name="blog" cardCount="${properties.size}"><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /></tag><tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" /></tags>` };
+          if (name === 'list_tags') content = { content: `<tags total="4"><tag id="blog-id" name="blog" cardCount="${properties.size}" /><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /><tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" /><tag id="references-id" name="references" cardCount="${referencesTag.size}" /></tags>` };
           else if (name === 'read_database' && args.tagId === 'i18n-id') content = { configuration: { schema: {
             url: { name: 'slug', type: 'text' },
             language: { name: 'Language', type: 'select', options: [{ id: 'en', name: 'en' }, { id: 'ja', name: 'ja' }] },
@@ -148,7 +148,7 @@ export async function fixture(assets = {}) {
             content = { results: args.edits.map((e) => ({ cardId: e.cardId, propertyId: e.propertyId, status: 'success' })) };
           }
           else if (name === 'list_cards') {
-            const ids = args.cardIds?.length ? args.cardIds : [...(args.tagIds?.[0] === 'reference-id' ? referenceCards : args.tagIds?.[0] === 'i18n-id' ? i18n.keys() : properties.keys())];
+            const ids = args.cardIds?.length ? args.cardIds : [...(args.tagIds?.[0] === 'reference-id' ? referenceCards : args.tagIds?.[0] === 'references-id' ? referencesTag : args.tagIds?.[0] === 'i18n-id' ? i18n.keys() : properties.keys())];
             content = { content: 'Cards:\n' + ids.map(id => {
               const title = (id === CARD ? source : cardSources.get(id) || '# 测试文章').split('\n')[0].replace(/^# /, '');
               const stamp = stampFor(id);
@@ -162,6 +162,7 @@ export async function fixture(assets = {}) {
           else if (name === 'update_database_card_membership') {
             for (const id of args.cardIds) {
               if (args.tagId === 'reference-id') referenceCards.add(id);
+              else if (args.tagId === 'references-id') referencesTag.add(id);
               else if (!properties.has(id)) properties.set(id, {});
             }
             content = { affectedCardIds: args.cardIds, failedCardIds: [], invalidCardIds: [] };
@@ -246,7 +247,7 @@ export async function fixture(assets = {}) {
     const state = new URL(start.url).searchParams.get('state');
     return request(`/heptabase/callback?state=${state}&code=test-code`);
   }
-  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, missingCards, timestamps,
+  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, referencesTag, missingCards, timestamps,
     source: () => source, setSource: (text) => { source = text; },
     failChecks: () => { checksPass = false; }, failDeploy: () => { deployConclusion = 'failure'; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },

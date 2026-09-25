@@ -178,6 +178,11 @@ test('recursive mentions deduplicate cycles; only non-blog cards receive the ref
   const marked = await jsonOk(f.request('/heptabase/mark-references', 'POST', selection(plan)));
   assert.equal(marked.marked, 1); assert.equal(f.properties.get(grandchild)['Blog Type'], 'Reference');
   assert.equal(f.properties.get(child)?.['Blog Type'], undefined);
+  assert.equal(marked.referencesTagged, 3);
+  for (const id of [CARD, child, grandchild]) assert.equal(f.referencesTag.has(id), true, id);
+  assert.match(f.cardSources.get(grandchild), /## Mentioned by/);
+  assert.match(f.cardSources.get(grandchild), /主文/);
+  assert.doesNotMatch(f.cardSources.get(grandchild), /heptabase:\/\/card/);
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_reviews').get().n, 0);
   await prepare(f);
   const read = id => jsonOk(f.request(`/doc?collection=articles&id=${id}`));

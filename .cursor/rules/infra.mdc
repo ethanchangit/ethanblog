@@ -17,7 +17,8 @@ alwaysApply: false
 1. **只动基建层**：`src/components/`、`src/lib/`、`src/pages/`、`plugins/`、CI 配置等。
 2. **禁止内容创作**：不创建或改写 `src/content/` 下的 MDX，除非用户明确要求。
 3. **遵循约束**：[AGENTS.md](../../AGENTS.md) + [media/README.md](../../src/components/media/README.md)。
-4. **新组件准入**：满足 media/README 契约（含视觉极简）→ `/lab` 点亮 → 补测试 → 更新 README。
+4. **新组件准入**：满足 media/README 契约（含视觉极简）→ 接到用到它的文章或项目 → 补测试 → 更新 README。
 5. **验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
-6. **后台**：本地 `npm run dev` 的 http://localhost:4321/dashboard 免密码，只在本机 dev。生产 https://ethanchang.io/dashboard 仍要密码。`/studio` 不是写作入口，也不进生产。写作在 Heptabase。push 到 `main` 在验证通过后自动部署。
+6. **后台**：本地 `npm run dev` 的 http://localhost:4321/dashboard 免密码，只在本机 dev。生产 https://ethanchang.io/dashboard 仍要密码。没有本地 `/studio` 编辑器。写作在 Heptabase。push 到 `main` 在验证通过后自动部署。
 7. **视觉**：公开站点不引入边框、背景色块、圆角卡片、色条等装饰（`/dashboard` 为可读性例外；文章/项目页眉的 `.article-meta` 元数据块也是例外）；遵循 [AGENTS.md](../../AGENTS.md) 样式约束。中文 `.i18n-zh` 里 `<a>` 紧贴汉字，不要因换行挤出空格。
+8. **用法上下文**：改了博客怎么工作，或框架怎么读取、写回属性，按 [AGENTS.md](../../AGENTS.md)「用法上下文」在同一次改动里更新 Heptabase 卡片 skill blogcontext（`60e2701a-4374-4bf7-9f4e-4d1d674aed8f`，`heptabase://card/60e2701a-4374-4bf7-9f4e-4d1d674aed8f`）。

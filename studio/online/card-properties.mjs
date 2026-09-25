@@ -129,7 +129,7 @@ export function translationLanguage(value) {
 }
 
 /** Top-level paths the site already owns. Keep in sync with RESERVED_URLS in src/lib/routes.ts. */
-export const RESERVED_URLS = ['en', 'cn', 'now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'lab', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'];
+export const RESERVED_URLS = ['en', 'cn', 'now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'];
 
 /**
  * The slug column as written, trimmed. It is only read here: whether it is allowed depends on

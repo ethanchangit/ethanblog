@@ -5,7 +5,7 @@ const inner = { useInnerText: true } as const;
 test.describe('Blogs 索引', () => {
   test('/blogs 列出已发布的 Blog 卡片', async ({ page }) => {
     await page.goto('/blogs', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { level: 1, name: "博客" })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: "Blog" })).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
@@ -21,7 +21,7 @@ test.describe('Blogs 索引', () => {
 
   test('/zh/blogs 是中文名单', async ({ page }) => {
     await page.goto('/zh/blogs', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('博客', inner);
+    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Blog', inner);
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
