@@ -22,6 +22,11 @@ test('a mention with no readable card is not published as its label', () => {
   assert.throws(() => fromHeptabase('# 标题\n\n<hepta-mention type="card">Heptabase</hepta-mention>', targets), /纯文字/);
 });
 
+test('bilingual bullets keep the English line and the indented Chinese gloss', () => {
+  const source = `# Practice\n\n- Notes are a tool for thinking.\n  笔记是思考的工具。\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |`;
+  assert.equal(fromHeptabase(source, new Map()).body, '- Notes are a tool for thinking.\n  笔记是思考的工具。\n\n| Keep | Table |\n| --- | --- |\n| 中文 | 保留 |');
+});
+
 test('a mention inside code stays literal', () => {
   const source = `# 标题\n\n\`<hepta-mention id="${heptabase}" type="card">Heptabase</hepta-mention>\``;
   const body = fromHeptabase(source, targets).body;

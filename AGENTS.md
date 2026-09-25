@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> **这是 Ethan Chang（张峻源）的个人博客**，分两个站：中文博客 https://cn.ethanchang.io ，英文博客 https://ethanchang.io 。
+> **这是 Ethan Chang（张峻源）的个人博客**，只有英文站 https://ethanchang.io 。cn.ethanchang.io 会跳到同一路径。
 > 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4。Cloudflare Pages 项目名 `ethanblog`。
 > 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
 > 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
@@ -57,15 +57,14 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于在 `/about`，首页 `/` 是文章列表。Now、联系、隐私仍用原来的地址（`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。每次审核都可以拖动手柄排列这几页，确认后写入 `src/data/page-order.ts`，导航按这个顺序显示。导航顺序的每一行都可以单独隐藏。隐藏记在本机决定里，和顺序一起在发布时写入这份文件：未隐藏的按拖动顺序出现在导航上，隐藏的不写入顺序，因此不进公开导航。隐藏不是撤下，也不改 Heptabase 卡片。不足 4 页时同样可以隐藏。每一行可以在新标签打开对应卡片，地址用这张卡片自己的 `heptabaseCardLink`。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
-### 两种语言
+### 英文站
 
-- **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组，也不按标题猜测。英文站用同一套标签，文章仍只列出已有译文的。
-- **英文博客 ethanchang.io** 是译文。译文是 `#blogi18n`（Heptabase 标签名 `blog i18n`）里的独立卡片，由 `#blog` 卡片上的关联字段 `blog i18n` 指向。配对只看这个关联，不按标题或别的字段猜。译文的 `Language` 决定语言（`en` 等）；中文只写在 `#blog`，不做译文。
-- 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：文章 `src/content/articles/<id>/<language>.mdx`，项目 `src/content/projects/<id>/<language>.mdx`，站点页 `src/content/pages/<id>/<language>.mdx`。frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
-- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`，英文站同一路径。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
-- 一次构建出两个站：中文页面在 `dist/` 根目录，英文页面在 `dist/en/`。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）按域名分：ethanchang.io 的请求读 `/en` 下的页面，没有英文版的路径跳到 cn 同一路径；cn.ethanchang.io 读根目录。`/en` 前缀不对外出现。语言切换链接是 `/_lang/<zh|en><路径>`，由 Worker 换到另一个域名。页面语言跟着路由走：英文页（`/en`）的界面、日期、列表都是英文，其余是中文。
-- 本机：`http://localhost:4321` 是中文站，`http://en.localhost:4321` 是英文站（dev 和 `npm run preview` 都支持）。
-- 后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
+- 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
+- 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
+- 被提到的卡片打上 Heptabase 标签 `references`。已经是文章的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
+- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。
+- 本机 `http://localhost:4321` 就是这个英文站。后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 
 ### `#blog`
 

@@ -22,7 +22,7 @@ import { site } from '@/data/profile';
 import { applyLang, copy, readLang } from '@/lib/i18n';
 import { localeFromPath, localeHrefForLang, pagePath } from '@/lib/locale';
 import { reducedMotion } from '@/lib/motion';
-import { ARTICLES_PATH, BLOGS_PATH, HOME_PATH, PROJECTS_PATH } from '@/lib/routes';
+import { ARTICLES_PATH, BLOGS_PATH, HOME_PATH, PROJECTS_PATH, RESERVED_URLS } from '@/lib/routes';
 
 export type IndexKind = 'articles' | 'projects' | 'blogs';
 
@@ -99,10 +99,10 @@ function applyCanonical(href: string) {
 function applyIndexPageMeta(kind: IndexKind) {
   const titleKey = kind === 'projects' ? 'projectsTitle' : kind === 'blogs' ? 'blogsTitle' : 'articlesTitle';
   const descKey = kind === 'projects' ? 'projectsDesc' : kind === 'blogs' ? 'blogsDesc' : 'articlesDesc';
-  document.documentElement.setAttribute('data-title-zh', `${copy['zh-CN'][titleKey]} · ${site.title}`);
-  document.documentElement.setAttribute('data-title-en', `${copy['zh-CN'][titleKey]} · ${site.title}`);
-  document.documentElement.setAttribute('data-desc-zh', copy['zh-CN'][descKey]);
-  document.documentElement.setAttribute('data-desc-en', copy['zh-CN'][descKey]);
+  document.documentElement.setAttribute('data-title-zh', `${copy.en[titleKey]} · ${site.title}`);
+  document.documentElement.setAttribute('data-title-en', `${copy.en[titleKey]} · ${site.title}`);
+  document.documentElement.setAttribute('data-desc-zh', copy.en[descKey]);
+  document.documentElement.setAttribute('data-desc-en', copy.en[descKey]);
 }
 
 function syncExpandedChrome(shell: HTMLElement) {
@@ -130,6 +130,9 @@ function setReadingLayout(shell: HTMLElement, kind: 'article' | 'project' | 'hom
     void shell.offsetWidth;
   }
   shell.setAttribute('data-reading-shell', kind);
+  if (kind === 'index' || kind === 'home') {
+    shell.querySelector('[data-reading-rail]')?.replaceChildren();
+  }
   syncExpandedChrome(shell);
 }
 
@@ -144,6 +147,14 @@ export function indexKindFromPath(pathname: string): IndexKind | null {
   return null;
 }
 
+function openIndexList(): 'articles' | 'projects' | 'blogs' {
+  const persist = document.querySelector('[data-reading-index]')?.getAttribute('data-astro-transition-persist') ?? '';
+  if (persist.includes('projects')) return 'projects';
+  if (persist.includes('blogs')) return 'blogs';
+  return 'articles';
+}
+
+/** 旧地址在 /articles 与 /projects 下。现在单篇在站点根路径，种类跟着当前左栏。 */
 export function docKindFromPath(pathname: string): 'article' | 'project' | null {
   const p = pagePath(pathname);
   if (p.startsWith(`${ARTICLES_PATH}/`)) {
@@ -156,7 +167,10 @@ export function docKindFromPath(pathname: string): 'article' | 'project' | null 
     if (!rest) return null;
     return 'project';
   }
-  return null;
+  if (p === HOME_PATH) return null;
+  const segment = p.replace(/^\/+/, '').split('/')[0] ?? '';
+  if (!segment || (RESERVED_URLS as readonly string[]).includes(segment)) return null;
+  return openIndexList() === 'projects' ? 'project' : 'article';
 }
 
 function splitIndexVisible(): boolean {

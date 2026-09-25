@@ -11,6 +11,21 @@ import { assets } from './assets.generated.mjs';
 import { fixture } from './test-fixtures.mjs';
 import { seedSampleReview } from './sample-review.mjs';
 
+const viteClientStub = [
+  'export function createHotContext() {',
+  '  return { accept() {}, prune() {}, dispose() {}, invalidate() {}, on() {} };',
+  '}',
+  'export function updateStyle(id, content) {',
+  '  const node = document.querySelector(`style[data-vite-dev-id="${CSS.escape(id)}"]`) || document.createElement("style");',
+  '  node.setAttribute("data-vite-dev-id", id);',
+  '  node.textContent = content;',
+  '  document.head.append(node);',
+  '}',
+  'export function removeStyle(id) {',
+  '  document.querySelector(`style[data-vite-dev-id="${CSS.escape(id)}"]`)?.remove();',
+  '}',
+].join('\n');
+
 const onlineRoot = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(onlineRoot, '../..');
 const vite = await createViteServer({
@@ -23,14 +38,26 @@ const vite = await createViteServer({
     tailwindcss(),
     {
       name: 'preview-without-vite-client',
-      enforce: 'post',
+      enforce: 'pre',
+      resolveId(id) {
+        if (id === '/@vite/client' || id.endsWith('/@vite/client')) return '\0preview-vite-client';
+      },
+      load(id) {
+        if (id !== '\0preview-vite-client') return;
+        return viteClientStub;
+      },
       transformIndexHtml(html) {
         return html.replace(/<script type="module" src="[^"]*@vite\/client"><\/script>\s*/, '');
       },
     },
   ],
   resolve: { alias: { '@': path.join(repo, 'src') } },
-  server: { middlewareMode: true, hmr: false, fs: { allow: [repo] } },
+  server: {
+    middlewareMode: true,
+    hmr: false,
+    allowedHosts: ['localhost', '127.0.0.1', 'dashboard.test'],
+    fs: { allow: [repo] },
+  },
 });
 
 const local = await fixture(assets);
@@ -63,6 +90,11 @@ const server = createServer(async (req, res) => {
     }
     // Only this loopback-only simulator has test controls, never the deployed handler.
     if (url === '/__test/deploy' && req.method === 'POST') { local.deploy(); res.end('ok'); return; }
+    if (req.method === 'GET' && url.includes('@vite/client')) {
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(viteClientStub);
+      return;
+    }
     if (req.method === 'GET' && url.split('?')[0] === '/dashboard') {
       res.writeHead(302, { location: '/dashboard/' });
       res.end();

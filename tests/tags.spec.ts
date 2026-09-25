@@ -15,11 +15,11 @@ test.describe('Tags（内容集合过滤）', () => {
   test('导航有标签入口，/tags 平铺全部标签', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     const nav = page.locator('header.site-nav a[href="/tags"]');
-    await expect(nav).toHaveText("标签", { useInnerText: true });
+    await expect(nav).toHaveText("Tags", { useInnerText: true });
 
     await nav.click();
     await expect(page).toHaveURL(/\/tags\/?$/);
-    await expect(page.getByRole('heading', { name: "标签" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "Tags" })).toBeVisible();
     await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);
     await expect(page.getByRole('link', { name: '写作与知识' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: '媒介与研究' })).toHaveCount(0);
@@ -43,10 +43,9 @@ test.describe('Tags（内容集合过滤）', () => {
 
   test('文章页眉标签可点，在 /tags 就地筛出该标签文档', async ({ page }) => {
     await page.goto(ARTICLE, { waitUntil: 'domcontentloaded' });
-    const header = page.locator('article header');
-    await expect(header.getByRole('link', { name: 'PKM', exact: true })).toBeVisible();
-
-    await header.getByRole('link', { name: 'PKM', exact: true }).click();
+    const tag = page.locator('a[href="/tags?tag=PKM"]');
+    await expect(tag.first()).toBeVisible();
+    await tag.first().click();
     await expect.poll(() => selectedTag(page.url())).toBe('PKM');
     await expect(page).toHaveURL(/\/tags\/?/);
     await expect(page.locator('[data-tag-group-tabs]')).toHaveCount(0);

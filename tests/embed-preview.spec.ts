@@ -58,5 +58,5 @@ test('article can embed a tweet and a YouTube video together', async ({ page }) 
     '对话前DeepMind曹原：AI for Science爆发，一个新时代到来了',
   );
   await expect(video.locator('iframe')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /在 YouTube 观看/ }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Watch on YouTube/ }).first()).toBeVisible();
 });

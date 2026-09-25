@@ -1,9 +1,9 @@
 /**
- * cn.ethanchang.io 是中文站（#blog 原文），ethanchang.io 是英文站（#blogi18n 译文）。
- * 页面语言由路由决定：英文页面构建在 /en 下，其余是中文。
+ * The public blog is English. Chinese copy remains for cards that have not been
+ * republished, and for the dashboard.
  */
 export type Lang = 'zh-CN' | 'en';
-export const DEFAULT_LANG = 'zh-CN' as const;
+export const DEFAULT_LANG = 'en' as const;
 export const LANG_STORAGE_KEY = 'lang';
 export const LANG_EVENT = 'ethan:lang';
 

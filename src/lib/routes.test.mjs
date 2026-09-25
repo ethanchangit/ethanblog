@@ -25,21 +25,27 @@ test('旧单篇地址转到新路径，列表和分页不动', () => {
   assert.equal(legacyContentRedirect('/pkm-method'), null);
 });
 
-test('中英文站的旧地址都在同一域名上转到新路径', () => {
-  const english = routeRequest(new URL('http://en.localhost:4321/articles/pkm-method'));
-  assert.deepEqual(english, {
+test('旧地址和旧域都回到同一篇英文页面', () => {
+  assert.deepEqual(routeRequest(new URL('http://localhost:4321/articles/pkm-method')), {
     type: 'redirect',
-    location: 'http://en.localhost:4321/pkm-method',
+    location: 'http://localhost:4321/pkm-method',
     status: 301,
   });
-  const chinese = routeRequest(new URL('http://localhost:4321/projects/aletheia'));
-  assert.deepEqual(chinese, {
+  assert.deepEqual(routeRequest(new URL('http://en.localhost:4321/pkm-method')), {
     type: 'redirect',
-    location: 'http://localhost:4321/aletheia',
+    location: 'http://localhost:4321/pkm-method',
     status: 301,
   });
-  const englishNew = routeRequest(new URL('http://en.localhost:4321/pkm-method'));
-  assert.deepEqual(englishNew, { type: 'rewrite', path: '/en/pkm-method' });
-  const page = routeRequest(new URL('http://localhost:4321/articles/2'));
-  assert.deepEqual(page, { type: 'pass' });
+  assert.deepEqual(routeRequest(new URL('https://cn.ethanchang.io/now')), {
+    type: 'redirect',
+    location: 'https://ethanchang.io/now',
+    status: 301,
+  });
+  assert.deepEqual(routeRequest(new URL('http://localhost:4321/en/articles')), {
+    type: 'redirect',
+    location: 'http://localhost:4321/articles',
+    status: 301,
+  });
+  assert.deepEqual(routeRequest(new URL('http://localhost:4321/pkm-method')), { type: 'pass' });
+  assert.deepEqual(routeRequest(new URL('http://localhost:4321/articles/2')), { type: 'pass' });
 });

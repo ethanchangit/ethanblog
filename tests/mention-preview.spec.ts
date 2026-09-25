@@ -104,7 +104,7 @@ test.describe('mention 悬停预览', () => {
     await expect(preview).toContainText('Bitwarden');
     await expect(preview).toContainText('Free Password Manager');
     const metaText = await preview.locator('.mention-preview-meta').evaluate((el) => el.textContent ?? '');
-    expect(metaText).toContain('资料');
+    expect(metaText).toContain('Reference');
 
     const link = await openArticle(page);
     await expect(link).not.toHaveAttribute('data-doc-mention');
