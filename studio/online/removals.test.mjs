@@ -254,8 +254,91 @@ test('scope and index cleanup ignore code examples, preserve unrelated content a
   assert.equal(cited.paths.includes(refPath(REF)), false);
   assert.equal(cited.keptReferences.some(entry => entry.title === '专属资料'), true);
   const projectPath = 'src/content/projects/example.mdx';
-  const project = serializeMdx({ frontmatter: { slot: 'project', title: '项目', description: '摘要', date: '2024-01-02', heptabaseCardLink: LINK }, bodyZh: '正文' });
-  const blocked = removalScope(new Map([[projectPath, project], [refPath(OTHER), raw(OTHER, '仍在引用它', '<DocRef of="projects/example" />')]]), projectPath);
-  assert.equal(blocked.demotions.length, 0);
-  assert.equal(blocked.blockers[0].title, '仍在引用它');
+  const project = serializeMdx({ frontmatter: { slot: 'project', title: '项目', description: '摘要', date: '2024-01-02', heptabaseType: 'project', heptabaseCardLink: LINK }, bodyZh: '正文' });
+  const citedProject = removalScope(new Map([[projectPath, project], [refPath(OTHER), raw(OTHER, '仍在引用它', '<DocRef of="projects/example" />')]]), projectPath);
+  assert.equal(citedProject.blockers.length, 0);
+  assert.equal(citedProject.demotions[0].path, projectPath);
+  assert.equal(citedProject.paths.includes(projectPath), false);
+  const staying = 'src/content/projects/staying.mdx';
+  const stayingRaw = serializeMdx({ frontmatter: { slot: 'project', title: '仍是项目', description: '摘要', date: '2024-01-02', listed: false, heptabaseType: 'project', heptabaseCardLink: `heptabase://card/${REF}` }, bodyZh: '正文' });
+  const keptType = removalScope(new Map([
+    [PATH, raw(CARD, '主文', '<DocRef of="projects/staying" />')],
+    [staying, stayingRaw],
+    [refPath(OTHER), raw(OTHER, 'Networks', '<DocRef of="projects/staying" />')],
+  ]), PATH);
+  assert.equal(keptType.blockers.length, 0);
+  assert.equal(keptType.demotions.some(entry => entry.path === staying), false);
+  assert.equal(keptType.paths.includes(staying), false);
+});
+
+test('confirmed placeholder deletions publish, and a mentioned project becomes reference without refusing', async () => {
+  const f = await setup();
+  const card = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const placeholders = [];
+  for (let n = 1; n <= 10; n++) {
+    const id = card(n);
+    const path = `src/content/articles/dummy-${n}.mdx`;
+    f.remote(raw(id, `占位 ${n}`, '占位。'), path);
+    f.missingCards.add(id);
+    placeholders.push({ id, path, title: `占位 ${n}` });
+  }
+  const broken = card(11);
+  const brokenPath = 'src/content/articles/dummy-broken.mdx';
+  f.remote(raw(broken, '占位读不到', '占位。'), brokenPath);
+  f.cardSources.set(broken, '# 占位读不到\n\n占位。');
+  const chunk = 'e25122ea-1fa6-4983-a52a-e42c87130492';
+  const networks = '3c01188b-3b8d-4420-ae72-4a8b943e818a';
+  const robert = '4d12299c-4c9e-5531-bf83-5b9ca54f929b';
+  const project = (id, title, body) => serializeMdx({ frontmatter: { slot: 'project', title, description: '摘要', date: '2024-01-02', heptabaseType: 'project', heptabaseCardLink: `heptabase://card/${id}` }, bodyZh: body });
+  const chunkPath = 'src/content/projects/chunk.mdx';
+  const networksPath = 'src/content/projects/network.mdx';
+  const robertPath = 'src/content/projects/robert.mdx';
+  const networksRaw = project(networks, 'Networks', '[Chunk](/chunk)');
+  const robertRaw = project(robert, 'Robert', '[Chunk](/chunk)');
+  f.remote(project(chunk, 'Chunk', '被留下的项目提到。'), chunkPath);
+  f.remote(networksRaw, networksPath);
+  f.remote(robertRaw, robertPath);
+  f.cardSources.set(chunk, '# Chunk\n\n被留下的项目提到。');
+  f.cardSources.set(networks, '# Networks\n\n[Chunk](/chunk)');
+  f.cardSources.set(robert, '# Robert\n\n[Chunk](/chunk)');
+  f.properties.set(networks, { Status: 'published', 'Blog Type': 'Project' });
+  f.properties.set(robert, { Status: 'published', 'Blog Type': 'Project' });
+  const decisions = [];
+  const previewOf = async (item) => {
+    const plan = await ok(f.request('/heptabase/removal-preview', 'POST', item));
+    decisions.push({ kind: 'removal', collection: item.collection, id: item.id, cardLink: item.cardLink, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash, confirmDelete: true });
+    return plan;
+  };
+  for (const item of placeholders) await previewOf({ collection: 'articles', id: `dummy-${placeholders.indexOf(item) + 1}`, cardLink: `heptabase://card/${item.id}` });
+  await previewOf({ collection: 'articles', id: 'dummy-broken', cardLink: `heptabase://card/${broken}` });
+  const chunkPlan = await previewOf({ collection: 'projects', id: 'chunk', cardLink: `heptabase://card/${chunk}` });
+  assert.equal(chunkPlan.blockers.length, 0);
+  assert.equal(chunkPlan.demote, true);
+  assert.deepEqual(chunkPlan.citations.map(item => item.title).sort(), ['Networks', 'Robert']);
+  const fetcher = f.fetcher;
+  globalThis.fetch = async (url, init) => {
+    const body = init?.body && String(init.body).startsWith('{') ? JSON.parse(init.body) : {};
+    if (body.params?.name === 'read_object' && body.params.arguments?.objectId === broken) {
+      f.calls.push({ method: init?.method || 'POST', url: String(url), body });
+      return new Response('Unavailable', { status: 503 });
+    }
+    return fetcher(url, init);
+  };
+  f.calls.length = 0;
+  const committed = await f.request('/git/commit', 'POST', { message: '撤下已确认的占位页', decisions });
+  const payload = await committed.json();
+  assert.equal(committed.status, 200, JSON.stringify(payload));
+  assert.ok(f.calls.length < 50, `external calls ${f.calls.length}`);
+  assert.equal(f.calls.filter(call => call.body?.params?.name === 'create_object').length, 0);
+  const branch = f.refs.get('codex/studio-content');
+  const files = f.filesFor(branch);
+  for (const item of placeholders) assert.equal(files[item.path], undefined, item.path);
+  assert.ok(files[brokenPath], 'one unreadable card stays');
+  const kept = f.text(chunkPath);
+  assert.match(kept, /heptabaseType: "?reference"?/);
+  assert.match(kept, /listed: false/);
+  assert.equal(f.text(networksPath), networksRaw);
+  assert.equal(f.text(robertPath), robertRaw);
+  assert.match(f.text(networksPath), /heptabaseType: "?project"?/);
+  assert.doesNotMatch(f.text(networksPath), /reference/);
 });

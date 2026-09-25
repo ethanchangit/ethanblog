@@ -6,7 +6,7 @@ import Bi from '@/components/shell/Bi.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
-import { docsBySlot, docHref, englishProjects, translationSourceId } from '@/lib/docs';
+import { docsBySlot, docHref, englishProjects, isReference, translationSourceId } from '@/lib/docs';
 import { HOME_PATH, PROJECTS_PATH, projectHref } from '@/lib/routes';
 
 interface Props {
@@ -16,7 +16,9 @@ interface Props {
 const { currentId } = Astro.props;
 const lp = Astro.locals.localePath;
 const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
-const projects = (lang === 'en' ? await englishProjects() : await docsBySlot('project')).sort(
+const projects = (lang === 'en' ? await englishProjects() : await docsBySlot('project'))
+  .filter((project) => !isReference(project))
+  .sort(
   (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
 const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));

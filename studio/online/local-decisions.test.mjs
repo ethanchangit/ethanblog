@@ -6,7 +6,7 @@ const plan = { sourceHash: 's', documentHash: 'd', planHash: 'p', changes: [{ id
 const item = (extra = {}) => ({ card: { id: 'a' }, input: { cardLink: 'heptabase://card/a', collection: 'articles', id: 'example' }, plan: { ...plan, changes: plan.changes.map(change => ({ ...change })) }, decision: '', ...extra });
 
 test('a cited removal names who still links to it and keeps the address', () => {
-  assert.equal(referenceKeepCopy('旧笔记', [{ title: '另一篇' }, { title: '另一篇' }]), '「旧笔记」仍被「另一篇」引用。发布后会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。');
+  assert.equal(referenceKeepCopy('旧笔记', [{ title: '另一篇' }, { title: '另一篇' }]), '「旧笔记」仍被「另一篇」引用。发布后会从文章列表、项目列表和站点页面撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。');
   assert.match(referenceKeepBatchCopy([{ title: '甲', citations: [{ title: '丙' }] }, { title: '乙', citations: [{ title: '丙' }] }]), /「甲」、「乙」仍被「丙」引用/);
 });
 

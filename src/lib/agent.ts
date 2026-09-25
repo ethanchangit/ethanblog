@@ -6,7 +6,7 @@
 import { readFile } from 'node:fs/promises';
 import { getCollection, getEntry } from 'astro:content';
 import { profile, site, skills } from '@/data/profile';
-import { docHref, docsBySlot, isIndexed, type DocEntry } from '@/lib/docs';
+import { docHref, docsBySlot, isIndexed, isReference, type DocEntry } from '@/lib/docs';
 import { copy } from '@/lib/i18n';
 import { withLocalePrefix } from '@/lib/locale';
 import {
@@ -306,7 +306,7 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
 export async function buildLlmsTxt(): Promise<string> {
   const [articles, projects] = await Promise.all([
     docsBySlot('article').then((list) => list.filter(isIndexed)),
-    docsBySlot('project'),
+    docsBySlot('project').then((list) => list.filter((entry) => !isReference(entry))),
   ]);
   const articleLines = articles
     .filter((entry) => !entry.id.startsWith('dummy-'))
@@ -360,7 +360,7 @@ export async function buildLlmsFull(): Promise<string> {
     'Concatenated published essays and project files. Prefer the per-page URL with `Accept: text/markdown` when you only need one document.',
     '',
   ];
-  for (const entry of [...articles.filter(isIndexed), ...projects]) {
+  for (const entry of [...articles.filter(isIndexed), ...projects.filter((entry) => !isReference(entry))]) {
     parts.push('---', '', await docMarkdown(entry, 'zh'), '');
   }
   return parts.join('\n');

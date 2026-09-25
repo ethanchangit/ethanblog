@@ -7,14 +7,14 @@
 /** Shown where a cited article used to be blocked. It stays on its address as a reference. */
 export function referenceKeepCopy(title, citations) {
   const who = [...new Set((citations || []).map(item => item?.title).filter(Boolean))].join('、');
-  return `「${title}」仍被「${who}」引用。发布后会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
+  return `「${title}」仍被「${who}」引用。发布后会从文章列表、项目列表和站点页面撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
 }
 
 export function referenceKeepBatchCopy(entries) {
   const who = [...new Set(entries.flatMap(entry => (entry.citations || []).map(item => item?.title).filter(Boolean)))].join('、');
   const count = entries.length;
   const names = count <= 3 ? entries.map(entry => `「${entry.title}」`).join('、') : `${count} 篇`;
-  return `${names}仍被「${who}」引用。发布不会被拦住：它们会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
+  return `${names}仍被「${who}」引用。发布不会被拦住：它们会从文章列表、项目列表和站点页面撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
 }
 
 export function applyLocalDecision(item, verdict, { remark, pageKeep, choiceRequired } = {}) {

@@ -362,18 +362,59 @@ async function syncRelease(env, row) {
   return { ...releaseView(next), ...(next.status === 'succeeded' ? { heptabase: await completeWriteback(env, next.id) } : {}) };
 }
 
+// One Heptabase session and one GitHub tree for a whole publish request.
+// Repeating them once per deletion exceeds the Worker subrequest limit and the site never changes.
+async function openPublicationCatalog(env) {
+  const client = await mcpClient(env);
+  const { cards, tagId } = await blogCards(client);
+  const schema = await blogSchema(client, tagId);
+  const state = await branchState(env);
+  const main = state.pr ? await branchState(env, cfg(env).branch) : state;
+  const paths = (tree) => [...tree.entries.keys()].filter((path) => pathDoc(path));
+  await primeBlobs(env, state, paths(state));
+  if (main !== state) await primeBlobs(env, main, paths(main));
+  return {
+    client, cards, tagId, schema, state, main,
+    blogIds: new Set(cards.map((card) => card.id)),
+    reasons: new Map(),
+    allowUnreadable: true,
+  };
+}
+
+async function liveRemovalReason(env, client, id, schema, blogIds) {
+  const catalog = env.publicationCatalog;
+  if (!catalog) return removalReason(client, id, schema, blogIds);
+  if (catalog.reasons.has(id)) {
+    const cached = catalog.reasons.get(id);
+    if (cached?.unreadable) throw Object.assign(new Error(cached.message), { unreadable: true, status: cached.status || 502 });
+    return cached;
+  }
+  try {
+    const reason = await removalReason(client, id, schema, blogIds);
+    catalog.reasons.set(id, reason);
+    return reason;
+  } catch (error) {
+    if (!catalog.allowUnreadable) throw error;
+    catalog.reasons.set(id, { unreadable: true, message: error.message, status: error.status || 502 });
+    throw Object.assign(new Error(error.message), { unreadable: true, status: error.status || 502 });
+  }
+}
+
 async function commitDrafts(env, identity, input) {
+  const catalog = await openPublicationCatalog(env);
+  env.publicationCatalog = catalog;
+  try {
   if (input.pageChoice || (Array.isArray(input.decisions) && input.decisions.length)) await applyDecisionBatch(env, identity, input);
-  return withLock(env, 'publication', async (lease) => {
+  return await withLock(env, 'publication', async (lease) => {
   if (await firstRow(env, "SELECT card_id FROM studio_review_decisions WHERE status = 'pending' LIMIT 1")) throw fail('还有审核属性尚未回写完成，请先重试该操作。', 409);
   const message = String(input.message || '').trim();
   if (!message || message.startsWith('-')) throw fail('请填写本次更新说明。');
   const rows = await draftRows(env, identity);
   if (!rows.length) throw Object.assign(new Error('没有可提交的私人草稿。'), { status: 400 });
-  const state = await branchState(env);
+  const state = env.publicationCatalog?.state || await branchState(env);
   await primeBlobs(env, state, [...state.entries.keys()].filter((p) => pathDoc(p)));
   await retainCitedArticles(env, identity, rows, state, lease);
-  const main = await branchState(env, state.branch), published = await contentFiles(env, main);
+  const main = env.publicationCatalog?.main || await branchState(env, state.branch), published = await contentFiles(env, main);
   const proposed = await contentFiles(env, state, rows);
   const removed = [...published.keys()].filter(path => !proposed.has(path));
   if (removed.length && published.has(BLOG_INDEX)) {
@@ -463,6 +504,9 @@ async function commitDrafts(env, identity, input) {
   for (const row of rows.filter(row => row.version)) await run(env, 'UPDATE studio_drafts SET state = \'submitted\', submitted_commit_sha = ?1, updated_at = ?2 WHERE user_id = ?3 AND repository = ?4 AND branch = ?5 AND path = ?6 AND version = ?7', commit.sha, now, identity.id, state.repository, state.branch, row.path, row.version);
   return { ...await gitStatus(env, identity), commitSha: commit.sha, submitted: rows.map((row) => row.path), pullRequest: { number: pr.number, url: pr.html_url, sha: commit.sha } };
   });
+  } finally {
+    delete env.publicationCatalog;
+  }
 }
 
 async function publish(env, identity, input) {
@@ -649,11 +693,13 @@ const sourceDigest = (source, properties, stamps) => hash(JSON.stringify([source
 // No card bytes are sent to GitHub before this check succeeds.
 async function assertReviewed(env, state, rows) {
   await assertRemovals(env, state, rows);
+  const demotedPaths = new Set((await removalDecisions(env)).flatMap(plan => plan.graph.filter(node => node.demote && node.next).map(node => node.path)));
+  const pending = rows.filter(row => row.raw && !demotedPaths.has(row.path) && row.path !== BLOG_INDEX && row.path !== PAGE_ORDER_PATH);
+  if (!pending.length) return;
   const client = await mcpClient(env);
   const { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
   let i18n = null;
-  const demotedPaths = new Set((await removalDecisions(env)).flatMap(plan => plan.graph.filter(node => node.demote && node.next).map(node => node.path)));
-  const pending = rows.filter(row => row.raw && !demotedPaths.has(row.path) && row.path !== BLOG_INDEX && row.path !== PAGE_ORDER_PATH), seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
+  const seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
   while (pending.length) {
     const row = pending.shift(); if (seen.has(row.path)) continue; seen.add(row.path);
     if (seen.size > 200) throw fail('发布范围超过 200 张卡片，请拆分审查。');
@@ -820,7 +866,7 @@ async function heptabaseCards(env, identity) {
   let scan = await readPullScan(env, identity.sessionId);
   // Step 1 is CardList + editedTime for #blog and #blogi18n. A resumed request
   // only continues step 2, so an unchanged card never gets a properties or body read.
-  if (scan?.phase !== 'fetch' || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
+  if (!scan || (scan.phase !== 'fetch' && scan.phase !== 'removals') || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
   const schema = await blogSchema(client, scan.tagId);
   let i18n = null, fetched = 0;
   while (fetched < CHANGED_BATCH) {
@@ -846,7 +892,6 @@ async function heptabaseCards(env, identity) {
     await writePullScan(env, identity.sessionId, scan);
     return { partial: true, phase: 'fetch', fetched: scan.cursor, changed: scan.changed.length };
   }
-  await clearPullScan(env, identity.sessionId);
   const cards = scan.blogCards;
   const pulls = await readCardPulls(env);
   const state = await branchState(env), docs = await listDocs(env, identity, state);
@@ -872,8 +917,28 @@ async function heptabaseCards(env, identity) {
     if (path === BLOG_INDEX || p.draft || !p.heptabaseCardLink || p.translationOf) continue;
     removalChecks.push({ path, title: p.title, cardLink: p.heptabaseCardLink, id: cardId(p.heptabaseCardLink), listed: p.listed });
   }
-  const reasons = await mapLimited(removalChecks, IO_CONCURRENCY, (item) => removalReason(client, item.id, schema, blogIds));
-  removalChecks.forEach((item, index) => { if (reasons[index]) candidates.push({ path: item.path, title: item.title, cardLink: item.cardLink, reason: reasons[index], listed: item.listed }); });
+  // Card bodies already spent this request's subrequest budget. Read withdrawals next time.
+  scan.removalReasons ||= {};
+  const unread = removalChecks.filter((item) => !blogIds.has(item.id) && scan.removalReasons[item.id] === undefined);
+  const REMOVAL_READ_BATCH = 8;
+  if (scan.phase !== 'removals' && fetched >= CHANGED_BATCH && unread.length) {
+    scan.phase = 'removals';
+    await writePullScan(env, identity.sessionId, scan);
+    return { partial: true, phase: 'removals', fetched: 0, changed: unread.length };
+  }
+  const slice = unread.slice(0, scan.phase === 'removals' ? REMOVAL_READ_BATCH : unread.length);
+  const reasons = await mapLimited(slice, IO_CONCURRENCY, (item) => removalReason(client, item.id, schema, blogIds));
+  slice.forEach((item, index) => { scan.removalReasons[item.id] = reasons[index]; });
+  if (unread.length > slice.length) {
+    scan.phase = 'removals';
+    await writePullScan(env, identity.sessionId, scan);
+    return { partial: true, phase: 'removals', fetched: slice.length, changed: unread.length };
+  }
+  await clearPullScan(env, identity.sessionId);
+  removalChecks.forEach((item) => {
+    const reason = blogIds.has(item.id) ? null : scan.removalReasons[item.id];
+    if (reason) candidates.push({ path: item.path, title: item.title, cardLink: item.cardLink, reason, listed: item.listed });
+  });
   // A listed:false page already inside a main article's removal is withdrawn with that article.
   // Listing it again duplicates the same page in Deleted articles.
   const covered = new Set(), scopes = new Map();
@@ -928,16 +993,20 @@ async function removalDecisions(env) {
 
 async function removalPlan(env, identity, input, forcedReason = null) {
   const path = docPath(input.collection, input.id), id = cardId(input.cardLink);
-  const state = await branchState(env), rows = await draftRows(env, identity);
-  const main = state.pr ? await branchState(env, cfg(env).branch) : state, publishedRaw = await readBlob(env, main, path);
+  const catalog = env.publicationCatalog;
+  const state = catalog?.state || await branchState(env), rows = await draftRows(env, identity);
+  const main = catalog?.main || (state.pr ? await branchState(env, cfg(env).branch) : state), publishedRaw = await readBlob(env, main, path);
   const saved = (await removalDecisions(env)).find(plan => plan.id === id);
   const files = await contentFiles(env, state, rows);
   const original = files.get(path) || publishedRaw || (rows.some(row => row.path === path && row.raw === '') ? saved?.graph[0].current.raw : null);
   const parsed = parseMdx(original);
   const sitePage = input.collection === 'pages' && input.id !== 'blogs' && isSafeId('pages', input.id);
   if (!original || parsed.frontmatter.draft || parsed.frontmatter.heptabaseCardLink !== input.cardLink || (input.collection === 'pages' && !sitePage)) throw fail('只能撤下已关联的公开或待发布主文章，请重新拉取。', 409);
-  const client = await mcpClient(env), { cards, tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-  const live = await removalReason(client, id, schema, new Set(cards.map(c => c.id)));
+  const client = catalog?.client || await mcpClient(env);
+  const blog = catalog || await blogCards(client);
+  const cards = blog.cards;
+  const schema = catalog?.schema || await blogSchema(client, blog.tagId);
+  const live = await liveRemovalReason(env, client, id, schema, catalog?.blogIds || new Set(cards.map(c => c.id)));
   const reason = live || (forcedReason === 'capped' || saved?.reason === 'capped' ? 'capped' : null);
   if (!reason) throw fail('卡片已恢复到 #blog，未继续删除。请取消待删除并重新拉取。', 409);
   // previewOnly lets the pull cache a capped-page body before the reviewer has chosen.
@@ -1003,8 +1072,8 @@ async function decideRemoval(env, identity, input, settledScope = null) {
       const main = state.pr ? await branchState(env, cfg(env).branch) : state;
       plan = { ...plan, approved: false, graph: await removalGraph(env, identity, state, main, settledScope), blockers: settledScope.blockers, citations: settledScope.citations, demotions: settledScope.demotions, keptReferences: settledScope.keptReferences };
     }
-    // Site pages are not turned into references. Articles that are still cited are demoted instead.
-    if (plan.blockers.length) throw fail(`「${plan.graph[0]?.parsed?.frontmatter?.title || '这一页'}」仍被「${plan.blockers.map(b => b.title).join('、')}」引用。站点页面不能改成 reference。`, 409);
+    // A withdrawn card that something remaining still mentions becomes reference.
+    // That is not a reason to refuse the deletion.
     if (plan.approved) return { removed: plan.graph.filter(node => !node.demote).length, demoted: plan.graph.filter(node => node.demote).length };
     if (await firstRow(env, "SELECT card_id FROM studio_review_decisions WHERE status = 'pending' LIMIT 1")) throw fail('还有未完成的审核回写，请先重试。', 409);
     const completion = db(env).prepare("INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'remove', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'remove', status = 'complete', payload = excluded.payload, created_at = excluded.created_at").bind(plan.id, JSON.stringify(plan), new Date().toISOString());
@@ -1035,21 +1104,26 @@ function removalStoredRaw(node) {
 }
 
 async function assertRemovals(env, state, rows) {
-  const main = await branchState(env, state.branch), published = await contentFiles(env, main), proposed = await contentFiles(env, state, rows);
+  const main = env.publicationCatalog?.main || await branchState(env, state.branch), published = await contentFiles(env, main), proposed = await contentFiles(env, state, rows);
   const removed = [...published.keys()].filter(path => !proposed.has(path));
   const plans = await removalDecisions(env);
   const demoted = plans.flatMap(plan => plan.graph.filter(node => node.demote));
   if (!removed.length && !demoted.length && !rows.some(row => !row.raw || row.path === BLOG_INDEX)) return;
   if (removed.includes(BLOG_INDEX)) throw fail('不能删除博客目录。', 409);
   const checked = new Set();
-  const client = await mcpClient(env), { cards, tagId } = await blogCards(client), schema = await blogSchema(client, tagId), blogIds = new Set(cards.map(c => c.id));
+  const catalog = env.publicationCatalog;
+  const client = catalog?.client || await mcpClient(env);
+  const blog = catalog || await blogCards(client);
+  const cards = blog.cards;
+  const schema = catalog?.schema || await blogSchema(client, blog.tagId);
+  const blogIds = catalog?.blogIds || new Set(cards.map(c => c.id));
   for (const path of new Set([...removed, ...rows.filter(row => !row.raw).map(row => row.path)])) {
     const plan = plans.find(p => p.graph.some(n => n.path === path));
     const node = plan?.graph.find(n => n.path === path);
     if (!node || node.publishedRaw !== (published.get(path) || null)) throw fail('删除尚未审核，或 GitHub 文章已有变化，请重新拉取。', 409);
     if (proposed.has(plan.filePath)) throw fail('不能单独删除仍在发布的文章所用资料。', 409);
     if (!checked.has(plan.id)) {
-      const live = await removalReason(client, plan.id, schema, blogIds);
+      const live = await liveRemovalReason(env, client, plan.id, schema, blogIds);
       if (plan.reason === 'capped') {
         const pages = await loadPageCards(client, schema, cards, published);
         const choice = await storedPageChoice(env);
@@ -1062,7 +1136,7 @@ async function assertRemovals(env, state, rows) {
   for (const plan of plans) {
     if (!plan.graph.some(node => node.demote)) continue;
     if (!checked.has(plan.id)) {
-      const live = await removalReason(client, plan.id, schema, blogIds);
+      const live = await liveRemovalReason(env, client, plan.id, schema, blogIds);
       if (live !== plan.reason) throw fail('卡片已恢复或移除原因变化，请取消待删除并重新拉取。', 409);
       checked.add(plan.id);
     }
@@ -1084,7 +1158,7 @@ async function assertRemovals(env, state, rows) {
 async function retainCitedArticles(env, identity, rows, state, lease) {
   const plans = await removalDecisions(env);
   if (!plans.length) return;
-  const main = await branchState(env, state.branch);
+  const main = env.publicationCatalog?.main || await branchState(env, state.branch);
   const published = await contentFiles(env, main);
   const base = new Map(published);
   for (const row of rows) if (row.raw) base.set(row.path, row.raw);
@@ -1501,7 +1575,6 @@ async function choosePages(env, identity, input) {
       if (!page.onSite || keep.includes(page.id)) continue;
       const plan = await removalPlan(env, identity, { collection: 'pages', id: pageIdFromPath(page.path), cardLink: page.cardLink }, 'capped');
       if (plan.approved) continue;
-      if (plan.blockers.length) throw fail(`「${page.title}」仍被其他文章引用：${plan.blockers.map(b => b.title).join('、')}。先处理引用，再选择不留下这一页。`, 409);
       const completion = db(env).prepare("INSERT INTO studio_review_decisions (card_id, decision, status, payload, created_at) VALUES (?1, 'remove', 'complete', ?2, ?3) ON CONFLICT(card_id) DO UPDATE SET decision = 'remove', status = 'complete', payload = excluded.payload, created_at = excluded.created_at").bind(plan.id, JSON.stringify(plan), new Date().toISOString());
       await savePlan(env, identity, plan, lease, completion);
     }
@@ -1537,8 +1610,10 @@ async function applyDecisionBatch(env, identity, input) {
     scopes = settleRemovals(files, removals.map(decision => docPath(decision.collection, decision.id)).filter(Boolean));
   }
   for (const decision of decisions) {
-    if (decision.kind === 'removal') await decideRemoval(env, identity, decision, scopes.get(docPath(decision.collection, decision.id)) || null);
-    else if (decision.kind === 'removal-cancel') await cancelRemoval(env, identity, decision);
+    if (decision.kind === 'removal') {
+      try { await decideRemoval(env, identity, decision, scopes.get(docPath(decision.collection, decision.id)) || null); }
+      catch (error) { if (!error.unreadable) throw error; }
+    } else if (decision.kind === 'removal-cancel') await cancelRemoval(env, identity, decision);
     else if (decision.kind === 'review') {
       let body = decision;
       if (decision.markReferences) {

@@ -1193,7 +1193,7 @@ async function showSelection() {
   appendProperties(meta, card, kind, item.removal);
   if (item.plan.pageNote) meta.append(el('p', item.plan.pageNote, { class: 'muted meta-note' }));
   if (item.removal) {
-    if (item.plan.blockers?.length) meta.append(el('p', `「${title(item)}」仍被「${item.plan.blockers.map(b => b.title).join('、')}」引用。站点页面和项目不能改成 reference。`, { role: 'alert' }));
+    if (item.plan.blockers?.length) meta.append(el('p', referenceKeepCopy(title(item), item.plan.blockers), { class: 'status', role: 'status' }));
     if (item.plan.citations?.length) meta.append(citationParagraph([item], { class: 'status', role: 'status' }));
     if (item.plan.keptReferences.length) meta.append(el('p', `共享资料会保留：${item.plan.keptReferences.map(r => r.title).join('、')}。`, { class: 'muted meta-note' }));
   }
