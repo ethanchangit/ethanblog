@@ -12,7 +12,7 @@ test.beforeAll(async () => {
     process.once('error', reject); process.once('exit', code => reject(new Error(`Dashboard simulator exited: ${code}`)));
     process.stdout!.on('data', data => {
       output += data.toString(); const match = output.match(/http:\/\/localhost:\d+\/dashboard/);
-      if (match) { clearTimeout(timer); resolve(match[0]); }
+      if (match) { clearTimeout(timer); resolve(match[0].replace(/\/?$/, '/')); }
     });
   });
 });
@@ -71,11 +71,39 @@ test('New References 用卡片列出新增引用，点击后弹窗显示全文',
   await expect(dialog).toContainText('未填写 Summary');
   await expect(dialog).toContainText('没有标签');
   await expect(dialog.locator('.reference-popup-body')).toContainText('一张卡片只回答一个问题');
-  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: '关闭', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('tab', { name: /New articles · 2/ }).click();
   await expect(page.locator('.review-items[data-review-group=new] .review-item')).toHaveCount(2);
   await expect(page.locator('.reference-card')).toHaveCount(0);
+});
+
+test('引用预览点遮罩关闭，点白卡片内部不关', async ({ page }) => {
+  await openLocal(page);
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await page.getByRole('tab', { name: /New References · 1/ }).click();
+  await page.getByRole('button', { name: '查看「原子笔记与连接」' }).click();
+  const dialog = page.getByRole('dialog', { name: '原子笔记与连接' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('未填写 Summary');
+  await dialog.getByRole('heading', { name: '原子笔记与连接' }).click();
+  await dialog.locator('.reference-popup-body').click();
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).toBeTruthy();
+  expect(viewport).toBeTruthy();
+  expect(box!.width).toBeGreaterThan(viewport!.width * 0.6);
+  expect(box!.x).toBeGreaterThan(48);
+  expect(viewport!.width - (box!.x + box!.width)).toBeGreaterThan(48);
+  expect(box!.height).toBeGreaterThan(480);
+  expect(box!.y).toBeGreaterThan(24);
+  expect(viewport!.height - (box!.y + box!.height)).toBeGreaterThan(24);
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height - 6);
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(Math.max(4, box!.x - 24), box!.y + box!.height / 2);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回写和发布完整流程', async ({ page, request }) => {
@@ -101,7 +129,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(frame.locator('h1, time')).toHaveCount(0);
   await expect(frame.locator('.prose-site')).toContainText('只整理当下真正用得上的笔记');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
-  await expect(page.locator('.diff-summary')).toHaveText('新增 2 段 · 改写 3 段 · 删除 0 段');
+  await expect(page.locator('.diff-summary, .diff-basis, .diff-legend')).toHaveCount(0);
   await expect(page.locator('.diff-move-label, .paragraph-change.moved')).toHaveCount(0);
   await expect(page.getByText('原文 · 发布前')).toHaveCount(0);
   await expect(page.getByText('这一版 · 发布后')).toHaveCount(0);
@@ -114,13 +142,18 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   expect(await modified.evaluate(node => {
     const old = node.querySelector('.diff-removed')!.getBoundingClientRect();
     const next = node.querySelector('.diff-added')!.getBoundingClientRect();
-    return old.bottom <= next.top + 1 && Math.abs(old.left - next.left) < 2;
+    return Math.abs(old.top - next.top) < 2 && old.right <= next.left + 1;
   })).toBe(true);
   await expect(page.locator('.diff-removed ins, .diff-added del, .diff-change-label')).toHaveCount(0);
   await expect(page.locator('.full-diff')).not.toContainText('原有内容');
   await expect(page.locator('.full-diff')).not.toContainText('新内容');
   await expect(page.locator('.diff-removed[data-position="3"] table')).toBeVisible();
   await expect(page.locator('.diff-added[data-position="4"] table')).toBeVisible();
+  expect(await page.locator('.diff-removed[data-position="3"]').evaluate(cell => {
+    const table = cell.querySelector('table')!;
+    const pad = parseFloat(getComputedStyle(cell).paddingLeft) + parseFloat(getComputedStyle(cell).paddingRight);
+    return Math.abs(table.getBoundingClientRect().width - (cell.clientWidth - pad)) < 2;
+  })).toBe(true);
   await expect(page.locator('.diff-move-path')).toHaveCount(0);
   await expect(page.locator('.full-diff details')).toHaveCount(0);
   await expect(page.locator('.full-diff .unchanged')).toHaveCount(1);
@@ -130,28 +163,30 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.full-diff article')).toContainText('好的系统应该让写作更自然');
   await expect(modified.locator('.diff-removed del')).toContainText('过去，我会每周整理一次所有笔记');
   await expect(modified.locator('.diff-added ins')).toContainText('现在，我会从正在写的文章出发');
-  await expect(page.locator('.diff-basis')).toContainText('未提供段落 ID');
   await page.getByRole('button', { name: '让标签跟着想法生长', exact: true }).click();
-  await expect(page.getByText('article · 仅标签更新', { exact: true })).toBeVisible();
-  await expect(page.locator('#review-preview .tag-added')).toHaveText('+ #Productivity');
-  await expect(page.locator('#review-preview .tag-removed')).toHaveText('− #AI Native');
-  await expect(page.locator('.diff-summary')).toHaveText('正文未修改，本次只更新标签。');
+  await expect(page.locator('#review-items .item-meta')).toHaveCount(0);
+  await expect(page.getByText('article · 仅标签更新', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#review-preview .tag-added')).toHaveText('#Productivity');
+  await expect(page.locator('#review-preview .tag-removed')).toHaveText('#AI Native');
   await expect(page.locator('.full-diff article')).toContainText('标签不是一次完成的分类');
   await expect(page.locator('.paragraph-change.unchanged').filter({ hasText: '标签不是一次完成的分类' })).toHaveCount(1);
   await expect(page.locator('.full-diff del, .full-diff ins')).toHaveCount(0);
   await expect(page.locator('.diff-move-lines')).toHaveCount(0);
-  await expect(page.locator('#review-preview .tag-changes .meta-tags li')).toHaveText(['#Mission', '+ #Productivity', '− #AI Native']);
+  await expect(page.locator('#review-preview .tag-changes .meta-tags li')).toHaveText(['#Mission', '#Productivity', '#AI Native']);
   await expect(page.locator('#review-preview section.tag-changes, #review-preview details')).toHaveCount(0);
   await page.getByRole('button', { name: '发布预览', exact: true }).click();
   await expect(page.locator('#review-preview .tag-removed')).toBeVisible();
-  await expect(frame.locator('.article-dek .ui-tag-link')).toHaveText(['Mission', 'Productivity']);
+  await expect(frame.locator('.article-meta, .article-dek .ui-tag-link')).toHaveCount(0);
+  await expect(page.locator('#review-preview .review-meta .meta-tags')).toContainText('#Mission');
+  await expect(page.locator('#review-preview .review-meta .meta-tags')).toContainText('#Productivity');
   await page.getByRole('tab', { name: /New articles/ }).click();
   await page.getByRole('button', { name: '拒绝「一次还没想清楚的尝试」', exact: true }).click();
   const rejectDialog = page.getByRole('dialog');
   await expect(rejectDialog).toBeVisible();
+  await expect(rejectDialog.getByRole('button', { name: '关闭', exact: true })).toBeVisible();
   await rejectDialog.getByRole('button', { name: '拒绝', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText('article · 已拒绝，待发布')).toBeVisible();
+  await expect(page.getByText('article · 已拒绝，待发布')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '拒绝「一次还没想清楚的尝试」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '通过「一次还没想清楚的尝试」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('button', { name: '将笔记变成可以分享的文章', exact: true }).click();
@@ -163,8 +198,8 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.preview-title')).toHaveText('原子笔记与连接');
   await page.getByRole('button', { name: '通过「将笔记变成可以分享的文章」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#notice')).toContainText('引用资料会在发布时加入 #blog，Blog Type 为 Reference。');
-  await expect(page.getByText('article · 已通过，待发布')).toBeVisible();
+  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
+  await expect(page.getByText('article · 已通过，待发布')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '通过「将笔记变成可以分享的文章」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('2 个页面已在本机通过', { exact: false })).toBeVisible();
   const before = await page.request.get(new URL('/dashboard/api/heptabase/cards', url).href);
@@ -179,6 +214,8 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   const dialog = page.getByRole('dialog');
   await expect(dialog).not.toContainText('articles/example');
   await expect(dialog.locator('li')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: '关闭', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '确认发布到博客' })).toBeVisible();
   await page.getByRole('button', { name: '确认发布到博客' }).click();
   await expect(page.getByText('最近一次发布：正在确认线上版本')).toBeVisible();
   await request.post(new URL('/__test/deploy', url).href);
@@ -220,7 +257,7 @@ test('全文对比把换位段落显示成改写，并保留代码、列表和�
   await expect(article.locator('.modified .diff-removed ul li')).toHaveText(['旧项目', '保留项目']);
   await expect(article.locator('.modified del li')).toHaveText(['旧项目', '保留项目']);
   await expect(article.locator('.modified ins li')).toHaveText(['新项目', '保留项目']);
-  await expect(page.locator('.diff-summary')).toHaveText('新增 2 段 · 改写 4 段 · 删除 0 段');
+  await expect(page.locator('.diff-summary, .diff-basis, .diff-legend')).toHaveCount(0);
   await expect(article.locator('pre')).toHaveCount(2);
   await expect(article.locator('pre').first()).toContainText('<script>not executable</script>');
   await expect(page.locator('.full-diff script')).toHaveCount(0);
@@ -230,10 +267,26 @@ test('全文对比把换位段落显示成改写，并保留代码、列表和�
   await expect(departed.locator('.diff-added')).toContainText('固定中间段落。');
   const arrived = article.locator('.paragraph-change.modified').filter({ has: page.locator('.diff-added', { hasText: '移动这一段。' }) });
   await expect(arrived.locator('.diff-added ins')).toHaveText('移动这一段。');
+  const same = article.locator('.paragraph-change.unchanged').filter({ hasText: unchanged });
+  await expect(same.locator('.diff-unchanged')).toHaveCount(2);
+  await expect(same.locator('.diff-removed, .diff-added')).toHaveCount(0);
+  expect(await same.evaluate(node => {
+    const [left, right] = [...node.querySelectorAll('.diff-unchanged')].map(el => el.getBoundingClientRect());
+    return Math.abs(left.top - right.top) < 2 && left.right <= right.left + 1 && left.width > 0 && right.width > 0;
+  })).toBe(true);
+  const inserted = article.locator('.paragraph-change.added').filter({ hasText: '外部资料' });
+  await expect(inserted.locator('.diff-empty')).toHaveCount(1);
+  await expect(inserted.locator('.diff-added')).toContainText('外部资料');
+  expect(await inserted.evaluate(node => {
+    const [left, right] = [...node.children];
+    const old = left.getBoundingClientRect();
+    const next = right.getBoundingClientRect();
+    return left.classList.contains('diff-empty') && right.classList.contains('diff-added') && old.right <= next.left + 1;
+  })).toBe(true);
   const external = article.getByRole('link', { name: '外部资料' });
   await expect(external).toHaveAttribute('href', 'https://example.com/review-private');
   await external.click(); await expect(page).toHaveURL(url);
-  await expect(page.locator('#notice')).toContainText('外部链接不会打开');
+  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
   for (const theme of ['light', 'dark']) {
     if (await page.locator('html').getAttribute('data-theme') !== theme) await page.getByRole('button', { name: '切换明暗' }).click();
     const colors = await page.evaluate(() => {
@@ -255,13 +308,13 @@ test('全文对比把换位段落显示成改写，并保留代码、列表和�
         overflow: document.documentElement.scrollWidth > innerWidth,
         oneColumn: boxes.length > 0 && boxes.every(box => Math.abs(box.left - boxes[0].left) < 2),
         stacked: boxes.every((box, index) => index === 0 || box.top >= boxes[index - 1].bottom - 1),
-        oldAbove: Boolean(old && next && old.bottom <= next.top + 1 && Math.abs(old.left - next.left) < 2),
+        sideBySide: Boolean(old && next && Math.abs(old.top - next.top) < 2 && old.right <= next.left + 1),
       };
     });
     expect(layout.overflow).toBe(false);
     expect(layout.oneColumn).toBe(true);
     expect(layout.stacked).toBe(true);
-    expect(layout.oldAbove).toBe(true);
+    expect(layout.sideBySide).toBe(true);
     await expect(page.locator('.diff-move-path, .diff-move-lines')).toHaveCount(0);
   }
   await page.setViewportSize({ width: 1200, height: 900 });
@@ -281,30 +334,39 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(page.getByText('已移出 #blog 或已删除，确认后从网站撤下')).toHaveCount(0);
   await expect(page.getByText('新卡片与首次发布的文章')).toHaveCount(0);
   await expect(page.getByText('已有文章的修改与重新发布')).toHaveCount(0);
-  await expect(group).toContainText('Heptabase 卡片已删除');
+  await expect(group.locator('.item-meta')).toHaveCount(0);
+  await expect(group.getByText('已移出 #blog', { exact: true })).toHaveCount(0);
+  await expect(group.getByText('Heptabase 卡片已删除', { exact: true })).toHaveCount(0);
+  await expect(group.getByText('已确认删除，待发布', { exact: true })).toHaveCount(0);
   await expect(group.locator('.references-block')).toHaveCount(0);
   await expect(group).not.toContainText('跟随资料');
   await expect(group.getByRole('button', { name: '仅由旧笔记引用的资料', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '已经不再公开的旧笔记', exact: true }).click();
   await expect(page.locator('.preview-title')).toHaveText('已经不再公开的旧笔记');
-  await expect(page.locator('#review-preview')).toHaveCSS('border-top-width', '0px');
-  await expect(page.locator('#review-preview')).toHaveCSS('border-left-width', '0px');
   await expect(page.locator('.preview-date')).toBeVisible();
   await expect(page.frameLocator('iframe').locator('h1, time')).toHaveCount(0);
   await expect(page.locator('.removal-notice')).toHaveCount(0);
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   await expect(page.locator('.diff-removed [data-doc-list] h3')).toHaveText(['仅由旧笔记引用的资料']);
+  const removedRow = page.locator('.paragraph-change.removed').filter({ has: page.locator('.diff-removed [data-doc-list]') });
+  await expect(removedRow.locator('.diff-added')).toHaveCount(0);
+  await expect(removedRow.locator('.diff-empty')).toHaveCount(1);
+  expect(await removedRow.evaluate(node => {
+    const [left, right] = [...node.children];
+    return left.classList.contains('diff-removed') && right.classList.contains('diff-empty') && !right.textContent?.trim()
+      && left.getBoundingClientRect().right <= right.getBoundingClientRect().left + 1;
+  })).toBe(true);
   await expect(page.locator('.paragraph-change.added, .paragraph-change.modified, .diff-original, .diff-revision')).toHaveCount(0);
   await expect(page.locator('.full-diff')).toContainText('这一版将移除全文。');
   await page.getByRole('button', { name: '现有页面', exact: true }).click();
   await page.getByRole('button', { name: '暂不删除「已在 Heptabase 删除的文章」', exact: true }).click();
-  await expect(group.getByText('本次暂不删除', { exact: true })).toBeVisible();
+  await expect(group.locator('.item-meta')).toHaveCount(0);
+  await expect(group.getByText('本次暂不删除', { exact: true })).toHaveCount(0);
   const remove = page.getByRole('button', { name: '删除「已经不再公开的旧笔记」', exact: true });
   const keep = page.getByRole('button', { name: '暂不删除「已经不再公开的旧笔记」', exact: true });
   await remove.click();
+  await expect(group.getByText('已确认删除，待发布', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#review-preview')).not.toContainText('网站尚未改变');
-  await expect(page.locator('#review-preview')).not.toContainText('加入待删除');
   await expect(page.locator('#release')).toContainText('其中 2 个待删除');
   await expect(remove).toHaveAttribute('aria-pressed', 'true'); await expect(keep).toHaveAttribute('aria-pressed', 'false');
   await keep.click();
@@ -321,10 +383,6 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await expect(release.getByRole('button', { name: '提交通过的更新到 GitHub', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
   await page.getByRole('tab', { name: /Deleted articles/ }).click();
-  await page.getByRole('checkbox', { name: '全选这一组' }).check();
-  await page.getByRole('button', { name: '批量删除已选文章' }).click();
-  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
-  await expect(page.locator('#review-preview')).not.toContainText('加入待删除');
   for (const title of ['已经不再公开的旧笔记', '已在 Heptabase 删除的文章']) {
     await page.getByRole('button', { name: `删除「${title}」`, exact: true }).click();
     await expect(page.getByRole('button', { name: `删除「${title}」`, exact: true })).toHaveAttribute('aria-pressed', 'true');
@@ -368,7 +426,7 @@ test('标签全部移除、仅排序和重复、长标签与特殊字符都能�
   };
   await select();
   const changes = page.locator('#review-preview .tag-changes');
-  await expect(changes.locator('.tag-removed')).toHaveText(['− #Mission', '− #AI Native']);
+  await expect(changes.locator('.tag-removed')).toHaveText(['#Mission', '#AI Native']);
   await expect(changes).toContainText('更新后没有标签。');
   await expect(changes.locator('.tag-added')).toHaveCount(0);
   afterTags = ['AI Native', 'Mission', 'Mission']; await select();
@@ -376,13 +434,13 @@ test('标签全部移除、仅排序和重复、长标签与特殊字符都能�
   await expect(page.getByText('article · 仅标签更新', { exact: true })).toHaveCount(0);
   const special = '<img src=x onerror=alert(1)>', long = '很长的标签'.repeat(20);
   afterTags = [special, long]; await select();
-  await expect(changes.locator('.tag-added')).toHaveText([`+ #${special}`, `+ #${long}`]);
+  await expect(changes.locator('.tag-added')).toHaveText([`#${special}`, `#${long}`]);
   await expect(changes.locator('img')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   await expect(changes.locator('.tag-removed')).toHaveCount(2);
-  await expect(page.locator('.diff-summary')).toHaveText('正文未修改，本次只更新标签。');
+  await expect(page.locator('.diff-summary, .diff-basis, .diff-legend')).toHaveCount(0);
 });
 
 test('生产后台仍要密码', async ({ page }) => {

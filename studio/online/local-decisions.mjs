@@ -4,6 +4,19 @@
  * write Heptabase or GitHub. Publish sends decisionBatch() once.
  */
 
+/** Shown where a cited article used to be blocked. It stays on its address as a reference. */
+export function referenceKeepCopy(title, citations) {
+  const who = [...new Set((citations || []).map(item => item?.title).filter(Boolean))].join('、');
+  return `「${title}」仍被「${who}」引用。发布后会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
+}
+
+export function referenceKeepBatchCopy(entries) {
+  const who = [...new Set(entries.flatMap(entry => (entry.citations || []).map(item => item?.title).filter(Boolean)))].join('、');
+  const count = entries.length;
+  const names = count <= 3 ? entries.map(entry => `「${entry.title}」`).join('、') : `${count} 篇`;
+  return `${names}仍被「${who}」引用。发布不会被拦住：它们会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。`;
+}
+
 export function applyLocalDecision(item, verdict, { remark, pageKeep, choiceRequired } = {}) {
   if (!item?.plan) return null;
   const next = item.removal ? (verdict === 'approve' ? 'remove' : 'skip') : verdict;
@@ -28,13 +41,14 @@ export function applyLocalDecision(item, verdict, { remark, pageKeep, choiceRequ
   return { first, next, extra, changed };
 }
 
-export function pageChoicePayload(pageSet, keepDraft, orderDraft = []) {
+export function pageChoicePayload(pageSet, keepDraft, orderDraft = [], hiddenDraft = new Set()) {
   if (!pageSet?.cards?.length) return null;
   const keep = pageSet.choiceRequired ? [...keepDraft] : pageSet.cards.map(card => card.id);
   const order = [...orderDraft].filter(id => keep.includes(id));
   for (const id of keep) if (!order.includes(id)) order.push(id);
   if (keep.length > 4) throw new Error('站点页面最多留下 4 页。');
-  return { keep, order };
+  const hidden = [...hiddenDraft].filter(id => order.includes(id));
+  return { keep, order, hidden };
 }
 
 function selection(item) {

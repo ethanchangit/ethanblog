@@ -4,17 +4,20 @@
  * The dashboard is a work tool, not a reading surface: it may use borders and
  * structure the public site avoids. It stays neutral on purpose. One accent
  * (primary) marks interaction and selection; the diff pair (insertion,
- * deletion) is reserved for things that are added or removed. Review types
- * are told apart by a +, ± or − mark and a plain-text label, so they read the
- * same without colour. Radii: 6px for controls and containers, 3px for inline
- * marks.
+ * deletion) is reserved for things that are added or removed. Queue titles
+ * use that pair, plus a dashboard-only amber for edits. Tabs and the preview
+ * status label still use a +, ± or − mark. Radii: 6px for controls and
+ * containers, 3px for inline marks.
  */
 :root,
 [data-theme="light"] {
   --dash-primary: var(--color-primary-600);
+  /* Git / VS Code modified gold. The public theme has no amber token. */
+  --dash-edited: rgb(137 85 3);
 }
 [data-theme="dark"] {
   --dash-primary: var(--color-primary-400);
+  --dash-edited: rgb(226 192 141);
 }
 :root {
   --dash-canvas: var(--color-surface-950);
@@ -22,20 +25,42 @@
   --dash-selected: color-mix(in srgb, var(--color-ink-400) 7%, var(--color-surface-950));
   --dash-new: var(--color-accent-insertion);
   --dash-removed: var(--color-accent-deletion);
-  --dash-edited: var(--color-ink-300);
   --dash-line: color-mix(in srgb, var(--color-ink-400) 26%, transparent);
   --dash-line-strong: color-mix(in srgb, var(--color-ink-400) 48%, transparent);
   --dash-radius: 6px;
   --dash-header-h: 60px;
 }
 [data-type="new"] { --type: var(--dash-new); }
-[data-type="edited"] { --type: var(--dash-edited); }
+[data-type="edited"] { --type: var(--color-ink-300); }
 [data-type="removed"] { --type: var(--dash-removed); }
 [data-type="page"] { --type: var(--color-ink-300); }
 [data-type="references"] { --type: var(--dash-new); }
 
 body { background: var(--dash-canvas); color: var(--color-ink-300); font-family: var(--font-sans); }
-#studio { max-width: 1600px; padding: 0 40px; margin: auto; }
+/* Viewport column: the release bar is the footer, so short review content
+   cannot pull it up. Long content scrolls in the space above the bar. */
+#studio {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  max-width: 1600px;
+  padding: 0 40px;
+  margin: auto;
+}
+#studio > header,
+#studio > .group-caption,
+#studio > .review-top { flex-shrink: 0; }
+#studio > .review-layout,
+#studio > .empty-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
 
 #studio > header {
@@ -169,31 +194,13 @@ code { font-family: var(--font-mono); font-size: .9em; }
 .status { min-height: 26px; margin: 20px 0 30px; font-size: 14px; }
 [role=alert] { color: var(--color-ink-100); font-weight: 550; }
 #studio > .group-caption { margin: -8px 0 16px; font-size: 13px; }
-kbd {
-  display: inline-block;
-  min-width: 1.5em;
-  padding: 0 4px;
-  border: 1px solid var(--dash-line-strong);
-  border-radius: 3px;
-  color: var(--color-ink-300);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  line-height: 1.6;
-  text-align: center;
-}
 
-/* Summary: progress at a glance, then the type tabs that filter the queue. */
+/* Group tabs on the left of one row; the pull button stays on the right and wraps as a whole. */
 .review-top { margin: 0 0 20px; }
-.summary-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 32px; margin-bottom: 8px; }
-.summary-progress { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; min-width: 0; }
-.summary-progress .section-label { margin: 0; font-size: 15px; color: var(--color-ink-100); }
-.progress-count { color: var(--color-ink-200); font-size: 14px; font-weight: 550; font-variant-numeric: tabular-nums; }
-.progress-bar { display: inline-block; width: 120px; height: 3px; border-radius: 3px; background: var(--dash-line); overflow: hidden; }
-.progress-fill { display: block; width: var(--progress, 0%); height: 100%; background: var(--color-ink-200); transition: width .2s; }
+.summary-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 28px; margin: 0; }
+.summary-head > .review-groups { flex: 1 1 auto; }
+.summary-head > .pull-button { margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
 .group-caption { font-size: 13px; margin: 0; font-variant-numeric: tabular-nums; }
-.summary-tools { display: flex; align-items: center; gap: 20px; }
-.shortcut-hint { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; color: var(--color-ink-400); font-size: 12px; }
-.shortcut-hint span { display: inline-flex; align-items: center; gap: 4px; }
 .review-groups {
   display: flex;
   flex-wrap: wrap;
@@ -253,7 +260,19 @@ kbd {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.reference-dialog { max-width: 42rem; }
+.reference-dialog {
+  width: min(60rem, calc(100vw - 8rem));
+  max-width: min(60rem, calc(100vw - 8rem));
+  min-height: min(36rem, calc(100dvh - 7rem));
+  max-height: calc(100dvh - 5rem);
+}
+@media (max-width: 640px) {
+  .reference-dialog {
+    width: calc(100vw - 4.5rem);
+    max-width: calc(100vw - 4.5rem);
+    min-height: min(24rem, calc(100dvh - 4.5rem));
+  }
+}
 .reference-dialog .reference-popup-meta { margin-top: 4px; }
 .reference-dialog .reference-popup-body { margin-top: 16px; }
 .reference-dialog .reference-popup-body :is(ul, ol) { margin: 0.6em 0; padding-left: 1.25em; }
@@ -261,14 +280,12 @@ kbd {
 /* Master-detail: the queue scrolls on its own; the detail uses the page scroll. */
 .review-layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
 .review-sidebar { min-width: 0; }
-/* Wide screens get an app shell: the page stops scrolling and each column scrolls on its own. */
+/* Wide screens: each column scrolls inside the space above the release bar. */
 @media (min-width: 1101px) {
-  #studio[data-shell=review] { display: flex; flex-direction: column; height: 100dvh; }
-  #studio[data-shell=review] > .review-layout { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  #studio[data-shell=review] > .review-layout { overflow: hidden; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
   #studio[data-shell=review] .review-sidebar { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; }
   #studio[data-shell=review] #review-preview { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
   #studio[data-shell=review] .preview-actions { top: 12px; }
-  #studio[data-shell=review] > .release-bar { position: static; margin-top: 16px; }
 }
 #review-list { width: 100%; min-width: 0; }
 .review-items {
@@ -295,24 +312,25 @@ kbd {
 .review-item[data-selected=true] { background: var(--dash-selected); }
 .review-item:is([data-decision=reject], [data-decision=skip]) > :not(.decisions, .batch-pick) { opacity: .65; }
 .review-item > .batch-pick { grid-column: 1; grid-row: 1 / span 2; align-self: center; margin: 0; accent-color: var(--dash-primary); }
-.review-item > .type-label { grid-column: 2; font-size: 12px; }
 .review-item > .card-select {
   grid-column: 2;
-  color: var(--color-ink-100);
+  grid-row: 1 / span 2;
+  align-self: center;
   font-size: 15px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.6;
   padding: 0;
 }
 .review-item > .decisions { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
 .review-item > .item-meta { grid-column: 2; color: var(--color-ink-400); font-size: 12px; }
 .review-item[data-decision] > .item-meta:first-of-type { color: var(--color-ink-200); font-weight: 550; }
 .review-item:is([data-decision=approve]) > .item-meta:first-of-type { color: var(--dash-new); }
-.review-item:is([data-decision=remove]) > .item-meta:first-of-type { color: var(--dash-removed); }
 .review-items > .empty-group { margin: 0; padding: 16px; }
 .card-select { color: var(--color-ink-200); line-height: 1.6; overflow-wrap: anywhere; text-align: left; }
-.card-select[aria-pressed=true],
-.review-item > .card-select[aria-pressed=true] { color: var(--dash-primary); }
+.card-select[aria-pressed=true] { color: var(--dash-primary); }
+.review-item[data-type="new"] > .card-select { color: var(--dash-new); }
+.review-item[data-type="edited"] > .card-select { color: var(--dash-edited); }
+.review-item[data-type="removed"] > .card-select { color: var(--dash-removed); }
 .decisions { display: flex; gap: 6px; flex: none; }
 .decide {
   width: 30px;
@@ -369,6 +387,8 @@ kbd {
   min-width: 0;
   width: 100%;
   border: 0;
+  border-radius: 0;
+  background: transparent;
   padding: 0 24px 28px;
 }
 #review-preview > .status { margin: 16px 0 0; }
@@ -390,7 +410,7 @@ kbd {
   max-width: 100%;
   margin: 12px 0 0 auto;
   padding: 6px;
-  background: var(--dash-canvas);
+  background: transparent;
   border: 0;
   border-radius: var(--dash-radius);
 }
@@ -400,17 +420,38 @@ kbd {
 .preview-head {
   position: static;
   display: block;
-  margin: 4px 0 0;
+  margin: 4px auto 0;
   padding: 4px 0 0;
   background: transparent;
   border: 0;
 }
 .preview-title-row { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.preview-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
-.preview-labels { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.preview-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; width: 100%; }
+.preview-labels { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-left: auto; }
 .preview-title { font-size: 22px; line-height: 1.35; letter-spacing: -.02em; margin: 0; overflow-wrap: anywhere; text-wrap: balance; }
+.whole-removal {
+  border: 1px solid var(--dash-removed);
+  border-radius: var(--dash-radius);
+  text-decoration: line-through;
+  text-decoration-color: var(--dash-removed);
+}
+.preview-title.whole-removal { width: fit-content; max-width: 100%; padding: 0 8px; }
+.preview-summary.whole-removal { padding: 8px 12px; }
+.full-diff.whole-removal { text-decoration: none; }
+.whole-removal {
+  border: 1px solid var(--dash-removed);
+  border-radius: var(--dash-radius);
+  text-decoration: line-through;
+  text-decoration-color: var(--dash-removed);
+}
+.preview-title.whole-removal { width: fit-content; max-width: 100%; padding: 0 8px; }
+.preview-summary.whole-removal { padding: 8px 12px; }
+.full-diff.whole-removal { text-decoration: none; }
 .preview-date { margin: 0; font-size: 13px; }
 .follows { font-size: 12px; }
+.translation-row { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-top: 8px; }
+.translation-row button { background: none; border: 0; padding: 0; color: var(--color-ink-400); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.translation-row button[aria-pressed="true"] { color: var(--color-ink-100); }
 .mode-tabs {
   display: inline-flex;
   border: 1px solid var(--dash-line-strong);
@@ -422,27 +463,90 @@ kbd {
 .mode-tabs button:hover { text-decoration: none; color: var(--color-ink-100); }
 .mode-tabs button[aria-pressed=true] { background: var(--dash-selected); color: var(--color-ink-100); font-weight: 600; }
 
-/* Reject note lives in the existing dialog. Batch selection is separate from the row check and X. */
-.batch-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
-.batch-bar .batch-count { font-size: 13px; }
-.batch-bar .batch-pick { margin: 0; accent-color: var(--dash-primary); }
+/* Reject note lives in the existing dialog. Batch selection is separate from the row check and X.
+   The hint fills the rest of the first line when the bar is narrow, so both actions wrap together. */
+.batch-bar {
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.batch-bar .batch-pick { flex: none; margin: 0; accent-color: var(--dash-primary); }
+.batch-bar .batch-count { flex: 1 0 calc(100% - 2.5rem); font-size: 13px; white-space: nowrap; }
+.batch-bar .btn { flex: none; white-space: nowrap; }
+@container (min-width: 30rem) {
+  .batch-bar .batch-count { flex: 0 1 auto; }
+}
+@container (max-width: 14rem) {
+  .batch-bar .btn { padding-inline: 8px; letter-spacing: -0.02em; }
+}
 dialog textarea.reject-note { display: block; width: 100%; min-height: 5rem; margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--dash-line-strong); border-radius: var(--dash-radius); background: var(--dash-canvas); color: var(--color-ink-100); font: inherit; font-size: 14px; line-height: 1.6; resize: vertical; }
 dialog textarea.reject-note::placeholder { color: var(--color-ink-500); }
 dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight: 600; color: var(--color-ink-200); }
 .release-actions .direct-publish { border-color: var(--dash-primary); color: var(--dash-primary); }
 
-/* Properties sit in a sunken block so they never read as part of the body. */
+/*
+ * Heading, translation switch, properties, and summary match the iframe box.
+ * The article column inside the iframe stays on its own measure. The diff
+ * still uses that measure; these four blocks do not.
+ */
+#review-preview { container-type: inline-size; --preview-measure: 42rem; }
+#review-preview :is(.preview-head, .preview-heading, .translation-row, .review-meta, .preview-summary) {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+#review-preview .full-diff {
+  --preview-gutter: 1rem;
+  width: min(calc(100% - 2 * var(--preview-gutter)), calc(var(--preview-measure) - 2 * var(--preview-gutter)));
+  margin-inline: auto;
+}
+@container (min-width: 640px) {
+  #review-preview .full-diff { --preview-gutter: 1.5rem; }
+}
+/*
+ * Summary is a lead, same reading voice as .article-dek-text.
+ * Unchanged text: softer ink, medium weight, line-height 1.5, short pause before the article.
+ * Diff marks keep their own color.
+ */
+.preview-summary {
+  margin-block: 1.25rem 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-ink-500);
+}
+.preview-summary.whole-removal {
+  color: var(--dash-removed);
+  background: color-mix(in srgb, var(--dash-removed) 12%, transparent);
+}
+.preview-summary .inline-change del {
+  color: var(--dash-removed);
+  background: color-mix(in srgb, var(--dash-removed) 12%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: var(--dash-removed);
+}
+.preview-summary .inline-change ins {
+  color: var(--dash-new);
+  background: color-mix(in srgb, var(--dash-new) 12%, transparent);
+  text-decoration: none;
+}
+
+/* Properties sit in a sunken block so they never read as part of the body.
+   Corners match the public .article-meta (0.5rem), not the 6px control radius. */
 .review-meta {
-  margin: 20px 0 32px;
+  margin-block: 20px 32px;
   padding: 16px 20px 18px;
   background: var(--dash-sunken);
-  border-radius: var(--dash-radius);
+  border-radius: 0.5rem;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
 .review-meta > .section-label:not(:first-child) { margin-top: 20px; }
-.meta-grid { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 6px 20px; margin: 0; line-height: 1.7; }
-.meta-grid dt { color: var(--color-ink-400); }
+.meta-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 20px; margin: 0; line-height: 1.7; }
+.meta-grid dt { color: var(--color-ink-400); white-space: nowrap; }
 .meta-grid dd { margin: 0; color: var(--color-ink-200); min-width: 0; }
 .meta-grid code { color: var(--color-ink-300); }
 .meta-tag-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
@@ -459,7 +563,7 @@ dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight
 .review-meta .meta-tags li.tag-added { color: var(--dash-new); }
 .review-meta .meta-tags li.tag-removed { color: var(--dash-removed); }
 .inline-change { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.inline-change del { color: var(--dash-removed); background: color-mix(in srgb, var(--dash-removed) 12%, transparent); padding: 0 4px; border-radius: 3px; }
+.inline-change del { color: var(--dash-removed); background: color-mix(in srgb, var(--dash-removed) 12%, transparent); padding: 0 4px; border-radius: 3px; text-decoration: line-through; }
 .inline-change ins { color: var(--dash-new); background: color-mix(in srgb, var(--dash-new) 12%, transparent); padding: 0 4px; border-radius: 3px; text-decoration: none; }
 
 .review-body > .section-label { margin: 0 0 14px; }
@@ -473,96 +577,144 @@ dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight
 }
 
 /* Diff: the red/green grounds are the designated change marks. */
-.diff-summary { font-size: 15px; font-weight: 600; color: var(--color-ink-100); margin: 0 0 4px; font-variant-numeric: tabular-nums; }
-.diff-basis { font-size: 12px; margin: 0 0 16px; }
-.diff-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 12px; color: var(--color-ink-400); margin: 0 0 20px; }
-.diff-legend-removed, .diff-legend-added { padding: 1px 8px; border-radius: 3px; font-weight: 550; }
-.diff-legend-removed { color: var(--color-accent-deletion); background: color-mix(in srgb, var(--color-accent-deletion) 13%, transparent); }
-.diff-legend-added { color: var(--color-accent-insertion); background: color-mix(in srgb, var(--color-accent-insertion) 13%, transparent); }
-/* One article. A rewrite stacks the old paragraph above the new one. */
-.full-diff { max-width: 42rem; }
+/* One article. Each block is a row: old on the left, new on the right. */
 .full-diff article { min-width: 0; overflow-wrap: anywhere; }
 .full-diff .prose-site { display: block; font-size: 15px; max-width: none; }
-.paragraph-change { margin: 0 0 20px; }
-.paragraph-change.modified { display: flex; flex-direction: column; gap: 8px; }
+.paragraph-change {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+  margin: 0 0 20px;
+}
+.paragraph-change > * { min-width: 0; }
 .paragraph-change .prose-site > :first-child { margin-top: 0; }
 .paragraph-change .prose-site > :last-child { margin-bottom: 0; }
-.diff-removed, .diff-added { padding: 12px 16px 14px; border-radius: var(--dash-radius); }
-.diff-removed { color: var(--color-accent-deletion); background: color-mix(in srgb, var(--color-accent-deletion) 12%, transparent); }
-.diff-added { color: var(--color-accent-insertion); background: color-mix(in srgb, var(--color-accent-insertion) 12%, transparent); }
+.diff-removed, .diff-added, .diff-unchanged { padding: 12px 16px 14px; border-radius: var(--dash-radius); }
+.diff-removed { color: var(--dash-removed); background: color-mix(in srgb, var(--dash-removed) 12%, transparent); }
+.diff-added { color: var(--dash-new); background: color-mix(in srgb, var(--dash-new) 12%, transparent); }
+@container (max-width: 36rem) {
+  .paragraph-change { column-gap: 8px; }
+  .diff-removed, .diff-added, .diff-unchanged { padding-inline: 8px; }
+}
 .full-diff :is(.diff-removed, .diff-added) .prose-site,
 .full-diff :is(.diff-removed, .diff-added) .prose-site * { color: inherit; }
 .full-diff ins { text-decoration: none; }
 .full-diff del, .full-diff del :is(p, li, h1, h2, h3, h4, a, code, th, td) { text-decoration: line-through; }
 .full-diff .prose-site pre { max-width: 100%; overflow-x: auto; }
-.full-diff .prose-site table { display: block; max-width: 100%; overflow-x: auto; }
+.full-diff .prose-site table { display: table; width: 100%; max-width: 100%; }
 
-/* Site-page selection */
+/* Site-page selection. Four page slots follow the public header: the first on the left, the next three on the right, then the fixed tools. Blank slots stay empty. */
 .page-choice { padding-top: 8px; border-top: 0; }
-.panel-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 6px; }
-.panel-head h2 { margin: 0; font-size: 15px; }
-.page-meter { color: var(--color-ink-400); font-size: 13px; font-variant-numeric: tabular-nums; }
-.page-meter[data-full=true] { color: var(--color-ink-100); font-weight: 550; }
-.page-choice .group-caption { margin: 0 0 16px; font-size: 12px; line-height: 1.7; }
+.page-choice .nav-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  min-height: 3.5rem;
+  margin: 0 0 20px;
+  padding: 0 16px;
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-radius);
+  background: transparent;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+.page-choice .nav-preview-lead { flex: none; color: var(--color-ink-400); }
+.page-choice .nav-preview-lead[data-brand=true] { color: var(--color-ink-100); font-weight: 600; }
+.page-choice .nav-preview-trail {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-left: auto;
+  min-width: 0;
+}
+.page-choice .nav-preview-stations,
+.page-choice .nav-preview-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.page-choice .nav-preview-stations li,
+.page-choice .nav-preview-tools li { flex: none; }
+.page-choice .nav-preview-stations span,
+.page-choice .nav-preview-tools span { color: var(--color-ink-400); }
+.page-choice .nav-preview-slot {
+  display: block;
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 1.25rem;
+  border: 1px dashed var(--dash-line-strong);
+  border-radius: 3px;
+  background: transparent;
+}
+.page-choice .nav-preview-search { display: inline-flex; align-items: center; color: var(--color-ink-400); }
 .page-choice fieldset { border: 0; margin: 0 0 24px; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .page-choice legend, .page-choice .section-label { padding: 0; margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--color-ink-200); }
 .page-choice .page-option {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+  flex-wrap: nowrap;
+  gap: 12px;
   margin: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--dash-line);
-  border-radius: var(--dash-radius);
-  cursor: pointer;
-  line-height: 1.5;
-  transition: border-color .15s;
+  min-height: 2.25rem;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  line-height: 1.3;
 }
-.page-choice .page-option:hover { border-color: var(--dash-line-strong); }
-.page-choice .page-option[data-checked=true] { border-color: var(--color-ink-400); }
-.page-choice .page-option input { margin: 0; }
+.page-choice .page-option label,
+.page-choice .page-order > li label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.page-choice .page-option input { margin: 0 0 0 auto; flex: none; cursor: pointer; }
 .page-choice .page-option .page-title { color: var(--color-ink-100); font-weight: 550; }
-.page-status { margin-left: auto; font-size: 12px; color: var(--color-ink-400); }
-.page-status[data-on-site=false] { color: var(--color-ink-200); font-weight: 550; }
 .page-choice .page-order {
-  counter-reset: page;
   margin: 0;
   list-style: none;
-  padding-left: 0;
+  padding: 0;
   border: 1px solid var(--dash-line);
   border-radius: var(--dash-radius);
 }
 .page-choice .page-order > li {
-  counter-increment: page;
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 12px;
-  padding: 8px 12px;
+  min-height: 2.25rem;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
   position: relative;
 }
 .page-choice .page-order > li + li { border-top: 1px solid var(--dash-line); }
-.page-choice .page-order > li[data-page-id]::after {
-  content: counter(page);
-  order: -1;
-  min-width: 1.25rem;
-  color: var(--color-ink-400);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.page-choice .page-order > li.muted { padding: 12px; }
+.page-choice .page-keep { border: 1px solid var(--dash-line); padding: 0; display: block; }
+.page-choice .page-keep > li + li { border-top: 1px solid var(--dash-line); }
+.page-choice .page-order > li.muted { min-height: 0; padding: 8px 12px; }
 .page-choice .page-drag {
   color: var(--color-ink-400);
   cursor: grab;
   font-size: 16px;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 0 4px;
   user-select: none;
 }
 .page-choice .page-drag:hover { color: var(--color-ink-100); text-decoration: none; }
 .page-choice .page-drag:active { cursor: grabbing; }
 .page-choice .page-title { color: var(--color-ink-100); }
+.page-choice .page-order > li .page-title { flex: 1; min-width: 0; }
+.page-choice .page-order > li[data-hidden=true] .page-title { color: var(--color-ink-400); }
 .page-choice .page-order > li.is-dragging { opacity: .4; }
 .page-choice .page-order > li.insert-before::before {
   content: '';
@@ -575,17 +727,19 @@ dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight
 }
 .page-choice .page-order > li.insert-after { box-shadow: inset 0 -2px 0 0 var(--dash-primary); }
 
-/* Publish bar: sticks to the bottom of the viewport and shows readiness. */
+/* Footer of #studio. In-flow, so its height stays out of the scroll area above. */
 .release-bar {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   z-index: 15;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 24px;
-  margin: 28px -40px 0;
+  margin-top: auto;
+  margin-bottom: 0;
+  margin-left: -40px;
+  margin-right: -40px;
   padding: 12px 40px;
   background: var(--dash-canvas);
   border-top: 1px solid var(--dash-line);
@@ -595,6 +749,7 @@ dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight
 .release-status p { margin: 0; line-height: 1.6; }
 .release-status [data-release-notice] { flex-basis: 100%; }
 .release-status .release-alert { color: var(--color-ink-100); font-weight: 550; }
+.release-alert .btn, .review-meta .status .btn { margin-left: 0.75rem; }
 .release-progress { color: var(--color-ink-100); font-weight: 600; font-variant-numeric: tabular-nums; }
 .release-progress[data-ready=true] { color: var(--dash-new); }
 .release-stage[data-stage=deployed] { color: var(--dash-new); font-weight: 550; }
@@ -603,9 +758,7 @@ dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight
 .legacy { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid var(--dash-line); font-size: 13px; }
 .legacy button { display: block; }
 
-/* Detail actions carry their shortcut as a quiet key cap. */
 .detail-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.btn kbd { margin-left: 2px; border-color: currentColor; color: inherit; opacity: .6; font-size: 10px; line-height: 1.5; }
 
 /* Dialog */
 dialog {
@@ -639,11 +792,8 @@ dialog label { padding: 10px 14px; border: 1px solid var(--dash-line); border-ra
 dialog > button { margin-top: 16px; display: flex; }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn, .pull-button, dialog > button, .decide, .review-group-tab, .page-choice .page-option, .progress-fill { transition: none; }
+  .btn, .pull-button, dialog > button, .decide, .review-group-tab, .page-choice .page-option { transition: none; }
   .btn:active, .pull-button:active, dialog > button:active, .decide:active { transform: none; }
-}
-@media (hover: none), (max-width: 1100px) {
-  .shortcut-hint { display: none; }
 }
 @media (max-width: 1100px) {
   .review-layout { grid-template-columns: minmax(0, 1fr); }
@@ -651,7 +801,7 @@ dialog > button { margin-top: 16px; display: flex; }
 @media (max-width: 900px) {
   #studio { padding: 0 24px; }
   #studio > header { margin: 0 -24px 20px; padding: 12px 24px; }
-  .release-bar { margin: 24px -24px 0; padding: 12px 24px; }
+  .release-bar { margin-left: -24px; margin-right: -24px; padding: 12px 24px; }
   #review-preview { padding: 0 16px 20px; }
 }
 @media (max-width: 640px) {
@@ -659,7 +809,7 @@ dialog > button { margin-top: 16px; display: flex; }
   #studio > header { margin: 0 -14px 16px; padding: 10px 14px; }
   #studio > header .brand { font-size: 18px; }
   #studio > header .actions { gap: 14px; }
-  .release-bar { position: static; margin: 24px -14px 0; padding: 12px 14px 20px; }
+  .release-bar { margin-left: -14px; margin-right: -14px; padding: 12px 14px 20px; }
   .release-actions { margin-left: 0; justify-content: flex-start; }
   .detail-actions { margin-left: 0; }
   .login h1 { font-size: 28px; }

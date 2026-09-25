@@ -81,6 +81,11 @@ test('preview renders prose and references, but never executes card HTML or load
   const html = await renderedProse(mdx, path => `<nav>${path}</nav>`);
   assert.match(html, /<h2>标题<\/h2>/); assert.match(html, /<strong>粗体<\/strong>/); assert.match(html, /<nav>articles\/ref<\/nav>/);
   assert.match(html, /href="\/articles\/ref"/);
+  const reordered = await renderedProse('<a href="/bitwarden" data-doc-of="articles/bitwarden" data-doc-mention>Bitwarden</a>');
+  assert.match(reordered, /href="\/bitwarden"/);
+  assert.match(reordered, /Bitwarden/);
+  assert.ok(!reordered.includes('data-doc-mention'));
+  assert.ok(!reordered.includes('&lt;a'));
   const malicious = await renderedProse('<script>alert(1)</script>\n\n[x](javascript:alert%281%29)\n\n![private](https://tracker.example/pixel)');
   assert.ok(!malicious.includes('<script>')); assert.ok(!malicious.includes('href="javascript:')); assert.ok(!malicious.includes('<img'));
   const literal = await renderedProse('```mdx\n<DocList>\n<DocRef of="articles/ref" />\n</DocList>\n```');

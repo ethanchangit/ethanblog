@@ -35,7 +35,7 @@
 - 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
 - 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。
 - **不要**使用装饰性边框、背景色块、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。页面靠排版与留白组织，不靠盒子。
-- 唯一例外是文章/项目页眉的元数据块 `.article-meta`（标签、技术栈）：和后台属性块一样用浅底、标签列和方角描边标签，让读者一眼看出这是元数据。别处不要照搬。
+- 唯一例外是文章/项目页眉的元数据块 `.article-meta`（标签、技术栈）：和后台属性块一样用浅底和标签列，让读者一眼看出这是元数据。标签是带 # 的文字，没有描边，也不另加底色。别处不要照搬。
 - 后台段落对比的红/绿底属于指定的差异标记，允许使用；颜色取自 accent-deletion / accent-insertion token，原文红底删除线、新文绿底，不给未改动内容加装饰。
 - `.media-frame` / `.media-caption` 只负责间距与图注，**不是**带边框/背景的卡片容器；不要各自发明卡片样式。
 - 中文壳层（`.i18n-zh`）里，`<a>` 紧贴前后汉字（`写信到<a>联系</a>`）。源码空格或换行会变成「写信到 联系」；英文链接前后可以留空格。
@@ -54,15 +54,15 @@
 Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站与已发布内容的真源。后台把已审查的内容做成 PR，合并进 `main` 后由 Actions 部署。后台不直接改 `main`。
 
 - 文章：`src/content/articles/<slug>.mdx`，`slot: article`，必须有 `date`。项目：`src/content/projects/<slug>.mdx`，`slot: project`。schema 在 `src/content.config.ts`。`slot` 决定进 `/articles` 还是 `/projects`，不是 topical `tags`。
-- `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于、Now、联系、隐私仍用原来的地址（`/`、`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。每次审核都可以用上移、下移排列这几页，确认后写入 `src/data/page-order.ts`，导航按这个顺序显示。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/pages/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
+- `src/content/pages/` 有手写目录 `blogs.mdx`，以及来自 Heptabase 的站点页。关于在 `/about`，首页 `/` 是文章列表。Now、联系、隐私仍用原来的地址（`/now`、`/contact`、`/privacy`）。站点页最多显示 4 页。不超过 4 张时全部发布，不需要挑选。超过 4 张时，审核清单写明上限是 4，并要求选择留下哪几页；未选中的不会悄悄去掉。每次审核都可以拖动手柄排列这几页，确认后写入 `src/data/page-order.ts`，导航按这个顺序显示。导航顺序的每一行都可以单独隐藏。隐藏记在本机决定里，和顺序一起在发布时写入这份文件：未隐藏的按拖动顺序出现在导航上，隐藏的不写入顺序，因此不进公开导航。隐藏不是撤下，也不改 Heptabase 卡片。不足 4 页时同样可以隐藏。每一行可以在新标签打开对应卡片，地址用这张卡片自己的 `heptabaseCardLink`。新的 Page 卡片在留下的 4 页里时，下一轮审查发布后出现在 `/<id>`。同一个固定地址已经被另一张卡片占用时，新卡片用自己的地址，不替换、不丢弃。卡片移出 `#blog` 或被删除后，下一次拉取并发布会从站点撤下，权限或网络错误不当作删除。
 - `draft: true` 不进公开站点，也不进搜索。`listed: false` 有自己的 URL，不进文章/项目索引；非草稿正文仍进 `/search`。
 
 ### 两种语言
 
-- **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。
+- **中文博客 cn.ethanchang.io** 是 `#blog` 卡片：Ethan 直接用中文写，状态、日期、标签、摘要、URL 都以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组，也不按标题猜测。英文站用同一套标签，文章仍只列出已有译文的。
 - **英文博客 ethanchang.io** 是译文。译文是 `#blogi18n`（Heptabase 标签名 `blog i18n`）里的独立卡片，由 `#blog` 卡片上的关联字段 `blog i18n` 指向。配对只看这个关联，不按标题或别的字段猜。译文的 `Language` 决定语言（`en` 等）；中文只写在 `#blog`，不做译文。
-- 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：`src/content/articles/<id>/<language>.mdx`，frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
-- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的旧文仍在 `/articles/<id>`，英文站同一路径。文章的 slug 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就在审核这篇时拒绝并报出冲突，不影响拉取其他卡片。Page 卡片的 slug 是它自己那个站点页（`about`、`now`、`contact`、`privacy`）时不算冲突，就更新那一页（`src/content/pages/<slug>.mdx`）。
+- 译文和它的 `#blog` 卡片一起审核、一起发布，文件存在原文旁边：文章 `src/content/articles/<id>/<language>.mdx`，项目 `src/content/projects/<id>/<language>.mdx`，站点页 `src/content/pages/<id>/<language>.mdx`。frontmatter 有 `translationOf`（原文卡片链接）和 `language`。日期、标签、状态跟原文走，标题和正文来自译文卡片。中文站的列表、标签、搜索、RSS 不收译文。
+- `slug` 字段（原名 URL，字段 id 不变）就是地址，放在站点根路径，不在 `/articles` 下：slug 是 `toolset` 时，中文在 `https://cn.ethanchang.io/toolset`，英文在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`，英文站同一路径。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出两个站：中文页面在 `dist/` 根目录，英文页面在 `dist/en/`。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）按域名分：ethanchang.io 的请求读 `/en` 下的页面，没有英文版的路径跳到 cn 同一路径；cn.ethanchang.io 读根目录。`/en` 前缀不对外出现。语言切换链接是 `/_lang/<zh|en><路径>`，由 Worker 换到另一个域名。页面语言跟着路由走：英文页（`/en`）的界面、日期、列表都是英文，其余是中文。
 - 本机：`http://localhost:4321` 是中文站，`http://en.localhost:4321` 是英文站（dev 和 `npm run preview` 都支持）。
 - 后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
@@ -83,21 +83,21 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
 1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
-2. 拉取完成后，审核都在本机进行，不再逐次访问 Heptabase 或 GitHub。主卡片上点通过是一次点击，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开，并记入本机决定。拒绝会先打开备注对话框，通过不会。可以勾选多篇后批量通过或批量拒绝；批量拒绝共用一次备注。删除和暂不删除仍是一次点击，不写 Remark。决定之后两个按钮都还在，当前选择保持高亮，可以改判。站点页的勾选和拖动顺序也只改本机清单。这些点击不锁住整页。Publish Date 或创建时间已有则原样保留；两样都空时才在发布时补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。Heptabase 的 Status 要等这次发布提交时才回写：通过写成 `published`，拒绝写成 `blocked`，不改日期，也不改线上旧文。对话框里的备注留在本机决定里，等这次发布上线（deploy 回执，`completeWriteback`）再写回卡片的 `Remark`。留空会在那时清空 Remark。译文跟着主卡片一起通过或拒绝。底部「直接发布」把本机决定一次提交，并发布这次拉取里尚未拒绝的更新和尚未跳过的删除，不再弹出确认框。发布失败不表示网站已经改变。
+2. 拉取完成后，审核都在本机进行，不再逐次访问 Heptabase 或 GitHub。主卡片上点通过是一次点击，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开，并记入本机决定。拒绝会先打开备注对话框，通过不会。可以勾选多篇后批量通过或批量拒绝；批量拒绝共用一次备注。删除和暂不删除仍是一次点击，不写 Remark。决定之后两个按钮都还在，当前选择保持高亮，可以改判。站点页的勾选、从导航隐藏和拖动顺序也只改本机清单。这些点击不锁住整页。Publish Date 或创建时间已有则原样保留；两样都空时才在发布时补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。Heptabase 的 Status 要等这次发布提交时才回写：通过写成 `published`，拒绝写成 `blocked`，不改日期，也不改线上旧文。对话框里的备注留在本机决定里，等这次发布上线（deploy 回执，`completeWriteback`）再写回卡片的 `Remark`。留空会在那时清空 Remark。译文跟着主卡片一起通过或拒绝。底部「直接发布」把本机决定一次提交，并发布这次拉取里尚未拒绝的更新和尚未跳过的删除，不再弹出确认框。发布失败不表示网站已经改变。
 3. 「提交通过的更新到 GitHub」把尚未送出的本机决定一次提交，只包含已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
 5. 后台显示「已上线」，且线上版本与该 commit 一致，才算发布完成。
 
-撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。只撤下该文和专属引用，仍被其他页面使用的资料保留，并阻止剩余页面出现断链。不删除、不改写 Heptabase 源卡片。
+撤下走同一条发布。确认删除只进入待发布清单；提交前可以取消尚未提交的删除。无人引用时撤下该文和专属资料。若其他页面仍引用这篇文章，发布不会被拦住：它从文章列表撤下，留下为 reference，地址和链接保留。审核预览和发布栏会点名引用它的页面，并可以一键留下为 reference。站点页和项目不能改成 reference，仍被引用时要先处理引用。不删除、不改写 Heptabase 源卡片，也不直接改 `main`。
 
-后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/` 下的 MDX、`src/data/tag-groups.ts` 和 `src/data/page-order.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
+后台内容 PR 只允许 `src/content/articles/`、`src/content/projects/` 下的 MDX、`src/content/pages/` 下的 MDX、`src/data/tag-groups.ts` 和 `src/data/page-order.ts`。公开 `/tags` 不读 `tag-groups.ts`。站点程序改动在 GitHub 审查。卡片里归档的交互源码不能直接跑上网站。
 
 ## 开发与部署
 
 - Node 22+。`npm install` 后 `npm run dev`（Astro，默认 http://localhost:4321）。
 - 本地后台：`npm run dev`，打开 http://localhost:4321/dashboard。这条路由只在本机 dev server 注入，不要求后台密码；改 `studio/online/` 会热更新。生产 https://ethanchang.io/dashboard 仍要密码。没有 GitHub 令牌时页面能打开，拉取 GitHub 或 Heptabase 会提示尚未配置。云端密钥名是 `GITHUB_TOKEN_BLOG`，本机同名写在 `.dev.vars`。生产 Pages 仍用 `GITHUB_TOKEN`。后台两条都认。`STUDIO_SECRET` 也放在 `.dev.vars`（见 `.dev.vars.example`），不要写进仓库。
 - `npm run studio` 与 `npm run dev` 是同一条命令。同一进程的 http://localhost:4321/studio 只能改本机文件，是迁移期留下的工具。它不是写作应用，生产构建不注入、不部署。日常写作在 Heptabase。
-- `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。
+- `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。它用 `studio/online/sample-review.mjs` 的示例数据（新文、已编辑、删除、站点页、段落对比、通过和拒绝），并直接提供当前的 `studio/online` 界面源码，所以本机改后台后刷新就能看到。打开或刷新后直接是审核界面，不用点「拉取最新更新」。这套数据只在这个本地进程里。`npm run dev` 的后台、正式发布、生产后台和真实拉取仍走 Heptabase 与 GitHub。
 - `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
 - `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。

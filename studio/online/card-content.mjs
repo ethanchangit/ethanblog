@@ -10,17 +10,29 @@ export function proseParts(text, transform) {
   for (const match of text.matchAll(code)) { out += transform(text.slice(offset, match.index)) + match[0]; offset = match.index + match[0].length; }
   return out + transform(text.slice(offset));
 }
-const mention = /<hepta-mention\s+type="([^"]+)"\s+id="([^"]+)"\s*>([\s\S]*?)<\/hepta-mention>|\[([^\]\n]*)\]\(heptabase:\/\/card\/([0-9a-f-]+)\)/g;
+// Attribute order is not fixed. A mention is never reduced to its label.
+const mention = /<hepta-mention\b([^>]*)>([\s\S]*?)<\/hepta-mention>|\[([^\]\n]*)\]\(heptabase:\/\/card\/([0-9a-f-]+)\)/gi;
 const escapeText = (s) => s.replace(/[<>{}]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '{': '&#123;', '}': '&#125;' })[c]);
 const unescapeText = (s) => s.replace(/&(lt|gt|amp|quot|#123|#125);/g, (_, c) => ({ lt: '<', gt: '>', amp: '&', quot: '"', '#123': '{', '#125': '}' })[c]);
+
+function mentionFrom(match) {
+  if (match[4]) return { type: 'card', id: match[4], label: match[3] ?? '' };
+  const attrs = match[1] ?? '';
+  const type = /(?:^|\s)type\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2] || 'card';
+  const id = /(?:^|\s)id\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2] || '';
+  if (!id) throw fail('mention 没有卡片 id，未把它收成纯文字。');
+  return { type, id, label: match[2] ?? '' };
+}
 
 export function references(source) {
   const refs = new Map();
   proseParts(source, (part) => {
+    mention.lastIndex = 0;
     for (const match of part.matchAll(mention)) {
-      if (match[1] && match[1] !== 'card') throw fail(`暂不能发布 ${match[1]} 类型的 mention。请先转成文字卡片，未忽略这条引用。`);
-      const id = cardId(`heptabase://card/${match[2] || match[5]}`);
-      refs.set(id, { id, title: match[3] || match[4] });
+      const parsed = mentionFrom(match);
+      if (parsed.type !== 'card') throw fail(`暂不能发布 ${parsed.type} 类型的 mention。请先转成文字卡片，未忽略这条引用。`);
+      const id = cardId(`heptabase://card/${parsed.id}`);
+      refs.set(id, { id, title: parsed.label });
     }
     return part;
   });
@@ -30,7 +42,15 @@ export function references(source) {
 export function blogReferences(body) {
   const paths = new Set();
   proseParts(body, (part) => {
-    for (const m of part.matchAll(/<DocRef\s+of=["']([^"']+)["']\s*\/>|<a\s+href="\/([^"]+)"\s+data-doc-mention\b/g)) paths.add(m[1] || m[2]);
+    for (const m of part.matchAll(/<DocRef\s+of=["']([^"']+)["']\s*\/>/g)) paths.add(m[1]);
+    for (const m of part.matchAll(/<a\s[^>]*\bdata-doc-mention\b[^>]*>/g)) {
+      const of = /\bdata-doc-of=["']([^"']+)["']/.exec(m[0]);
+      if (of) { paths.add(of[1]); continue; }
+      const href = /\bhref=["']\/([^"'#]+)["']/.exec(m[0]);
+      if (!href) continue;
+      const path = href[1].replace(/\/+$/, '');
+      if (/^(articles|projects|pages)\//.test(path)) paths.add(path);
+    }
     return part;
   });
   return [...paths];
@@ -46,9 +66,11 @@ export function fromHeptabase(source, targets, imports = '') {
   let hasBlock = false;
   const body = proseParts(lines.join('\n').trim(), (part) => {
     const tokens = [];
-    let text = part.replace(mention, (whole, type, mentionId, label, linkLabel, linkId, offset) => {
-      if (type && type !== 'card') throw fail(`暂不能发布 ${type} 类型的 mention。`);
-      const id = cardId(`heptabase://card/${mentionId || linkId}`);
+    mention.lastIndex = 0;
+    let text = part.replace(mention, (whole, attrs, inner, linkLabel, linkId, offset) => {
+      const parsed = mentionFrom([whole, attrs, inner, linkLabel, linkId]);
+      if (parsed.type !== 'card') throw fail(`暂不能发布 ${parsed.type} 类型的 mention。`);
+      const id = cardId(`heptabase://card/${parsed.id}`);
       const target = targets.get(id);
       if (!target) throw fail('引用的卡片尚未完整读取，未继续发布。');
       const lineStart = part.lastIndexOf('\n', offset - 1) + 1;
@@ -56,7 +78,8 @@ export function fromHeptabase(source, targets, imports = '') {
       const standalone = !part.slice(lineStart, offset).trim() && !part.slice(offset + whole.length, end < 0 ? part.length : end).trim();
       const of = `${target.collection}/${target.id}`;
       hasBlock ||= standalone;
-      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="${target.url && target.collection === 'articles' ? `/${target.id}` : publicHref(target.collection, target.id)}" data-doc-mention>${escapeText(label || linkLabel || target.title)}</a>`;
+      const label = parsed.label || target.title;
+      const markup = standalone ? `<DocList pane="embed">\n  <DocRef of="${of}" />\n</DocList>` : `<a href="${publicHref(target.collection, target.id)}" data-doc-of="${of}" data-doc-mention>${escapeText(label)}</a>`;
       return `\u0001${tokens.push(markup) - 1}\u0002`;
     });
     // Preserve the text of colors; other protected objects require explicit handling.
@@ -81,13 +104,19 @@ export function toHeptabase(parsed, docs) {
       if (children.replace(/<DocRef\s+of=["'][^"']+["']\s*\/>/g, '').trim()) throw fail('引用区有其他内容，未改写。');
       return refs.map((m) => token(m[1])).join('\n\n');
     });
-    text = text.replace(/<a\s+href="\/(articles\/[^" ]+|projects\/[^" ]+)"\s+data-doc-mention\s*>([\s\S]*?)<\/a>/g, (_, path, label) => token(path, unescapeText(label)));
+    text = text.replace(/<a\s+([^>]*\bdata-doc-mention\b[^>]*)>([\s\S]*?)<\/a>/g, (whole, attrs, label) => {
+      const of = /\bdata-doc-of=["']([^"']+)["']/.exec(attrs);
+      const href = /\bhref=["']\/((?:articles|projects|pages)\/[^"'#\s]+)["']/.exec(attrs);
+      const path = of?.[1] || href?.[1];
+      if (!path) return whole;
+      return token(path, unescapeText(label));
+    });
     return unescapeText(text);
   });
   // Existing arbitrary MDX is kept byte-for-byte in a standard code fence when it
   // cannot be represented as native Heptabase prose. No component is discarded.
   let needsArchive = false;
-  proseParts(body, (part) => { needsArchive ||= /<\/?[A-Za-z]|^import\s|^export\s/m.test(part.replace(mention, '')); return part; });
+  proseParts(body, (part) => { mention.lastIndex = 0; needsArchive ||= /<\/?[A-Za-z]|^import\s|^export\s/m.test(part.replace(mention, '')); return part; });
   if (needsArchive) {
     const raw = [parsed.imports, parsed.bodyZh].filter(Boolean).join('\n\n');
     const fence = '`'.repeat(Math.max(3, ...[...raw.matchAll(/`+/g)].map((m) => m[0].length + 1)));
