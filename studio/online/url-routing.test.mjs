@@ -104,7 +104,7 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
   f = await setup({ slug: 'now' });
-  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /slug「now」与网站固定地址 \/now 冲突/);
+  res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
   res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/my-toolset/);
