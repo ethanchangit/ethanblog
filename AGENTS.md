@@ -5,6 +5,17 @@
 > 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
 > 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
 
+## 用法上下文
+
+在这个博客里工作，或要弄清框架怎么读取每一个属性，先读 Heptabase 卡片 **skill blogcontext**。
+
+- 卡片 id：`60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
+- 打开：`heptabase://card/60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
+
+这张卡说明怎么在这个博客里工作：Heptabase 是写作来源，网站呈现卡片，`/dashboard` 负责审核和发布。它也说明框架实际读取的每个属性是什么意思，包括 slug、Language、Status（含 `blocked`）、Summary、Remark、Tag，以及代码还会读的其他字段。
+
+**项目的用法逻辑变了，就在同一次改动里更新这张卡。** 用法逻辑包括怎么工作，以及框架如何读取、写回每一个属性。同一次改动里改仓库说明，也改这张卡，后来的 agent 才读得到当前约定。
+
 ## 任务路由
 
 用户消息**首行**的触发词决定任务类型。读到触发词后按对应模式执行，不要混用。
