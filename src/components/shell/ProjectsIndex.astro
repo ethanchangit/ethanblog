@@ -1,11 +1,12 @@
 ---
 import Timeline from '@/components/media/Timeline.svelte';
+import Card from '@/components/shell/Card.astro';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { lineageEdges, lineageIcons } from '@/data/projects-lineage';
-import { docsBySlot } from '@/lib/docs';
+import { docsBySlot, docHref, englishProjects, translationSourceId } from '@/lib/docs';
 import { HOME_PATH, PROJECTS_PATH, projectHref } from '@/lib/routes';
 
 interface Props {
@@ -14,7 +15,8 @@ interface Props {
 
 const { currentId } = Astro.props;
 const lp = Astro.locals.localePath;
-const projects = (await docsBySlot('project')).sort(
+const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
+const projects = (lang === 'en' ? await englishProjects() : await docsBySlot('project')).sort(
   (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
 const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
@@ -30,6 +32,30 @@ const timelineItems = projects.map((project) => ({
 ---
 
 <article class="mx-auto max-w-3xl px-4 pb-14 sm:px-6" data-reading-index-body>
+  {
+    lang === 'en' ? (
+      <div class="reading-index-heading">
+        <ReadingIndexSwitch active="projects" />
+        <ReadingExpand expandHref={lp(PROJECTS_PATH)} collapseHref={lp(HOME_PATH)} />
+      </div>
+    ) : null
+  }
+  {
+    lang === 'en' && (
+      <div class="flex flex-col">
+        {projects.map((project) => (
+          <Card
+            href={lp(docHref(project))}
+            title={project.data.title}
+            description={project.data.description}
+            current={translationSourceId(project.id) === currentId || project.id === currentId}
+          />
+        ))}
+      </div>
+    )
+  }
+  {lang === 'zh-CN' && (
+  <>
   <div class="reading-index-heading">
     <ReadingIndexSwitch active="projects" />
     <ReadingExpand expandHref={lp(PROJECTS_PATH)} collapseHref={lp(HOME_PATH)} />
@@ -73,4 +99,6 @@ const timelineItems = projects.map((project) => ({
       }
     </ul>
   </div>
+  </>
+  )}
 </article>

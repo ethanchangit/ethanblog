@@ -7,7 +7,7 @@ const SCREENSHOT_DIR = path.join('tests', 'screenshots');
 const PAGES = [
   { route: '/', name: 'home' },
   { route: '/lab', name: 'lab' },
-  { route: '/articles/pkm-method', name: 'article-pkm-method' },
+  { route: '/pkm-method', name: 'article-pkm-method' },
 ] as const;
 
 const VIEWPORTS = [

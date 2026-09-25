@@ -56,18 +56,24 @@ export function pageIdFromPath(filePath) {
   return match[1];
 }
 
+/** A #blogi18n page sits beside its source: pages/<id>/<language>.mdx. It is not another site page. */
+export function pageTranslationId(filePath) {
+  const match = /^src\/content\/pages\/([a-z0-9]+(?:-[a-z0-9]+)*)\/([a-z]{2,3})\.mdx$/.exec(filePath || '');
+  if (!match || match[1] === 'blogs') return null;
+  return `${match[1]}/${match[2]}`;
+}
+
 export function corePageIdFromPath(filePath) {
   const id = pageIdFromPath(filePath);
   return id && CORE_PAGE_IDS.has(id) ? id : null;
 }
 
 export function pageHref(id) {
-  if (id === 'about') return '/';
-  if (CORE_PAGE_IDS.has(id)) return `/${id}`;
-  return `/pages/${id}`;
+  const source = String(id || '').replace(/\/[a-z]{2,3}$/, '');
+  return `/${source}`;
 }
 
-// At most PAGE_CAP site pages. A title that already owns /, /now, /contact, or /privacy
+// At most PAGE_CAP site pages. A title that already owns /about, /now, /contact, or /privacy
 // keeps that address; another card with the same title gets its own URL.
 export function pageReviewNote(id, { displaced = false, canonicalTitle = '', choiceRequired = false } = {}) {
   const href = pageHref(id);
@@ -124,10 +130,9 @@ export function isSafeDocRef(of) {
 }
 
 export function publicHref(collection, id) {
-  if (collection === 'pages' && id === 'blogs') return '/blogs';
   if (collection === 'pages') return pageHref(id);
-  if (collection === 'projects') return `/projects/${id}`;
-  return `/articles/${id}`;
+  const source = String(id).replace(/\/[a-z]{2,3}$/, '');
+  return `/${source}`;
 }
 
 export function parseMdx(raw) {
@@ -261,6 +266,14 @@ export function validateContentFile(filePath, raw) {
   if (filePath === 'src/content/pages/blogs.mdx') return parsed;
   if (!/^heptabase:\/\/card\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fm.heptabaseCardLink || '')) {
     throw new Error(`请先填写有效的 Heptabase card link：${filePath}`);
+  }
+  if (pageTranslationId(filePath)) {
+    if (fm.slot !== 'page') throw new Error(`slot 必须是 page：${filePath}`);
+    if (!String(fm.title ?? '').trim()) throw new Error(`缺少 title：${filePath}`);
+    if (fm.description != null && typeof fm.description !== 'string') throw new Error(`description 无法读取：${filePath}`);
+    if (!/^heptabase:\/\/card\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fm.translationOf || '')) throw new Error(`译文缺少 translationOf：${filePath}`);
+    if (!/^[a-z]{2,3}$/.test(fm.language || '')) throw new Error(`译文缺少 language：${filePath}`);
+    return parsed;
   }
   if (pageIdFromPath(filePath)) {
     if (fm.slot !== 'page') throw new Error(`slot 必须是 page：${filePath}`);

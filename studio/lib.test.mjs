@@ -321,9 +321,9 @@ describe('studio block editor helpers', () => {
     assert.equal(applyFormatCommand('一段话', { type: 'hr' }), '---');
     assert.ok(filterSlashCommands('标题', 'zh').some((cmd) => cmd.id === 'h1'));
     assert.ok(filterSlashCommands('code', 'en').some((cmd) => cmd.id === 'fence'));
-    assert.equal(inlineMentionMarkup('articles/pkm-method', 'PKM 实践'), '[PKM 实践](/articles/pkm-method)');
+    assert.equal(inlineMentionMarkup('articles/pkm-method', 'PKM 实践'), '[PKM 实践](/pkm-method)');
     assert.equal(hrefForOf('pages/blogs'), '/blogs');
-    assert.equal(hrefForOf('projects/aletheia'), '/projects/aletheia');
+    assert.equal(hrefForOf('projects/aletheia'), '/aletheia');
     assert.deepEqual(
       parseDocEmbed('<DocList pane="embed">\n  <DocRef of="articles/pkm-method" />\n</DocList>'),
       { of: 'articles/pkm-method', pane: 'embed' },

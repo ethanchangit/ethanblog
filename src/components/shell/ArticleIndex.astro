@@ -1,6 +1,5 @@
 ---
 import Card from '@/components/shell/Card.astro';
-import I18n from '@/components/shell/I18n.astro';
 import ReadingExpand from '@/components/shell/ReadingExpand.astro';
 import ReadingIndexSwitch from '@/components/shell/ReadingIndexSwitch.astro';
 import { ARTICLES_PATH, HOME_PATH } from '@/lib/routes';
@@ -52,10 +51,6 @@ const activeId = currentId ? (seriesParentId(currentId) ?? currentId) : undefine
   {
     englishSite && englishSite.chineseOnly.length > 0 && (
       <section class:list={[groups.length > 0 && 'mt-14']} data-chinese-only lang="zh-CN">
-        <h2 class="mb-1 text-xl font-semibold tracking-tight text-ink-100 sm:text-2xl" lang="en">
-          <I18n k="chineseOnly" />
-        </h2>
-        <p class="ui-meta mb-2" lang="en"><I18n k="chineseOnlyLead" /></p>
         <div class="flex flex-col">
           {englishSite.chineseOnly.map((entry) => {
             const card = articleCardProps(entry, 'en');

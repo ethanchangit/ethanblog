@@ -8,10 +8,12 @@ import DateText from '@/components/shell/DateText.astro';
 import TagList from '@/components/shell/TagList.astro';
 import CopyUrl from '@/components/shell/CopyUrl.svelte';
 import SeriesNav from '@/components/shell/SeriesNav.astro';
-import { isTranslation, languageVersions, seriesContext, type DocEntry } from '@/lib/docs';
+import { docHref, isTranslation, languageVersions, seriesContext, type DocEntry } from '@/lib/docs';
 import { canonicalUrl as pageCanonical, languageSwitchHref } from '@/lib/hosts';
+import { t } from '@/lib/i18n';
 import { localizeHref } from '@/lib/locale';
 import { docJsonLd } from '@/lib/agent';
+import { DOC_TITLE_ID } from '@/lib/toc';
 
 interface Props {
   doc: DocEntry;
@@ -34,12 +36,33 @@ const {
 } = doc.data;
 const isArticle = slot === 'article';
 const slug = doc.id;
+const uiLang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
+const summary = description.trim();
+const address = docHref(doc);
+
+/** Same kind names as the dashboard 属性 block. Published values only: no review diff. */
+function articleTypeName(entry: DocEntry): string {
+  if (isTranslation(entry)) {
+    return entry.data.language ? `Translation · ${entry.data.language}` : 'Translation';
+  }
+  switch (entry.data.heptabaseType) {
+    case 'reference':
+      return 'Reference';
+    case 'project':
+      return 'Project';
+    case 'page':
+      return 'Page';
+    default:
+      return 'Article';
+  }
+}
+const typeName = articleTypeName(doc);
 const canonicalUrl = pageCanonical(
   Astro.locals.localePath?.(Astro.url.pathname) ?? localizeHref(Astro.url.pathname, Astro.locals.locale),
 );
 const series = isArticle && !preview ? await seriesContext(doc) : null;
 const translation = isTranslation(doc);
-const versions = isArticle && !preview ? await languageVersions(doc) : [];
+const versions = !preview && (isArticle || slot === 'project') ? await languageVersions(doc) : [];
 const jsonLd = docJsonLd(doc);
 ---
 
@@ -47,15 +70,12 @@ const jsonLd = docJsonLd(doc);
 
 {isArticle && !preview && <ReadingProgress client:load slug={slug} />}
 
-<div class="article-shell relative px-4 pt-8 pb-14 sm:px-6">
+<div class="article-shell relative px-4 pt-8 pb-14 sm:px-6" id={preview ? undefined : DOC_TITLE_ID}>
   <header class="article-lede">
     {
-      isArticle && date && (
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      isArticle && (
+        <div class="article-lede-tools mb-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-3">
-            <time datetime={date.toISOString()} class="ui-meta">
-              <DateText date={date} />
-            </time>
             {updated && (
               <span class="ui-meta">
                 <I18n k="updatedPrefix" />{' '}
@@ -80,6 +100,23 @@ const jsonLd = docJsonLd(doc);
         </div>
       )
     }
+    {
+      !isArticle && versions.length > 0 && (
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+          {versions.map((version) => (
+            <a
+              href={languageSwitchHref(version.lang, version.href)}
+              hreflang={version.lang === 'zh' ? 'zh-CN' : 'en'}
+              lang={version.lang === 'zh' ? 'zh-CN' : 'en'}
+              class="ui-meta ui-link"
+              data-language-switch={version.lang}
+            >
+              {version.label}
+            </a>
+          ))}
+        </div>
+      )
+    }
     <h1 class="text-3xl font-semibold leading-snug text-ink-100 sm:text-4xl">
       <Bi zh={title} />
     </h1>
@@ -91,20 +128,48 @@ const jsonLd = docJsonLd(doc);
   <div class="article-body-row relative mt-8">
     <article class="article-page">
       <header class="article-dek">
-        {description || preview ? (
-          <p class="article-dek-text">
-            {description ? <Bi zh={description} /> : null}
-          </p>
-        ) : null}
-        {isArticle ? (
-          (tags.length > 0 || preview) && (
-            <dl class="article-meta">
-              <dt><I18n k="tagsTitle" /></dt>
-              <dd><TagList tags={tags} class="ui-tag-list--start" /></dd>
-            </dl>
+        {
+          (isArticle || (slot === 'project' && translation)) && (
+            <section class="article-meta" aria-label={t(uiLang, 'metaProperties')}>
+              <p class="article-meta-label"><I18n k="metaProperties" /></p>
+              <dl class="article-meta-grid">
+                <dt><I18n k="metaType" /></dt>
+                <dd>{typeName}</dd>
+                <dt><I18n k="metaAddress" /></dt>
+                <dd><code>{address}</code></dd>
+                {
+                  date && (
+                    <>
+                      <dt><I18n k="metaDate" /></dt>
+                      <dd>
+                        <time datetime={date.toISOString()}>
+                          <DateText date={date} />
+                        </time>
+                      </dd>
+                    </>
+                  )
+                }
+                {
+                  tags.length > 0 && (
+                    <>
+                      <dt><I18n k="tagsTitle" /></dt>
+                      <dd><TagList tags={tags} class="ui-tag-list--start" /></dd>
+                    </>
+                  )
+                }
+              </dl>
+            </section>
           )
-        ) : (
-          stack.length > 0 && (
+        }
+        {
+          summary ? (
+            <p class="article-dek-text">
+              <Bi zh={description} />
+            </p>
+          ) : null
+        }
+        {
+          !isArticle && stack.length > 0 && (
             <dl class="article-meta">
               <dt><I18n k="techStack" /></dt>
               <dd>
@@ -116,7 +181,7 @@ const jsonLd = docJsonLd(doc);
               </dd>
             </dl>
           )
-        )}
+        }
       </header>
 
       {

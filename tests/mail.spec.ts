@@ -11,7 +11,7 @@ import {
 const payload = {
   slug: 'pkm-method',
   title: '我的 PKM 实践：从笔记到知识网络',
-  url: 'https://ethanchang.io/articles/pkm-method',
+  url: 'https://ethanchang.io/pkm-method',
   tags: ['PKM', 'Obsidian', '知识管理', '笔记方法论'],
   name: 'Ada',
   email: 'ada@example.com',
@@ -35,7 +35,7 @@ test.describe('留言邮件 payload', () => {
     const text = feedbackText(payload);
     expect(text).toContain('文章：我的 PKM 实践：从笔记到知识网络');
     expect(text).toContain('slug：pkm-method');
-    expect(text).toContain('链接：https://ethanchang.io/articles/pkm-method');
+    expect(text).toContain('链接：https://ethanchang.io/pkm-method');
     expect(text).toContain('标签：PKM、Obsidian、知识管理、笔记方法论');
     expect(text).toContain('来自：Ada');
     expect(text).toContain('邮箱：ada@example.com');
@@ -64,7 +64,7 @@ test.describe('留言邮件 payload', () => {
     expect(raw).toContain('X-Ethanblog-Tags:');
     expect(raw).toContain('Reply-To: ada@example.com');
     expect(raw).toContain('文章：我的 PKM 实践：从笔记到知识网络');
-    expect(raw).toContain('链接：https://ethanchang.io/articles/pkm-method');
+    expect(raw).toContain('链接：https://ethanchang.io/pkm-method');
   });
 
   test('没有 frontmatter 标签时主题仍带文章身份', () => {

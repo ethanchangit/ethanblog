@@ -19,6 +19,7 @@ import {
   PROJECTS_PATH,
   SEARCH_PATH,
   TAGS_PATH,
+  sitePageHref,
 } from '@/lib/routes';
 
 export type AgentLang = 'en' | 'zh';
@@ -139,7 +140,7 @@ async function corePageMarkdown(
   return body || null;
 }
 
-async function homeMarkdown(): Promise<string> {
+async function aboutPageMarkdown(): Promise<string> {
   const body = await corePageMarkdown('about');
   const heading = `# ${profile.name} · ${profile.chineseName}`;
   return body ? `${heading}\n\n${body}\n` : `${heading}\n`;
@@ -155,7 +156,7 @@ export function forAgentsMarkdown(lang: AgentLang): string {
 
 对 HTML 文档发送 \`Accept: text/markdown\`。响应是 \`Content-Type: text/markdown; charset=utf-8\`，并且 \`Vary\` 包含 \`Accept\`。浏览器的 \`Accept: text/html, …, */*\` 仍拿到 HTML。只接受既非 HTML 也非 Markdown 的类型时返回 406。
 
-也可以直接请求 \`/index.md\`、\`/articles/<slug>.md\`、\`/projects/<slug>.md\`。
+也可以直接请求 \`/index.md\`、\`/<slug>.md\`。
 
 ## 发现
 
@@ -173,7 +174,7 @@ export function forAgentsMarkdown(lang: AgentLang): string {
 
 ## 人怎么用
 
-写信：[${CONTACT_PATH}](${CONTACT_PATH})。隐私：[${PRIVACY_PATH}](${PRIVACY_PATH})。身份页是 \`/\`。
+写信：[${CONTACT_PATH}](${CONTACT_PATH})。隐私：[${PRIVACY_PATH}](${PRIVACY_PATH})。关于页是 \`/about\`。首页 \`/\` 是文章列表。
 `;
 }
 
@@ -189,13 +190,14 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
   const pages: MarkdownPage[] = [];
 
   const [about, nowPage, contactPage, privacyPage] = await Promise.all([
-    homeMarkdown(),
+    aboutPageMarkdown(),
     corePageMarkdown('now'),
     corePageMarkdown('contact'),
     corePageMarkdown('privacy'),
   ]);
   const staticPages: { path: string; zh: string }[] = [
-    { path: '/', zh: about },
+    { path: '/', zh: shortIndexMarkdown('文章', copy['zh-CN'].articlesDesc, '/') },
+    { path: '/about', zh: about },
     ...(nowPage ? [{ path: NOW_PATH, zh: `${nowPage}\n` }] : []),
     ...(contactPage ? [{ path: CONTACT_PATH, zh: `${contactPage}\n` }] : []),
     ...(privacyPage ? [{ path: PRIVACY_PATH, zh: `${privacyPage}\n` }] : []),
@@ -253,7 +255,7 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
   const [articles, projects, sitePages] = await Promise.all([
     docsBySlot('article'),
     docsBySlot('project'),
-    getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft),
+    getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft && !data.translationOf),
   ]);
   const [nowPage, contactPage, privacyPage] = await Promise.all([
     corePageMarkdown('now'),
@@ -276,7 +278,7 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
   const lastmod = new Map<string, string>();
 
   for (const page of sitePages) {
-    const href = page.id === 'about' ? '/' : page.id === 'now' || page.id === 'contact' || page.id === 'privacy' ? `/${page.id}` : `/pages/${page.id}`;
+    const href = sitePageHref(page.id);
     paths.add(href);
     const stamp = page.data.updated ?? page.data.created ?? page.data.date;
     if (stamp) lastmod.set(href, stamp.toISOString());
@@ -326,7 +328,8 @@ Do not use this site if you need an MCP server, a public write API, a SaaS produ
 
 ## Main pages
 
-- [Home / about](${site.url}/)
+- [Home](${site.url}/)
+- [About](${site.url}/about)
 - [Articles](${site.url}${ARTICLES_PATH})
 - [Projects](${site.url}${PROJECTS_PATH})
 - [Now](${site.url}${NOW_PATH})

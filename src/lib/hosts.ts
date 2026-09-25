@@ -9,6 +9,8 @@
  *
  * Used by scripts/cf-worker-entry.mjs, scripts/preview.mjs and the dev middleware.
  */
+import { legacyContentRedirect } from './routes.ts';
+
 export const ZH_ORIGIN = 'https://cn.ethanchang.io';
 export const EN_ORIGIN = 'https://ethanchang.io';
 export const EN_PREFIX = '/en';
@@ -71,6 +73,11 @@ export function routeRequest(url: URL): HostDecision {
   if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
     // The dashboard and its login cookie live on ethanchang.io only.
     return hostname(host) === 'cn.ethanchang.io' ? to('en', pathname, 301) : { type: 'pass' };
+  }
+  // Old single-page URLs move before the English host is rewritten onto /en.
+  if (!isEnglishBuildPath(pathname)) {
+    const legacy = legacyContentRedirect(pathname);
+    if (legacy) return { type: 'redirect', location: `${protocol}//${host}${legacy}${search}`, status: 301 };
   }
   if (lang === 'zh') return isEnglishBuildPath(pathname) ? to('en', englishPublicPath(pathname), 301) : { type: 'pass' };
   if (isEnglishBuildPath(pathname)) return to('en', englishPublicPath(pathname), 301);

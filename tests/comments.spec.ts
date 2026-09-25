@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const FINAL = '/articles/pkm-method/';
-const PROJECT = '/projects/aletheia/';
+const FINAL = '/pkm-method/';
+const PROJECT = '/aletheia/';
 
 test.describe('文章留言', () => {
   test('定稿页文末是发信表单，不是留言板', async ({ page }) => {

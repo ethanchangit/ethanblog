@@ -1,0 +1,14 @@
+---
+import { getEntry } from 'astro:content';
+import AboutPanel from '@/components/home/AboutPanel.astro';
+import Base from '@/layouts/Base.astro';
+import { profile } from '@/data/profile';
+
+const about = await getEntry('pages', 'about');
+---
+
+<Base title={about?.data.title ?? '关于'} description={about?.data.description ?? profile.bio}>
+  <div class="mx-auto max-w-3xl">
+    <AboutPanel />
+  </div>
+</Base>

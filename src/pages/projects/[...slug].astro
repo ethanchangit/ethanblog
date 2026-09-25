@@ -1,43 +1,18 @@
 ---
-import ReadingShell from '@/components/shell/ReadingShell.astro';
-import Doc from '@/layouts/Doc.astro';
-import Toc from '@/components/shell/Toc.astro';
-import { docsBySlot, findDoc, includeDraftsInDev } from '@/lib/docs';
-import { hasToc } from '@/lib/toc';
-import { render } from 'astro:content';
+import { docHref, docsBySlot, includeDraftsInDev } from '@/lib/docs';
 
 export const prerender = import.meta.env.PROD;
 
+// 旧地址 /projects/<id> 转到 /<slug>。/projects 列表仍由 index 提供。
 export async function getStaticPaths() {
   const projects = await docsBySlot('project', { includeDrafts: includeDraftsInDev });
-  return projects.map((project) => ({ params: { slug: project.id }, props: { project } }));
+  return projects.map((project) => ({
+    params: { slug: project.id },
+    props: { target: docHref(project) },
+  }));
 }
 
-const slug = Astro.params.slug ?? '';
-const project =
-  Astro.props.project ??
-  (await findDoc('projects', slug, { includeDrafts: includeDraftsInDev }));
-if (!project) {
-  return Astro.rewrite('/404');
-}
-const { Content, headings, remarkPluginFrontmatter } = await render(project);
-const split = remarkPluginFrontmatter.i18nHeadingSplit as number | undefined;
-const zhHeadings = typeof split === 'number' ? headings.slice(0, split) : headings;
-const enHeadings = typeof split === 'number' ? headings.slice(split) : [];
-const showRail = hasToc(zhHeadings);
+const target = Astro.props.target as string | undefined;
+if (!target) return Astro.rewrite('/404');
+return Astro.redirect(target, 301);
 ---
-
-<ReadingShell
-  kind="project"
-  title={project.data.title}
-  description={project.data.description}
-  currentId={project.id}
-  showRail={showRail}
->
-  <Doc doc={project}>
-    <Content />
-  </Doc>
-  <Fragment slot="rail">
-    <Toc headings={zhHeadings} />
-  </Fragment>
-</ReadingShell>

@@ -9,13 +9,13 @@ test.describe('Blogs 索引', () => {
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
-    await expect(page.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/heptabase-method"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/series-demo"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/series-demo/1"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/series-demo/2"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/projects/aletheia"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/pkm-method"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/heptabase-method"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/series-demo"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/series-demo/1"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/series-demo/2"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/embed-preview"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/aletheia"]')).toHaveCount(0);
     await expect(page.locator('main h3')).toHaveCount(56);
   });
 
@@ -25,8 +25,8 @@ test.describe('Blogs 索引', () => {
     await expect(page.locator('[data-reading-index-switch] a[href="/articles"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/projects"]')).toBeVisible();
     await expect(page.locator('[data-reading-index-switch] a[href="/blogs"]')).toHaveCount(0);
-    await expect(page.locator('a[href="/articles/pkm-method"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/articles/embed-preview"] h3')).toBeVisible();
-    await expect(page.locator('a[href="/projects/aletheia"]')).toHaveCount(0);
+    await expect(page.locator('a[href="/pkm-method"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/embed-preview"] h3')).toBeVisible();
+    await expect(page.locator('a[href="/aletheia"]')).toHaveCount(0);
   });
 });

@@ -1,3 +1,6 @@
+/** 文章标题在目录里的锚点。点它回到页顶；无 JS 时仍是指向文首的链接。 */
+export const DOC_TITLE_ID = 'doc-title';
+
 export interface TocHeading {
   depth: number;
   slug: string;

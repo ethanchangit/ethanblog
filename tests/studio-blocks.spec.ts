@@ -34,7 +34,7 @@ test.describe('Studio 块编辑器 / @ [[', () => {
     await expect(picker).toBeVisible();
     await expect(picker).toContainText('articles/pkm-method');
     await page.keyboard.press('Enter');
-    await expect(editor.locator('a[href="/articles/pkm-method"]')).toBeVisible();
+    await expect(editor.locator('a[href="/pkm-method"]')).toBeVisible();
 
     await page.keyboard.press('End');
     await page.keyboard.press('Enter');

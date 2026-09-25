@@ -4,19 +4,25 @@ import I18n from '@/components/shell/I18n.astro';
 import { pageOrder } from '@/data/page-order';
 import { copy, DEFAULT_LANG, type CopyKey } from '@/lib/i18n';
 import { pagePath } from '@/lib/locale';
-import { CONTACT_PATH, HOME_PATH, NOW_PATH, PRIVACY_PATH, SEARCH_PATH, TAGS_PATH } from '@/lib/routes';
+import { HOME_PATH, SEARCH_PATH, TAGS_PATH, sitePageHref } from '@/lib/routes';
+import { englishPages, translationSourceId } from '@/lib/docs';
 import { languageSwitchHref } from '@/lib/hosts';
 
 const lp = Astro.locals.localePath;
-const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft);
+const published = await getCollection('pages', ({ id, data }) => id !== 'blogs' && !data.draft && !data.translationOf);
 const rank = new Map<string, number>(pageOrder.map((id, index) => [id, index]));
-const hrefFor = (id: string) => (id === 'about' ? HOME_PATH : id === 'now' ? NOW_PATH : id === 'contact' ? CONTACT_PATH : id === 'privacy' ? PRIVACY_PATH : `/pages/${id}`);
+// 字标回首页文章列表。关于页在 /about，不走这个链接。
+const hrefFor = (id: string) => (id === 'about' ? HOME_PATH : sitePageHref(id));
+const englishTitles = new Map<string, string>();
+if (Astro.locals.lang === 'en') {
+  for (const page of await englishPages()) englishTitles.set(translationSourceId(page.id), page.data.title);
+}
 const labelFor = (id: string, title: string): { key?: CopyKey; text?: string } => {
   if (id === 'about') return { text: 'EthanChang' };
   if (id === 'now') return { key: 'navNow' };
   if (id === 'contact') return { key: 'navContact' };
   if (id === 'privacy') return { key: 'navPrivacy' };
-  return { text: title };
+  return { text: englishTitles.get(id) || title };
 };
 /** 顺序来自 src/data/page-order.ts。第一页靠左，其余跟在后面。标签和搜索不是站点页。 */
 const stations = published

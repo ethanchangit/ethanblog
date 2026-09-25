@@ -65,7 +65,7 @@ test.describe('站点搜索（无 JS）', () => {
 // Reference-only documents are searchable but stay out of the blog feed.
 test('全文搜索收录隐藏资料正文，而文章列表不收录', async ({ page }) => {
   await page.goto('/search?q=' + encodeURIComponent('读者从总览进来'), { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('a[href="/articles/series-demo/1"]')).toBeVisible();
+  await expect(page.locator('a[href="/series-demo/1"]')).toBeVisible();
   await page.goto('/articles', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('a[href="/articles/series-demo/1"]')).toHaveCount(0);
+  await expect(page.locator('a[href="/series-demo/1"]')).toHaveCount(0);
 });

@@ -11,15 +11,14 @@
  * `overflow: auto` 的左栏；当前项若靠近列表底部，看起来就像左栏被刷新到底。
  * ClientRouter persist 后还会 `activeElement.focus()`，同样会滚左栏。
  *
- * Escape / 字标 EthanChang 回到 `/`：左栏索引仍在，中栏是 About，列表无选中项。
- * 不能把回首页交给 ClientRouter：旧的 `/`→`/articles` 301 会被浏览器缓存，
- * 点字标就会停在文章列表，而不是分栏首页。
+ * Escape / 字标 EthanChang 回到 `/`：主栏是文章列表，不预选任何一篇，也不打开关于。
+ * 分栏里不把回首页交给 ClientRouter，避免整页 morph。
  * 左栏展开（data-reading-expand）：壳内把左栏拉成主视图，pushState 到
  * `/articles` 或 `/projects`，不整页跳走。收起（data-reading-collapse）与字标
- * 同一条 goHome：中栏 About、左栏缩回，URL → `/` 或 `/zh`。
+ * 同一条 goHome：文章列表、无选中项，URL → `/`。
  * 无 JS / 窄屏 / 不在阅读壳里时链接仍是普通导航。
  */
-import { profile, site } from '@/data/profile';
+import { site } from '@/data/profile';
 import { applyLang, copy, readLang } from '@/lib/i18n';
 import { localeFromPath, localeHrefForLang, pagePath } from '@/lib/locale';
 import { reducedMotion } from '@/lib/motion';
@@ -59,13 +58,17 @@ function homeHref(): string {
   return new URL(localeHrefForLang(HOME_PATH, currentLang()), location.origin).href;
 }
 
-/** 绕开已被缓存的 `/` → `/articles` 301。 */
-function homeFallbackHref(): string {
-  return `${homeHref()}?`;
+function articlesIndexHref(): string {
+  return new URL(localeHrefForLang(ARTICLES_PATH, currentLang()), location.origin).href;
 }
 
-function alreadyOnHome(): boolean {
-  return isHomePath(location.pathname) && !!document.querySelector('[data-about-panel]');
+function isUnselectedArticleListHome(): boolean {
+  if (!isHomePath(location.pathname) || !isIndexLayout()) return false;
+  const aside = indexEl();
+  if (!aside) return false;
+  const articlesPath = canonicalizePath(new URL(articlesIndexHref()).pathname);
+  if (canonicalizePath(aside.getAttribute('data-reading-index-src') ?? '') !== articlesPath) return false;
+  return !aside.querySelector('a[aria-current="page"]');
 }
 
 function shellEl(): HTMLElement | null {
@@ -102,13 +105,6 @@ function applyIndexPageMeta(kind: IndexKind) {
   document.documentElement.setAttribute('data-desc-en', copy['zh-CN'][descKey]);
 }
 
-function applyHomePageMeta() {
-  document.documentElement.setAttribute('data-title-zh', `${site.title} — ${copy['zh-CN'].siteBlog}`);
-  document.documentElement.setAttribute('data-title-en', `${site.title} — ${copy['zh-CN'].siteBlog}`);
-  document.documentElement.setAttribute('data-desc-zh', profile.bio);
-  document.documentElement.setAttribute('data-desc-en', profile.bio);
-}
-
 function syncExpandedChrome(shell: HTMLElement) {
   const expanded = shell.getAttribute('data-reading-shell') === 'index';
   if (expanded) {
@@ -135,29 +131,6 @@ function setReadingLayout(shell: HTMLElement, kind: 'article' | 'project' | 'hom
   }
   shell.setAttribute('data-reading-shell', kind);
   syncExpandedChrome(shell);
-}
-
-async function fetchHomeParsed(signal: AbortSignal): Promise<Document> {
-  for (const href of [homeHref(), homeFallbackHref()]) {
-    const res = await fetch(href, {
-      signal,
-      cache: 'no-store',
-      headers: { Accept: 'text/html' },
-    });
-    if (!res.ok) continue;
-    let landed = HOME_PATH;
-    try {
-      landed = canonicalizePath(new URL(res.url).pathname);
-    } catch {
-      continue;
-    }
-    if (pagePath(landed) !== HOME_PATH) continue;
-    const parsed = new DOMParser().parseFromString(neutralizeIslands(await res.text()), 'text/html');
-    if (parsed.querySelector('[data-about-panel]') && parsed.querySelector('[data-reading-doc]')) {
-      return parsed;
-    }
-  }
-  throw new Error('no home');
 }
 
 export function indexKindFromPath(pathname: string): IndexKind | null {
@@ -398,11 +371,11 @@ async function swapReadingIndex(href: string, kind: IndexKind): Promise<boolean>
   }
 }
 
-async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home') {
+async function swapReadingDoc(href: string, kind: 'article' | 'project') {
   const shell = document.querySelector('[data-reading-shell]');
   const docPane = document.querySelector('[data-reading-doc]');
   if (!(shell instanceof HTMLElement) || !(docPane instanceof HTMLElement)) {
-    location.href = kind === 'home' ? homeFallbackHref() : href;
+    location.href = href;
     return;
   }
 
@@ -410,33 +383,11 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home'
   try {
     dest = new URL(href, location.href);
   } catch {
-    location.href = kind === 'home' ? homeFallbackHref() : href;
+    location.href = href;
     return;
   }
-  const destPath =
-    kind === 'home' ? canonicalizePath(new URL(homeHref()).pathname) : canonicalizePath(dest.pathname);
+  const destPath = canonicalizePath(dest.pathname);
   if (shownDocSrc(docPane) === destPath && sameDocPath(destPath) && !isIndexLayout()) return;
-
-  if (kind === 'home' && docPane.querySelector('[data-about-panel]')) {
-    const restoreIndexScroll = preserveIndexScroll(indexEl());
-    inflight?.abort();
-    inflight = null;
-    generation += 1;
-    shell.querySelector('[data-reading-rail]')?.remove();
-    docPane.setAttribute('data-reading-doc-src', destPath);
-    docPane.scrollTop = 0;
-    applyHomePageMeta();
-    applyCanonical(homeHref());
-    setReadingLayout(shell, 'home');
-    pushReadingUrl(homeHref(), { readingDoc: destPath });
-    blurIndexFocus();
-    markCurrent();
-    applyLang(readLang());
-    restoreIndexScroll();
-    document.dispatchEvent(new Event('astro:page-load'));
-    restoreIndexScroll();
-    return;
-  }
 
   const aside = indexEl();
   const restoreIndexScroll = preserveIndexScroll(aside);
@@ -448,17 +399,12 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home'
   docPane.setAttribute('aria-busy', 'true');
 
   try {
-    let parsed: Document;
-    if (kind === 'home') {
-      parsed = await fetchHomeParsed(inflight.signal);
-    } else {
-      const res = await fetch(dest.href, {
-        signal: inflight.signal,
-        headers: { Accept: 'text/html' },
-      });
-      if (!res.ok) throw new Error('bad status');
-      parsed = new DOMParser().parseFromString(neutralizeIslands(await res.text()), 'text/html');
-    }
+    const res = await fetch(dest.href, {
+      signal: inflight.signal,
+      headers: { Accept: 'text/html' },
+    });
+    if (!res.ok) throw new Error('bad status');
+    const parsed = new DOMParser().parseFromString(neutralizeIslands(await res.text()), 'text/html');
     const source = parsed.querySelector('[data-reading-doc]');
     if (!source) throw new Error('no doc');
     source.querySelectorAll('script').forEach((el) => el.remove());
@@ -470,7 +416,7 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home'
     applyRail(shell, parsed);
     setReadingLayout(shell, kind);
     applyDocMeta(parsed);
-    pushReadingUrl(kind === 'home' ? homeHref() : dest.href, { readingDoc: destPath });
+    pushReadingUrl(dest.href, { readingDoc: destPath });
     blurIndexFocus();
     markCurrent();
     applyLang(readLang());
@@ -479,7 +425,7 @@ async function swapReadingDoc(href: string, kind: 'article' | 'project' | 'home'
     restoreIndexScroll();
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return;
-    location.href = kind === 'home' ? homeFallbackHref() : href;
+    location.href = href;
   } finally {
     if (myGen === generation) docPane.removeAttribute('aria-busy');
     restoreIndexScroll();
@@ -526,13 +472,33 @@ async function expandReadingIndex(href: string) {
   document.dispatchEvent(new Event('astro:page-load'));
 }
 
-async function goHome(href: string) {
-  if (splitIndexVisible()) {
-    if (alreadyOnHome() && !isIndexLayout()) return;
-    await swapReadingDoc(href, 'home');
+async function goHome(_href: string) {
+  if (!splitIndexVisible()) {
+    location.assign(homeHref());
     return;
   }
-  location.assign(homeFallbackHref());
+  if (isUnselectedArticleListHome()) return;
+  const shell = shellEl();
+  if (!shell) {
+    location.assign(homeHref());
+    return;
+  }
+  const articlesHref = articlesIndexHref();
+  const articlesPath = canonicalizePath(new URL(articlesHref).pathname);
+  const aside = indexEl();
+  if (aside && canonicalizePath(aside.getAttribute('data-reading-index-src') ?? '') !== articlesPath) {
+    const ok = await swapReadingIndex(articlesHref, 'articles');
+    if (!ok) return;
+  }
+  applyIndexPageMeta('articles');
+  applyCanonical(homeHref());
+  setReadingLayout(shell, 'index');
+  const home = homeHref();
+  pushReadingUrl(home, { readingLayout: 'index', readingIndex: articlesPath });
+  blurIndexFocus();
+  markCurrent();
+  applyLang(readLang());
+  document.dispatchEvent(new Event('astro:page-load'));
 }
 
 function onMouseDown(event: MouseEvent) {

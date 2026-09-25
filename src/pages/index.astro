@@ -1,9 +1,11 @@
 ---
 import ReadingShell from '@/components/shell/ReadingShell.astro';
-import AboutPanel from '@/components/home/AboutPanel.astro';
-import { profile } from '@/data/profile';
+import { copy } from '@/lib/i18n';
 ---
 
-<ReadingShell kind="home" description={profile.bio}>
-  <AboutPanel />
-</ReadingShell>
+<ReadingShell
+  kind="index"
+  indexList="articles"
+  title={copy['zh-CN'].articlesTitle}
+  description={copy['zh-CN'].articlesDesc}
+/>

@@ -1,5 +1,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { articleHref, projectHref, urlArticleHref } from '@/lib/routes';
+import { articleHref, FIXED_PAGE_IDS, projectHref, reservedPathSegment, sitePageHref, urlArticleHref } from '@/lib/routes';
+
+export { sitePageHref };
 
 /** 哪份索引收录这条文档。与 topical `tags` 无关。 */
 export type DocSlot = 'article' | 'project';
@@ -11,14 +13,20 @@ export function isTranslation(entry: EntryLike): boolean {
   return Boolean(entry.data.translationOf);
 }
 
+/** `<id>/en` is the translation file, not a different public path. */
+export function translationSourceId(id: string): string {
+  return id.replace(/\/[a-z]{2,3}$/, '');
+}
+
 /**
- * Path of a document on its own site. Chinese articles live on cn.ethanchang.io and their
- * translations on ethanchang.io at the same path: /<url>, or /articles/<id> without URL.
+ * Path of a document on its own site. Chinese pages live on cn.ethanchang.io and English
+ * translations on ethanchang.io at the same path: /<url> when the card sets URL, otherwise /<id>.
  */
 export function docHref(entry: EntryLike): string {
-  if (entry.data.slot === 'project') return projectHref(entry.id);
+  const id = isTranslation(entry) ? translationSourceId(entry.id) : entry.id;
+  if (entry.data.slot === 'project') return projectHref(id);
   if (entry.data.url) return urlArticleHref(entry.data.url);
-  return articleHref(isTranslation(entry) ? entry.id.replace(/\/[a-z]{2,3}$/, '') : entry.id);
+  return articleHref(id);
 }
 
 /**
@@ -39,10 +47,21 @@ export async function englishArticles(opts: { includeDrafts?: boolean } = {}): P
   return getCollection('articles', ({ data }) => Boolean(data.translationOf) && data.language === 'en' && (opts.includeDrafts || !data.draft));
 }
 
-/** The #blog article a translation belongs to. */
-export async function translationSource(entry: EntryLike, opts: { includeDrafts?: boolean } = {}): Promise<CollectionEntry<'articles'> | undefined> {
+/** English project pages. A project without a translation is not listed here. */
+export async function englishProjects(opts: { includeDrafts?: boolean } = {}): Promise<CollectionEntry<'projects'>[]> {
+  return getCollection('projects', ({ data }) => Boolean(data.translationOf) && data.language === 'en' && (opts.includeDrafts || !data.draft));
+}
+
+/** English site pages. The file id is `<source>/<language>`; the public path stays the source page's path. */
+export async function englishPages(opts: { includeDrafts?: boolean } = {}): Promise<CollectionEntry<'pages'>[]> {
+  return getCollection('pages', ({ data }) => Boolean(data.translationOf) && data.language === 'en' && (opts.includeDrafts || !data.draft));
+}
+
+/** The #blog card a translation belongs to. */
+export async function translationSource(entry: EntryLike, opts: { includeDrafts?: boolean } = {}): Promise<DocEntry | undefined> {
   if (!entry.data.translationOf) return undefined;
-  return (await getCollection('articles', ({ data }) => !data.translationOf && (opts.includeDrafts || !data.draft)))
+  const collection = entry.data.slot === 'project' ? 'projects' : 'articles';
+  return (await getCollection(collection, ({ data }) => !data.translationOf && (opts.includeDrafts || !data.draft)))
     .find((other) => other.data.heptabaseCardLink === entry.data.translationOf);
 }
 
@@ -53,10 +72,11 @@ export type LanguageVersion = { lang: 'zh' | 'en'; label: string; href: string }
  * cn.ethanchang.io and the English translation on ethanchang.io. Missing ones are left out.
  */
 export async function languageVersions(entry: DocEntry, opts: { includeDrafts?: boolean } = {}): Promise<LanguageVersion[]> {
-  if (entry.data.slot !== 'article') return [];
+  if (entry.data.slot !== 'article' && entry.data.slot !== 'project') return [];
   const source = isTranslation(entry) ? await translationSource(entry, opts) : entry;
   if (!source?.data.heptabaseCardLink) return [];
-  const english = (await englishArticles(opts)).find((other) => other.data.translationOf === source.data.heptabaseCardLink);
+  const englishPool = entry.data.slot === 'project' ? await englishProjects(opts) : await englishArticles(opts);
+  const english = englishPool.find((other) => other.data.translationOf === source.data.heptabaseCardLink);
   const versions: LanguageVersion[] = [];
   if (isTranslation(entry)) versions.push({ lang: 'zh', label: '中文', href: docHref(source) });
   else if (english) versions.push({ lang: 'en', label: 'English', href: docHref(english) });
@@ -82,7 +102,7 @@ export async function loadDocs(opts: { includeDrafts?: boolean } = {}): Promise<
   const [articles, projects] = await Promise.all([
     // Translations belong to the English site; every Chinese list, index and feed skips them.
     getCollection('articles', ({ data }) => !data.translationOf && (opts.includeDrafts || !data.draft)),
-    getCollection('projects', opts.includeDrafts ? undefined : ({ data }) => !data.draft),
+    getCollection('projects', ({ data }) => !data.translationOf && (opts.includeDrafts || !data.draft)),
   ]);
   return [...articles, ...projects];
 }
@@ -177,4 +197,62 @@ export async function seriesContext(
     isHub: !parentId && chapters.length > 0,
     isChapter: Boolean(parentId),
   };
+}
+
+export type PublicRoute =
+  | { path: string; kind: 'article'; article: CollectionEntry<'articles'> }
+  | { path: string; kind: 'project'; project: CollectionEntry<'projects'> }
+  | { path: string; kind: 'page'; page: CollectionEntry<'pages'> }
+  | { path: string; kind: 'redirect'; target: string };
+
+function claimPublicPath(owners: Map<string, string>, path: string, label: string): void {
+  const reserved = reservedPathSegment(path);
+  if (reserved) throw new Error(`「${label}」的地址 /${path} 与网站固定地址 /${reserved} 冲突。`);
+  const previous = owners.get(path);
+  if (previous) throw new Error(`地址 /${path} 同时被「${previous}」和「${label}」使用。`);
+  owners.set(path, label);
+}
+
+/** 中文站根路径上的文章、项目和站点页。固定地址和重复 slug 在构建时拒绝。 */
+export async function publicContentRoutes(opts: { includeDrafts?: boolean } = {}): Promise<PublicRoute[]> {
+  const [articles, projects, pages] = await Promise.all([
+    docsBySlot('article', opts),
+    docsBySlot('project', opts),
+    getCollection(
+      'pages',
+      ({ id, data }) => !data.translationOf && !FIXED_PAGE_IDS.has(id) && (opts.includeDrafts || !data.draft),
+    ),
+  ]);
+  const routes: PublicRoute[] = [];
+  const owners = new Map<string, string>();
+  for (const article of articles) {
+    if (/^\d+$/.test(article.id)) continue;
+    const path = docHref(article).replace(/^\//, '');
+    claimPublicPath(owners, path, article.data.title);
+    routes.push({ path, kind: 'article', article });
+    if (article.id !== path) {
+      claimPublicPath(owners, article.id, `${article.data.title} 的文件名`);
+      routes.push({ path: article.id, kind: 'redirect', target: `/${path}` });
+    }
+  }
+  for (const project of projects) {
+    const path = docHref(project).replace(/^\//, '');
+    claimPublicPath(owners, path, project.data.title);
+    routes.push({ path, kind: 'project', project });
+  }
+  for (const page of pages) {
+    const path = sitePageHref(page.id).replace(/^\//, '');
+    if (!path) continue;
+    claimPublicPath(owners, path, page.data.title);
+    routes.push({ path, kind: 'page', page });
+  }
+  return routes;
+}
+
+export async function resolvePublicPath(
+  path: string,
+  opts: { includeDrafts?: boolean } = {},
+): Promise<PublicRoute | undefined> {
+  const normalized = path.replace(/^\/+|\/+$/g, '');
+  return (await publicContentRoutes(opts)).find((route) => route.path === normalized);
 }

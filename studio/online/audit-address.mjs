@@ -1,8 +1,8 @@
 /**
  * Address shown in the dashboard 属性 block.
- * The live site is unchanged: a slug is /<slug> on cn.ethanchang.io (and the same
- * path on the English host). An older article with no slug is still served at
- * /articles/<id>. This label never includes the domain or the articles/projects/pages prefix.
+ * A single article, project, or page is /<slug> on cn.ethanchang.io and the same
+ * path on the English host. This label never includes the domain or an
+ * articles/projects/pages prefix.
  */
 export function auditAddress(card) {
   if (!card) return '';

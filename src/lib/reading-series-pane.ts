@@ -12,6 +12,8 @@
  */
 import { applyLang, readLang, t } from '@/lib/i18n';
 import { pagePath } from '@/lib/locale';
+import { RESERVED_URLS } from '@/lib/routes';
+import { DOC_TITLE_ID } from '@/lib/toc';
 
 const RAIL_MQ = '(min-width: 1024px)';
 
@@ -71,12 +73,20 @@ function isChapterOfHub(pathname: string, hub: string): boolean {
 }
 
 function isArticleOrProjectPath(path: string): boolean {
-  return path.startsWith('/articles/') || path.startsWith('/projects/');
+  if (path.startsWith('/articles/') || path.startsWith('/projects/')) {
+    const rest = path.split('/').slice(2).join('/');
+    if (path.startsWith('/articles/') && /^\d+$/.test(rest)) return false;
+    return Boolean(rest);
+  }
+  const segment = path.replace(/^\/+/, '').split('/')[0] ?? '';
+  if (!segment || (RESERVED_URLS as readonly string[]).includes(segment)) return false;
+  return true;
 }
 
 function overlayBlocksEscape(): boolean {
   if (document.querySelector('[role="dialog"][aria-modal="true"]')) return true;
   if (document.querySelector('[role="listbox"]')) return true;
+  if (document.querySelector('[data-mention-preview][data-open]')) return true;
   return false;
 }
 
@@ -209,6 +219,7 @@ async function openChild(href: string) {
     const source = extractArticleShell(doc);
     if (!source) throw new Error('no article');
     source.querySelectorAll('script').forEach((el) => el.remove());
+    if (source instanceof HTMLElement && source.id === DOC_TITLE_ID) source.removeAttribute('id');
     adoptHeadAssets(doc);
     const rail = ensureRail();
     if (!rail) throw new Error('no rail');
@@ -279,6 +290,7 @@ function onClick(event: MouseEvent) {
 
   const link = el.closest('a');
   if (!(link instanceof HTMLAnchorElement)) return;
+  if (link.hasAttribute('data-mention-preview-suppress')) return;
   if (link.hasAttribute('download')) return;
   if (link.target && link.target !== '_self') return;
 

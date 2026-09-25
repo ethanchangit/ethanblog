@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-const HUB = '/articles/series-demo';
-const PART1 = '/articles/series-demo/1';
-const PART2 = '/articles/series-demo/2';
+const HUB = '/series-demo';
+const PART1 = '/series-demo/1';
+const PART2 = '/series-demo/2';
 const HUB_TITLE = "这是我们 blog 发布一篇合集的样子";
 const PART1_TITLE = "系列演示 · 第 1 页";
 const PART2_TITLE = "系列演示 · 第 2 页";
@@ -58,7 +58,7 @@ test.describe('系列子文', () => {
     await expect(page.locator('nav.reading-series')).toHaveCount(0);
 
     await listing.locator(`a[href="${PART1}"]`).click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(HUB_TITLE, {
       useInnerText: true,
     });
@@ -74,7 +74,7 @@ test.describe('系列子文', () => {
     await expect(child.locator('[data-series-next]')).toHaveAttribute('href', PART2);
 
     await child.locator('[data-series-next]').click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/?$/);
     await expect(child.locator('.article-lede h1')).toHaveText(PART2_TITLE, { useInnerText: true });
     await expect(child.locator('[data-series-prev]')).toHaveAttribute('href', PART1);
     await expect(child.locator('[data-series-next]')).toHaveCount(0);
@@ -97,19 +97,19 @@ test.describe('系列子文', () => {
     await expect(page.locator('[data-series-next]')).toHaveAttribute('href', PART2);
 
     await page.locator('[data-series-next]').click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/2\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/2\/?$/);
     await expect(page.locator('[data-series-prev]')).toHaveAttribute('href', PART1);
     await expect(page.locator('[data-series-next]')).toHaveCount(0);
 
     await page.locator('[data-series="parent"] a').click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/?$/);
   });
 
   test('低于第三栏宽度时篇目仍整页打开', async ({ page }) => {
     await page.setViewportSize({ width: 800, height: 720 });
     await page.goto(HUB, { waitUntil: 'domcontentloaded' });
     await page.locator(`${HUB_LISTING} a[href="${PART1}"]`).click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/1\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/1\/?$/);
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText(PART1_TITLE, {
       useInnerText: true,
     });
@@ -122,26 +122,26 @@ test.describe('系列子文（无 JS）', () => {
   test('总览篇目和子页翻页仍是真实链接', async ({ page }) => {
     await page.goto(HUB, { waitUntil: 'domcontentloaded' });
     await page.locator(`${HUB_LISTING} a[href="${PART1}"]`).click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/1\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/1\/?$/);
     await page.locator('[data-series-next]').click();
-    await expect(page).toHaveURL(/\/articles\/series-demo\/2\/?$/);
+    await expect(page).toHaveURL(/\/series-demo\/2\/?$/);
   });
 });
 
 test('行内 mention 和引用中的下一层 mention 在右栏打开，主文章保持不变', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route('**/articles/series-demo/1', async route => {
+  await page.route('**/series-demo/1', async route => {
     const response = await route.fetch();
     const html = await response.text();
     const body = html.replace('这是教程的第 1 页。读者从总览进来，再翻到下一页。',
-      '这是教程的第 1 页。<a href="/projects/robert" data-doc-mention>下一层引用资料</a>');
+      '这是教程的第 1 页。<a href="/robert" data-doc-mention>下一层引用资料</a>');
     expect(body).not.toBe(html);
     await route.fulfill({ response, body });
   });
-  await page.goto('/articles/pkm-method', { waitUntil: 'domcontentloaded' });
+  await page.goto('/pkm-method', { waitUntil: 'domcontentloaded' });
   // The same marker emitted by fromHeptabase; no production content fixture is added.
   await page.evaluate(() => {
-    const link = document.createElement('a'); link.href = '/articles/series-demo/1';
+    const link = document.createElement('a'); link.href = '/series-demo/1';
     link.dataset.docMention = ''; link.textContent = '打开行内引用资料';
     const prose = document.querySelector<HTMLElement>('[data-reading-doc] .prose-site')!;
     prose.insertBefore(link, prose.firstChild);
@@ -149,12 +149,12 @@ test('行内 mention 和引用中的下一层 mention 在右栏打开，主文�
   await page.getByRole('link', { name: '打开行内引用资料' }).click();
   const child = page.locator('[data-reading-child]');
   await expect(child.locator('.article-lede h1')).toHaveText(PART1_TITLE);
-  await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
+  await expect(page).toHaveURL(/\/pkm-method\/?$/);
   await child.getByRole('link', { name: '下一层引用资料' }).click();
-  await expect(page.locator('[data-reading-rail]')).toHaveAttribute('data-reading-child-src', '/projects/robert');
+  await expect(page.locator('[data-reading-rail]')).toHaveAttribute('data-reading-child-src', '/robert');
   await expect(child.locator('.article-lede h1')).toBeVisible();
   await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络');
-  await expect(page).toHaveURL(/\/articles\/pkm-method\/?$/);
+  await expect(page).toHaveURL(/\/pkm-method\/?$/);
   await child.locator('[data-reading-child-close]').click();
   await expect(child).toHaveCount(0);
 });
