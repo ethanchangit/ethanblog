@@ -20,7 +20,7 @@ import {
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists } from './heptabase.mjs';
-import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation } from './card-properties.mjs';
+import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
 import { BLOG_INDEX, asReferenceSource, removalReason, removalReasons, removalScope, settleRemovals, linkedPaths, withoutIndexRefs } from './removals.mjs';
@@ -1172,7 +1172,8 @@ async function rememberProperties(env, id, properties) {
 // at the same path on their language's site). Without URL it keeps its current slug.
 function articleRoute(properties) {
   if (!properties.member || collectionForBlogType(properties.type) !== 'articles' || !properties.url) return null;
-  return { id: properties.url, url: properties.url };
+  const slug = assertArticleSlug(properties.url);
+  return { id: slug, url: slug };
 }
 
 function assertRouteFree(entries, route, cardLink) {
