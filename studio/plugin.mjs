@@ -128,6 +128,19 @@ function studioDevPlugin(root = ROOT) {
       server.middlewares.use(async (req, res, next) => {
         const rawUrl = req.url ?? '/';
         const pathname = rawUrl.split('?')[0];
+        if (pathname === '/sample-blog' || pathname.startsWith('/sample-blog/')) {
+          if (!isLocalHost(req.headers.host)) {
+            res.statusCode = 404;
+            res.end('Not found');
+            return;
+          }
+          const { sampleBlogResponse } = await import('./online/sample-blog.mjs');
+          const host = req.headers.host || 'localhost';
+          const response = await sampleBlogResponse(`http://${host}${rawUrl}`);
+          res.writeHead(response.status, Object.fromEntries(response.headers));
+          res.end(Buffer.from(await response.arrayBuffer()));
+          return;
+        }
         if (pathname === '/dashboard/preview.html') {
           req.url = '/dashboard/preview/';
           return next();

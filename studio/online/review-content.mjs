@@ -70,7 +70,15 @@ export async function renderedProse(source, renderReference = () => '', context 
   let body = source.replace(/<DocList(?:\s+[^>]*)?>\s*([\s\S]*?)\s*<\/DocList>/g, (whole, children) => {
     if (children.replace(/<DocRef\s+of=["'][^"']+["']\s*\/>/g, '').trim()) return whole;
     return children.replace(/<DocRef\s+of=["']([^"']+)["']\s*\/>/g, (_, path) => `\n\nDASHBOARDREF${tokens.push(renderReference(path)) - 1}END\n\n`);
-  }).replace(/<a\s+href="([^"\n]+)"\s+data-doc-mention\s*>([\s\S]*?)<\/a>/g, (_, href, label) => `[${label}](${href})`);
+  }).replace(/<a\b([^>]*\bdata-doc-mention\b[^>]*)>([\s\S]*?)<\/a>/gi, (whole, attrs, label) => {
+    const href = /\bhref\s*=\s*"([^"\n]+)"/.exec(attrs)?.[1];
+    if (!href) return whole;
+    return `[${label.replace(/[\[\]]/g, '')}](${href})`;
+  }).replace(/<hepta-mention\b([^>]*)>([\s\S]*?)<\/hepta-mention>/gi, (whole, attrs, label) => {
+    const id = /(?:^|\s)id\s*=\s*(["'])([^"']+)\1/.exec(attrs)?.[2];
+    if (!id) return whole;
+    return `[${label.replace(/[\[\]]/g, '').trim()}](heptabase://card/${id})`;
+  });
   body = body.replace(/DASHBOARDCODE(\d+)END/g, (_, n) => code[Number(n)]);
   // Raw HTML is text, never trusted HTML. Markdown links are filtered as well.
   // Individual review blocks still resolve reference-style links defined elsewhere

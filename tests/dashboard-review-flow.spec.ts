@@ -26,17 +26,19 @@ async function openLocal(page: Page) {
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
 }
 
-test('直接发布不能开始时，发布栏说明原因', async ({ page }) => {
+test('本地预览打开后就是审核界面，不用先拉取', async ({ page }) => {
   await openLocal(page);
-  await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await expect(page.locator('#release [data-release-notice]')).toContainText('请先拉取');
-  await expect(page.locator('#release [data-release-notice]')).toHaveAttribute('role', 'alert');
+  await expect(page.getByRole('tab', { name: /New articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Deleted articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Pages/ })).toBeVisible();
+  await expect(page.locator('#release [data-release-notice]')).not.toContainText('请先拉取');
 });
 
 test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
   await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.locator('.progress-count')).toHaveText('已审 0 / 6');
+  await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   const commit = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/git/commit'));
   await page.getByRole('button', { name: '直接发布', exact: true }).click();
   await commit;
@@ -47,32 +49,34 @@ test('拉取后点直接发布会送出计划，发布栏不会保持沉默', as
   await expect(notice).not.toHaveText('正在直接发布…');
 });
 
-test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审，进度随之更新', async ({ page }) => {
+test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.locator('.progress-count')).toHaveText('已审 0 / 6');
+  await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(page.locator('#release')).toContainText('还有 6 条待审');
   const pressed = () => page.locator('#review-list .review-item[data-selected=true] > .card-select');
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
-  await page.keyboard.press('j');
-  await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
-  await page.keyboard.press('k');
-  await page.keyboard.press('k');
-  await expect(page.getByRole('tab', { name: /New articles/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(pressed()).toHaveText('一次还没想清楚的尝试'); await idle();
-  await page.keyboard.press('j');
-  await expect(page.getByRole('tab', { name: /Edited articles/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
-  await expect(pressed()).toBeFocused();
-  await page.keyboard.press('ArrowDown');
-  await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
-  await expect(pressed()).toBeFocused();
-  await page.keyboard.press('ArrowUp');
-  await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
-  await page.keyboard.press('d');
-  await expect(page.locator('.diff-summary')).toBeVisible(); await idle();
+  await expect(page.locator('iframe.article-preview')).toBeVisible();
+  const edges = await page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
+    const frame = box('iframe.article-preview');
+    if (!frame) return [];
+    return ['.preview-heading', '.translation-row', 'section.review-meta', 'p.preview-summary'].map(selector => {
+      const node = box(selector);
+      return node ? { selector, left: node.left - frame.left, right: node.right - frame.right, width: node.width } : { selector, missing: true };
+    });
+  });
+  for (const edge of edges) {
+    expect(edge, edge.selector).not.toHaveProperty('missing');
+    expect(Math.abs(edge.left ?? 99)).toBeLessThan(1);
+    expect(Math.abs(edge.right ?? 99)).toBeLessThan(1);
+    expect(edge.width).toBeGreaterThan(700);
+  }
+  expect(await page.locator('#review-preview').evaluate(node => getComputedStyle(node).borderTopWidth)).toBe('0px');
+  await page.getByRole('button', { name: '段落对比', exact: true }).click();
+  await expect(page.locator('.full-diff')).toBeVisible(); await idle();
   await expect(page.locator('#release .muted')).not.toHaveText('');
   const reviewRequests = { decision: 0, preview: 0, git: 0 };
   page.on('request', request => {
@@ -82,12 +86,11 @@ test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审
     if (path.endsWith('/git') || path.endsWith('/docs')) reviewRequests.git += 1;
   });
   const detail = page.locator('#review-preview .detail-actions');
-  await page.keyboard.press('a');
+  await page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
   await expect(page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '拒绝「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('.progress-count')).toHaveText('已审 1 / 6');
   await expect(page.locator('.review-meta code').first()).toHaveText(/^\/[^/].*/);
   await expect(page.locator('.review-meta')).not.toContainText('ethanchang.io');
   await expect(page.locator('.review-meta')).not.toContainText('/articles/');
@@ -97,23 +100,63 @@ test('键盘逐条审核：J/K 移动，A/R 决定后自动跳到下一条未审
   await dialog.getByRole('textbox', { name: '备注' }).fill('标签还要再想想');
   await dialog.getByRole('button', { name: '拒绝', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#notice')).toContainText('发布上线后');
-  await expect(page.locator('#notice')).toContainText('Edited articles 已全部审完');
-  await expect(page.locator('.progress-count')).toHaveText('已审 2 / 6');
+  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
   await expect(page.locator('#release')).toContainText('还有 4 条待审');
   await expect(page.locator('#release').getByRole('button', { name: '直接发布', exact: true })).toBeVisible();
   await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.remark-field')).toHaveCount(0);
-  await detail.getByRole('button', { name: '通过', exact: true }).focus();
-  await page.keyboard.press('a');
+  await detail.getByRole('button', { name: '通过', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('#notice')).toContainText('已改判');
-  await expect(page.locator('.progress-count')).toHaveText('已审 2 / 6');
+  await expect(page.locator('#review-preview #notice')).toHaveCount(0);
   expect(reviewRequests).toEqual({ decision: 0, preview: 0, git: 0 });
   expect(errors).toEqual([]);
+});
+
+test('审核列表只有标题，Shift 连选停在当前可见条目', async ({ page }) => {
+  await openLocal(page);
+  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await page.getByRole('tab', { name: /New articles/ }).click();
+  const fresh = page.locator('#review-items');
+  await expect(fresh.locator('.item-meta')).toHaveCount(0);
+  await expect(fresh).not.toContainText('article ·');
+  await expect(fresh).not.toContainText('标签：');
+  const boxes = fresh.locator('> .review-item > .batch-pick');
+  await expect(boxes).toHaveCount(2);
+  const preview = page.locator('.preview-title');
+  const before = await preview.innerText();
+  await boxes.nth(0).click();
+  await expect(boxes.nth(0)).toBeChecked();
+  await expect(boxes.nth(1)).not.toBeChecked();
+  await boxes.nth(1).click({ modifiers: ['Shift'] });
+  await expect(boxes.nth(0)).toBeChecked();
+  await expect(boxes.nth(1)).toBeChecked();
+  await expect(preview).toHaveText(before);
+  await page.getByRole('tab', { name: /Edited articles/ }).click();
+  const edited = page.locator('#review-items');
+  await expect(edited.locator('.item-meta')).toHaveCount(0);
+  await expect(edited).not.toContainText('仅标签更新');
+  await expect(edited).not.toContainText('已通过，待发布');
+  const editedBoxes = edited.locator('> .review-item > .batch-pick');
+  await expect(editedBoxes).toHaveCount(2);
+  await expect(editedBoxes.nth(0)).not.toBeChecked();
+  await expect(editedBoxes.nth(1)).not.toBeChecked();
+  await editedBoxes.nth(1).click({ modifiers: ['Shift'] });
+  await expect(editedBoxes.nth(0)).not.toBeChecked();
+  await expect(editedBoxes.nth(1)).toBeChecked();
+  await editedBoxes.nth(0).click({ modifiers: ['Shift'] });
+  await expect(editedBoxes.nth(0)).toBeChecked();
+  await expect(editedBoxes.nth(1)).toBeChecked();
+  await page.getByRole('tab', { name: /Deleted articles/ }).click();
+  const removed = page.locator('#review-items');
+  await expect(removed.locator('.item-meta')).toHaveCount(0);
+  await expect(removed.locator('> .review-item > .batch-pick').first()).not.toBeChecked();
+  await page.getByRole('tab', { name: /New articles/ }).click();
+  await expect(page.locator('#review-items > .review-item > .batch-pick')).toHaveCount(2);
+  await expect(page.locator('#review-items > .review-item > .batch-pick').nth(0)).toBeChecked();
+  await expect(page.locator('#review-items > .review-item > .batch-pick').nth(1)).toBeChecked();
 });
 
 test('宽屏左右分栏、两栏各自滚动，窄屏上下堆叠', async ({ page }) => {

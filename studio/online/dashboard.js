@@ -1,10 +1,11 @@
 import './dashboard.css';
-import { paragraphs, paragraphDiff, renderedProse, tagDiff, onlyTagsChanged } from './review-content.mjs';
+import { paragraphs, paragraphDiff, renderedProse, tagDiff } from './review-content.mjs';
 import { formatDate as siteDate } from '../../src/lib/format.ts';
 import { IO_CONCURRENCY, mapLimited, previewBodyKey } from './pool.mjs';
 import { auditAddress } from './audit-address.mjs';
 import { directPublishFeedback, directPublishPlan } from './direct-publish.mjs';
-import { applyLocalDecision, decisionBatch, pageChoicePayload } from './local-decisions.mjs';
+import { applyLocalDecision, decisionBatch, pageChoicePayload, referenceKeepBatchCopy, referenceKeepCopy } from './local-decisions.mjs';
+import { blogViewHref } from './blog-href.mjs';
 
 const root = document.querySelector('#studio');
 document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -14,10 +15,11 @@ let pageRemovalPlans = new Map();
 let pageChoiceDirty = false;
 let busyRelease = '';
 let releaseNotice = { text: '', error: false };
-let pageSet = null, pageChoice = null, pageKeepDraft = new Set(), pageOrderDraft = [];
+let pageSet = null, pageChoice = null, pageKeepDraft = new Set(), pageOrderDraft = [], pageListDraft = [], pageHiddenDraft = new Set();
 let pageChoiceSaveTimer = 0;
 let focusedGroup = 'new';
 let picked = new Set();
+let pickAnchor = '';
 let statusText = '', statusError = false, pulling = false;
 let shownPreview = null, previewGen = 0, listStamp = '', listDecisionStamp = '', refreshToken = 0;
 const htmlCache = new Map(), proseCache = new Map();
@@ -106,48 +108,36 @@ function emptyPreviewCopy() {
   if (items.length) return '选择一条更新，查看正文和跟随资料。';
   return '这一版没有等待审核的文章。';
 }
-function noticeNode(text, error) {
+function previewStatus(text, error) {
   return el('p', text, {
-    id: 'notice',
-    class: error ? 'status' : (selected ? 'status' : 'preview-empty muted status'),
+    class: error ? 'status' : 'preview-empty muted',
     role: error ? 'alert' : 'status',
   });
-}
-function pullSummary(text) {
-  return /^已拉取 \d+ 篇更新/.test(String(text || '')) || text === '没有等待审核或删除的更新。';
 }
 function notice(text, error = false) {
   const display = error ? friendlyError(text) : text;
   statusText = display; statusError = error;
   const dialogStatus = document.querySelector('dialog[open] .status');
   if (dialogStatus) { dialogStatus.textContent = display; dialogStatus.setAttribute('role', error ? 'alert' : 'status'); return; }
-  if (selected && !error && pullSummary(display)) return;
-  const node = document.querySelector('#notice');
-  if (node) {
-    node.textContent = display;
-    if (display) node.removeAttribute('hidden');
-    node.className = error ? 'status' : (selected ? 'status' : 'preview-empty muted status');
-    node.setAttribute('role', error ? 'alert' : 'status');
+  const loginNotice = document.querySelector('.login #notice');
+  if (loginNotice) {
+    loginNotice.textContent = display;
+    loginNotice.className = 'status';
+    loginNotice.setAttribute('role', error ? 'alert' : 'status');
     return;
   }
+  document.querySelector('#review-preview #notice')?.remove();
   const pane = document.querySelector('#review-preview');
   if (pane) {
-    if (!selected) {
-      const copy = display || (pulling ? '' : emptyPreviewCopy());
-      const created = noticeNode(copy, error);
-      if (!copy) created.setAttribute('hidden', '');
-      pane.replaceChildren(created);
-      return;
-    }
-    if (selected.item?.error) {
-      if (error) pane.replaceChildren(el('p', display, { role: 'alert' }));
-      return;
-    }
-    pane.prepend(noticeNode(display, error));
+    const alert = pane.querySelector(':scope > [data-preview-alert]');
+    if (!error) { alert?.remove(); return; }
+    if (alert) alert.textContent = display;
+    else pane.prepend(el('p', display, { role: 'alert', 'data-preview-alert': '' }));
     return;
   }
   if (!pageIsLocal() || !root) return;
-  delete root.dataset.shell; root.replaceChildren(noticeNode(display, error));
+  delete root.dataset.shell;
+  root.replaceChildren(previewStatus(display, error));
 }
 async function connectHeptabase() {
   notice('正在打开 Heptabase 授权…');
@@ -171,9 +161,11 @@ function showLogin(message = '') {
   root.append(form); password.focus();
 }
 function closeDialog() { document.querySelector('dialog')?.close(); document.querySelector('dialog')?.remove(); }
-function dialog(title) {
-  closeDialog(); const d = el('dialog', null, { 'aria-label': title }), h = el('header');
-  h.append(el('h2', title), button('关闭', async () => closeDialog())); d.append(h, el('p', '', { class: 'status', role: 'status' }));
+function dialog(title, { closeButton = true } = {}) {
+  closeDialog(); const d = el('dialog', null, { 'aria-label': title, closedby: 'any' }), h = el('header');
+  h.append(el('h2', title));
+  if (closeButton) h.append(button('关闭', async () => closeDialog()));
+  d.append(h, el('p', '', { class: 'status', role: 'status' }));
   document.body.append(d); d.addEventListener('close', () => d.remove()); d.showModal(); return d;
 }
 function applyGitDocs(gitResult, docsResult) {
@@ -193,10 +185,10 @@ function applyGitDocs(gitResult, docsResult) {
 function syncShellNotice(failed) {
   if (pulling || pulled || selected) return;
   const message = failed || statusText || emptyPreviewCopy();
-  const node = document.querySelector('#review-preview #notice');
+  const node = document.querySelector('#review-preview .preview-empty');
   if (!node) return;
   node.textContent = failed ? friendlyError(failed) : message;
-  node.className = failed || statusError ? 'status' : 'preview-empty muted status';
+  node.className = failed || statusError ? 'status' : 'preview-empty muted';
   node.setAttribute('role', failed || statusError ? 'alert' : 'status');
   if (!failed && !message) node.setAttribute('hidden', '');
   else node.removeAttribute('hidden');
@@ -228,7 +220,7 @@ async function refresh() {
     const frame = document.querySelector('#review-preview iframe.article-preview');
     if (frame && patchPreviewTheme(frame, theme)) { if (shownPreview) shownPreview.theme = theme; return; }
     if (pulled && selected && mode === 'preview' && !selected.item?.error) void showSelection();
-  }), link('查看博客 ↗', 'https://ethanchang.io'));
+  }), el('a', '查看博客 ↗', { href: blogViewHref(location.hostname), target: '_blank', rel: 'noopener noreferrer' }));
   if (!localOpen) actions.append(button('退出', async () => { await api('/logout', {}); showLogin(); }, { network: '' }));
   header.append(el('h1', 'Audit', { class: 'brand' }), actions);
   root.append(header);
@@ -242,7 +234,7 @@ async function refresh() {
       stage.append(el('p', '首次拉取时，需要连接你的 Heptabase。', { class: 'muted' }));
     }
     const message = statusText || (pulling ? '' : emptyPreviewCopy());
-    const status = noticeNode(message, statusError);
+    const status = previewStatus(message, statusError);
     if (!message) status.setAttribute('hidden', '');
     stage.append(status);
     root.append(stage);
@@ -282,7 +274,7 @@ function syncPullButton() {
 }
 function hideEmptyPullNotice() {
   statusText = ''; statusError = false;
-  const node = document.querySelector('#review-preview #notice');
+  const node = document.querySelector('#review-preview .preview-empty');
   if (!node) return;
   node.textContent = '';
   node.setAttribute('hidden', '');
@@ -302,7 +294,7 @@ async function pullUpdates() {
   } while (payload.partial && ++guard < 40);
   if (payload.partial) throw new Error('拉取没有完成，请稍后重新拉取。');
   const { cards, removals = [], pageSet: pages = null } = payload;
-  pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || (pages?.choiceRequired ? [] : pages?.order || [])); pageOrderDraft = [...(pageChoice?.order || pages?.order || [])];
+  pageSet = pages; pageChoice = pages?.choice || null; pageKeepDraft = new Set(pageChoice?.keep || (pages?.choiceRequired ? [] : pages?.order || [])); pageOrderDraft = [...(pageChoice?.order || pages?.order || [])]; pageListDraft = []; pageHiddenDraft = new Set(pageChoice?.hidden || []);
   pageChoiceDirty = false;
   pageRemovalPlans = new Map();
   await previewTemplate();
@@ -336,7 +328,7 @@ async function pullUpdates() {
       }
     });
   }
-  items = next; picked = new Set(); pulled = true; releaseNotice = { text: '', error: false }; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
+  items = next; picked = new Set(); pickAnchor = ''; pulled = true; releaseNotice = { text: '', error: false }; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
   focusedGroup = selected ? itemGroup(selected.item) : 'new';
   statusText = cards.length || removals.length ? `已拉取 ${cards.length} 篇更新${removals.length ? `，另有 ${removals.length} 篇待删除` : ''}。选择一条更新，检查正文和跟随资料。` : '没有等待审核或删除的更新。';
   statusError = false;
@@ -366,9 +358,9 @@ const groupWords = { new: 'New', edited: 'Edited', removed: 'Deleted' };
 const groupMarks = { new: '+', edited: '±', removed: '−' };
 const kindLabels = { article: 'Article', project: 'Project', page: 'Page', reference: 'Reference', translation: 'Translation' };
 function typeMark(group) { return el('span', groupMarks[group], { class: 'type-mark', 'data-type': group, 'aria-hidden': 'true' }); }
-function typeLabel(group, kind) {
+function typeLabel(group, kind, text = `${groupWords[group]} ${kindLabels[kind].toLowerCase()}`) {
   const label = el('span', null, { class: 'type-label', 'data-type': group });
-  label.append(typeMark(group), el('span', `${groupWords[group]} ${kindLabels[kind].toLowerCase()}`));
+  label.append(typeMark(group), el('span', text));
   return label;
 }
 function pageKind(change, removal) {
@@ -395,18 +387,8 @@ function newReferences() {
   }
   return list;
 }
-function itemMeta(item, deleting, edited) {
-  if (item.decision === 'remove') return '已确认删除，待发布';
-  if (item.decision === 'skip') return '本次暂不删除';
-  if (item.decision === 'approve') return 'article · 已通过，待发布';
-  if (item.decision === 'reject') return 'article · 已拒绝，待发布';
-  if (item.error) return '读取失败，尚未审核';
-  if (deleting) return item.plan.reasonLabel;
-  return `article · ${onlyTagsChanged(rootChange(item)) ? '仅标签更新' : edited ? '编辑更新' : '首次发布'}`;
-}
 const reviewKinds = ['new', 'edited', 'removed'];
 const reviewed = item => Boolean(item.decision);
-function reviewQueue() { const by = reviewGroups(); return reviewKinds.flatMap(kind => by[kind]); }
 async function select(item, id = item.card.id) {
   focusedGroup = itemGroup(item);
   selected = { item, id };
@@ -424,7 +406,7 @@ function advanceFrom(item) {
 function doneHint(item) {
   const by = reviewGroups(), group = itemGroup(item);
   const later = reviewKinds.find(kind => kind !== group && by[kind].some(i => !reviewed(i)));
-  return later ? `${groupLabels[group]} 已全部审完，按 J 或点 ${groupLabels[later]} 继续。` : '全部已审完，可以在底部提交发布。';
+  return later ? `${groupLabels[group]} 已全部审完，点 ${groupLabels[later]} 继续。` : '全部已审完，可以在底部提交发布。';
 }
 function afterDecision(item, message) {
   const advanced = advanceFrom(item);
@@ -433,14 +415,12 @@ function afterDecision(item, message) {
 const decisionNotes = {
   approve: '已通过，待发布。只是审核通过，尚未上线。',
   reject: '已拒绝，待发布。线上旧文章保持不变。',
-  // The row already says the article is queued for removal.
-  remove: '',
+  remove: '已加入待删除清单，网站尚未改变。',
   skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
 };
 function paintAfterDecision(message) {
   renderList();
-  if (message) notice(message);
-  else { statusText = ''; statusError = false; }
+  notice(message);
   void showSelection();
   void renderRelease();
 }
@@ -450,6 +430,28 @@ function localContext() {
 /** Records one decision on the card. Heptabase and GitHub hear about it at publish. */
 function applyOne(item, verdict, remark) {
   return applyLocalDecision(item, verdict, { ...localContext(), remark });
+}
+function citedRemovals() {
+  return items.filter(item => item.removal && item.plan?.citations?.length && item.decision !== 'skip');
+}
+function citationCopy(list) {
+  if (list.length === 1) return referenceKeepCopy(title(list[0]), list[0].plan.citations);
+  return referenceKeepBatchCopy(list.map(item => ({ title: title(item), citations: item.plan.citations })));
+}
+function citationParagraph(list, attrs) {
+  const note = el('p', null, attrs);
+  note.append(document.createTextNode(citationCopy(list)));
+  if (list.some(item => item.decision !== 'remove')) {
+    note.append(document.createTextNode(' '));
+    note.append(button('留下为 reference', () => keepCitedAsReference(list), { class: 'btn' }));
+  }
+  return note;
+}
+function keepCitedAsReference(list) {
+  const targets = list.filter(item => item.plan && item.decision !== 'remove' && item.decision !== 'skip');
+  if (!targets.length) return;
+  for (const item of targets) applyOne(item, 'approve');
+  paintAfterDecision(citationCopy(targets));
 }
 function decide(item, verdict, remark) {
   const result = applyOne(item, verdict, remark);
@@ -468,7 +470,7 @@ function applyMany(list, verdict, remark) {
   const message = !targets[0].removal && verdict === 'reject'
     ? `已拒绝 ${targets.length} 篇。备注会在发布上线后写回这些卡片。`
     : targets[0].removal && verdict === 'approve'
-      ? ''
+      ? `已将 ${targets.length} 篇加入待删除，网站尚未改变。`
       : targets[0].removal
         ? `已暂不删除 ${targets.length} 篇。`
         : `已通过 ${targets.length} 篇。只是审核通过，尚未上线。`;
@@ -491,7 +493,7 @@ function openRemarkDialog(targets) {
   setTimeout(() => area.focus(), 0);
 }
 function releasePayload() {
-  const pageChoice = pageChoiceDirty ? pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft) : null;
+  const pageChoice = pageChoiceDirty ? pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft, pageHiddenDraft) : null;
   return decisionBatch(items, { pageChoice });
 }
 function markFlushed() {
@@ -578,26 +580,7 @@ async function publishWithoutReview() {
 function renderSummary(by) {
   const top = document.querySelector('#review-summary'); if (!top) return;
   top.replaceChildren();
-  const done = items.filter(reviewed).length, total = items.length;
   const head = el('div', null, { class: 'summary-head' });
-  const progress = el('div', null, { class: 'summary-progress' });
-  const bar = el('span', null, { class: 'progress-bar', role: 'progressbar', 'aria-label': '审核进度', 'aria-valuemin': '0', 'aria-valuemax': String(total), 'aria-valuenow': String(done) });
-  bar.append(el('span', null, { class: 'progress-fill' }));
-  bar.style.setProperty('--progress', total ? `${(done / total) * 100}%` : '0%');
-  progress.append(el('h2', '审核清单', { class: 'section-label' }), el('span', `已审 ${done} / ${total}`, { class: 'progress-count' }), bar);
-  if (items.some(reviewed)) {
-    progress.append(el('p', `待审 ${items.filter(i => !i.decision).length} · 通过 ${items.filter(i => i.decision === 'approve').length} · 拒绝 ${items.filter(i => i.decision === 'reject').length}${by.removed.length ? ` · 确认删除 ${by.removed.filter(i => i.decision === 'remove').length} · 暂不删除 ${by.removed.filter(i => i.decision === 'skip').length}` : ''}`, { class: 'muted group-caption' }));
-  }
-  const tools = el('div', null, { class: 'summary-tools' });
-  const hint = el('p', null, { class: 'shortcut-hint' });
-  for (const [keys, text] of [[['J', 'K'], '上下'], [['A'], '通过'], [['R'], '拒绝'], [['D'], '对比']]) {
-    const group = el('span');
-    keys.forEach(key => group.append(el('kbd', key)));
-    group.append(document.createTextNode(text));
-    hint.append(group);
-  }
-  tools.append(hint, button('拉取最新更新', pullUpdates, { class: 'btn pull-button', network: '', 'aria-label': '拉取最新更新' }));
-  head.append(progress, tools);
   const tabs = el('div', null, { class: 'review-groups', role: 'tablist', 'aria-label': '审核分组' });
   for (const kind of reviewKinds) {
     const count = by[kind].length, checked = by[kind].filter(reviewed).length;
@@ -646,24 +629,25 @@ function renderSummary(by) {
   if (pageSet?.cards?.length) {
     const kept = pageSet.choiceRequired ? pageKeepDraft.size : pageOrderDraft.length;
     const countText = pageSet.choiceRequired ? `${kept}/4` : String(kept);
-    const tab = button('站点页面', async () => {
+    const tab = button('Pages', async () => {
       focusedGroup = 'pages';
       renderList();
       await showSelection();
     }, {
       class: 'review-group-tab',
       role: 'tab',
-      'aria-label': `站点页面 · ${countText}`,
+      'aria-label': `Pages · ${countText}`,
       'aria-selected': String(focusedGroup === 'pages'),
       'aria-controls': 'review-preview',
       'data-review-group': 'pages',
       'data-type': 'page',
       instant: '',
     });
-    tab.replaceChildren(el('span', '≡', { class: 'type-mark', 'data-type': 'page', 'aria-hidden': 'true' }), el('span', '站点页面'), el('span', countText, { class: 'tab-count', 'aria-hidden': 'true' }));
+    tab.replaceChildren(el('span', '≡', { class: 'type-mark', 'data-type': 'page', 'aria-hidden': 'true' }), el('span', 'Pages'), el('span', countText, { class: 'tab-count', 'aria-hidden': 'true' }));
     tabs.append(tab);
   }
-  top.append(head, tabs);
+  head.append(tabs, button('拉取最新更新', pullUpdates, { class: 'btn pull-button', network: '', 'aria-label': '拉取最新更新' }));
+  top.append(head);
 }
 function groupStamp(group) {
   return group.map(item => [item.card.id, item.error || '', title(item), (item.plan?.changes || []).map(change => change.id).join(',')].join('\t')).join('\n');
@@ -671,14 +655,11 @@ function groupStamp(group) {
 function paintListSelection(list, group) {
   const rows = [...list.querySelectorAll('#review-items > .review-item')];
   if (rows.length !== group.length || rows.some((row, index) => row.dataset.card !== group[index].card.id)) return false;
-  const deleting = focusedGroup === 'removed', edited = focusedGroup === 'edited';
   rows.forEach((row, index) => {
     const item = group[index], active = selected?.item === item;
     if (active) row.dataset.selected = 'true'; else delete row.dataset.selected;
     if (item.decision) row.dataset.decision = item.decision; else delete row.dataset.decision;
     row.querySelector(':scope > .card-select')?.setAttribute('aria-pressed', String(Boolean(active && selected.id === item.card.id)));
-    const meta = row.querySelector(':scope > .item-meta');
-    if (meta) meta.textContent = itemMeta(item, deleting, edited);
     for (const node of row.querySelectorAll(':scope > .decisions .decide')) node.setAttribute('aria-pressed', String(item.decision === node.getAttribute('data-decide')));
   });
   return true;
@@ -739,7 +720,7 @@ function escapeHtml(text) {
 async function openReference(entry) {
   const change = entry.change;
   const props = change.afterProperties || {};
-  const d = dialog(change.title || '未命名卡片');
+  const d = dialog(change.title || '未命名卡片', { closeButton: false });
   d.classList.add('reference-dialog');
   d.querySelector('.status')?.setAttribute('hidden', '');
   const meta = el('section', null, { class: 'review-meta reference-popup-meta', 'aria-label': '属性' });
@@ -750,7 +731,7 @@ async function openReference(entry) {
     else dd.append(value);
     rows.append(el('dt', name), dd);
   };
-  row('日期', formatDate(props.date) || '未设置');
+  row('发布日期', formatDate(props.date) || '未设置');
   row('摘要', props.description || '未填写 Summary');
   const tags = el('ul', null, { class: 'meta-tags', 'aria-label': '标签' });
   for (const tag of [...new Set(props.tags || [])]) tags.append(el('li', `#${tag}`));
@@ -793,6 +774,19 @@ function renderReferenceList(list, by) {
   else for (const entry of refs) panel.append(referenceCard(entry));
   list.append(panel);
 }
+function shiftSelectVisible(currentId) {
+  const rows = [...document.querySelectorAll('#review-items > .review-item')];
+  const ids = rows.map(row => row.dataset.card);
+  const anchor = ids.indexOf(pickAnchor);
+  const current = ids.indexOf(currentId);
+  if (anchor < 0 || current < 0) return false;
+  const [from, to] = anchor < current ? [anchor, current] : [current, anchor];
+  for (const row of rows.slice(from, to + 1)) {
+    const box = row.querySelector(':scope > .batch-pick');
+    if (box && !box.disabled && row.dataset.card) picked.add(row.dataset.card);
+  }
+  return true;
+}
 function renderList() {
   const list = document.querySelector('#review-list'); if (!list) return;
   if (!pulled) { list.replaceChildren(); listStamp = ''; listDecisionStamp = ''; return; }
@@ -819,7 +813,6 @@ function renderList() {
   const row = el('div', null, { id: 'review-items', class: 'review-items', 'data-review-group': focusedGroup, 'data-type': focusedGroup, role: 'tabpanel', 'aria-label': groupLabels[focusedGroup] });
   const group = by[focusedGroup];
   const deleting = focusedGroup === 'removed';
-  const edited = focusedGroup === 'edited';
   if (!group.length) row.append(el('p', '这一组没有待审文章。', { class: 'muted empty-group' }));
   else list.append(batchBar(group, deleting));
   for (const item of group) {
@@ -828,12 +821,20 @@ function renderList() {
     const pick = el('input', null, { type: 'checkbox', class: 'batch-pick', 'aria-label': `选择「${title(item)}」` });
     if (!item.plan || item.error) pick.disabled = true;
     pick.checked = picked.has(item.card.id);
+    pick.addEventListener('click', event => {
+      if (!event.shiftKey || !shiftSelectVisible(item.card.id)) {
+        pickAnchor = item.card.id;
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      renderList();
+    });
     pick.addEventListener('change', () => {
       if (pick.checked) picked.add(item.card.id); else picked.delete(item.card.id);
       renderList();
     });
     card.append(pick);
-    card.append(typeLabel(focusedGroup, pageKind(rootChange(item), deleting)));
     card.append(button(title(item), () => select(item), { class: 'card-select', 'aria-pressed': String(Boolean(active && selected.id === item.card.id)), instant: '' }));
     const decisions = el('div', null, { class: 'decisions' });
     if (item.plan) {
@@ -843,12 +844,7 @@ function renderList() {
         button('×', () => requestDecision(item, 'reject'), { class: 'decide', 'data-decide': no, 'aria-pressed': String(item.decision === no), 'aria-label': `${deleting ? '暂不删除' : '拒绝'}「${title(item)}」`, title: deleting ? '本次暂不删除' : '拒绝这篇博客' }),
       );
     }
-    card.append(decisions, el('small', itemMeta(item, deleting, edited), { class: 'item-meta' }));
-    const change = rootChange(item);
-    if (change && !deleting) {
-      const { added, removed } = tagDiff(change.beforeProperties.tags, change.afterProperties.tags);
-      if (added.length || removed.length) card.append(el('small', `标签：新增 ${added.length} · 移除 ${removed.length}`, { class: 'item-meta' }));
-    }
+    card.append(decisions);
     card.addEventListener('click', event => {
       if (event.target.closest('button, a, input, label')) return;
       void select(item);
@@ -858,37 +854,28 @@ function renderList() {
   list.append(row);
   revealSelected(list);
 }
-async function step(direction) {
-  const queue = reviewQueue(); if (!queue.length) return;
-  const index = queue.indexOf(selected?.item);
-  const next = queue[index < 0 ? 0 : Math.min(queue.length - 1, Math.max(0, index + direction))];
-  if (next === selected?.item && selected.id === next.card.id) return;
-  await select(next);
-  // run() re-enables buttons only after this returns, and a disabled button cannot take focus.
-  setTimeout(() => document.querySelector('#review-list .review-item[data-selected=true] > .card-select')?.focus({ preventScroll: true }));
+function syncPageListDraft() {
+  if (!pageSet?.choiceRequired) return;
+  const ids = pageSet.cards.map(card => card.id);
+  const known = pageListDraft.filter(id => ids.includes(id));
+  const base = known.length ? known : pageOrderDraft.filter(id => ids.includes(id));
+  pageListDraft = [...base, ...ids.filter(id => !base.includes(id))];
 }
-document.addEventListener('keydown', event => {
-  if (!pulled || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
-  if (document.querySelector('dialog[open]') || event.target.closest?.('input, textarea, select, [contenteditable]')) return;
-  if (focusedGroup === 'references') return;
-  const inList = Boolean(event.target.closest?.('#review-list'));
-  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-  let action;
-  if (key === 'j' || (inList && key === 'ArrowDown')) action = () => step(1);
-  else if (key === 'k' || (inList && key === 'ArrowUp')) action = () => step(-1);
-  else if (key === 'a' && selected) action = () => requestDecision(selected.item, 'approve');
-  else if (key === 'r' && selected) action = () => requestDecision(selected.item, 'reject');
-  else if (key === 'd' && selected && !selected.item.error) action = async () => { mode = mode === 'diff' ? 'preview' : 'diff'; await showSelection(); };
-  if (!action) return;
-  event.preventDefault();
-  try {
-    const result = action();
-    if (result && typeof result.then === 'function') result.catch(error => notice(error.message, true));
-  } catch (error) { notice(error.message, true); }
-});
 function syncPageOrder(id, checked) {
-  if (checked) { pageKeepDraft.add(id); if (!pageOrderDraft.includes(id)) pageOrderDraft.push(id); }
-  else { pageKeepDraft.delete(id); pageOrderDraft = pageOrderDraft.filter(item => item !== id); }
+  if (pageSet?.choiceRequired) syncPageListDraft();
+  if (checked) {
+    pageKeepDraft.add(id);
+    if (!pageOrderDraft.includes(id)) {
+      if (pageSet?.choiceRequired) {
+        const rank = new Map(pageListDraft.map((item, index) => [item, index]));
+        pageOrderDraft = [...pageOrderDraft, id].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
+      } else pageOrderDraft.push(id);
+    }
+  } else {
+    pageKeepDraft.delete(id);
+    pageOrderDraft = pageOrderDraft.filter(item => item !== id);
+    pageHiddenDraft.delete(id);
+  }
 }
 function syncCappedRemovals() {
   const previous = new Map(items.filter(item => item.capped).map(item => [item.card.id, item]));
@@ -904,17 +891,14 @@ function syncCappedRemovals() {
 }
 function localApplyPageChoice() {
   if (!pageSet?.cards?.length) return;
-  const choice = pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft);
+  const choice = pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft, pageHiddenDraft);
   pageOrderDraft = [...choice.order];
-  pageChoice = { keep: [...choice.keep], order: [...choice.order] };
+  pageHiddenDraft = new Set(choice.hidden);
+  pageChoice = { keep: [...choice.keep], order: [...choice.order], hidden: [...choice.hidden] };
   pageChoiceDirty = true;
   syncCappedRemovals();
   renderList();
   void showSelection();
-  const names = choice.order.map(id => pageSet.cards.find(card => card.id === id)?.title).filter(Boolean).join('、');
-  notice(pageSet.choiceRequired
-    ? `已记下留下的 ${choice.keep.length} 页。导航顺序：${names}。未选中且已在网站上的页面进入待删除，网站还没变。`
-    : `已记下导航顺序：${names}。网站要等这次提交发布后才改。`);
 }
 function clearPageInsertMarkers(list) {
   list.querySelectorAll('.insert-before, .insert-after').forEach(node => {
@@ -924,6 +908,9 @@ function clearPageInsertMarkers(list) {
 function markPageInsert(list, target, before) {
   clearPageInsertMarkers(list);
   if (target) target.classList.add(before ? 'insert-before' : 'insert-after');
+}
+function pageDragIds() {
+  return pageSet?.choiceRequired ? pageListDraft : pageOrderDraft;
 }
 function bindPageOrderDrag(list) {
   let dragging = null;
@@ -945,8 +932,9 @@ function bindPageOrderDrag(list) {
       if (!dragging || dragging === li) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
-      const from = pageOrderDraft.indexOf(dragging.dataset.pageId);
-      const to = pageOrderDraft.indexOf(li.dataset.pageId);
+      const ids = pageDragIds();
+      const from = ids.indexOf(dragging.dataset.pageId);
+      const to = ids.indexOf(li.dataset.pageId);
       markPageInsert(list, li, from > to);
     });
     li.addEventListener('dragleave', event => {
@@ -957,64 +945,147 @@ function bindPageOrderDrag(list) {
       event.preventDefault();
       clearPageInsertMarkers(list);
       if (!dragging || dragging === li) return;
-      const from = pageOrderDraft.indexOf(dragging.dataset.pageId);
-      const to = pageOrderDraft.indexOf(li.dataset.pageId);
+      const ids = pageDragIds();
+      const from = ids.indexOf(dragging.dataset.pageId);
+      const to = ids.indexOf(li.dataset.pageId);
       if (from < 0 || to < 0 || from === to) return;
-      const next = [...pageOrderDraft];
+      const next = [...ids];
       const [item] = next.splice(from, 1);
       next.splice(to, 0, item);
-      pageOrderDraft = next;
+      if (pageSet?.choiceRequired) {
+        pageListDraft = next;
+        pageOrderDraft = next.filter(id => pageKeepDraft.has(id));
+      } else pageOrderDraft = next;
       clearTimeout(pageChoiceSaveTimer);
       localApplyPageChoice();
     });
   }
+}
+function blockRowDrag(node) {
+  node.setAttribute('draggable', 'false');
+  node.addEventListener('pointerdown', event => event.stopPropagation());
+  node.addEventListener('dragstart', event => { event.preventDefault(); event.stopPropagation(); });
+}
+function appendPageOrderRow(order, card, keep) {
+  const id = card.id;
+  const hidden = pageHiddenDraft.has(id);
+  const checked = pageKeepDraft.has(id);
+  const li = el('li', null, { 'data-page-id': id, ...(keep ? { class: 'page-option', 'data-checked': String(checked) } : {}), ...(hidden ? { 'data-hidden': 'true' } : {}) });
+  const handle = el('button', '⠿', { type: 'button', class: 'page-drag', draggable: 'true', 'aria-label': `拖动「${card.title}」调整顺序`, title: '拖动调整顺序' });
+  const titleNode = el('span', card.title, { class: 'page-title' });
+  const title = keep ? el('label', null, { for: `keep-${id}` }) : titleNode;
+  if (keep) title.append(titleNode);
+  li.append(handle, title);
+  if (keep) {
+    const box = el('input', null, { type: 'checkbox', id: `keep-${id}`, value: id });
+    box.checked = checked;
+    blockRowDrag(box);
+    box.addEventListener('change', () => {
+      syncPageOrder(id, box.checked);
+      if (pageKeepDraft.size > 4) {
+        syncPageOrder(id, false);
+        box.checked = false;
+        return;
+      }
+      localApplyPageChoice();
+    });
+    li.append(box);
+  }
+  order.append(li);
+}
+function navPreviewLabel(card) {
+  if (card.pageId === 'about') return 'EthanChang';
+  if (card.pageId === 'now') return '现在';
+  if (card.pageId === 'contact') return '联系';
+  if (card.pageId === 'privacy') return '隐私';
+  return card.title;
+}
+function publishedNavCards() {
+  const choice = pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft, pageHiddenDraft);
+  if (!choice) return [];
+  const hidden = new Set(choice.hidden);
+  return choice.order.filter(id => !hidden.has(id)).flatMap(id => {
+    const card = pageSet.cards.find(item => item.id === id);
+    return card ? [card] : [];
+  });
+}
+function navSearchMark() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('aria-hidden', 'true');
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', '11');
+  circle.setAttribute('cy', '11');
+  circle.setAttribute('r', '7');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M20 20l-3.5-3.5');
+  svg.append(circle, path);
+  const span = el('span', null, { class: 'nav-preview-search', 'aria-label': '搜索' });
+  span.append(svg);
+  const item = el('li');
+  item.append(span);
+  return item;
+}
+function renderNavTools() {
+  const tools = el('ul', null, { class: 'nav-preview-tools' });
+  for (const label of ['标签', 'EN']) {
+    const item = el('li');
+    item.append(el('span', label));
+    tools.append(item);
+  }
+  tools.append(navSearchMark());
+  return tools;
+}
+function emptyNavSlot(extraClass) {
+  return el('span', null, { class: extraClass ? `${extraClass} nav-preview-slot` : 'nav-preview-slot', 'aria-hidden': 'true' });
+}
+function renderNavPreview() {
+  const cards = publishedNavCards().slice(0, 4);
+  const slots = [...cards, ...Array(4 - cards.length).fill(null)];
+  const nav = el('nav', null, { class: 'nav-preview', 'aria-label': '导航预览' });
+  const [lead, ...rest] = slots;
+  if (lead) {
+    const leadAttrs = { class: 'nav-preview-lead', 'data-page-id': lead.id };
+    if (lead.pageId === 'about') leadAttrs['data-brand'] = 'true';
+    nav.append(el('span', navPreviewLabel(lead), leadAttrs));
+  } else nav.append(emptyNavSlot('nav-preview-lead'));
+  const trail = el('div', null, { class: 'nav-preview-trail' });
+  const list = el('ul', null, { class: 'nav-preview-stations' });
+  for (const card of rest) {
+    const item = el('li');
+    item.append(card ? el('span', navPreviewLabel(card), { 'data-page-id': card.id }) : emptyNavSlot());
+    list.append(item);
+  }
+  trail.append(list, renderNavTools());
+  nav.append(trail);
+  return nav;
 }
 function renderPageChoice(host) {
   if (!host || focusedGroup !== 'pages') return;
   host.replaceChildren();
   if (!pageSet?.cards?.length) return;
   const section = el('section', null, { class: 'review-group page-choice', 'data-review-group': 'pages', 'data-type': 'page' });
-  const head = el('div', null, { class: 'panel-head' });
-  const kept = pageSet.choiceRequired ? pageKeepDraft.size : pageOrderDraft.length;
-  head.append(el('h2', '站点页面'), el('span', pageSet.choiceRequired ? `已选 ${kept} / 4` : `${kept} 页`, { class: 'page-meter', 'data-full': String(kept >= 4) }));
-  section.append(head);
-  if (pageSet.choiceRequired) section.append(el('p', `站点页面最多显示 4 页。现在有 ${pageSet.cards.length} 张 Page 卡片，请选择留下哪几页。未勾选的不会悄悄去掉：已经在网站上的，要等你确认发布后才撤下；还没上线的，这次不会发布。项目、博客和 Reference 没有上限。勾选之后，拖动手柄排列导航顺序，放开后记在本机，发布时才写入。`, { class: 'muted group-caption' }));
-  else section.append(el('p', '这几页都会留在导航上。拖动手柄排列顺序，放开后记在本机，发布时导航按这个顺序显示。', { class: 'muted group-caption' }));
-  if (pageSet.choiceRequired) {
-    const field = el('fieldset');
-    field.append(el('legend', '留下哪几页'));
-    for (const card of pageSet.cards) {
-      const box = el('input', null, { type: 'checkbox', id: `keep-${card.id}`, value: card.id });
-      box.checked = pageKeepDraft.has(card.id);
-      box.addEventListener('change', () => {
-        syncPageOrder(card.id, box.checked);
-        if (pageKeepDraft.size > 4) {
-          syncPageOrder(card.id, false);
-          box.checked = false;
-          notice('站点页面最多留下 4 页。', true);
-          return;
-        }
-        localApplyPageChoice();
-      });
-      const label = el('label', null, { for: `keep-${card.id}`, class: 'page-option', 'data-checked': String(box.checked) });
-      label.append(box, el('span', card.title, { class: 'page-title' }), document.createTextNode(' '), el('span', card.onSite ? '已在网站上' : '尚未上线', { class: 'page-status', 'data-on-site': String(Boolean(card.onSite)) }));
-      field.append(label);
-    }
-    section.append(field);
+  section.append(renderNavPreview());
+  const choosing = Boolean(pageSet.choiceRequired);
+  if (choosing) syncPageListDraft();
+  const field = choosing ? el('fieldset') : null;
+  if (field) field.append(el('legend', '留下哪几页'));
+  else section.append(el('h3', '导航顺序', { class: 'section-label' }));
+  const order = el('ol', null, { class: choosing ? 'page-order page-keep' : 'page-order', 'aria-label': '导航顺序' });
+  const rowIds = choosing ? pageListDraft : pageOrderDraft;
+  if (!rowIds.length) order.append(el('li', '没有可排列的站点页。', { class: 'muted' }));
+  for (const id of rowIds) {
+    const card = pageSet.cards.find(item => item.id === id);
+    if (card) appendPageOrderRow(order, card, choosing);
   }
-  section.append(el('h3', '导航顺序', { class: 'section-label' }));
-  const order = el('ol', null, { class: 'page-order', 'aria-label': '导航顺序' });
-  if (!pageOrderDraft.length) order.append(el('li', pageSet.choiceRequired ? '先勾选要留下的页面。' : '没有可排列的站点页。', { class: 'muted' }));
-  pageOrderDraft.forEach(id => {
-    const card = pageSet.cards.find(item => item.id === id); if (!card) return;
-    const li = el('li', null, { 'data-page-id': id });
-    const handle = el('button', '⠿', { type: 'button', class: 'page-drag', draggable: 'true', 'aria-label': `拖动「${card.title}」调整顺序`, title: '拖动调整顺序' });
-    const titleNode = el('span', card.title, { class: 'page-title' });
-    li.append(handle, titleNode);
-    order.append(li);
-  });
   bindPageOrderDrag(order);
-  section.append(order);
+  if (field) field.append(order);
+  section.append(field || order);
   host.append(section);
   if (pulled) renderSummary(reviewGroups());
 }
@@ -1046,12 +1117,12 @@ async function showSelection() {
   const gen = ++previewGen;
   const pane = document.querySelector('#review-preview'); if (!pane) return;
   if (!pulled) {
-    const node = pane.querySelector('#notice');
+    const node = pane.querySelector('.preview-empty');
     const progress = node && /^(正在核对卡片列表|正在读取有更新的卡片|正在准备预览)/.test(node.textContent || '');
     if (node && !pulling && !statusText && !progress) {
       node.removeAttribute('hidden');
       node.textContent = emptyPreviewCopy();
-      node.className = 'preview-empty muted status';
+      node.className = 'preview-empty muted';
       node.setAttribute('role', 'status');
     }
     return;
@@ -1078,10 +1149,9 @@ async function showSelection() {
   if (selected?.item.error || !selected) pane.removeAttribute('data-type');
   else pane.dataset.type = itemGroup(selected.item);
   if (!selected) {
-    pane.append(noticeNode(statusText || emptyPreviewCopy(), statusError));
+    pane.append(previewStatus(statusText || emptyPreviewCopy(), statusError));
     return;
   }
-  if (statusText && (statusError || !pullSummary(statusText))) pane.append(noticeNode(statusText, statusError));
   const { item, id } = selected;
   if (item.error) {
     pane.replaceChildren(el('p', friendlyError(item.error), { role: 'alert' }));
@@ -1098,7 +1168,8 @@ async function showSelection() {
   const heading = el('div', null, { class: 'preview-heading' });
   heading.append(el('h2', card.title, { class: 'preview-title' }));
   if (when) heading.append(el('time', when, { class: 'preview-date muted', datetime: String(shown.date || '').slice(0, 10) }));
-  titleRow.append(labels, heading);
+  heading.append(labels);
+  titleRow.append(heading);
   const actions = el('div', null, { class: 'preview-actions' });
   const tabs = el('div', null, { class: 'mode-tabs', role: 'group', 'aria-label': '预览方式' });
   for (const [value, text] of [['preview', item.removal ? '现有页面' : '发布预览'], ['diff', '段落对比']]) tabs.append(button(text, async () => { mode = value; await showSelection(); }, { 'aria-pressed': String(mode === value), instant: '' }));
@@ -1106,18 +1177,29 @@ async function showSelection() {
   if (!item.removal || item.plan.reason !== 'deleted') actions.append(link('在 Heptabase 打开 ↗', card.cardLink));
   actions.append(detailActions(item));
   head.append(titleRow);
+  const translations = (item.plan.changes || []).filter(change => change.translation);
+  if (!item.removal && translations.length) {
+    const row = el('div', null, { class: 'translation-row' });
+    row.append(button('原文', () => select(item, item.card.id), { 'aria-pressed': String(id === item.card.id) }));
+    for (const change of translations) {
+      const label = change.language ? `Translation · ${change.language}` : 'Translation';
+      row.append(button(label, () => select(item, change.id), { 'aria-pressed': String(id === change.id) }));
+    }
+    head.append(row);
+  }
   pane.append(actions, head);
   const meta = el('section', null, { class: 'review-meta', 'aria-label': '属性与标签' });
   meta.append(el('h3', '属性', { class: 'section-label' }));
   appendProperties(meta, card, kind, item.removal);
   if (item.plan.pageNote) meta.append(el('p', item.plan.pageNote, { class: 'muted meta-note' }));
   if (item.removal) {
-    if (item.plan.blockers.length) meta.append(el('p', `仍被这些文章引用：${item.plan.blockers.map(b => b.title).join('、')}。先在 Heptabase 移除引用并审核更新，或先撤下引用它的文章，再重新拉取。`, { role: 'alert' }));
+    if (item.plan.blockers?.length) meta.append(el('p', `「${title(item)}」仍被「${item.plan.blockers.map(b => b.title).join('、')}」引用。站点页面和项目不能改成 reference。`, { role: 'alert' }));
+    if (item.plan.citations?.length) meta.append(citationParagraph([item], { class: 'status', role: 'status' }));
     if (item.plan.keptReferences.length) meta.append(el('p', `共享资料会保留：${item.plan.keptReferences.map(r => r.title).join('、')}。`, { class: 'muted meta-note' }));
   }
   pane.append(meta);
+  appendSummary(pane, card, item.removal);
   const body = el('section', null, { class: 'review-body', 'aria-label': '正文' });
-  body.append(el('h3', mode === 'preview' ? '正文 · 网站排版' : '正文 · 段落对比', { class: 'section-label' }));
   pane.append(body);
   const previewCards = item.removal ? item.plan.changes.map(c => ({ ...c, afterProperties: c.beforeProperties, afterContent: c.beforeContent })) : item.plan.changes;
   if (mode === 'preview') {
@@ -1153,30 +1235,28 @@ function fitFrame(frame) {
 function detailActions(item) {
   const box = el('div', null, { class: 'detail-actions' });
   const yes = item.removal ? 'remove' : 'approve', no = item.removal ? 'skip' : 'reject';
-  const action = (text, key, verdict, decision, variant) => {
-    const b = button(text, () => requestDecision(item, verdict), { class: `btn ${variant}`, 'data-decide': decision, 'aria-pressed': String(item.decision === decision), 'aria-keyshortcuts': key.toLowerCase() });
-    b.append(el('kbd', key, { 'aria-hidden': 'true' }));
-    return b;
-  };
+  const action = (text, verdict, decision, variant) => button(text, () => requestDecision(item, verdict), { class: `btn ${variant}`, 'data-decide': decision, 'aria-pressed': String(item.decision === decision) });
   box.append(
-    action(item.removal ? '暂不删除' : '拒绝', 'R', 'reject', no, ''),
-    action(item.removal ? '删除' : '通过', 'A', 'approve', yes, ''),
+    action(item.removal ? '暂不删除' : '拒绝', 'reject', no, ''),
+    action(item.removal ? '删除' : '通过', 'approve', yes, ''),
   );
   return box;
 }
 /**
  * Host form used only to match links inside the preview iframe.
  * The 属性 address row uses auditAddress() and does not show this host.
- * Articles with no slug are still served at /articles/<id> on the live site.
  */
 function contentPath(card) {
-  if (!card.path) return '';
-  let id = card.path.replace(/^src\/content\//, '').replace(/\.mdx$/, '');
-  if (card.translation) id = id.replace(/\/[a-z]{2,3}$/, '');
-  const url = card.afterProperties?.url || card.beforeProperties?.url;
-  const path = url && id.startsWith('articles/') ? '/' + id.slice('articles/'.length) : '/' + id;
-  if (!card.translation) return `cn.ethanchang.io${path}`;
-  return card.language === 'en' ? `ethanchang.io${path}` : `ethanchang.io/${card.language}${path}`;
+  const address = auditAddress(card);
+  if (!address) return '';
+  if (!card.translation) return `cn.ethanchang.io${address}`;
+  return card.language === 'en' ? `ethanchang.io${address}` : `ethanchang.io/${card.language}${address}`;
+}
+function previewReferenceHref(of) {
+  const match = /^(articles|projects|pages)\/(.+)$/.exec(String(of || '').replace(/^\/+/, ''));
+  if (!match) return `/${String(of || '').replace(/^\/+/, '')}`;
+  if (match[1] === 'pages' && match[2] === 'about') return '/';
+  return `/${match[2].replace(/\/[a-z]{2,3}$/, '')}`;
 }
 function previewPath(card) {
   return contentPath(card).replace(/^(cn\.)?ethanchang\.io/, '');
@@ -1201,10 +1281,25 @@ function appendProperties(parent, card, kind, removal) {
   const oldKind = compare && before.slot ? pageKind({ ...card, afterProperties: before }, false) : kind;
   scalar('类型', kindText(oldKind), kindText(kind), '');
   if (auditAddress(card)) row('地址', el('code', auditAddress(card)));
-  scalar('日期', formatDate(before.date), formatDate(p.date), '未设置');
-  scalar('摘要', before.description || '', p.description || '', '未填写 Summary');
+  scalar('发布日期', formatDate(before.date), formatDate(p.date), '未设置');
   appendTagRow(row, card, p, removal);
   parent.append(rows);
+}
+function appendSummary(parent, card, removal) {
+  const before = card.beforeProperties || {}, p = (removal ? before : card.afterProperties) || {};
+  const compare = !removal && Boolean(card.previouslyPublished);
+  const oldText = (before.description || '').trim(), newText = (p.description || '').trim();
+  const changed = compare && oldText !== newText;
+  if (!changed && !newText) return;
+  const block = el('p', null, { class: 'preview-summary' });
+  if (!changed) block.textContent = newText;
+  else {
+    const span = el('span', null, { class: 'inline-change' });
+    if (oldText) span.append(el('del', oldText));
+    if (newText) span.append(el('ins', newText));
+    block.append(span);
+  }
+  parent.append(block);
 }
 function appendTagRow(row, card, p, removal) {
   const { added, removed } = removal ? { added: [], removed: [] } : tagDiff(card.beforeProperties.tags, card.afterProperties.tags);
@@ -1213,9 +1308,9 @@ function appendTagRow(row, card, p, removal) {
   const addedSet = new Set(added);
   [...new Set(p.tags || [])].forEach(tag => {
     if (!addedSet.has(tag)) { list.append(el('li', hash(tag))); return; }
-    const li = el('li', null, { class: 'tag-added' }); li.append(document.createTextNode('+ '), el('span', hash(tag))); list.append(li);
+    const li = el('li', null, { class: 'tag-added' }); li.append(el('span', hash(tag))); list.append(li);
   });
-  removed.forEach(tag => { const li = el('li', null, { class: 'tag-removed' }); li.append(document.createTextNode('− '), el('s', hash(tag))); list.append(li); });
+  removed.forEach(tag => { const li = el('li', null, { class: 'tag-removed' }); li.append(el('s', hash(tag))); list.append(li); });
   const changes = added.length || removed.length;
   const value = el('div', null, { class: 'meta-tag-row' });
   if (list.children.length) value.append(list);
@@ -1231,7 +1326,7 @@ function referenceHtml(path, cards, doc, version = 'afterProperties') {
   const card = cards.find(c => c.path === `src/content/${path}.mdx`), p = card?.[version];
   if (!p?.title) return el('p', `引用资料：${path}（此版本的资料未拉取）`, { class: 'muted' }).outerHTML;
   const fragment = doc.querySelector('#reference-template').content.cloneNode(true), a = fragment.querySelector('a');
-  a.href = '/' + path; fragment.querySelector('h3').textContent = p.title; fragment.querySelector('p:not(.ui-meta)').textContent = p.description || ''; fragment.querySelector('.ui-meta').textContent = formatDate(p.date);
+  a.href = previewReferenceHref(path); fragment.querySelector('h3').textContent = p.title; fragment.querySelector('p:not(.ui-meta)').textContent = p.description || ''; fragment.querySelector('.ui-meta').textContent = formatDate(p.date);
   fragment.querySelector('ul').replaceChildren(...(p.tags || []).slice(0, 3).map(t => el('li', t, { class: 'ui-tag' })));
   const nav = el('nav', null, { class: 'not-prose', 'data-doc-list': '', 'data-doc-embed': '' }), inner = el('div', null, { class: 'flex flex-col' }); inner.append(fragment); nav.append(inner); return nav.outerHTML;
 }
@@ -1242,7 +1337,7 @@ function previewThemeStyle(theme) {
     ? '--theme-surface-950:rgb(25 25 25);--theme-surface-900:rgb(25 25 25);--theme-surface-800:rgb(38 38 38);--theme-surface-700:rgb(52 52 52);--theme-ink-50:rgb(248 250 252);--theme-ink-100:rgb(241 245 249);--theme-ink-200:rgb(226 232 240);--theme-ink-300:rgb(203 213 225);--theme-ink-400:rgb(148 163 184);--theme-ink-500:rgb(100 116 139);--theme-ink-600:rgb(71 85 105);--theme-accent-deletion:rgb(252 165 165);--theme-accent-insertion:rgb(134 239 172)'
     : '--theme-surface-950:rgb(255 255 255);--theme-surface-900:rgb(255 255 255);--theme-surface-800:rgb(240 240 240);--theme-surface-700:rgb(224 224 224);--theme-ink-50:rgb(255 255 255);--theme-ink-100:rgb(23 23 23);--theme-ink-200:rgb(38 38 38);--theme-ink-300:rgb(64 64 64);--theme-ink-400:rgb(115 115 115);--theme-ink-500:rgb(140 140 140);--theme-ink-600:rgb(163 163 163);--theme-accent-deletion:rgb(153 27 27);--theme-accent-insertion:rgb(22 101 52)';
   // The site places the article in a 42rem reading column (see .reading-shell in global.css).
-  const column = '.article-shell{max-width:42rem;margin-inline:auto}@media (min-width:768px){.article-shell{padding-top:.75rem}}';
+  const column = '.article-shell{max-width:42rem;margin-inline:auto;padding-top:0;padding-bottom:0}.article-body-row{margin-top:0}';
   return `html{color-scheme:${theme}!important;${vars}}html,body{background-color:var(--color-surface-950)!important;color:var(--color-ink-300)!important}${column}`;
 }
 function absolutizePreviewAssets(doc) {
@@ -1261,10 +1356,11 @@ async function previewHtml(card, cards) {
   const cacheKey = `${theme}\0${previewBodyKey(card, 'preview', false)}\0${cards.map(item => `${item.path}\t${item.afterProperties?.title || ''}\t${item.afterProperties?.description || ''}\t${(item.afterProperties?.tags || []).join(',')}`).join('\n')}`;
   const cached = htmlCache.get(cacheKey);
   if (cached) return cached;
-  const doc = await previewTemplate(), p = card.afterProperties;
-  doc.documentElement.lang = 'zh-CN';
+  const doc = await previewTemplate();
+  const previewLang = card.translation && card.language === 'en' ? 'en' : 'zh-CN';
+  doc.documentElement.lang = previewLang;
   doc.documentElement.dataset.theme = theme;
-  doc.documentElement.dataset.lang = 'zh-CN';
+  doc.documentElement.dataset.lang = previewLang;
   doc.querySelectorAll('script').forEach(n => n.remove());
   absolutizePreviewAssets(doc);
   const themeStyle = doc.createElement('style');
@@ -1276,21 +1372,8 @@ async function previewHtml(card, cards) {
   csp.content = "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; script-src 'none'; form-action 'none'; base-uri 'none'";
   doc.head.insertBefore(csp, doc.head.firstChild);
   doc.querySelector('.article-lede')?.remove();
-  const dek = doc.querySelector('.article-dek-text');
-  if (dek) { if (p.description) dek.textContent = p.description; else dek.remove(); }
-  const tags = doc.querySelector('.article-dek .ui-tag-list');
-  if (!(p.tags || []).length) doc.querySelector('.article-dek .article-meta')?.remove();
-  else if (tags) {
-    tags.replaceChildren(...(p.tags || []).map(tag => {
-      const li = doc.createElement('li');
-      const a = doc.createElement('a');
-      a.className = 'ui-tag-link';
-      a.href = `/tags?tag=${encodeURIComponent(tag)}`;
-      a.textContent = tag;
-      li.append(a);
-      return li;
-    }));
-  }
+  // Tags and the dek live in the review pane (review-meta, preview-summary). The frame is the body only.
+  doc.querySelector('.article-dek')?.remove();
   doc.querySelector('[data-preview-body]').innerHTML = await renderedProse(card.afterContent, path => referenceHtml(path, cards, doc));
   doc.querySelector('#reference-template')?.remove();
   return remember(htmlCache, cacheKey, '<!doctype html>' + doc.documentElement.outerHTML, 8);
@@ -1303,13 +1386,7 @@ async function cachedProse(source, renderReference, context, signature) {
 }
 async function showDiff(pane, card, cards, gen) {
   if (gen !== previewGen) return false;
-  const changes = paragraphDiff(card.beforeContent, card.afterContent), counts = { added: 0, removed: 0, modified: 0 };
-  changes.filter(c => c.kind !== 'unchanged').forEach(c => counts[c.kind]++);
-  pane.append(el('p', Object.values(counts).some(Boolean) ? `新增 ${counts.added} 段 · 改写 ${counts.modified} 段 · 删除 ${counts.removed} 段` : onlyTagsChanged(card) ? '正文未修改，本次只更新标签。' : '正文未修改。', { class: 'diff-summary' }));
-  pane.append(el('p', '按阅读顺序逐段比较 · 当前 Heptabase 连接未提供段落 ID。', { class: 'diff-basis muted' }));
-  const legend = el('p', null, { class: 'diff-legend' });
-  legend.append(el('span', '− 红色：原有内容', { class: 'diff-legend-removed' }), el('span', '+ 绿色：新内容', { class: 'diff-legend-added' }), document.createTextNode('未改动的段落完整保留。'));
-  pane.append(legend);
+  const changes = paragraphDiff(card.beforeContent, card.afterContent);
   const doc = await previewTemplate(), comparison = el('div', null, { class: 'full-diff', 'aria-label': '全文段落对比' });
   const article = el('article', null, { 'aria-label': '全文与修改标记' });
   const body = el('div', null, { class: 'diff-article-body' });
@@ -1336,28 +1413,28 @@ async function showDiff(pane, card, cards, gen) {
     part.append(prose);
     return 'ok';
   };
+  const emptySide = () => el('div', null, { class: 'diff-empty', 'aria-hidden': 'true' });
+  const side = part => part.querySelector('.prose-site') ? part : emptySide();
   const place = async (block, part, content, version, unchanged) => {
     const status = await paint(part, content, version, unchanged);
     if (status === false) return false;
     if (status === 'skip') return 'skip';
-    block.append(part);
+    if (unchanged) block.append(part, part.cloneNode(true));
+    else if (version === 'before') block.append(part, emptySide());
+    else block.append(emptySide(), part);
     body.append(block);
     return 'ok';
   };
   for (const row of changes) {
     if (row.kind === 'modified') {
       const block = el('div', null, { class: 'paragraph-change modified' });
-      if (row.before) {
-        const part = el('div', null, { class: 'diff-removed', 'data-position': row.from });
-        if (await paint(part, row.before, 'before', false) === false) return false;
-        if (part.querySelector('.prose-site')) block.append(part);
-      }
-      if (row.after) {
-        const part = el('div', null, { class: 'diff-added', 'data-position': row.to });
-        if (await paint(part, row.after, 'after', false) === false) return false;
-        if (part.querySelector('.prose-site')) block.append(part);
-      }
-      if (block.childElementCount) body.append(block);
+      const before = el('div', null, { class: 'diff-removed', 'data-position': row.from });
+      const after = el('div', null, { class: 'diff-added', 'data-position': row.to });
+      if (row.before && await paint(before, row.before, 'before', false) === false) return false;
+      if (row.after && await paint(after, row.after, 'after', false) === false) return false;
+      if (!before.querySelector('.prose-site') && !after.querySelector('.prose-site')) continue;
+      block.append(side(before), side(after));
+      body.append(block);
       continue;
     }
     const leaving = row.kind === 'removed';
@@ -1401,6 +1478,8 @@ async function renderRelease() {
   if (git.release?.workflowUrl) status.append(link('查看发布进度 ↗', git.release.workflowUrl));
   if (git.pullRequest) status.append(link('查看 GitHub 更新 ↗', git.pullRequest.url));
   if (releaseNotice.text) status.append(el('p', releaseNotice.text, { 'data-release-notice': '', role: releaseNotice.error ? 'alert' : 'status', class: releaseNotice.error ? 'release-alert' : 'muted' }));
+  const cited = citedRemovals();
+  if (cited.length) status.append(citationParagraph(cited, { class: 'release-alert', role: 'status', 'data-citation-notice': '' }));
   actions.append(button('直接发布', publishWithoutReview, { class: 'btn direct-publish', network: '', 'data-release': 'direct', 'aria-label': '直接发布', title: '立刻发布这次拉取的全部更新和待删除' }));
   actions.append(button('刷新发布状态', async () => { git = await api('/git'); await renderRelease(); }, { class: 'btn', network: '', 'data-release': 'refresh' }));
   const pendingLocal = items.some(item => item.decision && !item.flushed && item.plan && !item.error) || pageChoiceDirty;
@@ -1440,5 +1519,10 @@ void run(async () => {
   booted = true;
   localPreview = session.localPreview;
   localOpen = pageIsLocal() || session.localOpen === true;
+  if (localPreview) pulling = true;
   await refresh();
+  if (localPreview) {
+    pulling = false;
+    await pullUpdates();
+  }
 });

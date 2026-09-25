@@ -70,7 +70,7 @@ export async function fixture(assets = {}) {
   function tree(files) { const entries = Object.entries(files).sort(); const sha = digest(entries); trees.set(sha, Object.fromEntries(entries)); return sha; }
   function commit(treeSha, parents = []) { const sha = digest([treeSha, parents]); commits.set(sha, { tree: { sha: treeSha }, parents: parents.map((sha) => ({ sha })) }); return sha; }
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
-  let pr = null, checksPass = true, liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
+  let pr = null, checksPass = true, deployConclusion = 'success', liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
   const cardSources = new Map(), referenceCards = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
   // Translation cards in #blogi18n: id -> { Language, URL }.
   const i18n = new Map();
@@ -209,7 +209,7 @@ export async function fixture(assets = {}) {
       return Response.json({ merged: true, sha });
     }
     if (p.includes('/actions/workflows/')) return Response.json({ workflow_runs: url.searchParams.get('event') === 'pull_request' ? [{ id: 2, run_number: 1, event: 'pull_request', head_sha: refs.get('codex/studio-content'), status: 'completed', conclusion: checksPass ? 'success' : 'failure', pull_requests: [{ number: 1, base: { sha: refs.get('main') } }] }] : [{ id: 3, head_sha: refs.get('main') }] });
-    if (p === '/actions/runs/3') return Response.json({ head_sha: refs.get('main'), conclusion: 'success' });
+    if (p === '/actions/runs/3') return Response.json({ head_sha: refs.get('main'), conclusion: deployConclusion, status: 'completed' });
     if (p.startsWith('/git/ref/heads/')) { const sha = refs.get(p.slice(15)); return Response.json(sha ? { object: { sha } } : { message: 'not found' }, { status: sha ? 200 : 404 }); }
     if (p === '/git/refs' && method === 'POST') {
       const ref = body.ref.replace('refs/heads/', '');
@@ -248,7 +248,7 @@ export async function fixture(assets = {}) {
   }
   return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, missingCards, timestamps,
     source: () => source, setSource: (text) => { source = text; },
-    failChecks: () => { checksPass = false; }, deploy: () => { liveSha = refs.get('main'); },
+    failChecks: () => { checksPass = false; }, failDeploy: () => { deployConclusion = 'failure'; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },
     remote(raw, path = PATH, branch = 'main') { const parent = refs.get(branch); refs.set(branch, commit(tree({ ...filesFor(parent), [path]: blob(raw) }), [parent])); },
     text(path, branch = 'codex/studio-content') { const sha = filesFor(refs.get(branch))[path]; return sha ? blobs.get(sha) : null; },

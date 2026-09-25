@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyLocalDecision, decisionBatch, pageChoicePayload } from './local-decisions.mjs';
+import { applyLocalDecision, decisionBatch, pageChoicePayload, referenceKeepBatchCopy, referenceKeepCopy } from './local-decisions.mjs';
 
 const plan = { sourceHash: 's', documentHash: 'd', planHash: 'p', changes: [{ id: 'a', mainArticle: true }] };
 const item = (extra = {}) => ({ card: { id: 'a' }, input: { cardLink: 'heptabase://card/a', collection: 'articles', id: 'example' }, plan: { ...plan, changes: plan.changes.map(change => ({ ...change })) }, decision: '', ...extra });
+
+test('a cited removal names who still links to it and keeps the address', () => {
+  assert.equal(referenceKeepCopy('旧笔记', [{ title: '另一篇' }, { title: '另一篇' }]), '「旧笔记」仍被「另一篇」引用。发布后会从文章列表撤下，留下为 reference，链接不断。没有人引用的专属资料仍会撤下。');
+  assert.match(referenceKeepBatchCopy([{ title: '甲', citations: [{ title: '丙' }] }, { title: '乙', citations: [{ title: '丙' }] }]), /「甲」、「乙」仍被「丙」引用/);
+});
 
 test('approve and reject are recorded locally and do not need a server', () => {
   const approved = item();
@@ -58,7 +63,13 @@ test('page choice is a local payload, not a request', () => {
   const payload = pageChoicePayload(pageSet, new Set(['p2', 'p1']), ['p2']);
   assert.deepEqual(payload.keep, ['p2', 'p1']);
   assert.deepEqual(payload.order, ['p2', 'p1']);
+  assert.deepEqual(payload.hidden, []);
+  const hidden = pageChoicePayload({ choiceRequired: false, cards: [{ id: 'a' }, { id: 'b' }] }, new Set(), ['b', 'a'], new Set(['a', 'missing']));
+  assert.deepEqual(hidden.keep, ['a', 'b']);
+  assert.deepEqual(hidden.order, ['b', 'a']);
+  assert.deepEqual(hidden.hidden, ['a']);
   const batch = decisionBatch([], { pageChoice: payload });
   assert.deepEqual(batch.pageChoice.order, ['p2', 'p1']);
+  assert.deepEqual(batch.pageChoice.hidden, []);
   assert.throws(() => pageChoicePayload({ choiceRequired: true, cards: [1, 2, 3, 4, 5].map(id => ({ id: String(id) })) }, new Set(['1', '2', '3', '4', '5']), []), /最多留下 4 页/);
 });

@@ -88,11 +88,19 @@ test('removal includes exclusive cyclic references but keeps shared pages', asyn
   assert.equal(files[PATH], undefined); assert.equal(files[refPath(REF)], undefined); assert.ok(files[refPath(SHARED)]); assert.ok(files[refPath(OTHER)]);
 });
 
-test('inbound mentions or ordinary links block removal until reviewed source updates resolve them', async () => {
-  for (const body of ['<DocRef of="articles/example" />', '[正文链接](/articles/example#part)', '<a href="/articles/example" data-doc-mention>文章</a>']) {
+test('a cited article stays as a reference instead of blocking removal', async () => {
+  for (const body of ['<DocRef of="articles/example" />', '[正文链接](/example#part)', '<a href="/example" data-doc-mention>文章</a>']) {
     const f = await setup(); f.remote(raw(OTHER, '仍在引用它', body), refPath(OTHER));
-    const plan = await preview(f); assert.equal(plan.blockers[0].title, '仍在引用它');
-    assert.equal((await approve(f, plan)).status, 409); assert.equal(writes(f).length, 0);
+    const plan = await preview(f);
+    assert.equal(plan.blockers.length, 0);
+    assert.equal(plan.demote, true);
+    assert.equal(plan.citations[0].title, '仍在引用它');
+    await ok(approve(f, plan));
+    await commit(f);
+    const kept = f.text(PATH);
+    assert.match(kept, /heptabaseType: "?reference"?/);
+    assert.match(kept, /listed: false/);
+    assert.equal(writes(f).filter(c => ['edit_card_properties', 'edit_object_content', 'delete_object'].includes(c.body?.params?.name)).length, 0);
   }
 });
 
@@ -110,10 +118,17 @@ test('deletion is rechecked before public upload and merge; newly incoming links
   for (const phase of ['commit', 'merge', 'incoming']) {
     const f = await setup(); await ok(approve(f, await preview(f)));
     if (phase === 'merge') await commit(f);
-    if (phase === 'incoming') f.remote(raw(OTHER, '新增的引用', '[链接](/articles/example)'), refPath(OTHER));
+    if (phase === 'incoming') f.remote(raw(OTHER, '新增的引用', '[链接](/example)'), refPath(OTHER));
     else f.properties.set(CARD, { Status: 'published' });
     const main = f.refs.get('main'), before = writes(f).length;
     const result = phase === 'merge' ? await f.request('/git/publish', 'POST', await ok(f.request('/git/review'))) : await f.request('/git/commit', 'POST', { message: '删除' });
+    if (phase === 'incoming') {
+      assert.equal(result.status, 200, phase);
+      assert.equal(f.refs.get('main'), main);
+      assert.match(f.text(PATH), /heptabaseType: "?reference"?/);
+      assert.match(f.text(PATH), /listed: false/);
+      continue;
+    }
     assert.equal(result.status, 409, phase); assert.equal(f.refs.get('main'), main); assert.equal(writes(f).length, before);
   }
 });
@@ -229,4 +244,18 @@ test('scope and index cleanup ignore code examples, preserve unrelated content a
   const index = '<DocList>\n<DocRef of="articles/example" />\n<DocRef of="articles/other" />\n</DocList>\n\n```mdx\n<DocRef of="articles/example" />\n```';
   assert.equal(withoutIndexRefs(index, [PATH]), '<DocList>\n<DocRef of="articles/other" />\n</DocList>\n\n```mdx\n<DocRef of="articles/example" />\n```');
   assert.equal(removalScope(new Map([[PATH, raw(CARD, '主文', '正文')], [refPath(OTHER), raw(OTHER, '代码', '```mdx\n<DocRef of="articles/example" />\n```')]]), PATH).blockers.length, 0);
+  const cited = removalScope(new Map([
+    [PATH, raw(CARD, '主文', `${docRef(REF)}\n正文`)],
+    [refPath(REF), raw(REF, '专属资料', '正文', false)],
+    [refPath(OTHER), raw(OTHER, '仍在引用它', '<DocRef of="articles/example" />')],
+  ]), PATH);
+  assert.equal(cited.blockers.length, 0);
+  assert.equal(cited.demotions[0].path, PATH);
+  assert.equal(cited.paths.includes(refPath(REF)), false);
+  assert.equal(cited.keptReferences.some(entry => entry.title === '专属资料'), true);
+  const projectPath = 'src/content/projects/example.mdx';
+  const project = serializeMdx({ frontmatter: { slot: 'project', title: '项目', description: '摘要', date: '2024-01-02', heptabaseCardLink: LINK }, bodyZh: '正文' });
+  const blocked = removalScope(new Map([[projectPath, project], [refPath(OTHER), raw(OTHER, '仍在引用它', '<DocRef of="projects/example" />')]]), projectPath);
+  assert.equal(blocked.demotions.length, 0);
+  assert.equal(blocked.blockers[0].title, '仍在引用它');
 });

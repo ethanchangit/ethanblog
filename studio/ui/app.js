@@ -1210,7 +1210,7 @@ function tagsCopy() {
   return {
     button: '标签',
     title: '标签',
-    hint: '这里改 /tags 的分组目录。未分组会进「其他」。保存写入 tag-groups.ts，不改文章标签。',
+    hint: '这里改 tag-groups.ts 里的旧分组目录，不改文章标签。公开 /tags 不再按组显示。',
     ungrouped: '未分组',
     addTag: '添加标签',
     addGroup: '添加分组',
