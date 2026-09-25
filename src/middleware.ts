@@ -1,6 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { localeFromPath, localizeHref } from '@/lib/locale';
-import { fallbackFor, isEnglishBuildPath, routeRequest } from '@/lib/hosts';
+import { fallbackFor, routeRequest } from '@/lib/hosts';
 import { appendVaryAccept, markdownAssetPath, preferredType, shouldNegotiate } from '@/lib/accept';
 import { markdownResponse, notFoundMarkdown } from '@/lib/agent';
 
@@ -40,8 +40,8 @@ async function loadMarkdownAsset(
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  // Production does this in scripts/cf-worker-entry.mjs; astro dev needs it for en.localhost.
-  if (import.meta.env.DEV && !context.locals.hostRouted && !context.url.pathname.startsWith('/dashboard') && !context.url.pathname.startsWith('/studio')) {
+  // Production does this in scripts/cf-worker-entry.mjs; astro dev applies the same host rules.
+  if (import.meta.env.DEV && !context.locals.hostRouted && !context.url.pathname.startsWith('/dashboard')) {
     const decision = routeRequest(context.url);
     if (decision.type === 'redirect') return Response.redirect(decision.location, decision.status);
     if (decision.type === 'rewrite') {
@@ -53,8 +53,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (!context.locals.lang) {
     const locale = localeFromPath(context.url.pathname);
     context.locals.locale = locale;
-    // English pages (ethanchang.io) are built under /en; everything else is the Chinese site.
-    context.locals.lang = isEnglishBuildPath(context.url.pathname) ? 'en' : 'zh-CN';
+    context.locals.lang = 'en';
     context.locals.localePath = (href: string) => localizeHref(href, locale);
   }
 

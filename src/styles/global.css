@@ -769,15 +769,14 @@
    * Markdown tables take the prose column, the same width as the paragraphs.
    * display:block with overflow-x:auto shrink-wraps the grid to the text,
    * so the rules stop at the words. Keep a real table box inside that column.
-   * VerdictTable keeps its own width and scroll wrapper.
    */
-  .prose-site table:not(.vt-table) {
+  .prose-site table {
     display: table;
     width: 100%;
     max-width: 100%;
   }
 
-  .prose-site table:not(.vt-table) :is(th, td) {
+  .prose-site table :is(th, td) {
     overflow-wrap: break-word;
   }
 
@@ -816,22 +815,7 @@
     @apply mt-3 text-sm text-ink-500;
   }
 
-  /* 拆开看：媒介组件源码 disclosure（T4） */
-  .source-view {
-    margin: 0 0 2rem;
-  }
-
-  .source-view summary {
-    @apply cursor-pointer py-2 font-mono text-xs text-ink-500 select-none hover:text-ink-200;
-  }
-
-  .source-view pre {
-    margin: 0;
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  /* 旁注 SideNote（T3）：窄屏插注，≥96rem 悬挂右页边 */
+  /* 旁注 SideNote：窄屏插注，≥96rem 悬挂右页边 */
   .sidenote {
     @apply my-6 text-sm leading-relaxed text-ink-400;
   }
@@ -960,47 +944,6 @@
     width: 4rem;
   }
 
-  /* 反应式散文（Var/Calc）：正文里可拖的数字与随之重算的结果 */
-
-  /* Var：人手可拖的值 —— mono + primary 点状下划线（区分链接实线与 .rule-target 虚线） */
-  .reactive-var {
-    font-family: var(--font-mono);
-    font-size: 0.9em;
-    color: var(--color-ink-100);
-    text-decoration: underline dotted;
-    text-underline-offset: 4px;
-    text-decoration-color: var(--color-primary-400);
-    cursor: ew-resize;
-    user-select: none;
-    touch-action: none;
-    white-space: nowrap;
-  }
-
-  /* Calc：机器算出的值 —— accent 音色（Untangle 黑/粉之分：人声用 ink，机器声用 accent） */
-  .reactive-calc {
-    font-family: var(--font-mono);
-    font-size: 0.9em;
-    color: var(--color-accent-600);
-    white-space: nowrap;
-  }
-
-  [data-theme='dark'] .reactive-calc {
-    color: var(--color-accent-400);
-  }
-
-  /* Mention 双向高亮：正文词语 ↔ 媒介块互相印证（Embark 范式） */
-  .mention {
-    text-decoration: underline dotted;
-    text-underline-offset: 4px;
-    text-decoration-color: var(--color-accent-500);
-    cursor: pointer;
-  }
-
-  .mention-active {
-    text-decoration-color: var(--color-primary-400);
-    color: var(--color-ink-100);
-  }
-
   /*
    * Mention 悬停预览。背景贴近正文画布；用一像素浅灰弱边和圆角与正文分开。
    * 边框取 ink 约 30% 透明度，亮暗都能看见。不加重投影或渐变。
@@ -1097,71 +1040,7 @@
     color: var(--color-ink-500);
   }
 
-  /* VerdictTable 裁决表 */
-  .vt-scroll {
-    overflow-x: auto;
-  }
-
-  .vt-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .vt-table th,
-  .vt-table td {
-    border: none;
-    padding: 0.625rem 0.875rem 0.625rem 0;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .vt-table thead th {
-    font-weight: 500;
-    color: var(--color-ink-400);
-    font-size: 0.75rem;
-  }
-
-  .vt-table tbody th {
-    font-weight: 500;
-    color: var(--color-ink-200);
-    white-space: nowrap;
-  }
-
-  .vt-yes {
-    color: var(--color-accent-600);
-    font-weight: 600;
-  }
-
-  [data-theme='dark'] .vt-yes {
-    color: var(--color-accent-400);
-  }
-
-  .vt-partial {
-    color: var(--color-ink-400);
-    font-weight: 600;
-  }
-
-  .vt-no {
-    color: var(--color-ink-600);
-    font-weight: 600;
-  }
-
-  .vt-note {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--color-ink-500);
-  }
-
-  .vt-bar {
-    display: none;
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .reactive-var,
-    .mention,
-    .mention-active,
     .comment-field,
     .comment-send {
       transition: none;

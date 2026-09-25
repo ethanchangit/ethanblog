@@ -26,34 +26,29 @@ async function openLocal(page: Page) {
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
 }
 
+/** Local preview already pulls on open. Another click starts a second pull that rebuilds the list when it finishes. */
+async function pullLatest(page: Page) {
+  const button = page.getByRole('button', { name: '拉取最新更新', exact: true });
+  await expect(button).toBeEnabled();
+  const cards = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname.endsWith('/heptabase/cards'));
+  await button.click();
+  await cards;
+  await expect(button).toBeEnabled({ timeout: 15_000 });
+}
+
 test('本地预览打开后就是审核界面，不用先拉取', async ({ page }) => {
   await openLocal(page);
   await expect(page.getByRole('tab', { name: /New articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Deleted articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Pages/ })).toBeVisible();
-  await expect(page.locator('#release [data-release-notice]')).not.toContainText('请先拉取');
-});
-
-test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
-  await openLocal(page);
-  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
-  const commit = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/git/commit'));
-  await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await commit;
-  const notice = page.locator('#release [data-release-notice]');
-  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
-  await expect(notice).toBeVisible();
-  await expect(notice).not.toHaveText('');
-  await expect(notice).not.toHaveText('正在直接发布…');
+  await expect(page.locator('#release')).not.toContainText('请先拉取');
 });
 
 test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);
-  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
+  await pullLatest(page);
   await expect(page.locator('#release')).toContainText('还有 6 条待审');
   const pressed = () => page.locator('#review-list .review-item[data-selected=true] > .card-select');
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
@@ -63,7 +58,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
     const frame = box('iframe.article-preview');
     if (!frame) return [];
-    return ['.preview-heading', '.translation-row', 'section.review-meta', 'p.preview-summary'].map(selector => {
+    return ['.preview-heading', 'section.review-meta', 'p.preview-summary'].map(selector => {
       const node = box(selector);
       return node ? { selector, left: node.left - frame.left, right: node.right - frame.right, width: node.width } : { selector, missing: true };
     });
@@ -117,7 +112,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
 
 test('审核列表只有标题，Shift 连选停在当前可见条目', async ({ page }) => {
   await openLocal(page);
-  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await pullLatest(page);
   await page.getByRole('tab', { name: /New articles/ }).click();
   const fresh = page.locator('#review-items');
   await expect(fresh.locator('.item-meta')).toHaveCount(0);
@@ -161,7 +156,7 @@ test('审核列表只有标题，Shift 连选停在当前可见条目', async ({
 
 test('宽屏左右分栏、两栏各自滚动，窄屏上下堆叠', async ({ page }) => {
   await openLocal(page);
-  await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
+  await pullLatest(page);
   await expect(page.locator('#review-list .review-item').first()).toBeVisible();
   const layout = () => page.evaluate(() => {
     const list = document.querySelector('.review-sidebar')!.getBoundingClientRect(), detail = document.querySelector('#review-preview')!.getBoundingClientRect();
@@ -171,4 +166,17 @@ test('宽屏左右分栏、两栏各自滚动，窄屏上下堆叠', async ({ pa
   expect(await layout()).toMatchObject({ side: true, scroll: 'auto', page: true, overflow: false });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await layout()).toMatchObject({ stacked: true, scroll: 'visible', overflow: false });
+});
+
+test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
+  await openLocal(page);
+  await pullLatest(page);
+  const commit = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/git/commit'));
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await commit;
+  const notice = page.locator('#release [data-release-notice]');
+  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
+  await expect(notice).toBeVisible();
+  await expect(notice).not.toHaveText('');
+  await expect(notice).not.toHaveText('正在直接发布…');
 });

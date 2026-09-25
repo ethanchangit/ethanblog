@@ -23,7 +23,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 ### 2. 识别输入类型 → 读对应专则
 判断素材是 **chat**（对话记录）/ **notes**（个人笔记）/ **blog**（文章草稿）/ **mixed**，
 然后读 [MEDIUM.md §8](../../../docs/MEDIUM.md) 的对应专则。要点速记：
-- **chat**：区分人声（创作者判断 → 正文）与机器声（AI 补充 → `Calc`/`SideNote`/`VerdictTable`）；不保留一问一答的往返结构，只提炼论点。
+- **chat**：区分人声（创作者判断 → 正文）与机器声（AI 补充 → `SideNote`）；不保留一问一答的往返结构，只提炼论点。
 - **notes**：bullet 先聚类成 3–8 个论点。
 - **blog**：升档植入为主，不重写作者语气；只动"用文字硬讲参数/对比/因果"的段落。
 
@@ -33,8 +33,8 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 ### 4. 逐论点选档（查决策表）
 对每个论点查 [MEDIUM.md §5](../../../docs/MEDIUM.md) 决策表。默认档位是文字；只有当
 "亲手操作能替代一段解释"时才升档。一篇通常 1–3 个交互组件，超过 4 个要自我怀疑。
-常用映射：数字关系且读者会想改假设 → `Var`+`Calc`；多方案 × 多维度 → `VerdictTable`；
-正文词语与媒介块互证 → `Mention`+`MentionTarget`；行为/因果 → `RuleGarden`。
+常用映射：可玩的演示切片 → `InteractiveDemo`；引用推文或视频 → `TweetEmbed` / `VideoEmbed`；
+行为/因果 → `RuleGarden`；合集里引用另一篇 → `DocList` + `DocRef`。
 
 ### 5. 定落盘路径
 - 文章 → `src/content/articles/<slug>.mdx`
@@ -51,13 +51,9 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 ### 7. 组装 MDX
 - 从 `@/components/media` 导入组件（**只走 barrel，不走深路径**）
-- **Svelte 岛屿写 `client:visible`**：`ParamSlider` / `ScrollScene` / `Timeline` / `StatCounter` /
-  `BeforeAfterSlider` / `AudioClip` / `InteractiveDemo` / `ImageGallery` / `Scene3D` / **`Var` / `Calc`**
-  （`ScrollScene` 必须 `client:visible={{ rootMargin: '150% 0px' }}`）
-- **Astro 组件不写 client 指令**：`VideoEmbed` / `TweetEmbed` / `CodePlayground` / `MediaFrame` / `SideNote` /
-  `RuleGarden` / `RuleTarget` / `VerdictTable` / `Mention` / `MentionTarget` / `DocList` / `DocRef`
-- **`Calc` 必须出现在它引用的所有 `Var` 之后**（SSR 初值依赖文档顺序）
-- 不要写 `sourceView`：读者侧永不注入「⌥ 源码」
+- **Svelte 岛屿写 `client:visible`**：`Timeline` / `InteractiveDemo`
+- **Astro 组件不写 client 指令**：`VideoEmbed` / `TweetEmbed` / `SideNote` /
+  `RuleGarden` / `RuleTarget` / `DocList` / `DocRef`
 
 ### 8. 验证四连
 ```bash
@@ -77,5 +73,5 @@ npm run validate:content && npm run check && npm run build && npm run test
 ## 新媒介组件（仅当 allow-new-component: true）
 
 若这次创作确实需要一个不存在的媒介组件，走 [MEDIUM.md §11](../../../docs/MEDIUM.md) 的
-「新媒介组件准入」流程（六条契约 → /lab 点亮 → 测试 → README/决策表/白名单/validate 清单同步）。
+「新媒介组件准入」流程（六条契约 → 接到用到它的页面 → 测试 → README/决策表/validate 清单同步）。
 否则**用现有组件表达**，不要为一篇内容临时造组件。

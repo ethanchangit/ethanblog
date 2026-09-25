@@ -3,7 +3,9 @@
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
 > 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
-> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。正文写中文（`#blog`），译文来自 `#blogi18n`：中文站 cn.ethanchang.io，英文站 ethanchang.io。没有 `CLAUDE.md`。
+> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。没有本地 `/studio` 编辑器。push 到 `main` 在验证通过后自动部署。正文写中文（`#blog`），译文来自 `#blogi18n`：中文站 cn.ethanchang.io，英文站 ethanchang.io。没有 `CLAUDE.md`。
+>
+> 2026-09：`/lab` 以及没有文章或项目在用的原型已经删除（Sandpack、Scene3D、ImageGallery、滚动剧场、反应式散文、本地编辑器、`public/demos/knowledge-garden`）。还在用的组件以 media/README 为准。下面的阶段清单是当时的记录。
 
 ## 一、愿景与核心理念
 
@@ -39,14 +41,12 @@
 ```
 内容层    src/content/{articles,projects}/*.mdx  + src/data/profile.ts（个人资料单一数据源）
 组件层    src/components/media/                   可嵌入 MDX 的可选交互组件
-可视化    src/lib/viz/registry.ts                 canvas 绘制注册表
 外壳层    layouts/{Base,Doc}                      + components/{shell,home}
-质保层    /lab 页面                               每个组件的常驻最小示例
 接缝层    src/lib/user.ts                         用户态入口（/api/me，未登录时 null）
 ```
 
 **组件契约要点**（完整版见 [media/README.md](../src/components/media/README.md)）：
-props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只消费设计 token / `.media-frame` 仅作间距与图注（无边框无背景）/ ScrollScene 必须提前注水（`rootMargin: '150% 0px'`）。
+props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只消费设计 token / `.media-frame` 仅作间距与图注（无边框无背景）。
 
 **主页**：左栏文章索引 + 中栏 About。纯文字排版，无卡片壳。
 
@@ -106,7 +106,7 @@ props 可序列化 / 无 JS 优雅降级 / 尊重 prefers-reduced-motion / 只�
 
 1. **文字优先**：能用文字讲清楚就不要硬加交互
 2. **内容永不被劫持**：任何交互失效时，读者仍能获得完整内容
-3. **组件先进 /lab，再进故事**
+3. **新组件直接接在用到它的文章或项目上**
 4. **视觉极简**：不引入边框、色块、卡片壳等产品感装饰
 5. **每一步可验证**：构建通过 + Playwright 驱动真实页面
 

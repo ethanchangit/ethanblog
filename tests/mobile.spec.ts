@@ -50,7 +50,7 @@ test.describe('手机阅读', () => {
         const html = await page.evaluate(() => getComputedStyle(document.documentElement).overflowY);
         expect(html).not.toBe('hidden');
 
-        expectTap(await box(page, 'header.site-nav a[aria-label="首页"]'), `${route} home`);
+        expectTap(await box(page, 'header.site-nav a[aria-label="Home"]'), `${route} home`);
         expectTap(await box(page, 'header.site-nav [data-page-station="about"]'), `${route} about`);
         expectTap(await box(page, 'header.site-nav [data-page-station="now"]'), `${route} now`);
         expectTap(await box(page, 'header.site-nav [data-page-station="contact"]'), `${route} contact`);
@@ -94,7 +94,7 @@ test.describe('手机阅读', () => {
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
     await expect(page.locator('.reading-toc-entry')).toHaveCount(0);
     await expect(page.getByRole('link', { name: "目录" })).toHaveCount(0);
-    const back = page.getByRole('link', { name: "← 文章" });
+    const back = page.getByRole('link', { name: "← Articles" });
     await expect(back).toBeVisible();
     const nav = await page.locator('header.site-nav').boundingBox();
     const backBox = await back.boundingBox();
@@ -113,7 +113,7 @@ test.describe('手机阅读', () => {
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc]')).toBeHidden();
     await expect(page.locator('[data-reading-rail]')).toBeHidden();
-    await expect(page.getByRole('link', { name: "← 文章" })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: "← Articles" })).toHaveCount(0);
   });
 
   test('iPad 横屏仍是三栏，目录在右', async ({ page }) => {
@@ -122,7 +122,7 @@ test.describe('手机阅读', () => {
     await expect(page.locator('[data-reading-index]')).toBeVisible();
     await expect(page.locator('[data-reading-doc] .article-lede h1')).toBeVisible();
     await expect(page.locator('[data-reading-rail] nav.toc').filter({ visible: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: "← 文章" })).toBeHidden();
+    await expect(page.getByRole('link', { name: "← Articles" })).toBeHidden();
   });
 
   test('留言发送键不掉出视口宽，热区够点', async ({ page }) => {
@@ -155,7 +155,7 @@ test.describe('手机阅读', () => {
     await expectNoPageOverflow(page);
     const html = await page.evaluate(() => getComputedStyle(document.documentElement).overflow);
     expect(html).not.toBe('hidden');
-    await expect(page.getByRole('link', { name: "← 文章" })).toBeVisible();
+    await expect(page.getByRole('link', { name: "← Articles" })).toBeVisible();
     const scrolled = await page.evaluate(() => {
       window.scrollTo({ top: 200, behavior: 'instant' });
       return window.scrollY > 0;
@@ -170,16 +170,15 @@ test.describe('手机阅读', () => {
     await expectNoPageOverflow(page);
     await page.locator('header.site-nav a[href="/tags"]').click();
     await expect(page).toHaveURL(/\/tags\/?$/);
-    await expect(page.getByRole('heading', { name: "标签" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "Tags" })).toBeVisible();
   });
 
   test('窄屏只保留中文版', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     const tags = page.locator('header.site-nav a[href="/tags"]');
-    await expect(tags).toHaveText("标签", { useInnerText: true });
-    const zhHidden = await tags.locator('.i18n-zh').evaluate((el) => getComputedStyle(el).display);
-    expect(zhHidden).not.toBe('none');
-    await expect(tags.locator('.i18n-en')).toHaveCount(0);
+    await expect(tags).toHaveText("Tags", { useInnerText: true });
+    await expect(tags.locator('.i18n-en')).toBeVisible();
+    await expect(tags.locator('.i18n-zh')).toHaveCount(0);
   });
 });

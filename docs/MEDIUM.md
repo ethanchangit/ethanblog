@@ -48,11 +48,11 @@ draft: true             # 默认 true
 
 | # | 原则 | 出处 | 本站落点 |
 |---|---|---|---|
-| 1 | **反应式文档**：读者可以拨动作者的假设，看结论如何变化 | Bret Victor《Explorable Explanations》/ Tangle | `Var` + `Calc` 反应式散文 |
-| 2 | **活数据，而非死符号**；尽量同时展示所有状态，而不是一次一帧 | 《Media for Thinking the Unthinkable》/《Ladder of Abstraction》 | `ParamSlider`、`ScrollScene`、反应式散文 |
-| 3 | **可见源码**：程序印在物体上，页面自我解释 | Dynamicland / Realtalk | 「拆开看」source-view 插件保留，默认永不注入（§7） |
-| 4 | **双声**：人的声音与机器的推导视觉可辨 | Ink & Switch《Untangle》黑/粉原则 | `Calc` 的 accent 音色 |
-| 5 | **文字是尊贵的子集**：计算叠加在散文之上，绝不改写它 | Ink & Switch《Potluck》 | 无 JS 降级铁律（§2）；Var/Calc 的 SSR 纯文本 |
+| 1 | **反应式文档**：读者可以拨动作者的假设，看结论如何变化 | Bret Victor《Explorable Explanations》/ Tangle | `RuleGarden`：规则可开关、可改 |
+| 2 | **活数据，而非死符号**；尽量同时展示所有状态，而不是一次一帧 | 《Media for Thinking the Unthinkable》/《Ladder of Abstraction》 | `InteractiveDemo`、`Timeline` |
+| 3 | **可见源码**：程序印在物体上，页面自我解释 | Dynamicland / Realtalk | 规则写在它作用的物件旁边（`RuleGarden`） |
+| 4 | **双声**：人的声音与机器的推导视觉可辨 | Ink & Switch《Untangle》黑/粉原则 | 正文是人声；`SideNote` 放补充 |
+| 5 | **文字是尊贵的子集**：计算叠加在散文之上，绝不改写它 | Ink & Switch《Potluck》 | 无 JS 降级铁律（§2） |
 | 6 | **缓坡而非悬崖**：从读者到操作者，每一步都是小台阶 | Ink & Switch《Malleable Software》 | 五档媒介阶梯（§2） |
 
 ## 2. 媒介观与升档纪律
@@ -75,19 +75,7 @@ draft: true             # 默认 true
 - 交互必须是**论据**（读者操作后论点被验证），不能只是插图。
 - 降档永远安全：任何交互失效时，读者仍能获得完整内容（组件契约的无 JS 降级）。
 
-### 档 4 的文字形态：反应式散文
-
-`Var` + `Calc` 让**散文本身**成为第四档媒介：句子里的数字可以拖动，
-结论随之实时重算——读者在不离开阅读流的情况下拨动作者的假设（原则 1）。
-当论点是**数字关系**且读者会想问"如果换个数呢"，优先用反应式散文而不是把读者
-送去一个大块组件。
-
-**纪律**：
-- 一篇文章通常一个 `scope`（缺省 `page`）就够；确需两组独立变量才用 `scope="xxx"` 分组。
-- `Var` 每篇 2–5 个：可拖的数字应该个个值得拖。
-- **`Calc` 必须出现在它引用的所有 `Var` 之后**（SSR 初值依赖文档顺序，`validate:content` 强制）。
-- 拖拽值不进 URL、不持久化——它是思想实验，不是应用状态。
-- 视觉即语义：`Var` 是人手可拖的值（ink 色 + primary 点状下划线），`Calc` 是机器算出的值（accent 音色）。这是 Untangle 黑/粉原则的本站翻译，**不要**用样式覆盖抹掉这层区分。
+第四档用现在还在的组件：`InteractiveDemo` 给可玩切片，`Timeline` 给步骤，`TweetEmbed` / `VideoEmbed` 给外部引用。数字关系用文字写清楚。
 
 ## 3. 文章就是文章
 
@@ -113,11 +101,10 @@ draft: true             # 默认 true
 4. **写 frontmatter**：用 §11 模板。description 即摘要（≤80 字、可检验的陈述，
    它会渲染成页面摘要块与 RSS 描述）。
 5. **组装正文**：从 `@/components/media` 导入组件；Svelte 组件写 `client:visible`
-   （含 `Var` / `Calc`；ScrollScene 必须 `client:visible={{ rootMargin: '150% 0px' }}`；
-   CodePlayground / RuleGarden / VideoEmbed / TweetEmbed / MediaFrame / SideNote / RuleTarget /
-   VerdictTable / Mention / MentionTarget 是 Astro 组件无需指令）。
-   组件调用写清楚即可；不要向读者展示源码（见 §7）。
-6. **QA**：用到新组件？先在 `/lab` 点亮。提交前验证四连（§10）。
+   （`Timeline` / `InteractiveDemo`）。
+   `RuleGarden` / `VideoEmbed` / `TweetEmbed` / `SideNote` / `RuleTarget` / `DocList` / `DocRef`
+   是 Astro 组件，不写 `client:`。
+6. **QA**：提交前验证四连（§10）。
 
 ## 5. 组件选用决策表
 
@@ -125,34 +112,15 @@ draft: true             # 默认 true
 
 | 论点类型 | 组件 | 何时不用 |
 |---|---|---|
-| 两种状态/方案的对比 | `BeforeAfterSlider` | 差异用一句话就能说清时 |
-| **多方案 × 多维度的对比裁决** | **`VerdictTable`**（✓/—/✗ 评分矩阵，可加备注与条形图） | 仅两方案一维（一句话或 BeforeAfterSlider） |
-| 随时间/步骤的演进 | `Timeline`；篇幅大且值得沉浸 → `ScrollScene` | 少于 3 个节点 |
-| 结论对参数敏感（"越…越…"） | `ParamSlider`（需要配可视化时） | 参数关系是线性且显然的 |
-| **结论是数字关系，读者会想改假设** | **`Var` + `Calc`（反应式散文）** | 关系一句话可穷尽；或参数需要配可视化（用 ParamSlider） |
-| 一组关键数字 | `StatCounter` | 数字少于 3 个（直接写进正文） |
-| 可玩的完整演示切片 | `InteractiveDemo`（配 `poster` 预览：视频先行、点击升级） | 交互 10 秒内讲不出论点 |
-| 代码本身是论点 | `CodePlayground`（读者可 Run） | 代码只是引用（用普通代码块） |
-| 空间/地理/立体结构 | `Scene3D` | 平面图足够时 |
-| 声音是内容本体 | `AudioClip` | — |
+| 随时间/步骤的演进 | `Timeline` | 少于 3 个节点 |
+| 可玩的完整演示切片 | `InteractiveDemo` | 交互 10 秒内讲不出论点 |
 | 引用外部视频 | `VideoEmbed` | — |
 | 引用一条推文 | `TweetEmbed`（自绘卡片，全文展开） | 只需要转述一句话、不必出示原帖时 |
-| 一组图片证据 | `ImageGallery` | 单图（用普通 img + MediaFrame） |
-| **正文词语与某个媒介块互相印证** | **`Mention` + `MentionTarget`（双向高亮）** | 词语与媒介块紧邻出现时 |
 | **合集文里引用另一篇已有文章/项目** | **`DocList` + `DocRef`** | 只是提一句、不必出示那一行卡片时 |
 | 行为与因果、系统如何响应 | `RuleGarden` + 正文散布 `RuleTarget` | 因果链只有一步且无需读者试 |
 | 离题但增味的补充 | `SideNote` | 内容其实属于正文时 |
-| 任意内容需要统一外框 | `MediaFrame` | — |
 
-**Var/Calc 专则**（反应式散文，档 4 的文字形态）：见 §2 的纪律五条。
-表达式只支持算术与白名单函数（`min/max/round/floor/ceil/abs/sqrt/clamp`），
-写错会在构建期报错——这是特性：公式错误不该活到读者眼前。
-
-**Mention 专则**：
-- `target` 必须指向同一页面上存在的 `MentionTarget`（否则点击无处可去）。
-- 被 Mention 的词语要自然地长在句子里——它是散文的一部分，不是按钮。
-- 键盘可聚焦（组件自带 `tabindex`），点击/Enter 会把目标滚进视野。
-- 同一个目标可以被多处 Mention；一篇文章的 Mention 不要超过 5 处（下划线太多会稀释信号）。
+正文里的站内链接和 mention 由阅读壳的右侧预览承接。
 
 **DocRef 专则**：
 - `of` 写 `articles/<id>` 或 `projects/<id>`（系列子文是 `articles/<hub>/1`）。构建期查不到就报错。
@@ -177,10 +145,9 @@ Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 - **标签**：`tags` 渲染在摘要下方。
 - **SideNote 纪律**：每屏至多一条；只放"删掉不影响论证，读到会心一笑"的内容。
 
-## 7. 可见性原则（拆开看）
+## 7. 可见性原则
 
-Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期 remark 插件，见 media/README），
-但 **永不向读者注入**——不要写 `sourceView`，嵌入媒介组件时不出现「⌥ 源码」行。
+Realtalk：程序印在物体上。规则花园把规则写在它作用的物件旁边。不要向读者注入组件源码。
 
 ## 8. 输入类型转换专则
 
@@ -192,9 +159,7 @@ Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期
 
 - **人声**：创作者在对话中的判断、选择、原话——保留为正文（ink 色）。
   转化的是形式，不是观点；创作者说过的关键句子尽量原样保留。
-- **机器声**：AI 在对话中补充的计算、推演、数据、反例——转为"机器声"组件：
-  `Calc`（数字推导）、`SideNote`（补充语境）、`VerdictTable`（AI 帮忙做的多方案对比）。
-  视觉上天然可辨（原则 4）。
+- **机器声**：AI 在对话中补充的计算、推演、数据、反例——能收成一句就写进正文，离题的补充放 `SideNote`。
 - **对话的往返结构不保留**。一问一答是思考的脚手架，不是结论的形态——只提炼论点。
   （原生承载对话往返的 `Transcript` 组件在 Batch 2 蓝图中，见 ROADMAP。）
 
@@ -202,7 +167,7 @@ Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期
 
 - bullet 群先**聚类成 3–8 个论点**，再走流水线；笔记的碎片感不该带进成稿。
 - 半成品判断、未验证的直觉可以写进正文，用 `draft: true` 先放着。
-- 数字类 bullet（"每天 X 就能 Y"）优先考虑 `Var`/`Calc` 或 `StatCounter`。
+- 数字类 bullet（"每天 X 就能 Y"）写成正文里的句子。
 
 ### blog（文章草稿）
 
@@ -218,8 +183,7 @@ Realtalk：程序印在物体上。本站保留「拆开看」机制（构建期
 
 - 正文写中文；译文是 `#blogi18n` 里的独立卡片，不写进同一个文件。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。技术名词、代码和引用保留原文。
 - 宣言式短段落；第二人称克制使用；每个抽象论点尽快落到一个可操作的实证。
-- 机器声组件（`Calc`、AI 补充的 `SideNote`/`VerdictTable`）的 caption 也用创作者语气写——
-  声音的区分靠视觉（accent 色），不靠文风突变。
+- `SideNote` 也用创作者语气写。它离开正文，不靠文风突变。
 - 范本：现有文章（调性）。
 - 转化对话输入时**保留创作者的用词与判断**；agent 补的是结构和媒介，不是观点。
 
@@ -235,7 +199,7 @@ npm run validate:content && npm run check && npm run build && npm run test
 
 `validate:content`（`scripts/validate-story.mjs`）查的是 schema 查不到的创作规约：
 **单版本内容检查**（主标题、摘要和正文；不要求翻译）、`slot: article | project`、注水指令、Astro 组件误加指令、
-RuleGarden 数量与规则数、SideNote 密度、Var/Calc 声明顺序与重名、barrel 导入。
+RuleGarden 数量与规则数、SideNote 密度、barrel 导入。
 error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工作台）。
 
 ### 图片落盘
@@ -335,7 +299,6 @@ import { DocList, DocRef } from '@/components/media';
 
 `/blogs` 的名单改 `src/content/pages/blogs.mdx`，同一套语法。
 
-**新媒介组件准入**：满足 media/README 六条契约 → 在 `/lab` 加带 `data-testid` 的最小示例
-→ 补 lab-interactions / reduced-motion 两类测试 → 更新 README 目录表与本文 §5 决策表
-→（若适用）把组件名加进 `plugins/remark-source-view.mjs` 白名单
+**新媒介组件准入**：满足 media/README 六条契约 → 接到用到它的文章或项目
+→ 补测试 → 更新 README 目录表与本文 §5 决策表
 → **同步 `scripts/validate-story.mjs` 的组件清单**（SVELTE_ISLANDS / ASTRO_ONLY）。

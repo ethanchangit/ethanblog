@@ -6,14 +6,12 @@ import TagFilter from '@/components/shell/TagFilter.svelte';
 import { copy } from '@/lib/i18n';
 import { isEnglishBuildPath } from '@/lib/hosts';
 import { tagHref } from '@/lib/routes';
-import { articleCardProps, englishTaggedArticles, publishedArticles, uniqueTags } from '@/lib/tags';
+import { articleCardProps, publishedArticles, uniqueTags } from '@/lib/tags';
 
 const lang = Astro.locals.lang === 'en' || isEnglishBuildPath(Astro.url.pathname) ? 'en' : 'zh-CN';
-// Tag names are the #blog Tag field on the Chinese source card. The list is flat.
-// Chinese lists do not include translations. The English page only lists articles
-// that have a translation; it does not drop tags by group.
+// Tag names are the #blog Tag field. The list is flat.
 const sources = await publishedArticles();
-const articles = lang === 'en' ? await englishTaggedArticles() : sources;
+const articles = sources;
 const tags = uniqueTags(sources);
 const counts = Object.fromEntries(
   tags.map((tag) => [tag, articles.filter((entry) => entry.data.tags.includes(tag)).length])

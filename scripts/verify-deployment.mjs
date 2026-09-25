@@ -11,18 +11,14 @@ const SKIP = new Set(['/404.html', '/_headers', '/_redirects', '/en/404.html']);
 
 /**
  * Where a built file is actually requested.
- * English HTML lives under dist/en but is served on ethanchang.io without the /en prefix.
- * Chinese HTML is served on cn.ethanchang.io. Asking ethanchang.io for a Chinese-only page
- * redirects to cn, which fails the job when that name was just created.
+ * The blog is English and served on ethanchang.io. Old /en and /zh prefixes are not public.
  */
-export function releaseAssetUrl(file, { zh = ZH_ORIGIN, en = EN_ORIGIN } = {}) {
+export function releaseAssetUrl(file, { en = EN_ORIGIN } = {}) {
   if (SHARED.test(file)) return new URL(file, en).href;
   let pathname = file;
-  let origin = zh;
-  if (pathname === '/en' || pathname.startsWith('/en/')) {
-    origin = en;
-    pathname = pathname.slice('/en'.length) || '/';
-  }
+  const origin = en;
+  if (pathname === '/en' || pathname.startsWith('/en/')) pathname = pathname.slice('/en'.length) || '/';
+  if (pathname === '/zh' || pathname.startsWith('/zh/')) pathname = pathname.slice('/zh'.length) || '/';
   if (pathname.endsWith('/index.html')) pathname = pathname.slice(0, -'index.html'.length) || '/';
   else if (pathname.endsWith('.html')) pathname = pathname.slice(0, -'.html'.length);
   if (!pathname.startsWith('/')) pathname = `/${pathname}`;

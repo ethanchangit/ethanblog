@@ -24,6 +24,6 @@ export async function GET(context: APIContext) {
         },
       ];
     }),
-    customData: `<language>zh-CN</language>`,
+    customData: `<language>en</language>`,
   });
 }
