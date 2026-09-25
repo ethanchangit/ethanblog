@@ -226,22 +226,16 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
 
   for (const page of staticPages) {
     pages.push({ slug: page.path === '/' ? 'index' : page.path.slice(1), body: page.zh });
-    pages.push({
-      slug: page.path === '/' ? 'zh' : `zh${page.path}`,
-      body: page.zh,
-    });
   }
 
   for (const entry of articles) {
     if (/^\d+$/.test(entry.id)) continue;
     const href = docHref(entry);
     pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
-    pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
   for (const entry of projects) {
     const href = docHref(entry);
     pages.push({ slug: href.slice(1), body: await docMarkdown(entry, 'zh') });
-    pages.push({ slug: `zh${href}`, body: await docMarkdown(entry, 'zh') });
   }
 
   return pages;
