@@ -7,7 +7,7 @@ alwaysApply: false
 
 # `/publish` — 内容创作模式
 
-完整规范见 [docs/MEDIUM.md §0](../../docs/MEDIUM.md#0-触发约定)。本站是 **Ethan Chang 的个人博客**：中文 https://cn.ethanchang.io ，英文 https://ethanchang.io 。
+完整规范见 [docs/MEDIUM.md §0](../../docs/MEDIUM.md#0-触发约定)。本站是 **Ethan Chang 的个人博客**：中文 https://cn.ethanchang.io ，英文 https://ethanchang.io 。怎么工作、每个属性是什么意思，读 [AGENTS.md](../../AGENTS.md)「用法上下文」指向的 Heptabase 卡片 skill blogcontext；用法逻辑变了，同一次改动里更新那张卡。
 
 ## 收到 `/publish` 后
 

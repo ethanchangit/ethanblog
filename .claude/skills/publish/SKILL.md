@@ -7,7 +7,7 @@ description: 把创作者的原始输入（对话记录 / 个人笔记 / 博客�
 
 **这是 Ethan Chang 的个人博客。** 日常写作在 Heptabase。本 skill 只在用户以 `/publish` 给出素材时，把素材翻译成 MDX（默认文字；需要时再嵌交互组件）。`/studio` 不是写作应用。
 本 skill 是操作清单；**判定规则的完整依据在 [docs/MEDIUM.md](../../../docs/MEDIUM.md)**，
-不确定时回去查它对应小节。硬性技术红线在 [AGENTS.md](../../../AGENTS.md)。
+不确定时回去查它对应小节。硬性技术红线在 [AGENTS.md](../../../AGENTS.md)。怎么在这个博客里工作、框架怎么读取每一个属性，读 AGENTS.md「用法上下文」指向的 Heptabase 卡片 skill blogcontext（`60e2701a-4374-4bf7-9f4e-4d1d674aed8f`）。用法逻辑变了，同一次改动里更新那张卡。
 
 ## 边界（先确认，再动手）
 
