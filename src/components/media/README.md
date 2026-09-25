@@ -51,6 +51,7 @@
 | `VerdictTable` | Astro | 零 JS 裁决表：多方案 × 多维度评分矩阵（✓/—/✗ + 备注 + 条形图），窄屏横滚 |
 | `Mention` | Astro | 正文词语，与同 id 的 `MentionTarget` 双向高亮；点击/Enter 滚动到目标（零 JS 降级为普通文本） |
 | `MentionTarget` | Astro | `Mention` 的落点容器（可包住任何媒介块，含已套 MediaFrame 的组件） |
+| `MentionPreview` | Svelte | 悬停正文里的本站文章、项目、页面、资料或外链时的竖向预览。外链只显示链接文字和完整地址。由布局挂一次，不要写进 MDX |
 | `DocRef` | Astro | 引用一篇已有文章或项目，渲染成与索引相同的一行卡片（零 JS） |
 | `DocList` | Astro | `DocRef` 的列表容器；系列总览手写篇目时用 `pane="series"`（宽屏第三栏打开子文） |
 
@@ -186,6 +187,8 @@ YouTube 不在进页时自动挂 `youtube.com/embed` iframe。封面点击后才
 | `Mention` | `target` | `string` | 对应 `MentionTarget` 的 id（须在同页） |
 | `MentionTarget` | `id` | `string` | 页内唯一 id |
 | `MentionTarget` | `block` | `boolean` | 块级容器，默认 true；行内包词语时写 false |
+
+`MentionPreview` 不是正文组件。`Base` 用 `client:visible` 挂一次。目录在构建期从本站文章、项目、页面和 reference 生成，摘要和正文开头分成两段，悬停只查这份目录，不请求外网。卡片宽仍是 `20rem`（窄屏不超过视口），高按宽的 159/206（原先 318/206 的一半）。标题在最上面。摘要用文章页 `p.article-dek-text` 的字色、字重和行距，正文用 `.prose-site` 的段落样式。放不下就截在卡片里，不把卡片撑高。类型和日期排在正文后面，挤到正文就不再显示。摘要为空就不写这一行。带 `data-doc-mention` 的链接，以及 href 能对上这份目录的普通链接，都会出同一张预览。正文里的外链也用这张卡：标题是链接的可见文字，下面一行是完整 URL，没有摘要和正文就不写，也不写占位，悬停不去抓外站页面。Now 这类不在阅读壳里的正文同样悬停。导航、左侧索引、右侧目录（`nav.toc`，含 `data-toc-title` 标题行和章节锚点）和页脚不预览。无 JS 时这些仍是普通链接，点击仍按链接原来的 target 打开。审核页 `/dashboard/preview` 不包含这个岛屿。
 
 ### DocRef / DocList props
 

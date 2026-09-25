@@ -6,6 +6,7 @@ import '@/styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import Nav from '@/components/shell/Nav.astro';
 import Footer from '@/components/shell/Footer.astro';
+import MentionPreviews from '@/components/shell/MentionPreviews.astro';
 import I18n from '@/components/shell/I18n.astro';
 import { site } from '@/data/profile';
 import { stripLocalePrefix } from '@/lib/locale';
@@ -112,6 +113,7 @@ const jsonLd = siteJsonLd();
     <ClientRouter />
   </head>
   <body class:list={['flex min-h-screen flex-col', split && 'md:h-dvh md:overflow-hidden']}>
+    <MentionPreviews />
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:px-3 focus:py-2 focus:text-ink-100"

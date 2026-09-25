@@ -12,7 +12,7 @@
     "preview": "node --experimental-strip-types scripts/preview.mjs",
     "check": "astro check",
     "validate:content": "node scripts/validate-story.mjs",
-    "test": "node --experimental-strip-types --test src/lib/routes.test.mjs && node --test studio/*.test.mjs studio/online/*.test.mjs && playwright test",
+    "test": "node --experimental-strip-types --test src/lib/mention-preview.test.mjs src/lib/routes.test.mjs && node --test studio/*.test.mjs studio/online/*.test.mjs && playwright test",
     "test:ui": "playwright test --ui",
     "setup:cloudflare": "bash scripts/setup-cloudflare-bindings.sh"
   },

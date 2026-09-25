@@ -275,50 +275,94 @@
   }
 
   /*
-   * Article dek: a lead/abstract, not the first body paragraph.
-   * Distinction via type, spacing, and one token hairline
-   * (same spirit as .tag-index-list) — no cards or fill.
+   * Article dek: a lead, not a heading and not the first body paragraph.
+   * One pixel above the prose size. Ink a full step softer than the body,
+   * medium weight still under the title. Line-height matches the body (1.5),
+   * so a wrapped summary does not open a blank line.
+   * The hairline sits in a short gap (6px + 6px), the same air as one
+   * paragraph break, not a blank line and not the old ~96px pause.
+   * No card, fill, or gradient.
    */
   .article-dek {
-    margin: 0 0 3rem;
-    padding: 0 0 1.25rem;
+    margin: 0 0 0.375rem;
+    padding: 0 0 0.375rem;
     border-bottom: 1px solid var(--color-surface-700);
   }
 
   .article-dek-text {
     margin: 0;
-    font-size: 1.25rem;
-    font-weight: 400;
-    line-height: 1.8;
-    color: var(--color-ink-400);
+    font-size: 1.0625rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--color-ink-500);
   }
 
   /*
-   * Article metadata: tags (or a project's stack) sit in a quiet sunken block
-   * with a label column, the same treatment as the dashboard property block,
-   * so they read as metadata rather than body text. The fill is the single
-   * allowed exception to the no-fill rule; tags are square bordered units.
+   * Article properties: type, address, date, tags (projects: stack).
+   * Sunken fill and a label column, same information as the dashboard
+   * 属性 block, drawn only from surface / ink / primary tokens.
+   * Corners match the mention preview (0.5rem). Tag text keeps the # prefix
+   * and has no chip border or fill. The # sits flush with the value column.
+   * No review deletion/insertion colors on the public page.
    */
   .article-meta {
+    margin: 1.25rem 0 0;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--color-surface-800) 55%, var(--color-surface-950));
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+
+  .article-dek > .article-meta:first-child {
+    margin-top: 0;
+  }
+
+  .article-meta + .article-dek-text {
+    margin-top: 1.75rem;
+  }
+
+  .article-meta-label {
+    margin: 0 0 0.75rem;
+    color: var(--color-ink-200);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.7;
+  }
+
+  .article-meta-grid,
+  dl.article-meta {
     display: grid;
     grid-template-columns: 4rem minmax(0, 1fr);
     align-items: baseline;
     gap: 0.375rem 1.25rem;
-    margin: 1.25rem 0 0;
-    padding: 0.75rem 1.25rem;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--color-surface-800) 55%, var(--color-surface-950));
-    font-size: 0.8125rem;
-    line-height: 1.7;
+    margin: 0;
+  }
+
+  /* 发布日期 / Published is wider than 类型、地址、标签. */
+  .article-meta-grid {
+    grid-template-columns: max-content minmax(0, 1fr);
   }
 
   .article-meta dt {
     color: var(--color-ink-400);
   }
 
+  .article-meta-grid dt {
+    white-space: nowrap;
+  }
+
   .article-meta dd {
     min-width: 0;
     margin: 0;
+    color: var(--color-ink-200);
+  }
+
+  .article-meta code {
+    color: var(--color-ink-300);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
   }
 
   .article-meta .ui-tag-list {
@@ -327,16 +371,15 @@
 
   .article-meta .ui-tag-list a,
   .article-meta .ui-tag {
-    padding: 0 0.4375rem;
-    border: 1px solid color-mix(in srgb, var(--color-ink-400) 48%, transparent);
-    border-radius: 3px;
+    padding: 0 0.4375rem 0 0;
+    border: 0;
     color: var(--color-ink-200);
     font-size: 0.75rem;
     line-height: 1.75;
     text-decoration: none;
   }
 
-  .article-meta .ui-tag-list a::before,
+  /* Stack names are not tags; article tag links keep the site-wide # prefix. */
   .article-meta .ui-tag::before {
     content: none;
   }
@@ -344,32 +387,22 @@
   .article-meta .ui-tag-list a:hover,
   .article-meta .ui-tag-list a:focus-visible {
     color: var(--color-primary-600);
-    border-color: var(--color-primary-600);
   }
 
   [data-theme="dark"] .article-meta .ui-tag-list a:hover,
   [data-theme="dark"] .article-meta .ui-tag-list a:focus-visible {
     color: var(--color-primary-400);
-    border-color: var(--color-primary-400);
   }
 
-  /* /tags index: domain nav vs wrapping tag units — typography + spacing, not chips. */
-  .tag-index-domains {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: 1.5rem;
-    row-gap: 0.4rem;
-  }
-
+  /* /tags index: one flat row of tag names, typography + spacing, not chips. */
   .tag-index-list {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     column-gap: 2.5rem;
     row-gap: 1rem;
-    margin: 1.25rem 0 0;
-    padding: 1.25rem 0 0;
-    border-top: 1px solid var(--color-surface-700);
+    margin: 0;
+    padding: 0;
     list-style: none;
   }
 
@@ -383,7 +416,7 @@
     @apply text-[11px] text-ink-500;
   }
 
-  /* Site-wide tag prefix. Group tabs use .ui-tag-link outside .ui-tag-list. */
+  /* Site-wide tag prefix. */
   .ui-tag::before,
   .ui-tag-list a::before {
     content: '#';
@@ -412,10 +445,6 @@
   [data-theme="dark"] .ui-tag-link:focus-visible {
     color: var(--color-primary-400);
     text-decoration-color: var(--color-primary-600);
-  }
-
-  .tag-index-domains .ui-tag-link {
-    text-underline-offset: 0.25rem;
   }
 
   .tag-index-list .ui-tag-link {
@@ -603,18 +632,37 @@
   .prose-site {
     @apply prose max-w-none
       prose-headings:text-ink-100 prose-headings:font-semibold
-      prose-p:leading-loose prose-p:text-ink-300
+      prose-p:text-ink-300
       prose-a:underline
       prose-strong:text-ink-100
       prose-code:before:content-none prose-code:after:content-none
       prose-blockquote:border-l-0 prose-blockquote:pl-0 prose-blockquote:text-ink-400 prose-blockquote:italic
-      prose-hr:border-0 prose-hr:border-t-0
-      prose-li:leading-loose;
+      prose-hr:border-0 prose-hr:border-t-0;
+    /* 16px type at 1.5, same as a Notion text block. Wins over prose's 1.75. */
+    line-height: 1.5;
     /* ol/ul markers: typography defaults to gray counters/bullets; match h2 ink. */
     --tw-prose-counters: var(--color-ink-100);
     --tw-prose-bullets: var(--color-ink-100);
     --tw-prose-invert-counters: var(--color-ink-100);
     --tw-prose-invert-bullets: var(--color-ink-100);
+  }
+
+  /*
+   * Paragraphs and list items stay at 1.5 even if a prose leading utility
+   * is reapplied. Adjacent paragraphs collapse to 0.75rem (12px): Notion
+   * pads each text block 6px, so the gap is that small air, not a 24px line.
+   */
+  .prose-site :is(p, li) {
+    line-height: 1.5;
+  }
+
+  .prose-site p {
+    margin-block: 0.75rem;
+  }
+
+  /* Opening block sits in the dek's short gap, not its own prose margin. */
+  .prose-site > :first-child {
+    margin-top: 0;
   }
 
   [data-theme="light"] .prose-site {
@@ -639,28 +687,42 @@
    * ink-300 body copy. Declared after prose-invert so dark-theme color wins
    * ([data-theme] + .prose-site a matches invert's specificity).
    * TweetEmbed chrome (handle / X logo) is not a body citation — exclude it.
+   *
+   * The line is a 1px gray hairline just under the alphabetic baseline
+   * (small offset, not text-underline-position: under). skip-ink keeps it
+   * off g/y and CJK descenders. Gray is ink at low opacity, so light and
+   * dark both read as a faint line rather than a second blue stroke.
+   * Hover is the same faint ink, as a wash tight to the glyphs.
    */
-  .prose-site a:not([data-tweet-embed] *) {
+  .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
+    --prose-link-line: color-mix(in srgb, var(--color-ink-100) 16%, transparent);
+    --prose-link-wash: color-mix(in srgb, var(--color-ink-100) 8%, transparent);
     color: var(--color-primary-600);
-    text-decoration-color: var(--color-primary-300);
-    text-underline-position: under;
-    text-underline-offset: 0.2em;
-    text-decoration-skip-ink: auto;
+    text-decoration-line: underline;
+    text-decoration-color: var(--prose-link-line);
+    text-decoration-thickness: 1px;
+    text-underline-position: auto;
+    text-underline-offset: 0.12em;
+    text-decoration-skip-ink: all;
+    border-radius: 0.125rem;
+    background-color: transparent;
+    box-shadow: 0 0 0 3px transparent;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
-  .prose-site a:not([data-tweet-embed] *):hover {
+  .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
     color: var(--color-primary-500);
-    text-decoration-color: var(--color-primary-500);
+    background-color: var(--prose-link-wash);
+    box-shadow: 0 0 0 3px var(--prose-link-wash);
   }
 
-  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *) {
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
     color: var(--color-primary-400);
-    text-decoration-color: var(--color-primary-600);
   }
 
-  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):hover {
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
     color: var(--color-primary-300);
-    text-decoration-color: var(--color-primary-400);
   }
 
   /* TweetEmbed 的头像 / handle / X 是卡片 chrome，不是正文引用链 */
@@ -688,7 +750,7 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .prose-site a {
-      transition-property: color, text-decoration-color;
+      transition-property: color, text-decoration-color, background-color, box-shadow;
       transition-duration: 150ms;
       transition-timing-function: ease;
     }
@@ -703,10 +765,20 @@
     height: auto;
   }
 
-  .prose-site table {
-    display: block;
+  /*
+   * Markdown tables take the prose column, the same width as the paragraphs.
+   * display:block with overflow-x:auto shrink-wraps the grid to the text,
+   * so the rules stop at the words. Keep a real table box inside that column.
+   * VerdictTable keeps its own width and scroll wrapper.
+   */
+  .prose-site table:not(.vt-table) {
+    display: table;
+    width: 100%;
     max-width: 100%;
-    overflow-x: auto;
+  }
+
+  .prose-site table:not(.vt-table) :is(th, td) {
+    overflow-wrap: break-word;
   }
 
   .tweet-embed,
@@ -927,6 +999,102 @@
   .mention-active {
     text-decoration-color: var(--color-primary-400);
     color: var(--color-ink-100);
+  }
+
+  /*
+   * Mention 悬停预览。背景贴近正文画布；用一像素浅灰弱边和圆角与正文分开。
+   * 边框取 ink 约 30% 透明度，亮暗都能看见。不加重投影或渐变。
+   * 宽度保持 20rem，窄屏不超过视口。高度是原先 318/206 的一半（159/206）；
+   * 视口放不下时再变矮，不把卡片撑出屏幕。多出来的摘要和正文截在卡片里，不把卡片撑高。
+   * 摘要用文章页 .article-dek-text 的字色、字重、行距；正文段落用 .prose-site。
+   * 外链只用标题和下面一行完整 URL，不套摘要或正文样式。
+   * 根节点留 1px，是为了让 client:visible 在首屏就能注水，再用负边距收回这 1px。
+   */
+  .mention-preview-root {
+    width: 1px;
+    height: 1px;
+    margin-bottom: -1px;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .mention-preview {
+    --mention-preview-width: min(20rem, calc(100vw - 1.5rem));
+    position: fixed;
+    z-index: 40;
+    box-sizing: border-box;
+    width: var(--mention-preview-width);
+    height: calc(var(--mention-preview-width) * 159 / 206);
+    max-height: calc(100dvh - 1rem);
+    margin: 0;
+    padding: 0.75rem 1rem;
+    overflow: hidden;
+    background: var(--color-surface-950);
+    color: var(--color-ink-100);
+    border: 1px solid color-mix(in srgb, var(--color-ink-400) 30%, transparent);
+    border-radius: 0.5rem;
+    box-shadow: none;
+    opacity: 0;
+    pointer-events: none;
+    overflow-wrap: break-word;
+  }
+
+  .mention-preview.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mention-preview.mention-preview--motion.is-open {
+      transition: opacity 120ms linear;
+    }
+  }
+
+  .mention-preview-title,
+  .mention-preview-meta {
+    margin: 0;
+  }
+
+  .mention-preview-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--color-ink-100);
+  }
+
+  .mention-preview-url {
+    margin: 0.55rem 0 0;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.45;
+    color: var(--color-ink-400);
+  }
+
+  /*
+   * 摘要沿用 p.article-dek-text（字色、字重、行距 1.5、字号）。
+   * 和正文之间只留一小段，不要再空出接近一整行。
+   */
+  .mention-preview-summary {
+    margin: 0.75rem 0 0;
+  }
+
+  .mention-preview-body {
+    margin: 0.375rem 0 0;
+  }
+
+  .mention-preview-body > :first-child {
+    margin-top: 0;
+  }
+
+  .mention-preview-body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .mention-preview-meta {
+    margin-top: 0.55rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--color-ink-500);
   }
 
   /* VerdictTable 裁决表 */
@@ -1564,6 +1732,11 @@
     margin-top: 0.55rem;
   }
 
+  /* 标题行插在最前时，第一个小标题仍贴着它，不另起一段间距。 */
+  .toc li:has(> a[data-toc-title]) + li > a[data-depth='2'] {
+    margin-top: 0;
+  }
+
   .toc a:hover,
   .toc a:focus-visible {
     color: var(--color-ink-200);
@@ -1596,6 +1769,14 @@
       transition: none;
     }
   }
+}
+
+/*
+ * 标题上方的工具行在没有「更新于」、语言切换、收藏或系列关闭按钮时不占高度。
+ * 写在 layer 外，才能压过同一行上的 flex utility。发布日期不在这一行。
+ */
+.article-lede-tools:not(:has(.ui-meta, a, button)) {
+  display: none;
 }
 
 /*
@@ -1778,7 +1959,7 @@
 
   .article-meta .ui-tag-list a {
     min-height: 2rem;
-    padding: 0 0.625rem;
+    padding: 0 0.625rem 0 0;
   }
 
   .tag-index-list {
