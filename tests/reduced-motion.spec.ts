@@ -5,17 +5,16 @@ test.describe('prefers-reduced-motion', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
   });
 
-  test('home is the article list and /about redirects there', async ({ page }) => {
+  test('home is the article list and /about stays the about page', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     expect(new URL(page.url()).pathname).toBe('/');
     await expect(page.locator('header.site-nav')).toBeVisible();
     await expect(page.locator('[data-about-panel]')).toHaveCount(0);
     await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', { useInnerText: true });
     await expect(page.locator('main')).toBeVisible();
-    // serve.json sends /about to /. The wordmark already points at the article list.
     await page.goto('/about', { waitUntil: 'domcontentloaded' });
-    expect(new URL(page.url()).pathname).toBe('/');
-    await expect(page.locator('[data-reading-index-switch] h1')).toHaveText('Articles', { useInnerText: true });
+    expect(new URL(page.url()).pathname).toBe('/about');
+    await expect(page.locator('[data-about-panel]')).toBeVisible();
   });
 
   test('Timeline on the project list remains readable', async ({ page }) => {
