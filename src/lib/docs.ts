@@ -229,7 +229,7 @@ export async function publicContentRoutes(opts: { includeDrafts?: boolean } = {}
     if (/^\d+$/.test(article.id)) continue;
     const path = docHref(article).replace(/^\//, '');
     claimPublicPath(owners, path, article.data.title);
-    routes.push({ path, kind: 'article', article });
+    routes.push({ path, kind: 'article', article: article as CollectionEntry<'articles'> });
     if (article.id !== path) {
       claimPublicPath(owners, article.id, `${article.data.title} 的文件名`);
       routes.push({ path: article.id, kind: 'redirect', target: `/${path}` });
@@ -238,7 +238,7 @@ export async function publicContentRoutes(opts: { includeDrafts?: boolean } = {}
   for (const project of projects) {
     const path = docHref(project).replace(/^\//, '');
     claimPublicPath(owners, path, project.data.title);
-    routes.push({ path, kind: 'project', project });
+    routes.push({ path, kind: 'project', project: project as CollectionEntry<'projects'> });
   }
   for (const page of pages) {
     const path = sitePageHref(page.id).replace(/^\//, '');
