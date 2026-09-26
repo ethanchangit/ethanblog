@@ -123,7 +123,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.getByRole('heading', { name: '浏览统计' })).toHaveCount(0);
   await pullLatest(page);
   await expect(page.getByRole('tab', { name: /New articles · 2/ })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Edited articles · 5/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Deleted articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /New References · 1/ })).toBeVisible();
   await expect(page.getByText('这一版 ·')).toHaveCount(0);
@@ -131,8 +131,8 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('.review-items[data-review-group=new] .review-item')).toHaveCount(2);
   await expect(page.locator('#review-list .references-block')).toHaveCount(0);
   await expect(page.locator('#review-list')).not.toContainText('跟随资料');
-  await page.getByRole('tab', { name: /Edited articles · 2/ }).click();
-  await expect(page.locator('.review-items[data-review-group=edited] .review-item')).toHaveCount(2);
+  await page.getByRole('tab', { name: /Edited articles · 5/ }).click();
+  await expect(page.locator('.review-items[data-review-group=edited] .review-item')).toHaveCount(5);
   const frame = page.frameLocator('iframe[title="网站发布样式预览"]');
   await expect(page.locator('.preview-title')).toHaveText('知识管理，先从连接开始');
   await expect(page.locator('.preview-date')).toContainText('2024 年 2 月 1 日');
@@ -219,7 +219,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await page.getByRole('button', { name: '提交通过的更新到 GitHub' }).click();
   await expect(page.getByRole('button', { name: '确认发布', exact: true })).toBeVisible();
   const cards = await page.request.get(new URL('/dashboard/api/heptabase/cards', url).href);
-  expect((await cards.json()).cards.map((c: { title: string }) => c.title)).toEqual(['知识管理，先从连接开始', '让标签跟着想法生长']);
+  expect((await cards.json()).cards.map((c: { title: string }) => c.title)).toEqual(['知识管理，先从连接开始', '痕迹', '让标签跟着想法生长', '笔记', '书单']);
   await page.getByRole('button', { name: '确认发布', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).not.toContainText('articles/example');
@@ -233,7 +233,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.getByText('最近一次发布：已上线', { exact: true })).toBeVisible();
   await pullLatest(page);
   await expect(page.getByRole('tab', { name: /New articles · 0/ })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Edited articles · 6/ })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.locator('.preview-title')).toBeVisible();

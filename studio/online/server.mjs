@@ -19,7 +19,7 @@ import {
 } from '../core.mjs';
 import { parseTagGroupsSource } from '../tag-groups-core.mjs';
 import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedText, fail, fetchNoRedirect, hash, withLock } from './auth.mjs';
-import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, dashboardCardLists } from './heptabase.mjs';
+import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, referenceTagCards, dashboardCardLists } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
 import { ensureReferenceTags } from './reference-tags.mjs';
@@ -374,24 +374,27 @@ async function openPublicationCatalog(env) {
   const paths = (tree) => [...tree.entries.keys()].filter((path) => pathDoc(path));
   await primeBlobs(env, state, paths(state));
   if (main !== state) await primeBlobs(env, main, paths(main));
+  const references = await referenceTagCards(client);
   return {
     client, cards, tagId, schema, state, main,
     blogIds: new Set(cards.map((card) => card.id)),
+    referenceIds: new Set(references.cards.map((card) => card.id)),
     reasons: new Map(),
     allowUnreadable: true,
   };
 }
 
-async function liveRemovalReason(env, client, id, schema, blogIds) {
+async function liveRemovalReason(env, client, id, schema, blogIds, referenceIds = new Set()) {
   const catalog = env.publicationCatalog;
-  if (!catalog) return removalReason(client, id, schema, blogIds);
+  const keptReferences = catalog?.referenceIds || referenceIds;
+  if (!catalog) return removalReason(client, id, schema, blogIds, keptReferences);
   if (catalog.reasons.has(id)) {
     const cached = catalog.reasons.get(id);
     if (cached?.unreadable) throw Object.assign(new Error(cached.message), { unreadable: true, status: cached.status || 502 });
     return cached;
   }
   try {
-    const reason = await removalReason(client, id, schema, blogIds);
+    const reason = await removalReason(client, id, schema, blogIds, keptReferences);
     catalog.reasons.set(id, reason);
     return reason;
   } catch (error) {
@@ -699,6 +702,7 @@ async function assertReviewed(env, state, rows) {
   if (!pending.length) return;
   const client = await mcpClient(env);
   const { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
+  const referenceIds = new Set((await referenceTagCards(client)).cards.map((card) => card.id));
   let i18n = null;
   const seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
   while (pending.length) {
@@ -720,7 +724,7 @@ async function assertReviewed(env, state, rows) {
       throw error;
     }
     const stamps = (await cardTimestamps(client, [id])).get(id);
-    if (!properties.member) throw fail(translation ? '译文卡片已移出 #blogi18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
+    if (!properties.member && !(parsed.frontmatter.heptabaseType === 'reference' && referenceIds.has(id))) throw fail(translation ? '译文卡片已移出 #blogi18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
     if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
     const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
     const expectedDay = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
@@ -781,18 +785,46 @@ async function publishedCardMeta(env) {
   return meta;
 }
 
+function queueStatus(status) {
+  return status === 'review' || status === 'published';
+}
+
+// A published Heptabase card joins the review list once the website already has a non-draft copy.
+// A studio draft that has not reached the published branch does not count.
+function publishedCardLinks(files) {
+  const links = new Set();
+  for (const [, raw] of files) {
+    let data;
+    try { data = parseMdx(raw).frontmatter; }
+    catch { continue; }
+    if (!data || data.draft || data.translationOf || !data.heptabaseCardLink) continue;
+    links.add(String(data.heptabaseCardLink).toLowerCase());
+  }
+  return links;
+}
+
+function isReferencePage(properties, referenceTag = false) {
+  if (!properties) return false;
+  if (properties.type === 'reference') return true;
+  return Boolean(referenceTag) && !(properties.member && ['article', 'project', 'page'].includes(properties.type));
+}
+
+function needsReferenceTag(node) {
+  return !node.translation && !node.properties.member && !isReferencePage(node.properties, node.referenceTag);
+}
+
 function reviewTranslationIds(cards, pulls) {
   const ids = new Set();
   for (const card of cards) {
     const properties = pulls.get(card.id)?.properties;
-    if (properties?.status !== 'review') continue;
+    if (!queueStatus(properties?.status)) continue;
     for (const id of properties.translations || []) ids.add(id);
   }
   return ids;
 }
 
 async function startPullScan(env, client) {
-  const { blog, i18n } = await dashboardCardLists(client);
+  const { blog, i18n, references } = await dashboardCardLists(client);
   const pulls = await readCardPulls(env);
   const listed = [...blog.cards, ...i18n.cards];
   const cold = listed.some((card) => card.type === 'card' && !sameEdit(card, pulls.get(card.id)));
@@ -833,7 +865,7 @@ async function startPullScan(env, client) {
   }
   return {
     phase: 'fetch', tagId: blog.tagId, i18nTagId: i18n.tagId,
-    blogCards: blog.cards, i18nCards: i18n.cards, changed, blogCount, cursor: 0, linksChecked: false,
+    blogCards: blog.cards, i18nCards: i18n.cards, referenceCards: references.cards, changed, blogCount, cursor: 0, linksChecked: false,
   };
 }
 
@@ -867,7 +899,7 @@ async function heptabaseCards(env, identity) {
   let scan = await readPullScan(env, identity.sessionId);
   // Step 1 is CardList + editedTime for #blog, and for #blogi18n when that tag exists. A resumed request
   // only continues step 2, so an unchanged card never gets a properties or body read.
-  if (!scan || (scan.phase !== 'fetch' && scan.phase !== 'removals') || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
+  if (!scan || (scan.phase !== 'fetch' && scan.phase !== 'removals') || !Array.isArray(scan.blogCards) || !Array.isArray(scan.referenceCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
   const schema = await blogSchema(client, scan.tagId);
   let i18n = null, fetched = 0;
   while (fetched < CHANGED_BATCH) {
@@ -897,21 +929,24 @@ async function heptabaseCards(env, identity) {
   const pulls = await readCardPulls(env);
   const state = await branchState(env), docs = await listDocs(env, identity, state);
   const entries = [...docs.articles, ...docs.projects, ...docs.sitePages];
+  const main = state.pr ? await branchState(env, cfg(env).branch) : state;
+  const published = await contentFiles(env, main);
+  const onSite = publishedCardLinks(published);
   const result = [], pageCandidates = [];
   for (const card of cards) {
     const linked = entries.filter((doc) => doc.heptabaseCardLink?.toLowerCase() === card.cardLink);
     const properties = pulls.get(card.id)?.properties || null;
     if (!properties) continue;
     if (properties.member && properties.type === 'page') pageCandidates.push(card);
-    if (properties.status !== 'review') continue;
+    if (properties.status !== 'review' && !(properties.status === 'published' && onSite.has(card.cardLink))) continue;
     result.push({ ...card, properties, linked: linked.map(({ collection, id, title, draft }) => ({ collection, id, title, draft })), unsupported: card.type !== 'card' });
   }
-  const main = state.pr ? await branchState(env, cfg(env).branch) : state;
-  const published = await contentFiles(env, main);
   const files = new Map(published), rows = await draftRows(env, identity), removals = [];
   for (const [path, raw] of await contentFiles(env, state, rows)) files.set(path, raw);
   for (const plan of await removalDecisions(env)) if (rows.some(row => row.path === plan.filePath && row.raw === '')) files.set(plan.filePath, plan.graph[0].current.raw);
-  const blogIds = new Set(cards.map(card => card.id)), candidates = [];
+  const blogIds = new Set(cards.map(card => card.id));
+  const referenceIds = new Set(scan.referenceCards.map(card => card.id));
+  const candidates = [];
   const removalChecks = [];
   for (const [path, raw] of files) {
     const p = parseMdx(raw).frontmatter;
@@ -920,7 +955,8 @@ async function heptabaseCards(env, identity) {
   }
   // Card bodies already spent this request's subrequest budget. Read withdrawals next time.
   scan.removalReasons ||= {};
-  const unread = removalChecks.filter((item) => !blogIds.has(item.id) && scan.removalReasons[item.id] === undefined);
+  const stays = (id) => blogIds.has(id) || referenceIds.has(id);
+  const unread = removalChecks.filter((item) => !stays(item.id) && scan.removalReasons[item.id] === undefined);
   const REMOVAL_READ_BATCH = 8;
   if (scan.phase !== 'removals' && fetched >= CHANGED_BATCH && unread.length) {
     scan.phase = 'removals';
@@ -928,7 +964,7 @@ async function heptabaseCards(env, identity) {
     return { partial: true, phase: 'removals', fetched: 0, changed: unread.length };
   }
   const slice = unread.slice(0, scan.phase === 'removals' ? REMOVAL_READ_BATCH : unread.length);
-  const reasons = await mapLimited(slice, IO_CONCURRENCY, (item) => removalReason(client, item.id, schema, blogIds));
+  const reasons = await mapLimited(slice, IO_CONCURRENCY, (item) => removalReason(client, item.id, schema, blogIds, referenceIds));
   slice.forEach((item, index) => { scan.removalReasons[item.id] = reasons[index]; });
   if (unread.length > slice.length) {
     scan.phase = 'removals';
@@ -937,7 +973,7 @@ async function heptabaseCards(env, identity) {
   }
   await clearPullScan(env, identity.sessionId);
   removalChecks.forEach((item) => {
-    const reason = blogIds.has(item.id) ? null : scan.removalReasons[item.id];
+    const reason = stays(item.id) ? null : scan.removalReasons[item.id];
     if (reason) candidates.push({ path: item.path, title: item.title, cardLink: item.cardLink, reason, listed: item.listed });
   });
   // A listed:false page already inside a main article's removal is withdrawn with that article.
@@ -1295,6 +1331,7 @@ async function heptabasePlan(env, identity, input) {
   const id = cardId(input.cardLink);
   const client = await mcpClient(env);
   const { cards, tagId } = await blogCards(client);
+  const referenceIds = new Set((await referenceTagCards(client)).cards.map((card) => card.id));
   const schema = await blogSchema(client, tagId);
   const card = cards.find((c) => c.id === id);
   if (!card || card.type !== 'card') throw fail('只能同步 #blog 下的文字卡片。');
@@ -1337,6 +1374,7 @@ async function heptabasePlan(env, identity, input) {
     const loaded = await cardPull(nextId);
     const source = loaded.source;
     const properties = loaded.properties;
+    const referenceTag = referenceIds.has(nextId);
     const routedCollection = properties.member ? collectionForBlogType(properties.type) : null;
     const known = targets.get(nextId);
     if (routedCollection && known && known.collection !== routedCollection) throw fail('已关联页面与 Blog Type 不一致。Article 和 Reference 对应文章页，Project 对应项目，Page 对应站点页面。Reference 不进文章列表。');
@@ -1354,7 +1392,7 @@ async function heptabasePlan(env, identity, input) {
     if (current.draft?.state === 'draft' && current.draft.raw === '') throw fail('这篇文章已在待删除清单，请先取消删除后重新拉取。', 409);
     if (current.raw && !parsed.frontmatter.draft && parsed.frontmatter.listed !== false && !properties.member) throw fail('引用的主文章已移出 #blog，请先处理撤下和引用关系，不能自动作为资料继续公开。', 409);
     if (parsed.frontmatter.heptabaseCardLink && cardId(parsed.frontmatter.heptabaseCardLink) !== nextId) throw fail('文章已连接另一张卡片。');
-    graph.push({ id: nextId, path, target, source, properties, created: stamps.created, updated: stamps.updated, parsed, current });
+    graph.push({ id: nextId, path, target, source, properties, referenceTag, created: stamps.created, updated: stamps.updated, parsed, current });
     for (const ref of references(source)) { if (!seen.has(ref.id)) pending.push(ref.id); }
   }
   const rootDraft = input.preparePublish === true ? false : graph[0].properties.status !== 'published';
@@ -1370,8 +1408,8 @@ async function heptabasePlan(env, identity, input) {
       description: properties.summary || '',
       date: copied.date || (!rootDraft && properties.member ? publicationDate(new Date(), env.STUDIO_TIMEZONE) : parsed.frontmatter.date || publicationDate(new Date(), env.STUDIO_TIMEZONE)),
       created: node.created || undefined, updated: node.updated || undefined,
-      draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : properties.type === 'reference' ? false : properties.member,
-      heptabaseType: properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}`,
+      draft: node.id === id ? rootDraft : rootDraft && Boolean(parsed.frontmatter.draft), listed: node.target.collection === 'pages' ? undefined : isReferencePage(properties, node.referenceTag) ? false : properties.member,
+      heptabaseType: isReferencePage(properties, node.referenceTag) ? 'reference' : properties.type || undefined, heptabaseStatus: properties.member ? properties.status : undefined, heptabaseCardLink: `heptabase://card/${node.id}`,
       language: undefined,
       ...(node.target.collection === 'articles' ? { url: node.target.url || undefined } : {}) };
     node.next = serializeMdx({ ...parsed, frontmatter, imports: content.imports, bodyZh: content.body });
@@ -1379,7 +1417,11 @@ async function heptabasePlan(env, identity, input) {
     node.conflict = Boolean(previous && previous.source !== JSON.stringify([node.source, properties]) && previous.blog_body !== blogProjection(parsed));
   }
   const root = graph[0];
-  if (input.reviewOnly && root.properties.status !== 'review') throw fail('这张卡片已不在 Review，请重新拉取。', 409);
+  if (input.reviewOnly && root.properties.status !== 'review') {
+    const site = state.pr ? await branchState(env, cfg(env).branch) : state;
+    const onSite = root.properties.status === 'published' && publishedCardLinks(await contentFiles(env, site)).has(card.cardLink);
+    if (!onSite) throw fail('这张卡片不在审核清单里。Review 会拉取；Published 只在网站上已有已发布副本时拉取。', 409);
+  }
   const { nodes: translations, i18n } = await loadTranslations(env, identity, state, client, schema, root, documentId, collection);
   // The published page stays the #blog card, including its bilingual layout.
   return { id, collection, documentId, filePath, source: root.source, raw: root.current.raw, next: root.next,
@@ -1404,7 +1446,7 @@ async function heptabasePreview(env, identity, input) {
   const published = new Map();
   for (const node of graph) published.set(node.id, await readBlob(env, baseline, node.path));
   const changes = graph.map(n => ({ id: n.id, cardLink: `heptabase://card/${n.id}`, title: parseMdx(n.next).frontmatter.title,
-    path: n.path, mainArticle: Boolean(!n.translation && n.properties.member && n.properties.type !== 'reference'), referenceTagged: Boolean(n.properties.member && n.properties.type === 'reference'),
+    path: n.path, mainArticle: Boolean(!n.translation && n.properties.member && !isReferencePage(n.properties, n.referenceTag)), referenceTagged: isReferencePage(n.properties, n.referenceTag),
     translation: Boolean(n.translation), language: n.language || null,
     previouslyPublished: Boolean(published.get(n.id) && !parseMdx(published.get(n.id)).frontmatter.draft),
     kind: !published.get(n.id) ? '新增' : n.next === published.get(n.id) ? '未变化' : '更新',
@@ -1425,23 +1467,9 @@ async function markReferences(env, identity, input) {
     // The review preview is a publish plan. A batch decision does not repeat that flag on every click.
     const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
     samePlan(input, plan);
-    const client = await mcpClient(env), { tagId } = await blogCards(client);
-    const option = plan.schema.type.options.find((item) => item.name.trim().toLowerCase() === 'reference');
-    if (!option) throw fail('Blog Type 需要一个 Reference 选项。');
-    // A mentioned #blog article keeps its own Blog Type. Only cards outside #blog become Reference.
-    const ids = plan.graph.filter(n => !n.properties.member).map(n => n.id);
-    if (ids.length) {
-      await lease();
-      const result = await client.call('update_database_card_membership', { tagId, operation: 'add', cardIds: ids });
-      if (result.failedCardIds?.length || result.invalidCardIds?.length) throw fail('部分引用尚未加入 #blog，未批准发布；请重新拉取后重试。', 409);
-      const edited = await client.call('edit_card_properties', { tagId, edits: ids.map((cardId) => ({ cardId, propertyId: plan.schema.type.id, type: 'select', value: option.name })) });
-      if (!edited.results || edited.results.length !== ids.length || edited.results.some((item) => item.status !== 'success')) throw fail('引用的 Blog Type 没有全部写成 Reference，未批准发布。', 409);
-      for (const id of ids) {
-        const actual = await readProperties(client, id, plan.schema);
-        if (!actual.member || actual.type !== 'reference') throw fail('Heptabase 尚未确认引用已加入 #blog 且 Blog Type 为 Reference。', 409);
-        await rememberProperties(env, id, actual);
-      }
-    }
+    const client = await mcpClient(env);
+    const ids = plan.graph.filter(needsReferenceTag).map(n => n.id);
+    await lease();
     const applied = await ensureReferenceTags(client, plan.graph.map((node) => ({ id: node.id, source: node.source })));
     return { marked: ids.length, referencesTagged: applied.tagged.length };
   });
@@ -1452,7 +1480,7 @@ async function heptabaseApply(env, identity, input) {
     const plan = await heptabasePlan(env, identity, input);
     samePlan(input, plan);
     if (input.confirmPublic !== true) throw fail('请先审查所有文章和引用卡片，并明确确认可以公开。', 409);
-    if (plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
+    if (plan.graph.some(needsReferenceTag)) throw fail('请先给引用卡片加上 references 标签，再完成审查。', 409);
     if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请比较后明确确认采用 Heptabase 的版本。', 409);
     if (plan.graph[0].properties.type === 'page') await assertKeptPage(env, identity, plan.graph[0].id);
     await savePlan(env, identity, plan, lease);
@@ -1668,7 +1696,7 @@ async function decideReview(env, identity, input) {
     } else if (revising) {
       plan = savedPlan;
       if (input.decision === 'approve' && input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
-      if (input.decision === 'approve' && plan.graph.some(n => !n.properties.member)) throw fail('引用资料还没有加入 #blog。请把卡片重新标为 Review 后拉取，再通过。', 409);
+      if (input.decision === 'approve' && plan.graph.some(needsReferenceTag)) throw fail('引用卡片还没有 references 标签。请重新拉取后再通过。', 409);
       await run(env, "UPDATE studio_review_decisions SET decision = ?2, status = 'pending', created_at = ?3 WHERE card_id = ?1", id, input.decision, new Date().toISOString());
     } else {
       plan = await heptabasePlan(env, identity, { ...input, reviewOnly: true, preparePublish: true });
@@ -1677,11 +1705,11 @@ async function decideReview(env, identity, input) {
       if (input.decision === 'approve') {
         if (input.confirmPublic !== true) throw fail('请先确认这篇文章和所有引用都可以公开。', 409);
         if (plan.conflict && input.resolveConflict !== true) throw fail('两边都有更新，请确认采用 Heptabase 版本。', 409);
-        if (plan.graph.some(n => !n.properties.member)) throw fail('请先把引用资料加入 #blog，并把 Blog Type 设为 Reference，再完成隐私审查。', 409);
+        if (plan.graph.some(needsReferenceTag)) throw fail('请先给引用卡片加上 references 标签，再完成审查。', 409);
       }
       // Other #blog cards always need their own decision. A mention must never
       // smuggle a rejected or still-unreviewed blog into this approval.
-      plan.graph = plan.graph.filter(n => n.id === id || n.translation || n.properties.type === 'reference');
+      plan.graph = plan.graph.filter(n => n.id === id || n.translation || isReferencePage(n.properties, n.referenceTag));
       const copied = dateFromCard({ publishDate: plan.graph[0].properties.date, created: plan.graph[0].created, timezone: env.STUDIO_TIMEZONE });
       plan.date = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
       plan.inventDate = copied.invented;

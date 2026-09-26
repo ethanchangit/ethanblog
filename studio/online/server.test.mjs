@@ -176,7 +176,7 @@ test('recursive mentions deduplicate cycles; only non-blog cards receive the ref
   assert.equal(plan.references.length, 2); assert.match(plan.next, /DocList pane="embed"/); assert.match(plan.next, /data-doc-mention/);
   assert.equal((await f.request('/heptabase/apply', 'POST', selection(plan, { confirmPublic: true }))).status, 409);
   const marked = await jsonOk(f.request('/heptabase/mark-references', 'POST', selection(plan)));
-  assert.equal(marked.marked, 1); assert.equal(f.properties.get(grandchild)['Blog Type'], 'Reference');
+  assert.equal(marked.marked, 1); assert.equal(f.properties.has(grandchild), false);
   assert.equal(f.properties.get(child)?.['Blog Type'], undefined);
   assert.equal(marked.referencesTagged, 3);
   for (const id of [CARD, child, grandchild]) assert.equal(f.referencesTag.has(id), true, id);
@@ -730,9 +730,15 @@ test('unchanged editedTime does not fetch properties or content', async () => {
   f.calls.length = 0;
   const listed = await jsonOk(f.request('/heptabase/cards'));
   assert.equal(listed.partial, undefined);
-  assert.deepEqual(listed.cards.map((card) => card.id), [CARD]);
+  assert.deepEqual(listed.cards.map((card) => card.id), [CARD, kept]);
   assert.equal(listed.removals.some((item) => item.id === 'kept'), false);
   assert.equal(readObjects(f).length, 0);
+  const offline = '00000000-0000-4000-8000-0000000000cc';
+  f.properties.set(offline, { Status: 'published', 'Blog Type': 'Article' });
+  f.cardSources.set(offline, '# 未上线\n\n正文');
+  const again = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(again.cards.some((card) => card.id === offline), false);
+  assert.equal(again.cards.some((card) => card.id === kept), true);
   const lists = f.calls.filter((call) => call.body?.params?.name === 'list_cards');
   assert.ok(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'blog-id'));
   assert.ok(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'i18n-id'));

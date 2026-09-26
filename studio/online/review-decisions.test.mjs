@@ -15,13 +15,19 @@ const decision = (f, plan, which = 'approve') => f.request('/heptabase/decision'
 const other = '9732c208-c3b1-4a7b-a922-0c3483475d6b';
 const writes = f => f.calls.filter(c => c.url.startsWith('https://api.github.com') && c.method !== 'GET' && !c.url.endsWith('/graphql'));
 
-test('only Review roots are pulled; new and edited use GitHub publication, not a date heuristic', async () => {
+test('review cards are pulled; published cards join only when the site already has them', async () => {
   const f = await setup(); f.properties.set(other, { Status: 'writing' }); f.cardSources.set(other, '# 非 Review\n\n不能拉取');
   let cards = (await ok(f.request('/heptabase/cards'))).cards; assert.deepEqual(cards.map(c => c.id), [CARD]);
   assert.equal((await preview(f)).changes[0].previouslyPublished, false);
   f.remote(article.replace('draft: true', 'draft: false'));
   assert.equal((await preview(f)).changes[0].previouslyPublished, true);
-  f.properties.get(CARD).Status = 'Published'; cards = (await ok(f.request('/heptabase/cards'))).cards; assert.equal(cards.length, 0);
+  f.properties.get(CARD).Status = 'Published';
+  cards = (await ok(f.request('/heptabase/cards'))).cards;
+  assert.deepEqual(cards.map(c => c.id), [CARD]);
+  assert.equal((await preview(f)).changes[0].previouslyPublished, true);
+  f.remote(article);
+  cards = (await ok(f.request('/heptabase/cards'))).cards;
+  assert.equal(cards.length, 0);
   assert.equal((await f.request('/heptabase/preview', 'POST', input)).status, 409);
 });
 test('individual approval writes Published and first date immediately; not deployed, retries idempotent', async () => {

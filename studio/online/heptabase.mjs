@@ -328,17 +328,21 @@ export async function taggedCards(client, name) {
 export const blogCards = (client) => taggedCards(client, 'blog');
 // Present only when Heptabase still has a tag named exactly "blog i18n".
 export const i18nCards = (client) => taggedCards(client, 'blog i18n');
+// Reference pages are this tag. Blog Type no longer has a Reference option.
+export const referenceTagCards = (client) => taggedCards(client, 'references');
 
-// One tag walk, then CardList + edited time for #blog. #blogi18n is included only when that tag exists.
+// One tag walk, then CardList + edited time for #blog and #references.
+// #blogi18n is included only when that tag exists.
 export async function dashboardCardLists(client) {
   let last;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const tags = await allTags(client);
       const blog = await cardsInTag(client, tagNamed(tags, 'blog'));
+      const references = await cardsInTag(client, tagNamed(tags, 'references'));
       const i18nTag = optionalTag(tags, 'blog i18n');
       const i18n = i18nTag ? await cardsInTag(client, i18nTag) : { tagId: null, cards: [] };
-      return { blog, i18n };
+      return { blog, i18n, references };
     } catch (error) {
       last = error;
       if (error.status !== 409) throw error;

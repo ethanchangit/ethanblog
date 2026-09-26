@@ -39,7 +39,7 @@ async function pullLatest(page: Page) {
 test('本地预览打开后就是审核界面，不用先拉取', async ({ page }) => {
   await openLocal(page);
   await expect(page.getByRole('tab', { name: /New articles · 2/ })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /Edited articles · 2/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Edited articles · 5/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Deleted articles · 2/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Pages/ })).toBeVisible();
   await expect(page.locator('#release')).not.toContainText('请先拉取');
@@ -49,7 +49,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);
   await pullLatest(page);
-  await expect(page.locator('#release')).toContainText('还有 6 条待审');
+  await expect(page.locator('#release')).toContainText('还有 9 条待审');
   const pressed = () => page.locator('#review-list .review-item[data-selected=true] > .card-select');
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
@@ -83,7 +83,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const detail = page.locator('#review-preview .detail-actions');
   await page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(pressed()).toHaveText('让标签跟着想法生长'); await idle();
+  await expect(pressed()).toHaveText('痕迹'); await idle();
   await expect(page.getByRole('button', { name: '通过「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '拒绝「知识管理，先从连接开始」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.review-meta code').first()).toHaveText(/^\/[^/].*/);
@@ -96,15 +96,17 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   await dialog.getByRole('button', { name: '拒绝', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#review-preview #notice')).toHaveCount(0);
-  await expect(page.locator('#release')).toContainText('还有 4 条待审');
+  await expect(page.locator('#release')).toContainText('还有 7 条待审');
+  await expect(pressed()).toHaveText('让标签跟着想法生长');
   await expect(page.locator('#release').getByRole('button', { name: '直接发布', exact: true })).toBeVisible();
-  await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: '拒绝「痕迹」', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '通过「痕迹」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.remark-field')).toHaveCount(0);
   await detail.getByRole('button', { name: '通过', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(detail.getByRole('button', { name: '通过', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(detail.getByRole('button', { name: '拒绝', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(pressed()).toHaveText('笔记');
+  await expect(page.getByRole('button', { name: '通过「让标签跟着想法生长」', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '拒绝「让标签跟着想法生长」', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#review-preview #notice')).toHaveCount(0);
   expect(reviewRequests).toEqual({ decision: 0, preview: 0, git: 0 });
   expect(errors).toEqual([]);
@@ -135,7 +137,7 @@ test('审核列表只有标题，Shift 连选停在当前可见条目', async ({
   await expect(edited).not.toContainText('仅标签更新');
   await expect(edited).not.toContainText('已通过，待发布');
   const editedBoxes = edited.locator('> .review-item > .batch-pick');
-  await expect(editedBoxes).toHaveCount(2);
+  await expect(editedBoxes).toHaveCount(5);
   await expect(editedBoxes.nth(0)).not.toBeChecked();
   await expect(editedBoxes.nth(1)).not.toBeChecked();
   await editedBoxes.nth(1).click({ modifiers: ['Shift'] });

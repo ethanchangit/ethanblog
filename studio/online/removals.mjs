@@ -10,11 +10,12 @@ export const removalReasons = {
   capped: '超过站点页面上限，这次不留在网站上',
 };
 
-// Blogs, projects, Reference cards, and the four core pages stay only while the card is in #blog.
+// A #blog card stays. A card that only carries the references tag also stays:
+// that tag is the reference page, and leaving #blog is not a deletion.
 
 // A missing item in a list alone is never sufficient evidence of deletion.
-export async function removalReason(client, id, schema, blogIds) {
-  if (blogIds.has(id)) return null;
+export async function removalReason(client, id, schema, blogIds, referenceIds = new Set()) {
+  if (blogIds.has(id) || referenceIds.has(id)) return null;
   let result;
   try { result = await client.call('read_object', { objectType: 'card', objectId: id, offset: 0, limit: 1 }); }
   catch (error) { if (error.heptabaseReason === 'objectNotFound') return 'deleted'; throw error; }

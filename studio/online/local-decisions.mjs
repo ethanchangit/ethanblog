@@ -32,7 +32,7 @@ export function applyLocalDecision(item, verdict, { remark, pageKeep, choiceRequ
     extra = remark ? '备注会在发布上线后写回 Heptabase。' : '备注为空，发布上线后会清空 Remark。';
   } else if (markReferences) {
     item.markReferences = true;
-    extra = '引用资料会在发布时加入 #blog，Blog Type 为 Reference。';
+    extra = '引用卡片会在发布时加上 references 标签。';
   }
   if (next !== 'approve') item.markReferences = false;
   const changed = Boolean(item.decision && item.decision !== next);
