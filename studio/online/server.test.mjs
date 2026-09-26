@@ -267,9 +267,9 @@ test('a failed deploy job still counts as published when the live commit matches
   const review = await jsonOk(f.request('/git/review'));
   const merged = await jsonOk(f.request('/git/publish', 'POST', review));
   f.failDeploy();
-  assert.equal((await jsonOk(f.request('/git'))).release.status, 'failed');
+  assert.equal((await jsonOk(f.request('/git/refresh'))).release.status, 'failed');
   f.deploy();
-  const again = await jsonOk(f.request('/git'));
+  const again = await jsonOk(f.request('/git/refresh'));
   assert.equal(again.release.status, 'succeeded');
   assert.equal(again.release.stage, 'deployed');
   assert.equal(again.release.id, merged.release.id);
@@ -280,7 +280,7 @@ test('merge is not published until Actions and live version match; next release 
   const review = await jsonOk(f.request('/git/review'));
   const merged = await jsonOk(f.request('/git/publish', 'POST', review));
   assert.notEqual(merged.release.status, 'succeeded'); assert.notEqual(f.refs.get('main'), review.baseSha);
-  f.deploy(); assert.equal((await jsonOk(f.request('/git'))).release.status, 'succeeded');
+  f.deploy(); assert.equal((await jsonOk(f.request('/git/refresh'))).release.status, 'succeeded');
   assert.equal((await jsonOk(f.request('/git/publish', 'POST', review))).release.id, merged.release.id);
   assert.equal(f.calls.filter(c => c.url.endsWith('/merge')).length, 1);
   f.setSource('# 测试文章\n\n下一版'); await prepare(f); await submit(f);
@@ -312,11 +312,32 @@ test('verified publication writes status and first date only; receipt is authent
   assert.equal(publicationDate(new Date('2026-09-20T21:30:00Z')), '2026-09-21');
 });
 
+test('deployment receipt finishes large status writeback across bounded requests', async () => {
+  const f = await setup(); await prepare(f); await submit(f);
+  const published = await jsonOk(f.request('/git/publish', 'POST', await jsonOk(f.request('/git/review'))));
+  for (let index = 1; index <= 5; index++) {
+    const id = `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
+    f.properties.set(id, { Status: 'new', Tag: ['AI Native'], 'Blog Type': 'Article' });
+    f.cardSources.set(id, `# Additional card ${index}`);
+    await f.DB.prepare('INSERT INTO studio_release_cards (release_id, card_id, expected_status, published_date) VALUES (?1, ?2, ?3, ?4)')
+      .bind(published.release.id, id, 'new', '2026-09-21').run();
+  }
+  f.deploy();
+  const payload = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: Date.now() });
+  const headers = { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, payload) };
+  const receipt = () => f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: payload, headers }), f.env);
+  const first = await receipt();
+  assert.equal(first.status, 503);
+  assert.equal((await first.json()).pending, 2);
+  await jsonOk(receipt());
+  assert.equal(f.DB.sqlite.prepare('SELECT count(*) AS n FROM studio_release_cards WHERE completed = 0').get().n, 0);
+});
+
 test('writeback respects pre-existing dates and concurrent status edits', async () => {
   const f = await setup(); f.properties.get(CARD)['Publish Date'] = { start: '2024-02-01T00:00:00.000Z' };
   await prepare(f); await submit(f); await jsonOk(f.request('/git/publish', 'POST', await jsonOk(f.request('/git/review'))));
   f.properties.get(CARD).Status = 'blocked'; f.deploy();
-  const result = await jsonOk(f.request('/git'));
+  const result = await jsonOk(f.request('/git/refresh'));
   assert.equal(result.release.status, 'succeeded'); assert.equal(result.release.heptabase.pending, 1);
   assert.equal(f.properties.get(CARD).Status, 'blocked'); assert.equal(f.properties.get(CARD)['Publish Date'].start, '2024-02-01T00:00:00.000Z');
 });

@@ -4,7 +4,7 @@ import { formatDate as siteDate } from '../../src/lib/format.ts';
 import { IO_CONCURRENCY, mapLimited, previewBodyKey } from './pool.mjs';
 import { auditAddress } from './audit-address.mjs';
 import { directPublishFeedback, directPublishPlan } from './direct-publish.mjs';
-import { applyLocalDecision, decisionBatch, pageChoicePayload, referenceKeepBatchCopy, referenceKeepCopy } from './local-decisions.mjs';
+import { applyLocalDecision, decisionBatch, pageChoicePayload } from './local-decisions.mjs';
 import { blogViewHref } from './blog-href.mjs';
 
 const root = document.querySelector('#studio');
@@ -14,6 +14,7 @@ let docs = [], items = [], selected, git, connected = false, pulled = false, loc
 let pageRemovalPlans = new Map();
 let pageChoiceDirty = false;
 let busyRelease = '';
+let pendingCommit = false;
 let releaseNotice = { text: '', error: false };
 let pageSet = null, pageChoice = null, pageKeepDraft = new Set(), pageOrderDraft = [], pageListDraft = [], pageHiddenDraft = new Set();
 let pageChoiceSaveTimer = 0;
@@ -54,9 +55,8 @@ async function runControl(control, action) {
   catch (error) {
     if (error.status === 401 && !pageIsLocal()) { closeDialog(); showLogin(booted ? error.message : ''); }
     else {
-      notice(error.message, true);
-      // Preview notices sit in a scrolling column. The release bar is where this click happened.
       if (release) showReleaseNotice(friendlyError(error.message), true);
+      else notice(error.message, true);
     }
   } finally {
     delete control.dataset.busy;
@@ -88,7 +88,8 @@ async function api(path, data) {
   catch {
     const message = response.status === 401 ? (pageIsLocal() ? '本地后台请求被拒绝，请刷新后重试。' : '登录已过期，请重新输入后台密码。')
       : response.redirected ? '后台请求被跳转到了其他页面，请刷新后重试。'
-      : !response.ok ? `后台暂时无法完成请求（${response.status}），请稍后重新拉取。`
+      : response.status === 524 ? '请求超时，请重试。已完成的操作会保留。'
+      : !response.ok ? `后台暂时无法完成请求（${response.status}），请重试。`
       : '后台返回了无法读取的数据，请刷新后重试。';
     throw Object.assign(new Error(message), { status: response.status });
   }
@@ -330,10 +331,10 @@ async function pullUpdates() {
   }
   items = next; picked = new Set(); pickAnchor = ''; pulled = true; releaseNotice = { text: '', error: false }; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
   focusedGroup = selected ? itemGroup(selected.item) : 'new';
-  statusText = cards.length || removals.length ? `已拉取 ${cards.length} 篇更新${removals.length ? `，另有 ${removals.length} 篇待删除` : ''}。选择一条更新，检查正文和跟随资料。` : '没有等待审核或删除的更新。';
+  statusText = cards.length || removals.length ? '' : '没有变化。';
   statusError = false;
   await refresh();
-  notice(statusText);
+  notice('');
   } finally {
     pulling = false;
     syncPullButton();
@@ -377,9 +378,10 @@ function newReferences() {
   const seen = new Set();
   const list = [];
   for (const item of items) {
-    if (item.removal || !item.plan?.changes) continue;
+    if (!item.plan?.changes || (item.removal && item.decision === 'skip')) continue;
     for (const change of item.plan.changes) {
-      if (seen.has(change.id) || reviewing.has(change.id) || change.translation || change.mainArticle || change.previouslyPublished) continue;
+      if (seen.has(change.id) || reviewing.has(change.id) || change.translation) continue;
+      if (item.removal ? !change.demote || !change.mainArticle : change.mainArticle || change.previouslyPublished) continue;
       if (pageKind(change, false) !== 'reference') continue;
       seen.add(change.id);
       list.push({ item, change });
@@ -403,24 +405,9 @@ function advanceFrom(item) {
   selected = { item: next, id: next.card.id }; focusedGroup = itemGroup(next);
   return true;
 }
-function doneHint(item) {
-  const by = reviewGroups(), group = itemGroup(item);
-  const later = reviewKinds.find(kind => kind !== group && by[kind].some(i => !reviewed(i)));
-  return later ? `${groupLabels[group]} 已全部审完，点 ${groupLabels[later]} 继续。` : '全部已审完，可以在底部提交发布。';
-}
-function afterDecision(item, message) {
-  const advanced = advanceFrom(item);
-  return advanced ? message : `${message}${doneHint(item)}`;
-}
-const decisionNotes = {
-  approve: '已通过，待发布。只是审核通过，尚未上线。',
-  reject: '已拒绝，待发布。线上旧文章保持不变。',
-  remove: '已加入待删除清单，网站尚未改变。',
-  skip: '本次暂不删除，线上页面不变；下次拉取会再次提醒。',
-};
-function paintAfterDecision(message) {
+function paintAfterDecision() {
   renderList();
-  notice(message);
+  notice('');
   void showSelection();
   void renderRelease();
 }
@@ -431,33 +418,11 @@ function localContext() {
 function applyOne(item, verdict, remark) {
   return applyLocalDecision(item, verdict, { ...localContext(), remark });
 }
-function citedRemovals() {
-  return items.filter(item => item.removal && item.plan?.citations?.length && item.decision !== 'skip');
-}
-function citationCopy(list) {
-  if (list.length === 1) return referenceKeepCopy(title(list[0]), list[0].plan.citations);
-  return referenceKeepBatchCopy(list.map(item => ({ title: title(item), citations: item.plan.citations })));
-}
-function citationParagraph(list, attrs) {
-  const note = el('p', null, attrs);
-  note.append(document.createTextNode(citationCopy(list)));
-  if (list.some(item => item.decision !== 'remove')) {
-    note.append(document.createTextNode(' '));
-    note.append(button('留下为 reference', () => keepCitedAsReference(list), { class: 'btn' }));
-  }
-  return note;
-}
-function keepCitedAsReference(list) {
-  const targets = list.filter(item => item.plan && item.decision !== 'remove' && item.decision !== 'skip');
-  if (!targets.length) return;
-  for (const item of targets) applyOne(item, 'approve');
-  paintAfterDecision(citationCopy(targets));
-}
 function decide(item, verdict, remark) {
   const result = applyOne(item, verdict, remark);
   if (!result) return;
-  const text = `${decisionNotes[result.next]}${result.extra}${result.changed ? '已改判。' : ''}`;
-  paintAfterDecision(result.first ? afterDecision(item, text) : text);
+  advanceFrom(item);
+  paintAfterDecision();
 }
 function requestDecision(item, verdict) {
   if (!item?.removal && verdict === 'reject') { openRemarkDialog([item]); return; }
@@ -467,28 +432,20 @@ function applyMany(list, verdict, remark) {
   const targets = list.filter(item => item?.plan && !item.error);
   if (!targets.length) throw new Error('请先勾选要处理的文章。');
   for (const item of targets) applyOne(item, verdict, remark);
-  const message = !targets[0].removal && verdict === 'reject'
-    ? `已拒绝 ${targets.length} 篇。备注会在发布上线后写回这些卡片。`
-    : targets[0].removal && verdict === 'approve'
-      ? `已将 ${targets.length} 篇加入待删除，网站尚未改变。`
-      : targets[0].removal
-        ? `已暂不删除 ${targets.length} 篇。`
-        : `已通过 ${targets.length} 篇。只是审核通过，尚未上线。`;
-  paintAfterDecision(message);
+  paintAfterDecision();
 }
 function openRemarkDialog(targets) {
   const list = targets.filter(item => item?.plan && !item.removal);
   if (!list.length) return;
   const d = dialog(list.length > 1 ? `拒绝 ${list.length} 篇` : `拒绝「${title(list[0])}」`);
-  d.append(el('p', '写下备注。发布上线时写回这些卡片的 Remark，可以留空。'));
   const area = el('textarea', null, { id: 'reject-remark', class: 'reject-note', rows: '4', maxlength: '2000', placeholder: '写给自己的备注' });
   const label = el('label', '备注', { for: 'reject-remark' });
   if (list.length === 1 && list[0].pendingRemark !== undefined) area.value = list[0].pendingRemark;
-  d.append(label, area, button(list.length > 1 ? '拒绝这些文章' : '拒绝', async () => {
+  d.append(label, area, button(list.length > 1 ? '拒绝这些文章' : '拒绝', () => {
     const remark = area.value;
     closeDialog();
-    if (list.length === 1) await decide(list[0], 'reject', remark);
-    else await applyMany(list, 'reject', remark);
+    if (list.length === 1) decide(list[0], 'reject', remark);
+    else applyMany(list, 'reject', remark);
   }, { class: 'btn primary' }));
   setTimeout(() => area.focus(), 0);
 }
@@ -496,42 +453,55 @@ function releasePayload() {
   const pageChoice = pageChoiceDirty ? pageChoicePayload(pageSet, pageKeepDraft, pageOrderDraft, pageHiddenDraft) : null;
   return decisionBatch(items, { pageChoice });
 }
-function markFlushed() {
-  for (const item of items) if (item.decision) item.flushed = true;
-  pageChoiceDirty = false;
-}
 function localReleaseStats() {
   const paths = new Set();
-  let deletes = 0;
   for (const item of items) {
     if (item.flushed || !item.plan || (item.decision !== 'approve' && item.decision !== 'remove')) continue;
     for (const change of item.plan.changes || []) {
       if (paths.has(change.path)) continue;
       paths.add(change.path);
-      if (item.decision === 'remove') deletes += 1;
     }
   }
   if (pageChoiceDirty) paths.add('src/data/page-order.ts');
-  return { pages: paths.size, deletes };
+  return { pages: paths.size };
 }
-/** Sends the local batch once, then commits when there is something for GitHub. */
+/** Each saved decision survives an interrupted publish, so retry resumes at the next card. */
 async function flushLocalDecisions(message) {
   const payload = releasePayload();
   const stats = localReleaseStats();
-  if (!stats.pages && !git.draftCount && !payload.pageChoice) {
+  if (payload.pageChoice) {
+    await api('/heptabase/page-choice', payload.pageChoice);
+    pageChoiceDirty = false;
+    pendingCommit = true;
+  }
+  const removalBatch = payload.decisions.filter(decision => decision.kind === 'removal');
+  for (const [index, decision] of payload.decisions.entries()) {
+    showReleaseNotice(`正在处理 ${index + 1}/${payload.decisions.length}`);
+    await api('/heptabase/decisions', { decisions: [decision], ...(decision.kind === 'removal' ? { removalBatch } : {}) });
+    const item = items.find(entry => entry.input.cardLink === decision.cardLink);
+    if (item) item.flushed = true;
+    if (decision.kind === 'removal' || (decision.kind === 'review' && decision.decision === 'approve')) pendingCommit = true;
+  }
+  if (!stats.pages && !git.draftCount && !pendingCommit) {
     if (!payload.decisions.length) throw new Error('没有可提交的更新。');
-    await api('/heptabase/decisions', payload);
-    markFlushed();
     return { flushedOnly: true };
   }
-  const result = await api('/git/commit', { message, ...payload });
-  markFlushed();
+  showReleaseNotice('正在提交更新…');
+  let result;
+  try { result = await api('/git/commit', { message }); }
+  catch (error) {
+    // A gateway timeout can arrive after GitHub accepted the commit.
+    const status = await api('/git').catch(() => null);
+    if (!status || status.draftCount || !status.pullRequest) throw error;
+    result = status;
+  }
+  pendingCommit = false;
   git = result;
   return result;
 }
 /** Publish every pending update in this pull. Still commits through the existing checks, with no second dialog. */
 async function publishWithoutReview() {
-  const plan = directPublishPlan({ pulled, items, git });
+  const plan = directPublishPlan({ pulled, items, git: { ...git, draftCount: (Number(git.draftCount) || 0) + Number(pendingCommit) } });
   const feedback = directPublishFeedback(plan);
   if (!plan.ok) {
     showReleaseNotice(feedback.message, true);
@@ -545,18 +515,18 @@ async function publishWithoutReview() {
     const result = await flushLocalDecisions(`直接发布 · ${new Date().toLocaleDateString('zh-CN')}`);
     if (result.flushedOnly) {
       showReleaseNotice('已回写拒绝。没有需要提交到 GitHub 的页面。');
-      paintAfterDecision('已回写拒绝。没有需要提交到 GitHub 的页面。');
+      paintAfterDecision();
       return;
     }
     if (result.unchanged && !git.pullRequest) {
       showReleaseNotice('待发布清单已清理，网站没有变化。');
-      paintAfterDecision('待发布清单已清理，网站没有变化。');
+      paintAfterDecision();
       return;
     }
   }
   if (!git.pullRequest) {
     showReleaseNotice('没有可发布的更新。', true);
-    paintAfterDecision('没有可发布的更新。');
+    paintAfterDecision();
     throw new Error('没有可发布的更新。');
   }
   try {
@@ -574,8 +544,8 @@ async function publishWithoutReview() {
     throw error;
   }
   git = await api('/git');
-  showReleaseNotice('发布已开始，显示“已上线”才表示完成。');
-  paintAfterDecision('发布已开始，显示“已上线”才表示完成。');
+  showReleaseNotice('发布中…');
+  paintAfterDecision();
 }
 function renderSummary(by) {
   const top = document.querySelector('#review-summary'); if (!top) return;
@@ -1143,7 +1113,6 @@ async function showSelection() {
   }
   if (focusedGroup === 'references') {
     pane.removeAttribute('data-type');
-    pane.append(el('p', '点一张卡片，查看这篇 Reference 的完整内容。', { class: 'muted preview-empty' }));
     return;
   }
   if (selected?.item.error || !selected) pane.removeAttribute('data-type');
@@ -1193,9 +1162,7 @@ async function showSelection() {
   appendProperties(meta, card, kind, item.removal);
   if (item.plan.pageNote) meta.append(el('p', item.plan.pageNote, { class: 'muted meta-note' }));
   if (item.removal) {
-    if (item.plan.blockers?.length) meta.append(el('p', referenceKeepCopy(title(item), item.plan.blockers), { class: 'status', role: 'status' }));
-    if (item.plan.citations?.length) meta.append(citationParagraph([item], { class: 'status', role: 'status' }));
-    if (item.plan.keptReferences.length) meta.append(el('p', `共享资料会保留：${item.plan.keptReferences.map(r => r.title).join('、')}。`, { class: 'muted meta-note' }));
+    if (item.plan.blockers?.length) meta.append(el('p', `仍被「${item.plan.blockers.map(b => b.title).join('、')}」引用，无法撤下。`, { role: 'alert' }));
   }
   pane.append(meta);
   appendSummary(pane, card, item.removal);
@@ -1461,27 +1428,22 @@ async function renderRelease() {
   const status = el('div', null, { class: 'release-status' }), actions = el('div', null, { class: 'release-actions' });
   release.replaceChildren(status, actions);
   status.append(el('h2', '发布'));
-  if (pulled && items.length) {
-    const waiting = items.filter(item => !reviewed(item)).length;
-    status.append(el('p', waiting ? `还有 ${waiting} 条待审` : '全部已审', { class: 'release-progress', 'data-ready': String(!waiting) }));
-  }
   const local = localReleaseStats();
-  const gitDeletes = git.files?.filter(f => f.code === 'D').length || 0;
   const shownPages = local.pages || git.draftCount || 0;
-  const shownDeletes = local.pages ? local.deletes : gitDeletes;
-  const ready = shownPages
-    ? `${shownPages} 个页面${local.pages && !git.draftCount ? '已在本机通过' : '已准备好'}。${shownDeletes ? `其中 ${shownDeletes} 个待删除，其余为审核通过的更新。` : (local.pages && !git.draftCount ? '点提交或直接发布才会送到 GitHub。' : '只有审核通过的博客及其引用会进入这批更新。')}`
-    : git.pullRequest ? '这批更新已送到 GitHub，等待检查与发布确认。' : '还没有等待发布的更新。';
+  const ready = shownPages ? `待发布 ${shownPages} 项`
+    : git.pullRequest ? '已提交，待发布' : '没有待发布的更新';
   status.append(el('p', ready, { class: 'muted' }));
   if (git.release) status.append(el('p', `最近一次发布：${stages[git.release.stage] || '正在处理'}`, { class: 'release-stage', 'data-stage': git.release.stage || '' }));
   if (git.release?.error) status.append(el('p', git.release.error, { role: 'alert' }));
   if (git.release?.workflowUrl) status.append(link('查看发布进度 ↗', git.release.workflowUrl));
   if (git.pullRequest) status.append(link('查看 GitHub 更新 ↗', git.pullRequest.url));
   if (releaseNotice.text) status.append(el('p', releaseNotice.text, { 'data-release-notice': '', role: releaseNotice.error ? 'alert' : 'status', class: releaseNotice.error ? 'release-alert' : 'muted' }));
-  const cited = citedRemovals();
-  if (cited.length) status.append(citationParagraph(cited, { class: 'release-alert', role: 'status', 'data-citation-notice': '' }));
+  const deleted = items.filter(item => item.removal && item.plan && item.decision !== 'skip');
+  if (deleted.length) status.append(el('p', `Deleted articles · ${deleted.map(title).join('、')}`, { class: 'muted', 'data-deleted-articles': '' }));
+  const references = newReferences();
+  if (references.length) status.append(el('p', `New References · ${references.map(entry => entry.change.title).join('、')}`, { class: 'muted', 'data-new-references': '' }));
   actions.append(button('直接发布', publishWithoutReview, { class: 'btn direct-publish', network: '', 'data-release': 'direct', 'aria-label': '直接发布', title: '立刻发布这次拉取的全部更新和待删除' }));
-  actions.append(button('刷新发布状态', async () => { git = await api('/git'); await renderRelease(); }, { class: 'btn', network: '', 'data-release': 'refresh' }));
+  actions.append(button('刷新发布状态', async () => { git = await api('/git/refresh'); await renderRelease(); }, { class: 'btn', network: '', 'data-release': 'refresh' }));
   const pendingLocal = items.some(item => item.decision && !item.flushed && item.plan && !item.error) || pageChoiceDirty;
   if (git.draftCount || pendingLocal) actions.append(button('提交通过的更新到 GitHub', async () => {
     const result = await flushLocalDecisions(`更新博客内容 · ${new Date().toLocaleDateString('zh-CN')}`);
@@ -1492,7 +1454,7 @@ async function renderRelease() {
   if (git.pullRequest) actions.append(button('确认发布', reviewRelease, { class: 'btn primary', network: '', 'data-release': 'confirm' }));
   if (busyRelease) document.querySelector(`#release [data-release="${busyRelease}"]`)?.toggleAttribute('disabled', true);
   clearTimeout(timer);
-  if (git.release && ['running','queued'].includes(git.release.status)) timer = setTimeout(() => { if (!document.querySelector('dialog') && !busyRelease) void run(async () => { git = await api('/git'); await renderRelease(); }); }, 15000);
+  if (git.release && (['running','queued'].includes(git.release.status) || git.release.heptabase?.pending || git.release.heptabase?.remarks?.pending)) timer = setTimeout(() => { if (!document.querySelector('dialog') && !busyRelease) void run(async () => { git = await api('/git/refresh'); await renderRelease(); }); }, 15000);
   const legacyHost = document.querySelector('#legacy-host') || release;
   legacyHost.querySelector('.legacy')?.remove();
   const legacy = docs.filter(d => !d.heptabaseCardLink);
@@ -1509,10 +1471,16 @@ async function renderRelease() {
 }
 async function reviewRelease() {
   const review = await api('/git/review'), d = dialog('确认发布到博客');
-  if (!review.changes.length) { d.append(el('p', '这批更新已撤销，当前没有需要发布的页面。')); return; }
-  d.append(el('p', '只有这些已审核页面会通过 GitHub 发布。确认前会再次检查内容是否变化。'));
-  const list = el('ul'); review.changes.forEach(change => list.append(el('li', `${change.kind === 'removed' ? '删除 · ' : '更新 · '}${change.path.replace('src/content/', '').replace('.mdx', '')}`)));
-  d.append(list, link('查看完整更新 ↗', review.pullRequest.url), button('确认发布到博客', async () => { await api('/git/publish', review); closeDialog(); git = await api('/git'); await renderRelease(); notice('发布已开始，显示“已上线”才表示完成。'); }, { class: 'btn primary', network: '' }));
+  if (!review.changes.length) { d.append(el('p', '没有变化。')); return; }
+  const titles = new Map(items.flatMap(item => (item.plan?.changes || []).map(change => [change.path, change.title])));
+  const demoted = new Set(newReferences().filter(entry => entry.item.removal).map(entry => entry.change.path));
+  const list = el('ul');
+  for (const change of review.changes) {
+    const name = titles.get(change.path) || change.path.replace('src/content/', '').replace('.mdx', '');
+    if (demoted.has(change.path)) list.append(el('li', `删除文章 · ${name}`), el('li', `新增引用 · ${name}`));
+    else list.append(el('li', `${{ added: '新增', removed: '删除', modified: '更新' }[change.kind] || '更新'} · ${name}`));
+  }
+  d.append(list, button('确认发布到博客', async () => { await api('/git/publish', review); closeDialog(); git = await api('/git'); await renderRelease(); showReleaseNotice('发布中…'); }, { class: 'btn primary', network: '' }));
 }
 void run(async () => {
   const session = await api('/session');

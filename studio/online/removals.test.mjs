@@ -104,6 +104,23 @@ test('a cited article stays as a reference instead of blocking removal', async (
   }
 });
 
+test('separate publish requests preserve one shared deletion plan', async () => {
+  const f = await setup();
+  f.remote(raw(OTHER, '第二篇旧文章', '<DocRef of="articles/example" />'), refPath(OTHER));
+  f.cardSources.set(OTHER, '# 第二篇旧文章\n\n正文');
+  const second = { collection: 'articles', id: `hepta-${OTHER}`, cardLink: `heptabase://card/${OTHER}` };
+  const firstPlan = await preview(f), secondPlan = await ok(f.request('/heptabase/removal-preview', 'POST', second));
+  assert.equal(firstPlan.demote, true);
+  const first = { kind: 'removal', ...input, sourceHash: firstPlan.sourceHash, documentHash: firstPlan.documentHash, planHash: firstPlan.planHash, confirmDelete: true };
+  const next = { kind: 'removal', ...second, sourceHash: secondPlan.sourceHash, documentHash: secondPlan.documentHash, planHash: secondPlan.planHash, confirmDelete: true };
+  await ok(f.request('/heptabase/decisions', 'POST', { decisions: [first], removalBatch: [first, next] }));
+  await ok(f.request('/heptabase/decisions', 'POST', { decisions: [next], removalBatch: [first, next] }));
+  await commit(f);
+  const files = f.filesFor(f.refs.get('codex/studio-content'));
+  assert.equal(files[PATH], undefined);
+  assert.equal(files[refPath(OTHER)], undefined);
+});
+
 test('re-added cards, changed removal reason and newer GitHub text invalidate review', async () => {
   for (const change of ['restored', 'deleted', 'github']) {
     const f = await setup(), plan = await preview(f);

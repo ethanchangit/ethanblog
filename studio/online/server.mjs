@@ -293,11 +293,11 @@ async function readDoc(env, identity, collection, id) {
   return docPayload(collection, id, file.raw, state, file.draft, file.remoteRaw);
 }
 
-async function gitStatus(env, identity) {
+async function gitStatus(env, identity, refreshRelease = false) {
   const state = await branchState(env);
   const rows = await draftRows(env, identity);
   const releaseRow = await firstRow(env, 'SELECT * FROM studio_releases WHERE user_id = ?1 AND repository = ?2 AND branch = ?3 ORDER BY created_at DESC LIMIT 1', identity.id, state.repository, state.branch);
-  const release = releaseRow ? await syncRelease(env, releaseRow) : null;
+  const release = releaseRow ? (refreshRelease ? await syncRelease(env, releaseRow) : releaseView(releaseRow)) : null;
   const lastSubmitted = await firstRow(env, 'SELECT submitted_commit_sha FROM studio_drafts WHERE user_id = ?1 AND repository = ?2 AND branch = ?3 AND state = \'submitted\' AND submitted_commit_sha IS NOT NULL ORDER BY updated_at DESC LIMIT 1', identity.id, state.repository, state.branch);
   return {
     branch: state.branch, commitSha: state.commitSha, files: rows.map((row) => ({ code: row.raw === '' ? 'D' : 'M', path: row.path })), dirty: rows.length > 0,
@@ -467,14 +467,13 @@ async function commitDrafts(env, identity, input) {
   }
   assertPublicPageCount(proposed);
   await assertReviewed(env, state, rows);
-  const treeEntries = [];
-  for (const row of rows) {
+  const treeEntries = await mapLimited(rows, IO_CONCURRENCY, async row => {
     await lease();
-    if (row.raw === '') { if (state.entries.has(row.path)) treeEntries.push({ path: row.path, mode: '100644', type: 'blob', sha: null }); continue; }
+    if (row.raw === '') return state.entries.has(row.path) ? { path: row.path, mode: '100644', type: 'blob', sha: null } : null;
     const blob = await githubRequest(env, ghPath(state.repository, '/git/blobs'), { method: 'POST', body: JSON.stringify({ content: base64Encode(row.raw), encoding: 'base64' }) });
-    treeEntries.push({ path: row.path, mode: '100644', type: 'blob', sha: blob.sha });
-  }
-  const tree = await githubRequest(env, ghPath(state.repository, '/git/trees'), { method: 'POST', body: JSON.stringify({ base_tree: state.treeSha, tree: treeEntries }) });
+    return { path: row.path, mode: '100644', type: 'blob', sha: blob.sha };
+  });
+  const tree = await githubRequest(env, ghPath(state.repository, '/git/trees'), { method: 'POST', body: JSON.stringify({ base_tree: state.treeSha, tree: treeEntries.filter(Boolean) }) });
   let commit = { sha: state.commitSha };
   if (!state.pr && tree.sha === state.treeSha) {
     for (const row of rows.filter(row => row.version)) await run(env, "UPDATE studio_drafts SET state = 'submitted', submitted_commit_sha = ?1 WHERE user_id = ?2 AND repository = ?3 AND branch = ?4 AND path = ?5 AND version = ?6", state.commitSha, identity.id, state.repository, state.branch, row.path, row.version);
@@ -552,7 +551,7 @@ async function publish(env, identity, input) {
   if (!merged.merged) throw fail('GitHub 尚未完成合并，请查看发布请求。', 409);
   await run(env, "UPDATE studio_releases SET commit_sha = ?1, stage = 'queued', updated_at = ?2 WHERE id = ?3", merged.sha, now, id);
   const row = await firstRow(env, 'SELECT * FROM studio_releases WHERE id = ?1', id);
-  return { release: await syncRelease(env, row) };
+  return { release: releaseView(row) };
   });
 }
 
@@ -701,40 +700,52 @@ async function assertReviewed(env, state, rows) {
   const demotedPaths = new Set((await removalDecisions(env)).flatMap(plan => plan.graph.filter(node => node.demote && node.next).map(node => node.path)));
   const pending = rows.filter(row => row.raw && !demotedPaths.has(row.path) && row.path !== BLOG_INDEX && row.path !== PAGE_ORDER_PATH);
   if (!pending.length) return;
-  const client = await mcpClient(env);
-  const { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
-  const referenceIds = new Set((await referenceTagCards(client)).cards.map((card) => card.id));
+  const catalog = env.publicationCatalog;
+  const client = catalog?.client || await mcpClient(env);
+  const blog = catalog || await blogCards(client);
+  const schema = catalog?.schema || await blogSchema(client, blog.tagId);
+  const referenceIds = catalog?.referenceIds || new Set((await referenceTagCards(client)).cards.map((card) => card.id));
   let i18n = null;
   const seen = new Set(), changes = new Map(rows.map(r => [r.path, r.raw]));
   while (pending.length) {
-    const row = pending.shift(); if (seen.has(row.path)) continue; seen.add(row.path);
+    const wave = pending.splice(0).filter(row => {
+      if (seen.has(row.path)) return false;
+      seen.add(row.path);
+      return true;
+    });
     if (seen.size > 200) throw fail('发布范围超过 200 张卡片，请拆分审查。');
-    if (!pathDoc(row.path)) throw fail('后台仅发布从 Heptabase 审查过的文章。');
-    if (!row.raw) throw fail('引用资料尚未完整拉取，请重新审查。', 409);
-    const parsed = parseMdx(row.raw), id = cardId(parsed.frontmatter.heptabaseCardLink);
-    if (parsed.frontmatter.draft) throw fail('待发布清单中仍有草稿，请先选择“准备发布这一版”并审查。', 409);
-    const approved = await firstRow(env, 'SELECT * FROM studio_reviews WHERE path = ?1', row.path);
-    if (!approved || approved.card_id !== id || approved.raw_hash !== await hash(row.raw)) throw fail('内容未通过隐私审查，或审查后已有变化，请重新拉取并确认。', 409);
-    const translation = Boolean(parsed.frontmatter.translationOf);
-    if (translation && !i18n) i18n = schema.i18n ? await i18nSchema(client, schema.i18n.tagId) : null;
-    if (translation && !i18n) throw fail('blog 表格没有 blog i18n 关联字段，不能发布译文。', 409);
-    let source, properties;
-    try { source = await readCard(client, id); properties = translation ? await readTranslation(client, id, i18n) : await readProperties(client, id, schema); }
-    catch (error) {
-      if (error.heptabaseReason === 'objectNotFound') throw fail('这篇文章的卡片已经删除。请重新拉取并撤下，不要把已删除的文章发回网站。', 409);
-      throw error;
-    }
-    const stamps = (await cardTimestamps(client, [id])).get(id);
-    if (!properties.member && !(parsed.frontmatter.heptabaseType === 'reference' && referenceIds.has(id))) throw fail(translation ? '译文卡片已移出 #blogi18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
-    if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
-    const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
-    const expectedDay = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
-    if (!translation && properties.member && String(parsed.frontmatter.date || '').slice(0, 10) !== expectedDay) throw fail(copied.invented ? '首次发布日期已跨天，请重新拉取审查，让网站与 Heptabase 日期一致。' : '网站日期与卡片上的发布日期或创建时间不一致，请重新拉取。', 409);
-    for (const ref of blogReferences(parsed.bodyZh)) {
-      if (!isSafeDocRef(ref)) throw fail('引用路径不合法。');
-      const path = `src/content/${ref}.mdx`;
-      pending.push({ path, raw: changes.has(path) ? changes.get(path) : await readBlob(env, state, path) });
-    }
+    if (wave.some(row => row.raw && parseMdx(row.raw).frontmatter.translationOf) && !i18n) i18n = schema.i18n ? await i18nSchema(client, schema.i18n.tagId) : null;
+    const stampsById = await cardTimestamps(client, wave.filter(row => row.raw).map(row => cardId(parseMdx(row.raw).frontmatter.heptabaseCardLink)));
+    const linked = await mapLimited(wave, IO_CONCURRENCY, async row => {
+      if (!pathDoc(row.path)) throw fail('后台仅发布从 Heptabase 审查过的文章。');
+      if (!row.raw) throw fail('引用资料尚未完整拉取，请重新审查。', 409);
+      const parsed = parseMdx(row.raw), id = cardId(parsed.frontmatter.heptabaseCardLink);
+      if (parsed.frontmatter.draft) throw fail('待发布清单中仍有草稿，请先选择“准备发布这一版”并审查。', 409);
+      const approved = await firstRow(env, 'SELECT * FROM studio_reviews WHERE path = ?1', row.path);
+      if (!approved || approved.card_id !== id || approved.raw_hash !== await hash(row.raw)) throw fail('内容未通过隐私审查，或审查后已有变化，请重新拉取并确认。', 409);
+      const translation = Boolean(parsed.frontmatter.translationOf);
+      if (translation && !i18n) throw fail('blog 表格没有 blog i18n 关联字段，不能发布译文。', 409);
+      let source, properties;
+      try { [source, properties] = await Promise.all([readCard(client, id), translation ? readTranslation(client, id, i18n) : readProperties(client, id, schema)]); }
+      catch (error) {
+        if (error.heptabaseReason === 'objectNotFound') throw fail('这篇文章的卡片已经删除。请重新拉取并撤下，不要把已删除的文章发回网站。', 409);
+        throw error;
+      }
+      const stamps = stampsById.get(id);
+      if (!properties.member && !(parsed.frontmatter.heptabaseType === 'reference' && referenceIds.has(id))) throw fail(translation ? '译文卡片已移出 #blogi18n，请重新拉取审查。' : '卡片已移出 #blog，请重新拉取并审查删除，不能继续发布旧副本。', 409);
+      if (approved.source_hash !== await sourceDigest(source, properties, stamps)) throw fail('Heptabase 内容、属性或引用关系已变化，请重新拉取并审查。', 409);
+      const copied = dateFromCard({ publishDate: properties.date, created: stamps.created, timezone: env.STUDIO_TIMEZONE });
+      const expectedDay = copied.date || publicationDate(new Date(), env.STUDIO_TIMEZONE);
+      if (!translation && properties.member && String(parsed.frontmatter.date || '').slice(0, 10) !== expectedDay) throw fail(copied.invented ? '首次发布日期已跨天，请重新拉取审查，让网站与 Heptabase 日期一致。' : '网站日期与卡片上的发布日期或创建时间不一致，请重新拉取。', 409);
+      const refs = [];
+      for (const ref of blogReferences(parsed.bodyZh)) {
+        if (!isSafeDocRef(ref)) throw fail('引用路径不合法。');
+        const path = `src/content/${ref}.mdx`;
+        refs.push({ path, raw: changes.has(path) ? changes.get(path) : await readBlob(env, state, path) });
+      }
+      return refs;
+    });
+    pending.push(...linked.flat());
   }
 }
 
@@ -1157,17 +1168,19 @@ async function assertRemovals(env, state, rows) {
   const cards = blog.cards;
   const schema = catalog?.schema || await blogSchema(client, blog.tagId);
   const blogIds = catalog?.blogIds || new Set(cards.map(c => c.id));
+  const activePlans = plans.filter(plan => plan.graph.some(node => node.demote || removed.includes(node.path) || rows.some(row => row.path === node.path && !row.raw)));
+  const liveReasons = new Map(await mapLimited(activePlans, IO_CONCURRENCY, async plan => [plan.id, await liveRemovalReason(env, client, plan.id, schema, blogIds)]));
+  const cappedPages = activePlans.some(plan => plan.reason === 'capped') ? await loadPageCards(client, schema, cards, published) : null;
+  const choice = cappedPages ? await storedPageChoice(env) : null;
   for (const path of new Set([...removed, ...pendingDeletes.map(row => row.path)])) {
     const plan = plans.find(p => p.graph.some(n => n.path === path));
     const node = plan?.graph.find(n => n.path === path);
     if (!node || node.publishedRaw !== (published.get(path) || null)) throw fail('删除尚未审核，或 GitHub 文章已有变化，请重新拉取。', 409);
     if (proposed.has(plan.filePath)) throw fail('不能单独删除仍在发布的文章所用资料。', 409);
     if (!checked.has(plan.id)) {
-      const live = await liveRemovalReason(env, client, plan.id, schema, blogIds);
+      const live = liveReasons.get(plan.id);
       if (plan.reason === 'capped') {
-        const pages = await loadPageCards(client, schema, cards, published);
-        const choice = await storedPageChoice(env);
-        if (live || pages.length <= PAGE_CAP || !choiceMatches(choice, pages) || choice.keep.includes(plan.id)) throw fail('站点页面选择已变化，请取消待删除并重新选择留下哪几页。', 409);
+        if (live || cappedPages.length <= PAGE_CAP || !choiceMatches(choice, cappedPages) || choice.keep.includes(plan.id)) throw fail('站点页面选择已变化，请取消待删除并重新选择留下哪几页。', 409);
       } else if (live !== plan.reason) throw fail('卡片已恢复或移除原因变化，请取消待删除并重新拉取。', 409);
       checked.add(plan.id);
     }
@@ -1176,7 +1189,7 @@ async function assertRemovals(env, state, rows) {
   for (const plan of plans) {
     if (!plan.graph.some(node => node.demote)) continue;
     if (!checked.has(plan.id)) {
-      const live = await liveRemovalReason(env, client, plan.id, schema, blogIds);
+      const live = liveReasons.get(plan.id);
       if (live !== plan.reason) throw fail('卡片已恢复或移除原因变化，请取消待删除并重新拉取。', 409);
       checked.add(plan.id);
     }
@@ -1656,11 +1669,16 @@ async function applyDecisionBatch(env, identity, input) {
   if (input.pageChoice) await choosePages(env, identity, input.pageChoice);
   const decisions = Array.isArray(input.decisions) ? input.decisions : [];
   const removals = decisions.filter(decision => decision.kind === 'removal');
+  const scopeRemovals = Array.isArray(input.removalBatch) ? input.removalBatch : removals;
+  if (scopeRemovals.some(decision => decision.kind !== 'removal') || removals.some(decision => !scopeRemovals.some(entry => entry.cardLink === decision.cardLink && entry.collection === decision.collection && entry.id === decision.id))) throw fail('待删除清单不完整，请重新拉取。', 409);
   let scopes = new Map();
   if (removals.length) {
     const state = await branchState(env);
-    const files = await contentFiles(env, state, await draftRows(env, identity));
-    scopes = settleRemovals(files, removals.map(decision => docPath(decision.collection, decision.id)).filter(Boolean));
+    // Compute every deletion against the same pre-deletion view, including on
+    // retries after earlier cards in this batch have already been saved.
+    const files = await contentFiles(env, state, (await draftRows(env, identity)).filter(row => row.raw));
+    for (const plan of await removalDecisions(env)) for (const node of plan.graph) if (!files.has(node.path)) files.set(node.path, node.current.raw);
+    scopes = settleRemovals(files, scopeRemovals.map(decision => docPath(decision.collection, decision.id)));
   }
   for (const decision of decisions) {
     if (decision.kind === 'removal') {
@@ -1882,6 +1900,7 @@ async function api(request, env) {
   if (path === '/__studio/api/docs' && request.method === 'GET') return listDocs(env, identity);
   if (path === '/__studio/api/doc' && request.method === 'GET') return readDoc(env, identity, url.searchParams.get('collection') || '', url.searchParams.get('id') || '');
   if (path === '/__studio/api/git' && request.method === 'GET') return gitStatus(env, identity);
+  if (path === '/__studio/api/git/refresh' && request.method === 'GET') return gitStatus(env, identity, true);
   if (path === '/__studio/api/git/commit' && request.method === 'POST') return commitDrafts(env, identity, await readJson(request));
   if (path === '/__studio/api/git/push' && request.method === 'POST') return gitStatus(env, identity);
   if (path === '/__studio/api/git/publish' && request.method === 'POST') return publish(env, identity, await readJson(request));
@@ -1911,7 +1930,7 @@ export function createHandler(assets = {}) {
         if (row) {
           await run(env, "UPDATE studio_releases SET status = 'succeeded', stage = 'deployed', url = ?1, error = NULL WHERE id = ?2", BLOG_URL, row.id);
           const result = await completeWriteback(env, row.id);
-          response = json(result, result.pending ? 503 : 200);
+          response = json(result, result.pending || result.remarks?.pending ? 503 : 200);
         } else response = json({ pending: 0 });
       }
       else if (url.pathname === '/dashboard/api/login' && request.method === 'POST') response = await login(request, env);
