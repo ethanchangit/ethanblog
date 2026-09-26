@@ -865,7 +865,7 @@ async function fetchChangedCard(env, client, schema, i18n, item) {
 async function heptabaseCards(env, identity) {
   const client = await mcpClient(env);
   let scan = await readPullScan(env, identity.sessionId);
-  // Step 1 is CardList + editedTime for #blog and #blogi18n. A resumed request
+  // Step 1 is CardList + editedTime for #blog, and for #blogi18n when that tag exists. A resumed request
   // only continues step 2, so an unchanged card never gets a properties or body read.
   if (!scan || (scan.phase !== 'fetch' && scan.phase !== 'removals') || !Array.isArray(scan.blogCards) || !Array.isArray(scan.changed)) scan = await startPullScan(env, client);
   const schema = await blogSchema(client, scan.tagId);

@@ -14,6 +14,11 @@ export async function blogSchema(client, tagId) {
     if (matches.length > 1) throw fail(`blog 表格有多个 ${names[0]} 字段（${type}）。`);
     return matches[0] || null;
   };
+  const optionalTyped = (names, types) => {
+    const matches = fields.filter((f) => names.includes(f.name.trim().toLowerCase()) && types.includes(f.type));
+    if (matches.length > 1) throw fail(`blog 表格有多个 ${names[0]} 字段。`);
+    return matches[0] || null;
+  };
   const schema = {
     tagId,
     status: field(['status'], 'select'),
@@ -22,13 +27,14 @@ export async function blogSchema(client, tagId) {
     type: field(['blog type'], 'select'),
     summary: field(['summary'], 'text'),
     remark: optional(['remark'], 'text'),
-    // Ethan renamed URL to slug in Heptabase; the column id is unchanged.
-    url: optional(['slug', 'url'], 'text'),
-    // #blog is the Chinese source. This relation points at its translation cards in #blogi18n.
+    // Ethan renamed URL to slug. The live column is a select of address names; older databases still use text.
+    url: optionalTyped(['slug', 'url'], ['text', 'select']),
+    // Optional. The published page is the #blog card. A remaining relation only checks translation cards.
     i18n: optional(['blog i18n', 'blogi18n'], 'relation'),
   };
   for (const name of ['new', 'writing', 'blocked', 'review', 'published']) if (schema.status.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Status 需要一个 ${name} 选项。`);
-  for (const name of ['article', 'project', 'page', 'reference']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
+  for (const name of ['article', 'project', 'page']) if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === name).length !== 1) throw fail(`Blog Type 需要一个 ${name} 选项。`);
+  if (schema.type.options.filter((o) => o.name.trim().toLowerCase() === 'reference').length > 1) throw fail('Blog Type 有多个 reference 选项。');
   return schema;
 }
 
@@ -87,7 +93,7 @@ export async function i18nSchema(client, tagId) {
   const db = await client.call('read_database', { tagId });
   const fields = Object.entries(db.configuration?.schema || {}).map(([id, field]) => ({ id, ...field }));
   const find = (name, type) => fields.filter((f) => f.name.trim().toLowerCase() === name && f.type === type);
-  const language = find('language', 'select'), url = [...find('slug', 'text'), ...find('url', 'text')];
+  const language = find('language', 'select'), url = [...find('slug', 'text'), ...find('slug', 'select'), ...find('url', 'text'), ...find('url', 'select')];
   if (language.length !== 1) throw fail('blog i18n 表格需要一个 Language 字段（select）。');
   if (url.length > 1) throw fail('blog i18n 表格有多个 URL 字段。');
   return { tagId, language: language[0], url: url[0] || null };

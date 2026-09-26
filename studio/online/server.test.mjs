@@ -738,6 +738,25 @@ test('unchanged editedTime does not fetch properties or content', async () => {
   assert.ok(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'i18n-id'));
 });
 
+test('pull succeeds when Heptabase has no blog i18n tag and slug is a select', async () => {
+  const f = await setup();
+  Object.assign(f.catalog, { i18nTag: false, i18nRelation: false, slugType: 'select', blogTypes: ['Article', 'Project', 'Page'] });
+  const fresh = '11111111-1111-4111-8111-111111111111';
+  f.properties.set(fresh, { Status: 'review', 'Blog Type': 'Article', slug: 'toolset', Tag: ['Heptabase'] });
+  f.cardSources.set(fresh, '# A toolset\n\nEnglish line.\n\n    中文缩进。');
+  f.calls.length = 0;
+  const listed = await jsonOk(f.request('/heptabase/cards'));
+  assert.equal(listed.partial, undefined);
+  assert.ok(listed.cards.some((card) => card.id === fresh));
+  const lists = f.calls.filter((call) => call.body?.params?.name === 'list_cards');
+  assert.equal(lists.some((call) => call.body.params.arguments.tagIds?.[0] === 'i18n-id'), false);
+  const plan = await jsonOk(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${fresh}`, preparePublish: true, reviewOnly: true }));
+  assert.equal(plan.changes[0].path, 'src/content/articles/toolset.mdx');
+  assert.equal(plan.changes[0].afterProperties.url, 'toolset');
+  assert.match(plan.changes[0].afterContent, /中文缩进/);
+  assert.equal(plan.changes[0].afterProperties.tags.includes('Heptabase'), true);
+});
+
 test('a newer editedTime fetches properties and content, and leaves the unchanged card unread', async () => {
   const f = await setup();
   f.properties.get(CARD).Status = 'published';
