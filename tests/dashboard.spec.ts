@@ -42,7 +42,7 @@ test('预览收到网页错误后显示可读原因，并能重新拉取恢复',
     status: 502, contentType: 'text/html', body: '<!DOCTYPE html><html>private diagnostic details</html>',
   }));
   await page.getByRole('button', { name: '拉取最新更新', exact: true }).click();
-  await expect(page.locator('#review-preview')).toHaveText('后台暂时无法完成请求（502），请稍后重新拉取。');
+  await expect(page.locator('#review-preview')).toHaveText('后台暂时无法完成请求（502），请重试。');
   await expect(page.locator('[data-review-group=new] .decisions button, [data-review-group=edited] .decisions button')).toHaveCount(0);
   await expect(page.locator('#studio')).not.toContainText('Unexpected token');
   await expect(page.locator('#studio')).not.toContainText('private diagnostic details');
@@ -211,7 +211,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(page.locator('#review-preview #notice')).toHaveCount(0);
   await expect(page.getByText('article · 已通过，待发布')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '通过「将笔记变成可以分享的文章」', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('2 个页面已在本机通过', { exact: false })).toBeVisible();
+  await expect(page.locator('#release')).toContainText('待发布 2 项');
   const before = await page.request.get(new URL('/dashboard/api/heptabase/cards', url).href);
   const beforeTitles = (await before.json()).cards.map((c: { title: string }) => c.title);
   expect(beforeTitles).toContain('将笔记变成可以分享的文章');
@@ -227,7 +227,7 @@ test('Review 清单、真实排版、段落对比、单篇拒绝与通过、回�
   await expect(dialog.getByRole('button', { name: '关闭', exact: true })).toBeVisible();
   await expect(dialog.getByRole('button', { name: '确认发布到博客' })).toBeVisible();
   await page.getByRole('button', { name: '确认发布到博客' }).click();
-  await expect(page.getByText('最近一次发布：正在确认线上版本')).toBeVisible();
+  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
   await request.post(new URL('/__test/deploy', url).href);
   await page.getByRole('button', { name: '刷新发布状态' }).click();
   await expect(page.getByText('最近一次发布：已上线', { exact: true })).toBeVisible();
@@ -377,16 +377,17 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
   await remove.click();
   await expect(group.getByText('已确认删除，待发布', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#release')).toContainText('其中 2 个待删除');
+  await expect(page.locator('#release')).toContainText('Deleted articles · 已经不再公开的旧笔记');
+  await expect(page.locator('#release')).toContainText('New References · 原子笔记与连接');
   await expect(remove).toHaveAttribute('aria-pressed', 'true'); await expect(keep).toHaveAttribute('aria-pressed', 'false');
   await keep.click();
-  await expect(page.locator('#release')).toContainText('还没有等待发布的更新');
+  await expect(page.locator('#release')).toContainText('没有待发布的更新');
   await expect(keep).toHaveAttribute('aria-pressed', 'true');
   await remove.click();
-  await expect(page.locator('#release')).toContainText('其中 2 个待删除');
+  await expect(page.locator('#release')).toContainText('Deleted articles · 已经不再公开的旧笔记');
   await page.reload();
   const release = page.locator('#release');
-  await expect(release).toContainText('还没有等待发布的更新');
+  await expect(release).toContainText('没有待发布的更新');
   await expect(release.getByRole('button', { name: /取消删除/ })).toHaveCount(0);
   await expect(release.getByRole('button', { name: '直接发布', exact: true })).toBeVisible();
   await expect(release.getByRole('button', { name: '刷新发布状态', exact: true })).toBeVisible();
@@ -397,14 +398,14 @@ test('删除清单可预览、暂缓、确认、取消，并通过发布移除�
     await page.getByRole('button', { name: `删除「${title}」`, exact: true }).click();
     await expect(page.getByRole('button', { name: `删除「${title}」`, exact: true })).toHaveAttribute('aria-pressed', 'true');
   }
-  await expect(page.locator('#release')).toContainText('其中 3 个待删除');
+  await expect(page.locator('#release')).toContainText('Deleted articles · 已经不再公开的旧笔记、已在 Heptabase 删除的文章');
   await page.getByRole('button', { name: '提交通过的更新到 GitHub' }).click();
   await page.getByRole('button', { name: '确认发布', exact: true }).click();
   const entries = page.getByRole('dialog').locator('li');
   await expect(entries).toHaveCount(4); await expect(entries.filter({ hasText: /^删除 ·/ })).toHaveCount(3);
   await expect(page.getByRole('dialog')).toContainText('更新 · pages/blogs');
   await page.getByRole('button', { name: '确认发布到博客' }).click();
-  await expect(page.getByText('最近一次发布：正在确认线上版本')).toBeVisible();
+  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
   await request.post(new URL('/__test/deploy', url).href);
   await page.getByRole('button', { name: '刷新发布状态' }).click();
   await expect(page.getByText('最近一次发布：已上线', { exact: true })).toBeVisible();

@@ -1,19 +1,22 @@
 import { boundedText, fail, withLock } from './auth.mjs';
 import { blogCards, cardTimestamps, mcpClient } from './heptabase.mjs';
 import { blogSchema, dateFromCard, publicationDate, readProperties, writeProperties } from './card-properties.mjs';
+import { IO_CONCURRENCY, mapLimited } from './pool.mjs';
+
+const WRITEBACK_BATCH = 4;
 
 export async function prepareWriteback(env, releaseId, cards) {
   if (!cards.length) return;
   const client = await mcpClient(env);
   const { tagId } = await blogCards(client);
   const schema = await blogSchema(client, tagId);
-  for (const id of new Set(cards)) {
+  await mapLimited([...new Set(cards)], IO_CONCURRENCY, async id => {
     const properties = await readProperties(client, id, schema);
     // Referenced cards need not join #blog or become new list entries.
-    if (!properties.member) continue;
+    if (!properties.member) return;
     await env.DB.prepare('INSERT OR IGNORE INTO studio_release_cards (release_id, card_id, expected_status, expected_date, published_date) VALUES (?1, ?2, ?3, ?4, ?5)')
       .bind(releaseId, id, properties.status, properties.date, publicationDate(new Date(), env.STUDIO_TIMEZONE)).run();
-  }
+  });
 }
 
 /** Dialog remarks are stored on the decision until a deploy actually finishes. Retries write that same text. */
@@ -31,7 +34,7 @@ async function flushPendingRemarks(env) {
   const { tagId } = await blogCards(client);
   const schema = await blogSchema(client, tagId);
   let written = 0;
-  for (const item of due) {
+  for (const item of due.slice(0, WRITEBACK_BATCH)) {
     const current = await readProperties(client, item.id, schema);
     if ((current.remark || '') !== item.remark) {
       await writeProperties(client, item.id, schema, { remark: item.remark });
@@ -41,7 +44,7 @@ async function flushPendingRemarks(env) {
     item.plan.remarkWritten = item.remark;
     await env.DB.prepare('UPDATE studio_review_decisions SET payload = ?2 WHERE card_id = ?1').bind(item.id, JSON.stringify(item.plan)).run();
   }
-  return { written };
+  return { written, pending: Math.max(0, due.length - WRITEBACK_BATCH) };
 }
 
 export async function completeWriteback(env, releaseId) {
@@ -55,7 +58,7 @@ export async function completeWriteback(env, releaseId) {
     const client = await mcpClient(env);
     const { tagId } = await blogCards(client);
     const schema = await blogSchema(client, tagId);
-    for (const row of rows) {
+    for (const row of rows.slice(0, WRITEBACK_BATCH)) {
       try {
         const current = await readProperties(client, row.card_id, schema);
         if (!current.member) throw fail('卡片已移出 #blog，未改写属性。');
