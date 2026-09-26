@@ -3,7 +3,7 @@ import { test, afterEach } from 'node:test';
 import { fixture, CARD } from './test-fixtures.mjs';
 import { parseMdx, serializeMdx } from '../core.mjs';
 import { assertArticleSlug, propertiesFromRead, routeSlug, translationLanguage } from './card-properties.mjs';
-import { removalScope } from './removals.mjs';
+import { linkedPaths, removalScope, slugMovePaths } from './removals.mjs';
 const nativeFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = nativeFetch; });
 async function ok(r) { const res = await r, body = await res.json(); assert.equal(res.status, 200, JSON.stringify(body)); return body; }
@@ -99,7 +99,7 @@ test('without URL the card keeps its slug and the linked translation is not a se
   assert.equal(plan.changes[0].afterProperties.language, undefined);
 });
 
-test('a URL taken by another article or a fixed route is refused; a linked article is not moved', async () => {
+test('a URL taken by another article or a fixed route is refused; a linked article moves to the slug', async () => {
   let f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '别的文章', description: '占用', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '占用' }), 'src/content/articles/toolset.mdx');
   let res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /地址 \/toolset 已被「别的文章」使用/);
@@ -107,7 +107,57 @@ test('a URL taken by another article or a fixed route is refused; a linked artic
   res = await preview(f); assert.equal(res.status, 409); assert.match((await res.json()).error, /URL「now」与网站固定地址 \/now 冲突/);
   f = await setup();
   f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
-  res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /已发布在 \/my-toolset/);
+  f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '另一份', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '另一份' }), 'src/content/articles/other-toolset.mdx');
+  res = await preview(f, { id: 'my-toolset' }); assert.equal(res.status, 409); assert.match((await res.json()).error, /连着多篇文章/);
+  f = await setup();
+  const index = '---\nslot: page\ntitle: 博客\ndescription: 目录\n---\n\n<DocRef of="articles/my-toolset" />\n';
+  f.remote(index, 'src/content/pages/blogs.mdx');
+  f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/my-toolset.mdx');
+  const plan = await ok(preview(f, { id: 'my-toolset' }));
+  assert.equal(plan.filePath, 'src/content/articles/toolset.mdx');
+  assert.equal(plan.changes.length, 1);
+  assert.equal(plan.changes[0].kind, '更新');
+  assert.equal(plan.changes[0].beforeContent, '正文');
+  assert.match(plan.changes[0].afterContent, /中文原文/);
+  assert.equal(plan.changes[0].afterProperties.url, 'toolset');
+  assert.deepEqual(plan.changes[0].afterProperties.aliases, ['my-toolset']);
+  await ok(approve(f, plan));
+  await ok(f.request('/git/commit', 'POST', { message: '按卡片 slug 搬移' }));
+  assert.deepEqual(f.changedFiles().map(c => [c.filename, c.status]).sort(), [
+    ['src/content/articles/my-toolset.mdx', 'removed'],
+    ['src/content/articles/toolset.mdx', 'added'],
+  ]);
+  const published = parseMdx(f.text('src/content/articles/toolset.mdx'));
+  assert.equal(published.frontmatter.url, 'toolset');
+  assert.deepEqual(published.frontmatter.aliases, ['my-toolset']);
+  assert.equal(f.text('src/content/articles/my-toolset.mdx'), null);
+  assert.equal(f.text('src/content/pages/blogs.mdx'), index);
+});
+
+test('a later slug change keeps every previous address', async () => {
+  const f = await setup({ slug: 'tools' });
+  f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '我的工具箱', description: '旧地址', date: '2026-01-02', url: 'toolset', aliases: ['my-toolset'], heptabaseCardLink: link(ZH) }, bodyZh: '正文' }), 'src/content/articles/toolset.mdx');
+  const plan = await ok(preview(f));
+  assert.equal(plan.filePath, 'src/content/articles/tools.mdx');
+  assert.deepEqual(plan.changes[0].afterProperties.aliases, ['my-toolset', 'toolset']);
+  await ok(approve(f, plan));
+  await ok(f.request('/git/commit', 'POST', { message: '再次按 slug 搬移' }));
+  const published = parseMdx(f.text('src/content/articles/tools.mdx'));
+  assert.equal(published.frontmatter.url, 'tools');
+  assert.deepEqual(published.frontmatter.aliases, ['my-toolset', 'toolset']);
+  assert.equal(f.text('src/content/articles/toolset.mdx'), null);
+});
+
+test('a slug move is not a withdrawal, and an old public path still names the article', () => {
+  const oldPath = 'src/content/articles/pkm-method.mdx';
+  const nextPath = 'src/content/articles/pkm-practice.mdx';
+  const card = link(ZH);
+  const published = new Map([[oldPath, serializeMdx({ frontmatter: { slot: 'article', title: 't', description: '', date: '2026-01-02', heptabaseCardLink: card }, bodyZh: 'old' })]]);
+  const proposed = new Map([[nextPath, serializeMdx({ frontmatter: { slot: 'article', title: 't', description: '', date: '2026-01-02', url: 'pkm-practice', aliases: ['pkm-method'], heptabaseCardLink: card }, bodyZh: 'new' })]]);
+  assert.deepEqual([...slugMovePaths(published, proposed)], [oldPath]);
+  const citing = serializeMdx({ frontmatter: { slot: 'article', title: 'o', description: '', date: '2026-01-02', heptabaseCardLink: link(OLD) }, bodyZh: '见 [旧文](/pkm-method)。' });
+  const files = new Map([[nextPath, proposed.get(nextPath)], ['src/content/articles/other.mdx', citing]]);
+  assert.deepEqual(linkedPaths(citing, files), [nextPath]);
 });
 
 test('a project and a page publish the #blog card as the only page', async () => {

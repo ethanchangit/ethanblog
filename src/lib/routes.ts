@@ -20,9 +20,46 @@ export function articleHref(id: string): string {
  */
 export const RESERVED_URLS = ['en', 'cn', 'now', 'tags', 'articles', 'projects', 'dashboard', 'contact', 'privacy', 'about', 'blogs', 'search', 'for-agents', 'pages', 'zh', 'api', 'studio', 'index', 'rss', 'sitemap', 'robots', 'llms', 'llms-full', 'openapi', '404'] as const;
 
-/** A Heptabase URL is /<url> on its site (cn.ethanchang.io for Chinese, ethanchang.io for English). */
+/** A Heptabase URL is /<url> on its site. */
 export function urlArticleHref(url: string): string {
   return `/${url}`;
+}
+
+const PUBLIC_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Previous public paths for an article whose file now lives at the card slug.
+ * Skips the current path, the current file id, and fixed site paths.
+ */
+export function articleAliasRedirects(
+  id: string,
+  data: { url?: string | null; aliases?: readonly string[] | null } = {},
+): string[] {
+  const current = data.url || id;
+  const seen = new Set([current, id]);
+  const redirects: string[] = [];
+  for (const alias of data.aliases || []) {
+    if (!PUBLIC_SLUG.test(alias) || seen.has(alias) || reservedPathSegment(alias)) continue;
+    seen.add(alias);
+    redirects.push(alias);
+  }
+  return redirects;
+}
+
+/** Exact file id wins, then the card slug, then a previous address. */
+export function findByDocIdentity<T>(
+  entries: readonly T[],
+  id: string,
+  read: (entry: T) => { id: string; url?: string | null; aliases?: readonly string[] | null },
+): T | undefined {
+  const exact = entries.find((entry) => read(entry).id === id);
+  if (exact) return exact;
+  const byUrl = entries.find((entry) => read(entry).url === id);
+  if (byUrl) return byUrl;
+  return entries.find((entry) => {
+    const aliases = read(entry).aliases;
+    return Array.isArray(aliases) && aliases.includes(id);
+  });
 }
 
 /** 单个项目的公开地址。 */

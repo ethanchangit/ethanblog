@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { docHref, loadDocs } from '@/lib/docs';
-import { articleHref } from '@/lib/routes';
+import { articleHref, findByDocIdentity } from '@/lib/routes';
 import { localeFromPath, localizeHref } from '@/lib/locale';
 import { site } from '@/data/profile';
 import {
@@ -18,7 +18,11 @@ export const prerender = false;
 
 async function findDoc(slug: string) {
   if (!isCommentSlug(slug)) return null;
-  const hits = (await loadDocs()).filter((entry) => entry.id === slug);
+  const hits = (await loadDocs()).filter((entry) => findByDocIdentity([entry], slug, (item) => ({
+    id: item.id,
+    url: item.data.url,
+    aliases: item.data.aliases,
+  })));
   return hits.find((entry) => entry.data.slot === 'article') ?? hits[0] ?? null;
 }
 

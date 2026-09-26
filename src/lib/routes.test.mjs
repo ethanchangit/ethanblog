@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { routeRequest } from './hosts.ts';
-import { articleHref, legacyContentRedirect, projectHref, sitePageHref, urlArticleHref } from './routes.ts';
+import { articleAliasRedirects, articleHref, findByDocIdentity, legacyContentRedirect, projectHref, sitePageHref, urlArticleHref } from './routes.ts';
 
 test('单篇文章、项目和站点页的公开地址是根路径', () => {
   assert.equal(articleHref('pkm-method'), '/pkm-method');
@@ -11,6 +11,20 @@ test('单篇文章、项目和站点页的公开地址是根路径', () => {
   assert.equal(sitePageHref('about'), '/about');
   assert.equal(sitePageHref('blogs'), '/blogs');
   assert.equal(sitePageHref('notes/en'), '/notes');
+});
+
+test('旧 slug 转到卡片现在的地址，当前地址和固定地址不再转一次', () => {
+  assert.deepEqual(articleAliasRedirects('pkm-practice', { url: 'pkm-practice', aliases: ['pkm-method', 'pkm-practice', 'now'] }), ['pkm-method']);
+  assert.deepEqual(articleAliasRedirects('tools', { url: 'tools', aliases: ['my-toolset', 'toolset'] }), ['my-toolset', 'toolset']);
+  assert.deepEqual(articleAliasRedirects('toolset', { aliases: ['toolset'] }), []);
+  const entries = [
+    { id: 'pkm-practice', url: 'pkm-practice', aliases: ['pkm-method'] },
+    { id: 'other', url: 'other', aliases: [] },
+  ];
+  const read = (entry) => entry;
+  assert.equal(findByDocIdentity(entries, 'pkm-practice', read).id, 'pkm-practice');
+  assert.equal(findByDocIdentity(entries, 'pkm-method', read).id, 'pkm-practice');
+  assert.equal(findByDocIdentity(entries, 'missing', read), undefined);
 });
 
 test('旧单篇地址转到新路径，列表和分页不动', () => {
