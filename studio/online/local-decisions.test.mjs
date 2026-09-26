@@ -46,7 +46,7 @@ test('unmarked references are flagged for the publish flush, and removals stay o
   const card = item();
   card.plan.changes.push({ id: 'ref', mainArticle: false, referenceTagged: false });
   const result = applyLocalDecision(card, 'approve');
-  assert.match(result.extra, /发布时加入 #blog/);
+  assert.match(result.extra, /references 标签/);
   assert.equal(decisionBatch([card]).decisions[0].markReferences, true);
   const removal = item({ removal: true, plan: { ...plan, approved: false } });
   applyLocalDecision(removal, 'approve');

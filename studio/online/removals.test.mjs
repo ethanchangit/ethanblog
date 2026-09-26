@@ -155,6 +155,11 @@ test('core pages and reference-only pages drop when the card leaves its tag or i
   f.referenceCards.add(REF);
   const onlyOldTag = await ok(f.request('/heptabase/cards'));
   assert.equal(onlyOldTag.removals.some((item) => item.id === `hepta-${REF}`), true);
+  f.referenceCards.delete(REF);
+  f.referencesTag.add(REF);
+  const tagged = await ok(f.request('/heptabase/cards'));
+  assert.equal(tagged.removals.some((item) => item.id === `hepta-${REF}`), false);
+  f.referencesTag.delete(REF);
   f.properties.set(REF, { 'Blog Type': 'Reference' });
   const listed = await ok(f.request('/heptabase/cards'));
   assert.equal(listed.removals.some((item) => item.id === `hepta-${REF}`), false);

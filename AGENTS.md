@@ -72,7 +72,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 - 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
 - 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
-- 被提到的卡片打上 Heptabase 标签 `references`。已经是文章的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
+- 被提到的卡片打上 Heptabase 标签 `references`。引用页从这张标签读取，不从 Blog Type 的 Reference 选项读取。已经是文章、项目或站点页的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
 - `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。
 - 本机 `http://localhost:4321` 就是这个英文站。后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
@@ -81,9 +81,9 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 拉取读 Heptabase 里准确名为 `blog` 的标签数据库。名为 `blog i18n` 的标签和关联字段如果还在，只用来核对译文，不写进公开页；没有这个标签时，拉取只读 `#blog`，不因此失败。字段按名字从线上表结构读取（`slug`、`Remark`；若仍有译文库，还有它的 `slug`、`Language`），不写死 id。`slug` 可以是文字或选项，值就是地址。引用资料不再使用单独的 `#blog-reference` 标签。
 
-- 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`blocked`、`review`、`published`，各一个（大小写不敏感；旧名 `block` 不再认）。`published` 表示已通过审核，不表示网站已上线。
-- `Blog Type` 的选项以数据库里的为准。发布要求有 `Article`、`Project` 和 `Page`。当前线上表没有 `Reference`。只有 `Article` 进公开文章列表。`Reference` 若数据库里仍有这个选项，则有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
-- 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。这要求数据库里有 Reference 选项。没有这个选项时，发布停下来，不发明选项，也不把这些卡片改成 Article、Project 或 Page。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
+- 审核清单收 `Status = review` 的文字卡片，也收 `Status = published` 且网站上已经有已发布副本的卡片，和 review 一起拉取。`new`、`writing`、`blocked` 不进清单。Status 选项为 `new`、`writing`、`blocked`、`review`、`published`，各一个（大小写不敏感；旧名 `block` 不再认）。`published` 表示已通过审核。网站上已经发布过的卡片，之后在 Heptabase 里仍是 published 时，更新会继续出现在审核清单里。
+- `Blog Type` 的选项以数据库里的为准。发布要求有 `Article`、`Project` 和 `Page`。只有 `Article` 进公开文章列表。`Project` 进项目页，`Page` 进站点页。引用页不靠 Blog Type：带 `references` 标签、且自己不是文章、项目或站点页的卡片，有自己的页面，不进文章列表。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
+- 主卡片递归提到的卡片，发布前打上 `references` 标签。已经在 `#blog` 里的文章、项目和站点页保持原来的 Blog Type。不在 `#blog` 里的卡片不改成 Article、Project 或 Page，也不要求 Blog Type 里有 Reference。这不是公开许可；通过前要明确确认正文和全部引用都可以公开。带 `references` 标签的卡片离开 `#blog` 不会被当成删除。
 - 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
 
 ### `/dashboard`
@@ -92,7 +92,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-mcp`，URL `https://api.heptabase.com/mcp`，没有令牌或 client secret。编辑器和 CLI 读这份项目文件；拉取后刷新 Cursor，或在仓库目录执行 `agent mcp login heptabase-mcp`，由本人在 Heptabase 完成授权。要改卡片，授权时授予写入。Cloud Agent 不读这份文件，也不用后台 D1 里的授权。这个账号没有团队，不要去 Dashboard → Plugins & MCPs，也不要把 `STUDIO_SECRET` 或访问令牌放进仓库或 Cloud Agent 环境。
 
-1. 「拉取最新更新」。左侧为 New articles、Edited articles；已关联文章移出 `#blog`，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
+1. 「拉取最新更新」。清单里有 `Status = review` 的卡片，也有 `Status = published` 且网站上已经有已发布副本的卡片。左侧为 New articles、Edited articles；已关联文章移出 `#blog` 且不在 `references` 标签里，或 Heptabase 明确报告源卡片不存在时，另列 Deleted articles。这项检查不要求卡片仍为 Review。只留在 `references` 标签里的卡片不是删除。没有关联链接的旧文不会因为清单里找不到它而被删除。权限、网络或不完整结果不当作删除。
 2. 拉取完成后，审核都在本机进行，不再逐次访问 Heptabase 或 GitHub。主卡片上点通过是一次点击，没有确认弹窗；点通过即确认正文、全部引用和译文都可以公开，并记入本机决定。拒绝会先打开备注对话框，通过不会。可以勾选多篇后批量通过或批量拒绝；批量拒绝共用一次备注。删除和暂不删除仍是一次点击，不写 Remark。决定之后两个按钮都还在，当前选择保持高亮，可以改判。站点页的勾选、从导航隐藏和拖动顺序也只改本机清单。这些点击不锁住整页。Publish Date 或创建时间已有则原样保留；两样都空时才在发布时补当天（默认时区 `Africa/Dar_es_Salaam`）。此时只是「已通过，待发布」。Heptabase 的 Status 要等这次发布提交时才回写：通过写成 `published`，拒绝写成 `blocked`，不改日期，也不改线上旧文。对话框里的备注留在本机决定里，等这次发布上线（deploy 回执，`completeWriteback`）再写回卡片的 `Remark`。留空会在那时清空 Remark。译文跟着主卡片一起通过或拒绝。底部「直接发布」把本机决定一次提交，并发布这次拉取里尚未拒绝的更新和尚未跳过的删除，不再弹出确认框。发布失败不表示网站已经改变。
 3. 「提交通过的更新到 GitHub」把尚未送出的本机决定一次提交，只包含已通过的主卡片及其引用，并再次核对来源、属性和公开确认。公开仓库里的 PR 已经是公开行为。
 4. 检查通过后「确认发布」，核对清单，再「确认发布到博客」，合并到 `main`。内容、主版本或检查变了就停止。
