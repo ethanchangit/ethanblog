@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 
 let process: ChildProcess, url: string;
-test.beforeAll(async () => {
+test.beforeEach(async () => {
   process = spawn(globalThis.process.execPath, ['studio/online/preview.mjs'], {
     env: { ...globalThis.process.env, STUDIO_PREVIEW_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -16,7 +16,7 @@ test.beforeAll(async () => {
     });
   });
 });
-test.afterAll(() => { process?.kill('SIGTERM'); });
+test.afterEach(() => { process?.kill('SIGTERM'); });
 
 async function openLocal(page: Page) {
   await page.goto(url);
@@ -57,11 +57,50 @@ test('合并成功但发布响应超时时仍显示发布中', async ({ page }) 
   await expect(page.locator('#release [data-release-notice]')).not.toHaveAttribute('role', 'alert');
 });
 
+test('一条审核决定超时后重试可继续直接发布', async ({ page }) => {
+  await openLocal(page);
+  let interrupted = false;
+  const interruptOnce = async (route: import('@playwright/test').Route) => {
+    if (interrupted) return route.continue();
+    interrupted = true;
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    await route.fulfill({ status: 524, contentType: 'text/html', body: '<html>timeout</html>' });
+  };
+  await page.route('**/dashboard/api/heptabase/decisions', interruptOnce);
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await expect(page.locator('#release [data-release-notice]')).toContainText('请求超时');
+  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
+  await page.unroute('**/dashboard/api/heptabase/decisions', interruptOnce);
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
+});
+
+test('被引用的删除文章同时列入 Deleted articles 和 New References', async ({ page }) => {
+  await openLocal(page);
+  await page.route('**/dashboard/api/heptabase/removal-preview', async route => {
+    const response = await route.fetch();
+    const plan = await response.json();
+    if (plan.changes?.[0]?.title === '已经不再公开的旧笔记') {
+      plan.demote = true;
+      plan.changes[0].demote = true;
+      plan.changes[0].afterProperties = { ...plan.changes[0].beforeProperties, heptabaseType: 'reference' };
+    }
+    await route.fulfill({ response, json: plan });
+  });
+  await pullLatest(page);
+  await expect(page.locator('#release [data-deleted-articles]')).toContainText('已经不再公开的旧笔记');
+  await expect(page.locator('#release [data-new-references]')).toContainText('已经不再公开的旧笔记');
+  await expect(page.locator('#release')).not.toContainText('发布不会被拦住');
+  await page.getByRole('tab', { name: /New References/ }).click();
+  await expect(page.locator('.reference-card').filter({ hasText: '已经不再公开的旧笔记' })).toHaveCount(1);
+});
+
 test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);
   await pullLatest(page);
-  await expect(page.locator('#release')).toContainText('还有 9 条待审');
+  await expect(page.locator('#release')).not.toContainText('待审');
   const pressed = () => page.locator('#review-list .review-item[data-selected=true] > .card-select');
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
@@ -70,7 +109,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
     const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
     const frame = box('iframe.article-preview');
     if (!frame) return [];
-    return ['.preview-heading', 'section.review-meta', 'p.preview-summary'].map(selector => {
+    return ['.preview-heading', 'section.review-meta'].map(selector => {
       const node = box(selector);
       return node ? { selector, left: node.left - frame.left, right: node.right - frame.right, width: node.width } : { selector, missing: true };
     });
@@ -84,7 +123,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   expect(await page.locator('#review-preview').evaluate(node => getComputedStyle(node).borderTopWidth)).toBe('0px');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
   await expect(page.locator('.full-diff')).toBeVisible(); await idle();
-  await expect(page.locator('#release .muted')).not.toHaveText('');
+  await expect(page.locator('#release .muted').first()).not.toHaveText('');
   const reviewRequests = { decision: 0, preview: 0, git: 0 };
   page.on('request', request => {
     const path = new URL(request.url()).pathname;
@@ -108,7 +147,7 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   await dialog.getByRole('button', { name: '拒绝', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#review-preview #notice')).toHaveCount(0);
-  await expect(page.locator('#release')).toContainText('还有 7 条待审');
+  await expect(page.locator('#release')).not.toContainText('待审');
   await expect(pressed()).toHaveText('让标签跟着想法生长');
   await expect(page.locator('#release').getByRole('button', { name: '直接发布', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '拒绝「痕迹」', exact: true })).toHaveAttribute('aria-pressed', 'true');

@@ -1664,7 +1664,7 @@ async function choosePages(env, identity, input) {
   });
 }
 
-/** One publish request applies every local decision, then the caller commits. */
+/** Save the decisions sent in this request; the caller commits after all are saved. */
 async function applyDecisionBatch(env, identity, input) {
   if (input.pageChoice) await choosePages(env, identity, input.pageChoice);
   const decisions = Array.isArray(input.decisions) ? input.decisions : [];
