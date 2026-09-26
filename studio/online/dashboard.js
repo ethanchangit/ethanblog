@@ -529,8 +529,10 @@ async function publishWithoutReview() {
     paintAfterDecision();
     throw new Error('没有可发布的更新。');
   }
+  const previousReleaseId = git.release?.id;
+  let review;
   try {
-    const review = await api('/git/review');
+    review = await api('/git/review');
     if (!review.changes.length) throw new Error('没有可发布的更新。');
     await api('/git/publish', review);
   } catch (error) {
@@ -541,6 +543,11 @@ async function publishWithoutReview() {
       await renderRelease();
       renderList();
     } catch { /* the publish error stays on the release bar */ }
+    if (review && git.release?.id && git.release.id !== previousReleaseId && !git.pullRequest && git.release.stage !== 'merging') {
+      showReleaseNotice('发布中…');
+      paintAfterDecision();
+      return;
+    }
     throw error;
   }
   git = await api('/git');

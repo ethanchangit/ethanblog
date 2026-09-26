@@ -45,6 +45,18 @@ test('本地预览打开后就是审核界面，不用先拉取', async ({ page 
   await expect(page.locator('#release')).not.toContainText('请先拉取');
 });
 
+test('合并成功但发布响应超时时仍显示发布中', async ({ page }) => {
+  await openLocal(page);
+  await page.route('**/dashboard/api/git/publish', async route => {
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    await route.fulfill({ status: 524, contentType: 'text/html', body: '<html>timeout</html>' });
+  });
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await expect(page.locator('#release [data-release-notice]')).toHaveText('发布中…');
+  await expect(page.locator('#release [data-release-notice]')).not.toHaveAttribute('role', 'alert');
+});
+
 test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await openLocal(page);

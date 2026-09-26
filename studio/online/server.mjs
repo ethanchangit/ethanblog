@@ -519,7 +519,7 @@ async function publish(env, identity, input) {
   const id = await hash(`${cfg(env).repository}:${commitSha}`);
   const existing = await firstRow(env, 'SELECT * FROM studio_releases WHERE id = ?1', id);
   const state = await branchState(env);
-  if (!state.pr && existing) return { release: await syncRelease(env, existing) };
+  if (!state.pr && existing) return { release: releaseView(existing) };
   if (!state.pr || !commitSha || commitSha !== state.commitSha) throw fail('发布请求已变化，请刷新并重新确认。', 409);
   if ((await draftRows(env, identity)).length) throw fail('还有未提交的编辑，请先提交到 GitHub。', 409);
   const main = await branchState(env, cfg(env).branch);
