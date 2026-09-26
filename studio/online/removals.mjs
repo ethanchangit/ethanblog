@@ -24,6 +24,11 @@ export async function removalReason(client, id, schema, blogIds, referenceIds = 
   return 'untagged';
 }
 
+function contentId(path) {
+  const match = /^src\/content\/(?:articles|projects|pages)\/(.+)\.mdx$/.exec(path);
+  return match ? match[1] : '';
+}
+
 function resolvePublicSlug(slug, files) {
   if (!files) return [`src/content/articles/${slug}.mdx`];
   const present = ['articles', 'projects', 'pages'].map(collection => `src/content/${collection}/${slug}.mdx`).filter(path => files.has(path));
@@ -31,10 +36,34 @@ function resolvePublicSlug(slug, files) {
   const byUrl = [];
   for (const [path, raw] of files) {
     if (!/^src\/content\/(articles|projects)\//.test(path)) continue;
-    const url = parseMdx(raw).frontmatter?.url;
-    if (typeof url === 'string' && url === slug) byUrl.push(path);
+    const frontmatter = parseMdx(raw).frontmatter || {};
+    const url = frontmatter.url;
+    const aliases = Array.isArray(frontmatter.aliases) ? frontmatter.aliases : [];
+    if ((typeof url === 'string' && url === slug) || aliases.includes(slug)) byUrl.push(path);
   }
   return byUrl;
+}
+
+/** Old path of a card whose new file lists that path's id in aliases. A slug move, not a withdrawal. */
+export function slugMovePaths(published, proposed) {
+  const arrivals = [];
+  for (const [path, raw] of proposed) {
+    if (!raw || contentId(path) === '') continue;
+    const frontmatter = parseMdx(raw).frontmatter || {};
+    const link = typeof frontmatter.heptabaseCardLink === 'string' ? frontmatter.heptabaseCardLink.toLowerCase() : '';
+    if (!link) continue;
+    const aliases = Array.isArray(frontmatter.aliases) ? frontmatter.aliases.filter(item => typeof item === 'string') : [];
+    arrivals.push({ link, aliases: new Set(aliases) });
+  }
+  const moves = new Set();
+  for (const [path, raw] of published) {
+    if (!raw || proposed.has(path)) continue;
+    const id = contentId(path);
+    const link = typeof parseMdx(raw).frontmatter?.heptabaseCardLink === 'string' ? parseMdx(raw).frontmatter.heptabaseCardLink.toLowerCase() : '';
+    if (!id || !link) continue;
+    if (arrivals.some(item => item.link === link && item.aliases.has(id))) moves.add(path);
+  }
+  return moves;
 }
 
 export function linkedPaths(raw, files = null) {

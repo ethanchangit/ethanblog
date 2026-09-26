@@ -25,11 +25,12 @@ const docSchema = z
     heptabaseCardLink: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     heptabaseStatus: z.enum(['new', 'writing', 'blocked', 'review', 'published']).optional(),
     heptabaseType: z.enum(['article', 'project', 'page', 'reference']).optional(),
-    // Heptabase URL: the article is /<url> on cn.ethanchang.io, and its translations use the same path on their site.
-    // A translation (from #blogi18n) records its language and the #blog card it translates.
+    // Heptabase slug: the article is /<url>. aliases are earlier addresses that 301 here.
+    // A translation records its language and the #blog card it translates.
     language: z.string().regex(/^[a-z]{2,3}$/).optional(),
     translationOf: z.string().regex(/^heptabase:\/\/card\/[0-9a-f-]{36}$/i).optional(),
     url: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+    aliases: z.array(z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)).optional(),
     listed: z.boolean().optional(),
     status: z.enum(['active', 'shipped', 'archived', 'wip']).optional(),
     order: z.number().default(99),
@@ -47,6 +48,14 @@ const docSchema = z
   .superRefine((value, ctx) => {
     if (value.url && (RESERVED_URLS as readonly string[]).includes(value.url)) {
       ctx.addIssue({ code: 'custom', message: `url「${value.url}」与网站固定地址 /${value.url} 冲突`, path: ['url'] });
+    }
+    for (const alias of value.aliases || []) {
+      if ((RESERVED_URLS as readonly string[]).includes(alias)) {
+        ctx.addIssue({ code: 'custom', message: `aliases「${alias}」与网站固定地址 /${alias} 冲突`, path: ['aliases'] });
+      }
+      if (alias === value.url) {
+        ctx.addIssue({ code: 'custom', message: `aliases「${alias}」和当前地址重复`, path: ['aliases'] });
+      }
     }
     if (value.slot === 'article' && value.date == null) {
       ctx.addIssue({

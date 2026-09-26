@@ -1,5 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { articleHref, FIXED_PAGE_IDS, projectHref, reservedPathSegment, sitePageHref, urlArticleHref } from '@/lib/routes';
+import { articleAliasRedirects, articleHref, findByDocIdentity, FIXED_PAGE_IDS, projectHref, reservedPathSegment, sitePageHref, urlArticleHref } from '@/lib/routes';
 
 export { sitePageHref };
 
@@ -141,7 +141,11 @@ export async function findDoc(
     collection,
     ({ data }) => !('translationOf' in data && data.translationOf) && (opts.includeDrafts || !data.draft),
   );
-  return entries.find((item) => item.id === id);
+  return findByDocIdentity(entries, id, (item) => ({
+    id: item.id,
+    url: item.data.url,
+    aliases: item.data.aliases,
+  }));
 }
 
 
@@ -164,7 +168,11 @@ export async function resolveDocRef(
     collection,
     opts.includeDrafts ? undefined : ({ data }) => !data.draft,
   );
-  const entry = entries.find((item) => item.id === id);
+  const entry = findByDocIdentity(entries, id, (item) => ({
+    id: item.id,
+    url: 'url' in item.data ? item.data.url : null,
+    aliases: 'aliases' in item.data ? item.data.aliases : null,
+  }));
   if (!entry) {
     throw new Error(`DocRef 找不到 ${of}`);
   }
@@ -238,6 +246,10 @@ export async function publicContentRoutes(opts: { includeDrafts?: boolean } = {}
     if (article.id !== path) {
       claimPublicPath(owners, article.id, `${article.data.title} 的文件名`);
       routes.push({ path: article.id, kind: 'redirect', target: `/${path}` });
+    }
+    for (const alias of articleAliasRedirects(article.id, article.data)) {
+      claimPublicPath(owners, alias, `${article.data.title} 的旧地址`);
+      routes.push({ path: alias, kind: 'redirect', target: `/${path}` });
     }
   }
   for (const project of projects) {

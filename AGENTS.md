@@ -73,7 +73,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
 - 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
 - 被提到的卡片打上 Heptabase 标签 `references`。引用页从这张标签读取，不从 Blog Type 的 Reference 选项读取。已经是文章、项目或站点页的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
-- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`，文件是 `src/content/articles/toolset.mdx`。文章已经发布、而卡片 slug 和现有文件名不同时，之后每次发布都把文件搬到这个 slug，旧文件名和旧 slug 写入 frontmatter 的 `aliases`，站点从这些旧地址 301 到新地址。目录里的 DocRef 可以继续写旧 id。另一张卡片已经占用这个 slug、slug 撞上固定地址，或同一张卡片连着多份文件时，停下并报冲突。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。
 - 本机 `http://localhost:4321` 就是这个英文站。后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 

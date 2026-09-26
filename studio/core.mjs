@@ -87,7 +87,7 @@ export function pageReviewNote(id, { displaced = false, canonicalTitle = '', cho
 export const LANG_SPLIT = '<div data-lang-split></div>';
 export const CANONICAL_KEYS = [
   'slot', 'title', 'description', 'date', 'created', 'updated',
-  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'url', 'language', 'translationOf', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
+  'tags', 'draft', 'heptabaseCardLink', 'heptabaseStatus', 'heptabaseType', 'url', 'aliases', 'language', 'translationOf', 'listed', 'status', 'order', 'stack', 'platforms', 'repo',
   'homepage', 'downloads', 'screenshots', 'demo', 'featured',
 ];
 
