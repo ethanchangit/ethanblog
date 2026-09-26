@@ -79,11 +79,11 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 
 ### `#blog`
 
-拉取读 Heptabase 里准确名为 `blog` 的标签数据库，以及 `blog i18n` 关联指向的译文库 `#blogi18n`。字段按名字从线上表结构读取（`slug`、`Remark`、`blog i18n`；译文库的 `slug`、`Language`），不写死 id。引用资料不再使用单独的 `#blog-reference` 标签。
+拉取读 Heptabase 里准确名为 `blog` 的标签数据库。名为 `blog i18n` 的标签和关联字段如果还在，只用来核对译文，不写进公开页；没有这个标签时，拉取只读 `#blog`，不因此失败。字段按名字从线上表结构读取（`slug`、`Remark`；若仍有译文库，还有它的 `slug`、`Language`），不写死 id。`slug` 可以是文字或选项，值就是地址。引用资料不再使用单独的 `#blog-reference` 标签。
 
 - 审核清单只收 `Status = review` 的文字卡片。Status 选项为 `new`、`writing`、`blocked`、`review`、`published`，各一个（大小写不敏感；旧名 `block` 不再认）。`published` 表示已通过审核，不表示网站已上线。
-- `Blog Type` 的选项以数据库里的为准，当前是 `Article`、`Project`、`Page` 和 `Reference`。只有 `Article` 进公开文章列表。`Reference` 仍有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
-- 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
+- `Blog Type` 的选项以数据库里的为准。发布要求有 `Article`、`Project` 和 `Page`。当前线上表没有 `Reference`。只有 `Article` 进公开文章列表。`Reference` 若数据库里仍有这个选项，则有自己的页面，不进文章列表。`Project` 进项目页，`Page` 进站点页。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
+- 主卡片递归提到、且自己还不在 `#blog` 里的卡片，发布前要加入 `#blog`，并把 Blog Type 设为 Reference。这要求数据库里有 Reference 选项。没有这个选项时，发布停下来，不发明选项，也不把这些卡片改成 Article、Project 或 Page。选项名以数据库里的为准。这只是回到 `#blog` 集中审查，不是公开许可；通过前要明确确认正文和全部引用都可以公开。
 - 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
 
 ### `/dashboard`

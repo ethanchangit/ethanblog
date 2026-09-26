@@ -264,10 +264,21 @@ async function allTags(client) {
   return found;
 }
 
+function tagsNamed(tags, name) {
+  return tags.filter((tag) => tag.name === name);
+}
+
 function tagNamed(tags, name) {
-  const matches = tags.filter((tag) => tag.name === name);
+  const matches = tagsNamed(tags, name);
   if (matches.length !== 1) throw fail(`请在 Heptabase 中保留一个名为 ${name} 的标签。`);
   return matches[0];
+}
+
+// #blog is required. A translation tag is not: the published page is the #blog card.
+function optionalTag(tags, name) {
+  const matches = tagsNamed(tags, name);
+  if (matches.length > 1) throw fail(`请在 Heptabase 中只保留一个名为 ${name} 的标签。`);
+  return matches[0] || null;
 }
 
 // CardList only: id, title, and edited time. No properties and no body.
@@ -315,17 +326,18 @@ export async function taggedCards(client, name) {
 }
 
 export const blogCards = (client) => taggedCards(client, 'blog');
-// Translations of #blog cards. Ethan also writes this tag as #blogi18n.
+// Present only when Heptabase still has a tag named exactly "blog i18n".
 export const i18nCards = (client) => taggedCards(client, 'blog i18n');
 
-// One tag walk, then CardList + edited time for #blog and #blogi18n. No card bodies.
+// One tag walk, then CardList + edited time for #blog. #blogi18n is included only when that tag exists.
 export async function dashboardCardLists(client) {
   let last;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const tags = await allTags(client);
       const blog = await cardsInTag(client, tagNamed(tags, 'blog'));
-      const i18n = await cardsInTag(client, tagNamed(tags, 'blog i18n'));
+      const i18nTag = optionalTag(tags, 'blog i18n');
+      const i18n = i18nTag ? await cardsInTag(client, i18nTag) : { tagId: null, cards: [] };
       return { blog, i18n };
     } catch (error) {
       last = error;

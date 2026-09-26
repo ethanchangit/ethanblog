@@ -72,6 +72,8 @@ export async function fixture(assets = {}) {
   refs.set('main', commit(tree({ [PATH]: blob(article), 'src/content/pages/blogs.mdx': blob('---\nslot: page\ntitle: 博客\n---\n\n<DocList />\n'), 'src/data/tag-groups.ts': blob('export const tagGroups = [];\n') })));
   let pr = null, checksPass = true, deployConclusion = 'success', liveSha = '', source = '# 测试文章\n\n来自 Heptabase 的正文。', dropPrOnce = false;
   const cardSources = new Map(), referenceCards = new Set(), referencesTag = new Set(), missingCards = new Set(), timestamps = new Map(), properties = new Map([[CARD, { Status: 'new', Tag: ['AI Native'] }]]);
+  // Live #blog has no blog i18n tag, slug is a select, and Blog Type has no Reference. Tests opt into that shape.
+  const catalog = { i18nTag: true, i18nRelation: true, slugType: 'text', blogTypes: ['Article', 'Project', 'Page', 'Reference'] };
   // Translation cards in #blogi18n: id -> { Language, URL }.
   const i18n = new Map();
   const baselines = new Map();
@@ -123,7 +125,15 @@ export async function fixture(assets = {}) {
         else {
           const { name, arguments: args } = body.params;
           let content;
-          if (name === 'list_tags') content = { content: `<tags total="4"><tag id="blog-id" name="blog" cardCount="${properties.size}" /><tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" /><tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" /><tag id="references-id" name="references" cardCount="${referencesTag.size}" /></tags>` };
+          if (name === 'list_tags') {
+            const tags = [
+              `<tag id="blog-id" name="blog" cardCount="${properties.size}" />`,
+              `<tag id="reference-id" name="blog-reference" cardCount="${referenceCards.size}" />`,
+              ...(catalog.i18nTag ? [`<tag id="i18n-id" name="blog i18n" cardCount="${i18n.size}" />`] : []),
+              `<tag id="references-id" name="references" cardCount="${referencesTag.size}" />`,
+            ];
+            content = { content: `<tags total="${tags.length}">${tags.join('')}</tags>` };
+          }
           else if (name === 'read_database' && args.tagId === 'i18n-id') content = { configuration: { schema: {
             url: { name: 'slug', type: 'text' },
             language: { name: 'Language', type: 'select', options: [{ id: 'en', name: 'en' }, { id: 'ja', name: 'ja' }] },
@@ -131,12 +141,12 @@ export async function fixture(assets = {}) {
           else if (name === 'read_database') content = { configuration: { schema: {
             status: { name: 'Status', type: 'select', options: ['new', 'writing', 'blocked', 'review', 'published'].map((name) => ({ id: name, name })) },
             date: { name: 'Publish Date', type: 'date' },
-            tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity'].map((name) => ({ id: name, name })) },
-            type: { name: 'Blog Type', type: 'select', options: ['Article', 'Project', 'Page', 'Reference'].map((name) => ({ id: name, name })) },
+            tags: { name: 'Tag', type: 'multiSelect', options: ['Mission', 'AI Native', 'Productivity', 'Heptabase'].map((name) => ({ id: name, name })) },
+            type: { name: 'Blog Type', type: 'select', options: catalog.blogTypes.map((name) => ({ id: name, name })) },
             summary: { name: 'Summary', type: 'text' },
             remark: { name: 'Remark', type: 'text' },
-            url: { name: 'slug', type: 'text' },
-            i18n: { name: 'blog i18n', type: 'relation', tagId: 'i18n-id' },
+            url: { name: 'slug', type: catalog.slugType, ...(catalog.slugType === 'select' ? { options: [{ id: 'toolset', name: 'toolset' }] } : {}) },
+            ...(catalog.i18nRelation ? { i18n: { name: 'blog i18n', type: 'relation', tagId: 'i18n-id' } } : {}),
           } } };
           else if (name === 'edit_card_properties') {
             for (const edit of args.edits) {
@@ -247,7 +257,7 @@ export async function fixture(assets = {}) {
     const state = new URL(start.url).searchParams.get('state');
     return request(`/heptabase/callback?state=${state}&code=test-code`);
   }
-  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, referencesTag, missingCards, timestamps,
+  return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, referencesTag, missingCards, timestamps, catalog,
     source: () => source, setSource: (text) => { source = text; },
     failChecks: () => { checksPass = false; }, failDeploy: () => { deployConclusion = 'failure'; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },
