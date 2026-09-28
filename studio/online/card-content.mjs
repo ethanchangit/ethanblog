@@ -73,11 +73,12 @@ export function fromHeptabase(source, targets, imports = '') {
     const mention = mentionPattern();
     let text = part.replace(mention, (whole, attrs, inner, linkLabel, linkId, offset) => {
       const parsed = mentionFrom([whole, attrs, inner, linkLabel, linkId]);
-      const page = parsed.type === 'card' && parsed.id ? pageFor(targets.get(cardKey(parsed.id))) : null;
+      const target = parsed.type === 'card' && parsed.id ? targets.get(cardKey(parsed.id)) : null;
+      const page = pageFor(target);
       const lineStart = part.lastIndexOf('\n', offset - 1) + 1;
       const end = part.indexOf('\n', offset + whole.length);
       const standalone = !part.slice(lineStart, offset).trim() && !part.slice(offset + whole.length, end < 0 ? part.length : end).trim();
-      const rendered = mentionMarkup({ ...parsed, label: parsed.label || page?.title || '' }, page, { standalone: Boolean(page) && standalone });
+      const rendered = mentionMarkup({ ...parsed, label: parsed.label.trim() || target?.title || 'Untitled card' }, page, { standalone: Boolean(page) && standalone });
       if (rendered.html?.startsWith('<DocList')) hasBlock = true;
       const markup = rendered.html ?? escapeProse(rendered.text || '');
       return `\u0001${tokens.push(markup) - 1}\u0002`;

@@ -71,3 +71,11 @@ test('a mention inside code stays literal', () => {
   assert.match(body, /<hepta-mention id="/);
   assert.doesNotMatch(body, /data-doc-mention/);
 });
+
+test('unavailable mentions preserve safe display text and fall back to a known title', () => {
+  const id = '6353c916-e0a9-4a0d-aa07-7a3512b72e92';
+  const target = new Map([[id, { title: '原来的标题' }]]);
+  assert.equal(fromHeptabase(`# 标题\n\n<hepta-mention type="card" id="${id}"> </hepta-mention>`, target).body, '原来的标题');
+  assert.equal(fromHeptabase(`# 标题\n\n<hepta-mention type="card" id="${id}"></hepta-mention>`, new Map()).body, 'Untitled card');
+  assert.equal(fromHeptabase(`# 标题\n\n<hepta-mention type="card" id="${id}"><img src=x>{text}</hepta-mention>`, target).body, '&lt;img src=x&gt;&#123;text&#125;');
+});

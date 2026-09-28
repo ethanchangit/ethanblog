@@ -85,6 +85,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - `Blog Type` 的选项以数据库里的为准。发布要求有 `Article`、`Project` 和 `Page`。只有 `Article` 进公开文章列表。`Project` 进项目页，`Page` 进站点页。引用页不靠 Blog Type：带 `references` 标签、且自己不是文章、项目或站点页的卡片，有自己的页面，不进文章列表。项目和文章随卡片增加，没有篇数上限。站点页最多 4 页。没选就停止，不按标题猜测。卡片上已有的 Publish Date、创建时间和更新时间原样写入网站；两样都没有时，首次发布才用当天日期。摘要来自 `Summary` 字段；字段为空时，标题下的预览段落留空，不从正文第一段抄。
 - 主卡片递归提到的卡片，发布前打上 `references` 标签。已经在 `#blog` 里的文章、项目和站点页保持原来的 Blog Type。不在 `#blog` 里的卡片不改成 Article、Project 或 Page，也不要求 Blog Type 里有 Reference。这不是公开许可；通过前要明确确认正文和全部引用都可以公开。带 `references` 标签的卡片离开 `#blog` 不会被当成删除。
 - 被提到的另一张 Blog、Project 或 Page 卡片仍是主卡片，必须单独通过或拒绝，不会被改成 Reference。
+- 失效 mention 不阻塞本次发布：Heptabase 明确报告卡片不存在、已关联页面的卡片同时离开 `#blog` 和 `references`、或页面已确认待删除时，发布副本保留 mention 的原文字，去掉链接，不继续拉取它的引用，也不为它加标签或写回正文。原文字为空时用已知标题，再无标题才用 `Untitled card`。审核页简短列出「已转为文字」的名称，Heptabase 原文不改；卡片恢复后，下次拉取重新生成链接。仍在 `references` 的卡片保留正常引用。权限、网络和不完整响应不当作失效；主卡片本身丢失仍走撤下审核。
 
 ### `/dashboard`
 

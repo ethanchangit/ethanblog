@@ -104,9 +104,10 @@ export function toolResult(result) {
     const text = (result.content || []).filter((p) => p.type === 'text').map((p) => p.text).join('\n');
     try { data = JSON.parse(text); } catch { data = { content: text }; }
   }
-  const missing = /objectNotFound|object was not found|对象不存在/i.test(toolText(result, data));
+  const failed = result.isError || data.status === 'failed';
+  const missing = failed && /objectNotFound|object was not found|对象不存在/i.test(toolText(result, data));
   if (missing) throw Object.assign(fail('Heptabase 卡片已不存在。', 404), { heptabaseReason: 'objectNotFound' });
-  if (result.isError || data.status === 'failed') throw Object.assign(fail('Heptabase 未能完成操作，请检查连接和卡片权限。', 502), { heptabaseReason: data.status === 'failed' ? data.failureReasonCode : undefined });
+  if (failed) throw Object.assign(fail('Heptabase 未能完成操作，请检查连接和卡片权限。', 502), { heptabaseReason: data.status === 'failed' ? data.failureReasonCode : undefined });
   return data;
 }
 

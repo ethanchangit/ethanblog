@@ -567,6 +567,8 @@ test('MCP pagination reads every numbered line and rejects incomplete lists', as
   assert.equal(calls[0].limit, 100);
   assert.throws(() => toolResult({ isError: true, content: [] }), /未能/);
   assert.throws(() => toolResult({ isError: true, content: [{ type: 'text', text: 'The object was not found.' }] }), (error) => error.heptabaseReason === 'objectNotFound');
+  assert.throws(() => toolResult({ structuredContent: { status: 'failed', failureReasonCode: 'objectNotFound' } }), error => error.heptabaseReason === 'objectNotFound');
+  assert.equal(toolResult({ structuredContent: { status: 'succeeded', content: '# Debug\n\nobjectNotFound means 对象不存在.' } }).status, 'succeeded');
 });
 
 test('list_cards follows output-budget offsets and retries a changing cardCount', async () => {

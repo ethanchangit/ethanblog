@@ -1168,6 +1168,7 @@ async function showSelection() {
   meta.append(el('h3', '属性', { class: 'section-label' }));
   appendProperties(meta, card, kind, item.removal);
   if (item.plan.pageNote) meta.append(el('p', item.plan.pageNote, { class: 'muted meta-note' }));
+  if (card.plainTextMentions?.length) meta.append(el('p', `已转为文字：${card.plainTextMentions.map(ref => ref.title).join('、')}`, { class: 'muted meta-note', 'data-plain-text-mentions': '' }));
   if (item.removal) {
     if (item.plan.blockers?.length) meta.append(el('p', `仍被「${item.plan.blockers.map(b => b.title).join('、')}」引用，无法撤下。`, { role: 'alert' }));
   }

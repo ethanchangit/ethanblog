@@ -45,6 +45,7 @@ export function seedSampleReview(local) {
     local.cardSources.set(id, `# ${title}\n\n${body}`);
   }
   local.missingCards.add(deleted);
+  local.cardSources.set(fresh, `${local.cardSources.get(fresh)}\n\n旧资料：<hepta-mention type="card" id="${deleted}">已删除的笔记</hepta-mention>，以及 <hepta-mention type="card" id="${untagged}">已移出发布范围的笔记</hepta-mention>。`);
   if (process.env.STUDIO_PAGE_CAP_FIXTURE === '1') {
     for (const [id, title, slug] of [
       ['a51ada66-ee0b-4759-9b1f-830c8374fcae', '关于', 'about'],
