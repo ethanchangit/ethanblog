@@ -105,20 +105,22 @@ test('点击通过或拒绝后跳到下一条未审', async ({ page }) => {
   const idle = () => expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeEnabled();
   await expect(pressed()).toHaveText('知识管理，先从连接开始'); await idle();
   await expect(page.locator('iframe.article-preview')).toBeVisible();
+  await expect(page.frameLocator('iframe.article-preview').locator('.article-main > .prose-site')).toBeVisible();
   const edges = await page.evaluate(() => {
-    const box = (selector: string) => document.querySelector(selector)?.getBoundingClientRect();
-    const frame = box('iframe.article-preview');
-    if (!frame) return [];
-    return ['.preview-heading', 'section.review-meta'].map(selector => {
-      const node = box(selector);
-      return node ? { selector, left: node.left - frame.left, right: node.right - frame.right, width: node.width } : { selector, missing: true };
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe.article-preview');
+    const frame = iframe?.getBoundingClientRect();
+    const article = iframe?.contentDocument?.querySelector('.article-main > .prose-site')?.getBoundingClientRect();
+    if (!frame || !article) return [];
+    return ['.preview-heading', 'section.review-meta', '.preview-summary'].map(selector => {
+      const node = document.querySelector(selector)?.getBoundingClientRect();
+      return node ? { selector, left: node.left - frame.left - article.left, right: node.right - frame.left - article.right } : { selector, missing: true };
     });
   });
+  expect(edges.length).toBe(3);
   for (const edge of edges) {
     expect(edge, edge.selector).not.toHaveProperty('missing');
     expect(Math.abs(edge.left ?? 99)).toBeLessThan(1);
     expect(Math.abs(edge.right ?? 99)).toBeLessThan(1);
-    expect(edge.width).toBeGreaterThan(700);
   }
   expect(await page.locator('#review-preview').evaluate(node => getComputedStyle(node).borderTopWidth)).toBe('0px');
   await page.getByRole('button', { name: '段落对比', exact: true }).click();
