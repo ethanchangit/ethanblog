@@ -257,3 +257,140 @@ test('a decision can be changed from the same review without a new pull', async 
   f.setSource('# 新内容\n\n改判之前卡片又被修改');
   assert.equal((await f.request('/heptabase/decision', 'POST', { ...selection(plan), decision: 'reject' })).status, 409);
 });
+
+test('missing recursive mentions keep their labels and the full review can publish without reading or tagging them again', async () => {
+  const f = await setup();
+  const missing = '34adea15-b8fa-49a2-9e90-922a661d7790';
+  f.missingCards.add(missing);
+  f.cardSources.set(other, `# 正常资料\n\n引用 [失效资料](heptabase://card/${missing})，文字仍在。`);
+  f.setSource(`# 主文\n\n<hepta-mention type="card" id="${missing}">已删除笔记</hepta-mention>\n\n<hepta-mention type="card" id="${other}">正常资料</hepta-mention>\n\n再提到 <hepta-mention type="card" id="${missing}">已删除笔记</hepta-mention>。\n\n\`<hepta-mention type="card" id="${missing}">示例代码</hepta-mention>\``);
+  const plan = await preview(f);
+  assert.deepEqual(plan.changes.map(c => c.id), [CARD, other]);
+  assert.deepEqual(plan.changes[0].plainTextMentions, [{ id: missing, title: '已删除笔记' }]);
+  assert.deepEqual(plan.changes[1].plainTextMentions, [{ id: missing, title: '失效资料' }]);
+  assert.match(plan.changes[0].afterContent, /^已删除笔记\n/);
+  assert.match(plan.changes[0].afterContent, /再提到 已删除笔记。/);
+  assert.match(plan.changes[0].afterContent, /`<hepta-mention.*示例代码<\/hepta-mention>`/);
+  assert.equal(plan.changes[1].afterContent, '引用 失效资料，文字仍在。');
+  assert.match(plan.changes[0].afterContent, /DocRef/);
+  await ok(f.request('/heptabase/decisions', 'POST', { decisions: [{ ...selection(plan), kind: 'review', decision: 'approve', confirmPublic: true, markReferences: true }] }));
+  assert.equal(f.referencesTag.has(missing), false);
+  assert.equal(f.referencesTag.has(other), true);
+  const edits = f.calls.filter(c => c.body?.params?.name === 'edit_object_content');
+  assert.equal(edits.some(c => c.body.params.arguments.objectId === missing), false);
+  await finishDeploy(f);
+  assert.equal(f.text(PATH, 'main').includes('再提到 已删除笔记。'), true);
+  assert.equal(f.filesFor(f.refs.get('main'))[`src/content/articles/hepta-${missing}.mdx`], undefined);
+  assert.equal((await ok(f.request('/git'))).release.stage, 'deployed');
+});
+
+test('withdrawn published mentions are text before and after their removal is approved, including custom paths', async () => {
+  for (const approveRemoval of [false, true]) {
+    const f = await setup(), retiredPath = 'src/content/articles/old-custom-slug.mdx';
+    f.cardSources.set(other, '# 旧文章\n\n留在 Heptabase 的正文。');
+    f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '旧文章', date: '2024-01-02', heptabaseCardLink: `heptabase://card/${other}` }, bodyZh: '旧的公开正文。' }), retiredPath);
+    f.setSource(`# 主文\n\n参见 <hepta-mention type="card" id="${other}">旧文章</hepta-mention>。`);
+    const plan = await preview(f);
+    assert.equal(plan.changes.length, 1);
+    assert.equal(plan.changes[0].afterContent, '参见 旧文章。');
+    if (approveRemoval) {
+      const target = { collection: 'articles', id: 'old-custom-slug', cardLink: `heptabase://card/${other}` };
+      const removal = await ok(f.request('/heptabase/removal-preview', 'POST', target));
+      await ok(f.request('/heptabase/removal', 'POST', { ...target, sourceHash: removal.sourceHash, documentHash: removal.documentHash, planHash: removal.planHash, confirmDelete: true }));
+    }
+    await ok(decision(f, plan));
+    await finishDeploy(f);
+    assert.match(f.text(PATH, 'main'), /参见 旧文章。/);
+    assert.equal(f.referencesTag.has(other), false);
+    assert.equal(f.text(retiredPath, 'main') === null, approveRemoval);
+    assert.equal(f.filesFor(f.refs.get('main'))[`src/content/articles/hepta-${other}.mdx`], undefined);
+  }
+});
+
+test('former main articles still in references remain working references', async () => {
+  const f = await setup();
+  f.cardSources.set(other, '# 仍然公开的资料\n\n引用资料正文。');
+  f.referencesTag.add(other);
+  f.remote(serializeMdx({ frontmatter: { slot: 'article', title: '仍然公开的资料', date: '2024-01-02', heptabaseCardLink: `heptabase://card/${other}` }, bodyZh: '原正文。' }), 'src/content/articles/old-reference.mdx');
+  f.setSource(`# 主文\n\n参见 <hepta-mention type="card" id="${other}">资料</hepta-mention>。`);
+  const plan = await preview(f);
+  assert.match(plan.changes[0].afterContent, /href="\/old-reference"/);
+  assert.deepEqual(plan.changes[0].plainTextMentions, []);
+  assert.equal(plan.changes[1].afterProperties.heptabaseType, 'reference');
+  await ok(decision(f, plan));
+  await finishDeploy(f);
+});
+
+test('temporary reference failures and missing root cards remain errors without saving incomplete content', async () => {
+  for (const reason of ['noReadPermission', 'objectTypeMismatch', 'network', 'malformed', 'root-missing']) {
+    const f = await setup();
+    f.cardSources.set(other, '# 引用\n\n正文');
+    f.setSource(`# 主文\n\n<hepta-mention type="card" id="${other}">引用</hepta-mention>`);
+    if (reason === 'root-missing') f.missingCards.add(CARD);
+    else globalThis.fetch = async (url, init) => {
+      const body = typeof init?.body === 'string' && init.body.startsWith('{') ? JSON.parse(init.body) : {};
+      if (body.params?.name === 'read_object' && body.params.arguments.objectId === other) {
+        if (reason === 'network') return new Response('Unavailable', { status: 503 });
+        const structuredContent = reason === 'malformed' ? { status: 'succeeded', content: '' } : { status: 'failed', failureReasonCode: reason, content: 'Cannot read.' };
+        return Response.json({ id: body.id, result: { structuredContent } });
+      }
+      return f.fetcher(url, init);
+    };
+    assert.notEqual((await f.request('/heptabase/preview', 'POST', input)).status, 200, reason);
+    assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_drafts').get().n, 0);
+    assert.equal(writes(f).length, 0);
+  }
+});
+
+test('restoring a missing mention gives it a link on the next pull and invalidates the earlier plain-text preview', async () => {
+  const f = await setup();
+  f.missingCards.add(other);
+  f.setSource(`# 主文\n\n<hepta-mention type="card" id="${other}">恢复的资料</hepta-mention>`);
+  const before = await preview(f);
+  f.missingCards.delete(other);
+  f.cardSources.set(other, '# 恢复的资料\n\n可以重新阅读。');
+  f.referencesTag.add(other);
+  const after = await preview(f);
+  assert.equal(before.changes[0].afterContent, '恢复的资料');
+  assert.match(after.changes[0].afterContent, /DocRef/);
+  assert.equal((await decision(f, before)).status, 409);
+  await ok(decision(f, after));
+  await finishDeploy(f);
+});
+
+test('an unlisted reference is not revived from the old pull cache after its card disappears', async () => {
+  const f = await setup();
+  f.cardSources.set(other, '# 资料\n\n原正文');
+  f.setSource(`# 主文\n\n<hepta-mention type="card" id="${other}">资料</hepta-mention>`);
+  assert.equal((await preview(f)).changes.length, 2);
+  f.missingCards.add(other);
+  const plan = await preview(f);
+  assert.equal(plan.changes.length, 1);
+  assert.equal(plan.changes[0].afterContent, '资料');
+  await ok(decision(f, plan));
+  await finishDeploy(f);
+});
+
+test('listed references reuse unchanged content and refresh membership when a former blog remains only in references', async () => {
+  const f = await setup();
+  f.properties.set(other, { Status: 'review' });
+  f.referencesTag.add(other);
+  f.timestamps.set(other, { created: '2026-09-21T00:00:00Z', updated: '2026-09-21T00:00:00Z' });
+  f.cardSources.set(other, '# 资料\n\n保留的正文');
+  f.setSource(`# 主文\n\n<hepta-mention type="card" id="${other}">资料</hepta-mention>`);
+  assert.equal((await preview(f)).changes[1].mainArticle, true);
+  const reads = () => f.calls.filter(c => c.body?.params?.name === 'read_object' && c.body.params.arguments.objectId === other).length;
+  const before = reads();
+  await preview(f);
+  assert.equal(reads(), before);
+  f.properties.delete(other);
+  const plan = await preview(f);
+  assert.equal(plan.changes[1].mainArticle, false);
+  assert.equal(plan.changes[1].afterProperties.heptabaseType, 'reference');
+  assert.ok(reads() > before);
+  const refreshed = reads();
+  await preview(f);
+  assert.equal(reads(), refreshed);
+  await ok(decision(f, plan));
+  await finishDeploy(f);
+});

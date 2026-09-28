@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
 
 let process: ChildProcess, url: string;
-test.beforeAll(async () => {
+test.beforeEach(async () => {
   process = spawn(globalThis.process.execPath, ['studio/online/preview.mjs'], {
     env: { ...globalThis.process.env, STUDIO_PREVIEW_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -16,7 +16,7 @@ test.beforeAll(async () => {
     });
   });
 });
-test.afterAll(() => { process?.kill('SIGTERM'); });
+test.afterEach(() => { process?.kill('SIGTERM'); });
 
 async function openLocal(page: Page) {
   await page.goto(url);

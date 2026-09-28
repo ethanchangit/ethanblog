@@ -235,3 +235,21 @@ test('拉取后点直接发布会送出计划，发布栏不会保持沉默', as
   await expect(notice).not.toHaveText('');
   await expect(notice).not.toHaveText('正在直接发布…');
 });
+
+test('失效引用显示为文字并可完成直接发布', async ({ page }) => {
+  await openLocal(page);
+  await page.getByRole('tab', { name: /New articles/ }).click();
+  await page.getByRole('button', { name: '将笔记变成可以分享的文章', exact: true }).click();
+  const notice = page.locator('[data-plain-text-mentions]');
+  await expect(notice).toHaveText('已转为文字：已删除的笔记、已移出发布范围的笔记');
+  const preview = page.frameLocator('iframe');
+  await expect(preview.getByText('旧资料：已删除的笔记，以及 已移出发布范围的笔记。')).toBeVisible();
+  await expect(preview.getByRole('link', { name: '已删除的笔记', exact: true })).toHaveCount(0);
+  await expect(preview.getByRole('link', { name: '已移出发布范围的笔记', exact: true })).toHaveCount(0);
+  await expect(preview.getByRole('link', { name: /原子笔记与连接/ })).toBeVisible();
+  await page.getByRole('button', { name: '直接发布', exact: true }).click();
+  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
+  await page.request.post(new URL('/__test/deploy', url).href);
+  await page.getByRole('button', { name: '刷新发布状态', exact: true }).click();
+  await expect(page.getByText('最近一次发布：已上线')).toBeVisible();
+});
