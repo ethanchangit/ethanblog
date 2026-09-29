@@ -91,7 +91,7 @@ async function key(secret) {
 export async function signReceipt(secret, body) {
   return [...new Uint8Array(await crypto.subtle.sign('HMAC', await key(secret), new TextEncoder().encode(body)))].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-export async function verifyReceipt(env, request) {
+export async function verifySignedRequest(env, request) {
   const body = await boundedText(request, 1024);
   if (body.length > 1024) throw fail('发布回执过大。', 413);
   const signature = request.headers.get('x-studio-signature') || '';
@@ -99,6 +99,12 @@ export async function verifyReceipt(env, request) {
   const bytes = Uint8Array.from(signature.match(/../g), x => parseInt(x, 16));
   if (!await crypto.subtle.verify('HMAC', await key(env.STUDIO_SECRET), bytes, new TextEncoder().encode(body))) throw fail('发布回执无效。', 403);
   const payload = JSON.parse(body);
-  if (!/^[0-9a-f]{40}$/.test(payload.commitSha) || !Number.isFinite(payload.timestamp) || Math.abs(Date.now() - payload.timestamp) > 300000) throw fail('发布回执已过期。', 403);
+  if (!Number.isFinite(payload.timestamp) || Math.abs(Date.now() - payload.timestamp) > 300000) throw fail('发布回执已过期。', 403);
+  return payload;
+}
+
+export async function verifyReceipt(env, request) {
+  const payload = await verifySignedRequest(env, request);
+  if (!/^[0-9a-f]{40}$/.test(payload.commitSha)) throw fail('发布回执无效。', 403);
   return payload;
 }

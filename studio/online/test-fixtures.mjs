@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { passwordRecord } from './auth.mjs';
-import { createHandler } from './server.mjs';
+import { createHandler, runPublishJob } from './server.mjs';
 
 export const CARD = '6353c916-e0a9-4a0d-aa07-7a3512b72e92';
 export const LINK = `heptabase://card/${CARD}`;
@@ -41,6 +41,7 @@ export class TestD1 {
     this.sqlite = new DatabaseSync(':memory:');
     this.sqlite.exec(readFileSync(new URL('../../migrations/0004_studio.sql', import.meta.url), 'utf8'));
     this.sqlite.exec(readFileSync(new URL('../../migrations/0005_card_pulls.sql', import.meta.url), 'utf8'));
+    this.sqlite.exec(readFileSync(new URL('../../migrations/0006_publish_jobs.sql', import.meta.url), 'utf8'));
   }
   prepare(sql) {
     const { text, order } = positional(sql);
@@ -105,6 +106,20 @@ export async function fixture(assets = {}) {
     else baselines.set(id, { hash, revision: 0, updated: '2026-09-21T00:00:00Z' });
   }
   const calls = [];
+  let autoJobs = false;
+  const runningJobs = new Set();
+  function launchJob(id) {
+    if (!autoJobs || runningJobs.has(id)) return;
+    runningJobs.add(id);
+    const step = async () => {
+      try {
+        const job = await runPublishJob(env, id, '4');
+        if (['succeeded', 'failed'].includes(job.status)) { runningJobs.delete(id); return; }
+      } catch { /* a simulated lost step can be retried */ }
+      setTimeout(step, 100).unref();
+    };
+    setTimeout(step, 100).unref();
+  }
   function filesFor(sha) { return trees.get(commits.get(sha).tree.sha); }
   const changedFiles = () => {
     const main = filesFor(refs.get('main')), next = filesFor(refs.get('codex/studio-content'));
@@ -219,6 +234,7 @@ export async function fixture(assets = {}) {
       refs.set('main', sha); pr = { ...pr, merged: true, merge_commit_sha: sha };
       return Response.json({ merged: true, sha });
     }
+    if (p === '/dispatches' && method === 'POST') { launchJob(body.client_payload.jobId); return new Response(null, { status: 204 }); }
     if (p.includes('/actions/workflows/')) return Response.json({ workflow_runs: url.searchParams.get('event') === 'pull_request' ? [{ id: 2, run_number: 1, event: 'pull_request', head_sha: refs.get('codex/studio-content'), status: 'completed', conclusion: checksPass ? 'success' : 'failure', pull_requests: [{ number: 1, base: { sha: refs.get('main') } }] }] : [{ id: 3, head_sha: refs.get('main') }] });
     if (p === '/actions/runs/3') return Response.json({ head_sha: refs.get('main'), conclusion: deployConclusion, status: 'completed' });
     if (p.startsWith('/git/ref/heads/')) { const sha = refs.get(p.slice(15)); return Response.json(sha ? { object: { sha } } : { message: 'not found' }, { status: sha ? 200 : 404 }); }
@@ -258,6 +274,7 @@ export async function fixture(assets = {}) {
     return request(`/heptabase/callback?state=${state}&code=test-code`);
   }
   return { DB, env, handler, fetcher, request, login, connect, calls, refs, filesFor, changedFiles, cardSources, properties, i18n, referenceCards, referencesTag, missingCards, timestamps, catalog,
+    startJobs: () => { autoJobs = true; },
     source: () => source, setSource: (text) => { source = text; },
     failChecks: () => { checksPass = false; }, failDeploy: () => { deployConclusion = 'failure'; }, deploy: () => { liveSha = refs.get('main'); },
     dropPr: () => { dropPrOnce = true; },

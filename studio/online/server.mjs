@@ -22,8 +22,9 @@ import { author, login, logout, loopbackRequest, readJson, requireCsrf, boundedT
 import { connectionStatus, connect, callback, mcpClient, blogCards, readCard, cardId, cardTimestamps, readPullScan, writePullScan, clearPullScan, readCardPulls, readCardPull, saveCardProperties, saveCardContent, i18nCards, referenceTagCards, dashboardCardLists } from './heptabase.mjs';
 import { blogSchema, readProperties, writeProperties, validatePropertyTags, publicationDate, dateFromCard, collectionForBlogType, i18nSchema, readTranslation, assertArticleSlug } from './card-properties.mjs';
 import { references, fromHeptabase, toHeptabase, blogReferences } from './card-content.mjs';
-import { ensureReferenceTags } from './reference-tags.mjs';
-import { prepareWriteback, completeWriteback, verifyReceipt } from './release-sync.mjs';
+import { ensureReferenceTags, mentionersByCard, withMentionedBy } from './reference-tags.mjs';
+import { prepareWriteback, completeWriteback, verifyReceipt, verifySignedRequest } from './release-sync.mjs';
+import { enqueueJob, latestJob, retryJob, advanceJob } from './publish-jobs.mjs';
 import { BLOG_INDEX, asReferenceSource, removalReason, removalReasons, removalScope, settleRemovals, linkedPaths, slugMovePaths, withoutIndexRefs } from './removals.mjs';
 import { IO_CONCURRENCY, mapLimited } from './pool.mjs';
 
@@ -460,7 +461,8 @@ async function commitDrafts(env, identity, input) {
   if (conflicts.length) {
     // Keep private draft text in D1 and require an explicit refresh/merge decision.
     // The error response intentionally exposes only version identifiers, not file contents.
-    throw Object.assign(new Error('GitHub 文件在草稿创建后发生变化，未覆盖远程内容。'), {
+    const names = conflicts.map(c => parseMdx(c.draftRaw || c.remoteRaw || c.baseRaw || '').frontmatter.title || c.path);
+    throw Object.assign(new Error(`以下文章在审核后又有修改：${names.join('、')}。请重新拉取，确认后再发布。`), {
       status: 409,
       conflicts: conflicts.map(({ path, baseCommitSha, currentCommitSha }) => ({ path, baseCommitSha, currentCommitSha })),
     });
@@ -1513,7 +1515,7 @@ async function heptabasePlan(env, identity, input) {
     ])),
     pageNote: root.target.collection === 'pages' ? pageReviewNote(root.target.id, { ...root.target, choiceRequired: pageCards.length > PAGE_CAP }) : undefined,
     pageChoiceRequired: root.target.collection === 'pages' && pageCards.length > PAGE_CAP,
-    documentHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.current.raw]))),
+    documentHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.current.raw, n.current.remoteRaw]))),
     planHash: await hash(JSON.stringify(graph.map((n) => [n.id, n.next]))),
     conflict: graph.some((n) => n.conflict), graph, state, schema, i18n };
 }
@@ -1582,7 +1584,7 @@ async function savePlan(env, identity, plan, lease, completion) {
         raw = excluded.raw, base_commit_sha = excluded.base_commit_sha, base_raw = excluded.base_raw,
         version = excluded.version, state = 'draft', saved_at = excluded.saved_at, updated_at = excluded.updated_at`)
         .bind(identity.id, plan.state.repository, plan.state.branch, node.path, node.next,
-          active ? previous.base_commit_sha : plan.state.commitSha, active ? previous.base_raw : node.current.remoteRaw,
+          plan.state.commitSha, node.current.remoteRaw,
           active ? Number(previous.version) + 1 : 1, now));
       if (!node.remove && !node.demote) {
         statements.push(db(env).prepare('INSERT INTO studio_heptabase_sync (card_id, path, source, blog_body) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(card_id) DO UPDATE SET path = excluded.path, source = excluded.source, blog_body = excluded.blog_body').bind(node.id, node.path, JSON.stringify([node.source, node.properties]), blogProjection(parseMdx(node.next))));
@@ -1908,11 +1910,93 @@ async function exportCard(env, identity, input) {
   });
 }
 
+async function dispatchPublication(env, id) {
+  await githubRequest(env, ghPath(cfg(env).repository, '/dispatches'), {
+    method: 'POST', body: JSON.stringify({ event_type: 'studio-publish', client_payload: { jobId: id } }),
+  });
+}
+
+async function publicationStatus(env, identity) {
+  const job = await latestJob(env, identity, cfg(env));
+  if (job?.workflowUrl && ['queued', 'running'].includes(job.status) && Date.now() - Date.parse(job.updatedAt) > 120000) {
+    const runnerId = job.workflowUrl.split('/').pop();
+    const runner = await githubRequest(env, ghPath(cfg(env).repository, `/actions/runs/${runnerId}`)).catch(() => null);
+    if (runner?.status === 'completed') {
+      await run(env, "UPDATE studio_publish_jobs SET status = 'failed', error = ?1 WHERE id = ?2 AND updated_at = ?3 AND status IN ('queued','running')", '云端执行中断，已完成的进度保留。点击重试发布即可继续。', job.id, job.updatedAt);
+      return latestJob(env, identity, cfg(env));
+    }
+  }
+  return job;
+}
+
+async function publishWhenReady(env, identity, commitSha) {
+  const existing = await firstRow(env, 'SELECT * FROM studio_releases WHERE id = ?1', await hash(`${cfg(env).repository}:${commitSha}`));
+  const state = await branchState(env);
+  if (!state.pr && existing) return { release: releaseView(existing) };
+  if (!state.pr || state.commitSha !== commitSha) throw fail('这批内容在确认后被另外修改了，请重新拉取后发布。', 409);
+  const main = await branchState(env, cfg(env).branch);
+  const runs = await githubRequest(env, ghPath(state.repository, `/actions/workflows/${encodeURIComponent(cfg(env).workflow.split('/').pop())}/runs?event=pull_request&head_sha=${commitSha}&per_page=20`));
+  const check = runs.workflow_runs?.filter(r => r.head_sha === commitSha && r.event === 'pull_request').sort((a, b) => b.run_number - a.run_number)[0];
+  if (!check || check.status !== 'completed') return {};
+  if (!check.pull_requests?.some(p => p.number === state.pr.number && p.base.sha === main.commitSha)) {
+    // Incorporate non-conflicting main changes and wait for checks on the new head.
+    const merged = await githubRequest(env, ghPath(state.repository, '/merges'), { method: 'POST', body: JSON.stringify({ base: CONTENT_BRANCH, head: main.commitSha, commit_message: '同步博客最新版本后继续发布' }) });
+    if (!merged?.sha || merged.sha === commitSha) throw fail('发布检查使用了旧版本，请重新运行这次内容更新的检查。', 409);
+    return { commitSha: merged.sha };
+  }
+  if (check.conclusion !== 'success') throw fail('这批更新未通过网站检查，请查看发布记录。', 409);
+  return publish(env, identity, { commitSha, baseSha: main.commitSha });
+}
+
+export async function runPublishJob(env, id, runnerId) {
+  return advanceJob(env, id, runnerId, {
+    prepareReferences: async (identity, input) => {
+      const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
+      samePlan(input, plan);
+      return plan.graph.filter(n => !n.remove).map(n => ({ id: n.id, path: n.path, source: n.source, properties: n.properties, raw: n.current.raw, remoteRaw: n.current.remoteRaw }));
+    },
+    finishReferences: (identity, input, cards) => withLock(env, 'publication', async lease => {
+      const client = await mcpClient(env), { tagId } = await blogCards(client), schema = await blogSchema(client, tagId);
+      const mentioners = mentionersByCard(cards);
+      for (const card of cards) {
+        const live = await readCard(client, card.id);
+        const written = mentioners.has(card.id) ? withMentionedBy(card.source, mentioners.get(card.id)).trimEnd() : card.source;
+        if (live.trimEnd() !== card.source.trimEnd() && live.trimEnd() !== written.trimEnd()) throw fail('引用内容在确认后又有修改，请重新拉取后发布。', 409);
+        if (JSON.stringify(await readProperties(client, card.id, schema)) !== JSON.stringify(card.properties)) throw fail('引用属性在确认后又有修改，请重新拉取后发布。', 409);
+      }
+      await lease();
+      await ensureReferenceTags(client, cards, { resume: true });
+      const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
+      for (const card of cards) {
+        const node = plan.graph.find(n => n.id === card.id);
+        if (!node || node.current.raw !== card.raw || node.current.remoteRaw !== card.remoteRaw) throw fail('网站内容在确认后又有修改，请重新拉取后发布。', 409);
+      }
+      return { ...input, markReferences: false, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash };
+    }),
+    pages: (identity, input) => choosePages(env, identity, input),
+    decide: (identity, input) => applyDecisionBatch(env, identity, input),
+    commit: async (identity, message) => (await draftRows(env, identity)).length
+      ? commitDrafts(env, identity, { message }) : gitStatus(env, identity),
+    publish: (identity, commitSha) => publishWhenReady(env, identity, commitSha),
+    release: async id => syncRelease(env, await firstRow(env, 'SELECT * FROM studio_releases WHERE id = ?1', id)),
+  });
+}
+
 async function api(request, env) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/dashboard\/api/, '/__studio/api').replace(/\/$/, '') || '/';
   const identity = await author(request, env);
   if (request.method !== 'GET') requireCsrf(request);
+  if (path === '/__studio/api/publish' && request.method === 'GET') return { job: await publicationStatus(env, identity) };
+  if (path === '/__studio/api/publish' && request.method === 'POST') {
+    if (loopbackRequest(request) && env.STUDIO_LOCAL_PREVIEW !== true) throw fail('请在 ethanchang.io/dashboard 发起云端发布。', 409);
+    return { job: await enqueueJob(env, identity, cfg(env), await readJson(request), id => dispatchPublication(env, id)) };
+  }
+  if (path === '/__studio/api/publish/retry' && request.method === 'POST') return { job: await retryJob(env, identity, cfg(env), (await readJson(request)).id, id => dispatchPublication(env, id)) };
+  if (request.method !== 'GET' && /\/(?:page-choice|removal|removal-cancel|decisions|decision|mark-references|apply|export|commit|publish)$/.test(path)) {
+    const job = await latestJob(env, identity, cfg(env));
+    if (job && ['queued', 'running'].includes(job.status)) throw fail('云端正在发布已确认的清单，请等待完成。', 409);
+  }
   if (path === '/__studio/api/session') return { authenticated: true, localPreview: env.STUDIO_LOCAL_PREVIEW === true, localOpen: loopbackRequest(request) };
   if (path === '/__studio/api/heptabase/status' && request.method === 'GET') return connectionStatus(env);
   if (path === '/__studio/api/heptabase/connect' && request.method === 'POST') return connect(request, env, identity);
@@ -1957,7 +2041,14 @@ export function createHandler(assets = {}) {
     const url = new URL(request.url);
     try {
       let response;
-      if (url.pathname === '/dashboard/api/deployed' && request.method === 'POST') {
+      if (url.pathname === '/dashboard/api/publish/step' && request.method === 'POST') {
+        const payload = await verifySignedRequest(env, request);
+        if (payload.purpose !== 'studio-publish' || !/^[a-f0-9]{64}$/.test(payload.jobId) || !/^[0-9]{1,20}$/.test(payload.runnerId)) throw fail('发布任务签名无效。', 403);
+        const job = await runPublishJob(env, payload.jobId, payload.runnerId);
+        // The runner needs progress only; private names and diagnostic details stay in D1.
+        response = json({ status: job.status, stage: job.stage, completed: job.completed, total: job.total, retryAt: job.retryAt });
+      }
+      else if (url.pathname === '/dashboard/api/deployed' && request.method === 'POST') {
         const payload = await verifyReceipt(env, request);
         const live = await fetchNoRedirect(`${BLOG_URL}/__studio-release.json?check=${Date.now()}`, { signal: AbortSignal.timeout(15000), headers: { 'cache-control': 'no-cache' } });
         if (!live.ok || JSON.parse(await boundedText(live)).commitSha !== payload.commitSha) throw fail('线上版本尚未对应本次发布。', 409);

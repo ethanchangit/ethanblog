@@ -4,6 +4,8 @@
  */
 export function directPublishPlan({ pulled, items = [], git = {} }) {
   if (!pulled) return { ok: false, message: '请先拉取最新更新。当前没有可发布的内容。' };
+  const errors = items.filter(item => item.error && !['reject', 'skip'].includes(item.decision));
+  if (errors.length) return { ok: false, message: `以下内容未能完整拉取：${errors.map(item => item.card?.title || '未命名卡片').join('、')}。请重新拉取后发布。` };
   const ready = items.filter(item => item?.plan && !item.error);
   const approve = ready.filter(item => !item.removal && item.decision !== 'reject' && item.decision !== 'approve');
   const remove = ready.filter(item => item.removal && item.decision !== 'skip' && item.decision !== 'remove');

@@ -1,6 +1,6 @@
 import { fail } from './auth.mjs';
 import { references } from './card-content.mjs';
-import { taggedCards } from './heptabase.mjs';
+import { readCard, taggedCards } from './heptabase.mjs';
 
 export const MENTIONED_BY = '## Mentioned by';
 
@@ -44,7 +44,7 @@ export function mentionersByCard(cards) {
  * An article that is also mentioned keeps its Blog Type and gains the tag.
  * The card body records who mentioned it. Titles are plain text, not new mentions.
  */
-export async function ensureReferenceTags(client, cards) {
+export async function ensureReferenceTags(client, cards, { resume = false } = {}) {
   const mentioners = mentionersByCard(cards);
   const known = new Map(cards.map((card) => [card.id, card.source]));
   const ids = [...mentioners.keys()].filter(id => known.has(id));
@@ -56,6 +56,11 @@ export async function ensureReferenceTags(client, cards) {
   for (const id of ids) {
     const current = known.get(id);
     const next = withMentionedBy(current, mentioners.get(id));
+    if (resume) {
+      const live = (await readCard(client, id)).replace(/\s+$/, '');
+      if (live === next.replace(/\s+$/, '')) continue;
+      if (live !== current.replace(/\s+$/, '')) throw fail('引用内容在确认后又有修改，请重新拉取后发布。', 409);
+    }
     if (current.replace(/\s+$/, '') === next.replace(/\s+$/, '')) continue;
     await client.call('edit_object_content', { objectType: 'card', objectId: id, oldString: current, newString: next.replace(/\n$/, '') });
     updates.push({ id, source: next.replace(/\n$/, '') });

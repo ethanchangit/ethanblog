@@ -45,35 +45,35 @@ test('本地预览打开后就是审核界面，不用先拉取', async ({ page 
   await expect(page.locator('#release')).not.toContainText('请先拉取');
 });
 
-test('合并成功但发布响应超时时仍显示发布中', async ({ page }) => {
+test('云端接收成功但回复丢失时，重试只创建一份发布任务', async ({ page }) => {
   await openLocal(page);
-  await page.route('**/dashboard/api/git/publish', async route => {
+  let interrupted = false;
+  await page.route('**/dashboard/api/publish', async route => {
+    if (route.request().method() !== 'POST' || interrupted) return route.continue();
+    interrupted = true;
     const response = await route.fetch();
     expect(response.status()).toBe(200);
     await route.fulfill({ status: 524, contentType: 'text/html', body: '<html>timeout</html>' });
   });
   await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await expect(page.locator('#release [data-release-notice]')).toHaveText('发布中…');
-  await expect(page.locator('#release [data-release-notice]')).not.toHaveAttribute('role', 'alert');
+  await expect(page.locator('[data-cloud-accepted]')).toHaveText('云端已接收，可以关闭页面。');
+  await expect(page.locator('[data-job-stage]')).toHaveAttribute('data-job-stage', 'deploy');
 });
 
-test('一条审核决定超时后重试可继续直接发布', async ({ page }) => {
+test('确认后关闭页面，云端继续发布；重新打开恢复结果', async ({ page, context }) => {
   await openLocal(page);
-  let interrupted = false;
-  const interruptOnce = async (route: import('@playwright/test').Route) => {
-    if (interrupted) return route.continue();
-    interrupted = true;
-    const response = await route.fetch();
-    expect(response.status()).toBe(200);
-    await route.fulfill({ status: 524, contentType: 'text/html', body: '<html>timeout</html>' });
-  };
-  await page.route('**/dashboard/api/heptabase/decisions', interruptOnce);
+  const browserWrites: string[] = [];
+  page.on('request', request => { if (request.method() === 'POST') browserWrites.push(new URL(request.url()).pathname); });
   await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await expect(page.locator('#release [data-release-notice]')).toContainText('请求超时');
-  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
-  await page.unroute('**/dashboard/api/heptabase/decisions', interruptOnce);
-  await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
+  await expect(page.locator('[data-cloud-accepted]')).toBeVisible();
+  await page.close();
+  await expect.poll(async () => (await (await context.request.get(new URL('/dashboard/api/publish', url).href)).json()).job.stage).toBe('deploy');
+  await context.request.post(new URL('/__test/deploy', url).href);
+  await expect.poll(async () => (await (await context.request.get(new URL('/dashboard/api/publish', url).href)).json()).job.status).toBe('succeeded');
+  const reopened = await context.newPage();
+  await reopened.goto(url);
+  await expect(reopened.locator('[data-job-stage]')).toHaveText('已上线');
+  expect(browserWrites).toEqual(['/dashboard/api/publish']);
 });
 
 test('被引用的删除文章同时列入 Deleted articles 和 New References', async ({ page }) => {
@@ -226,14 +226,12 @@ test('宽屏左右分栏、两栏各自滚动，窄屏上下堆叠', async ({ pa
 test('拉取后点直接发布会送出计划，发布栏不会保持沉默', async ({ page }) => {
   await openLocal(page);
   await pullLatest(page);
-  const commit = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/git/commit'));
+  const accepted = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/publish'));
   await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await commit;
-  const notice = page.locator('#release [data-release-notice]');
-  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeEnabled();
-  await expect(notice).toBeVisible();
-  await expect(notice).not.toHaveText('');
-  await expect(notice).not.toHaveText('正在直接发布…');
+  await accepted;
+  await expect(page.locator('[data-cloud-accepted]')).toBeVisible();
+  await expect(page.getByRole('button', { name: '直接发布', exact: true })).toBeDisabled();
+
 });
 
 test('失效引用显示为文字并可完成直接发布', async ({ page }) => {
@@ -248,8 +246,8 @@ test('失效引用显示为文字并可完成直接发布', async ({ page }) => 
   await expect(preview.getByRole('link', { name: '已移出发布范围的笔记', exact: true })).toHaveCount(0);
   await expect(preview.getByRole('link', { name: /原子笔记与连接/ })).toBeVisible();
   await page.getByRole('button', { name: '直接发布', exact: true }).click();
-  await expect(page.getByText('最近一次发布：等待部署')).toBeVisible();
+  await expect(page.locator('[data-job-stage=deploy]')).toBeVisible();
   await page.request.post(new URL('/__test/deploy', url).href);
   await page.getByRole('button', { name: '刷新发布状态', exact: true }).click();
-  await expect(page.getByText('最近一次发布：已上线')).toBeVisible();
+  await expect(page.locator('[data-job-stage=done]')).toBeVisible();
 });
