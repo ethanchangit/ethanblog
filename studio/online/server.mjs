@@ -1949,7 +1949,35 @@ async function publishWhenReady(env, identity, commitSha) {
 }
 
 export async function runPublishJob(env, id, runnerId) {
+  const snapshot = plan => plan.graph.map(n => ({ id: n.id, path: n.path, source: n.source, properties: n.i18nProperties || n.properties, raw: n.current.raw, remoteRaw: n.current.remoteRaw }));
   return advanceJob(env, id, runnerId, {
+    prepare: async (identity, input) => {
+      if (input.kind !== 'review') return null;
+      const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
+      samePlan(input, plan);
+      return snapshot(plan);
+    },
+    reconcile: async (identity, input, reviewed, completed) => {
+      // Only exact writes from earlier decisions in this job may refresh a reviewed hash.
+      // Shared references otherwise make the job conflict with its own previous step.
+      const expected = new Map(reviewed.map(n => [n.path, n]));
+      for (const decision of completed.filter(d => d.kind === 'review')) {
+        const row = await firstRow(env, "SELECT * FROM studio_review_decisions WHERE card_id = ?1 AND status = 'complete'", cardId(decision.cardLink));
+        if (!row) throw fail('已处理的审核记录发生变化，请重新拉取后发布。', 409);
+        const saved = JSON.parse(row.payload);
+        for (const node of saved.graph) {
+          const before = expected.get(node.path);
+          if (!before) continue;
+          expected.set(node.path, { ...before, source: node.source,
+            properties: node.i18nProperties || { ...node.properties, ...(node.id === saved.id ? saved.applied : {}) },
+            raw: decision.decision === 'approve' ? node.next : before.remoteRaw });
+        }
+      }
+      const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
+      const current = snapshot(plan);
+      if (current.length !== expected.size || current.some(n => JSON.stringify(n) !== JSON.stringify(expected.get(n.path)))) throw fail('内容在确认后又有修改，请重新拉取并审查。', 409);
+      return { ...input, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash };
+    },
     prepareReferences: async (identity, input) => {
       const plan = await heptabasePlan(env, identity, { ...input, preparePublish: true });
       samePlan(input, plan);

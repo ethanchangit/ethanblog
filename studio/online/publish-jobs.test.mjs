@@ -23,6 +23,15 @@ async function step(f, id, handler = createHandler()) {
     method: 'POST', body, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, body) },
   }), f.env));
 }
+async function until(f, id, stage) {
+  for (let i = 0; i < 40; i++) {
+    const row = f.DB.sqlite.prepare('SELECT * FROM studio_publish_jobs WHERE id = ?').get(id);
+    assert.notEqual(row.status, 'failed', row.error);
+    if (row.stage === stage) return;
+    await step(f, id);
+  }
+  assert.fail(`Publication did not reach ${stage}`);
+}
 const writes = f => f.calls.filter(c => c.method !== 'GET' && c.url.includes('api.github.com') && !c.url.endsWith('/graphql'));
 
 test('one confirmation persists before dispatch; a cold cloud runner finishes after the browser logs out', async () => {
@@ -36,7 +45,7 @@ test('one confirmation persists before dispatch; a cold cloud runner finishes af
   assert.equal(duplicate.job.id, job.id);
   assert.equal(writes(f).length, 1);
   await f.request('/logout', 'POST', {});
-  for (let i = 0; i < 4; i++) await step(f, job.id);
+  await until(f, job.id, 'deploy');
   assert.equal(f.DB.sqlite.prepare('SELECT stage FROM studio_publish_jobs').get().stage, 'deploy');
   f.deploy();
   assert.equal((await step(f, job.id)).status, 'succeeded');
@@ -70,7 +79,7 @@ test('dispatch response loss resends the same saved task without approving twice
 test('network failure is retried at the saved cursor and does not repeat completed decisions', async () => {
   const f = await setup();
   const { job } = await ok(f.request('/publish', 'POST', await payload(f)));
-  await step(f, job.id); await step(f, job.id);
+  await until(f, job.id, 'commit');
   const before = f.calls.filter(c => c.body?.params?.name === 'edit_card_properties').length;
   let failed = false;
   globalThis.fetch = async (url, init) => {
@@ -81,7 +90,7 @@ test('network failure is retried at the saved cursor and does not repeat complet
   assert.equal(interrupted.status, 'running'); assert.equal(interrupted.completed, 1);
   assert.ok(interrupted.retryAt > Date.now());
   f.DB.sqlite.exec('UPDATE studio_publish_jobs SET retry_at = 0');
-  await step(f, job.id); await step(f, job.id); f.deploy(); await step(f, job.id);
+  await until(f, job.id, 'deploy'); f.deploy(); await step(f, job.id);
   assert.equal((await ok(f.request('/publish'))).job.status, 'succeeded');
   // Post-deploy status synchronization is separate; the approval itself stays complete.
   assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM studio_draft_history').get().n, 0);
@@ -92,7 +101,7 @@ test('cloud checks failure is visible; retry resumes the same task and auth neve
   const f = await setup();
   const { job } = await ok(f.request('/publish', 'POST', await payload(f)));
   assert.equal((await f.request('/git/commit', 'POST', { message: 'interfere' })).status, 409);
-  await step(f, job.id); await step(f, job.id); await step(f, job.id);
+  await until(f, job.id, 'checks');
   f.failChecks();
   const failed = await step(f, job.id);
   assert.equal(failed.status, 'failed');
@@ -124,6 +133,7 @@ test('an interrupted reference write resumes without overwriting later source ch
   f.cardSources.set(ref, '# 新引用\n\n引用正文');
   const input = await payload(f); input.decisions[0].markReferences = true;
   const { job } = await ok(f.request('/publish', 'POST', input));
+  await until(f, job.id, 'decisions');
   await step(f, job.id); // Persist the exact reference snapshot before external writes.
   let interrupted = false;
   globalThis.fetch = async (url, init) => {
@@ -136,7 +146,7 @@ test('an interrupted reference write resumes without overwriting later source ch
   assert.match(f.cardSources.get(ref), /Mentioned by/);
   f.DB.sqlite.exec('UPDATE studio_publish_jobs SET retry_at = 0');
   await step(f, job.id);
-  for (let i = 0; i < 4; i++) await step(f, job.id);
+  await until(f, job.id, 'deploy');
   f.deploy();
   assert.equal((await step(f, job.id)).status, 'succeeded');
   assert.equal(f.calls.filter(c => c.body?.params?.name === 'edit_object_content').length, 1);
@@ -162,4 +172,35 @@ test('fresh review updates the old draft baseline, while edits after that review
   const response = await g.request('/git/commit', 'POST', { message: '旧审核' });
   assert.equal(response.status, 409);
   assert.match((await response.json()).error, /测试文章/);
+});
+
+for (const tagged of [false, true]) test(`two articles sharing a reference complete one publication (tagged=${tagged})`, async () => {
+  const f = await setup(), second = '12fe42a7-6a0a-412b-8650-d0e0b005226e', ref = '9732c208-c3b1-4a7b-a922-0c3483475d6b';
+  f.properties.set(second, { Status: 'review', 'Blog Type': 'Article' });
+  f.setSource(`# 第一篇\n\n<hepta-mention type="card" id="${ref}">引用</hepta-mention>`);
+  f.cardSources.set(second, `# 第二篇\n\n<hepta-mention type="card" id="${ref}">引用</hepta-mention>`);
+  f.cardSources.set(ref, '# 共享引用\n\n正文');
+  if (tagged) f.referencesTag.add(ref);
+  const decisions = [];
+  for (const id of [CARD, second]) {
+    const plan = await ok(f.request('/heptabase/preview', 'POST', { cardLink: `heptabase://card/${id}`, preparePublish: true, reviewOnly: true }));
+    decisions.push({ kind: 'review', cardLink: `heptabase://card/${id}`, decision: 'approve', confirmPublic: true, resolveConflict: true,
+      markReferences: !tagged, sourceHash: plan.sourceHash, documentHash: plan.documentHash, planHash: plan.planHash });
+  }
+  const { job } = await ok(f.request('/publish', 'POST', { confirmPublish: true, decisions }));
+  await until(f, job.id, 'deploy');
+  f.deploy();
+  assert.equal((await step(f, job.id)).status, 'succeeded');
+  assert.equal(f.properties.get(CARD).Status, 'published');
+  assert.equal(f.properties.get(second).Status, 'published');
+});
+
+test('cloud preparation never treats a subsequent source edit as an earlier job write', async () => {
+  const f = await setup();
+  const { job } = await ok(f.request('/publish', 'POST', await payload(f)));
+  await until(f, job.id, 'decisions');
+  f.setSource('# 确认以后改写\n\n这份内容没有经过确认。');
+  assert.equal((await step(f, job.id)).status, 'failed');
+  assert.equal(f.properties.get(CARD).Status, 'review');
+  assert.equal(writes(f).length, 1); // Dispatch only; no public content was submitted.
 });

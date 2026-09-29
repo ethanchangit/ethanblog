@@ -2,7 +2,7 @@ import { fail, hash, withLock } from './auth.mjs';
 
 const active = job => job && ['queued', 'running'].includes(job.status);
 const select = (env, id) => env.DB.prepare('SELECT * FROM studio_publish_jobs WHERE id = ?1').bind(id).first();
-const labels = { decisions: '正在准备发布', commit: '正在提交更新', checks: '正在检查', deploy: '正在上线', done: '已上线' };
+const labels = { prepare: '正在核对发布清单', decisions: '正在准备发布', commit: '正在提交更新', checks: '正在检查', deploy: '正在上线', done: '已上线' };
 
 export function jobView(row) {
   if (!row) return null;
@@ -89,19 +89,27 @@ export async function advanceJob(env, id, runnerId, ops) {
     };
     await update({ status: 'running', dispatched: 1, runner_id: runnerId || row.runner_id });
     try {
-      if (row.stage === 'decisions') {
+      if (row.stage === 'prepare') {
+        if (row.cursor < payload.decisions.length) {
+          const reviewed = JSON.parse(row.reviewed);
+          reviewed[row.cursor] = await ops.prepare(identity, payload.decisions[row.cursor]);
+          await update({ reviewed: JSON.stringify(reviewed), cursor: row.cursor + 1 });
+        } else await update({ stage: 'decisions', cursor: 0 });
+      } else if (row.stage === 'decisions') {
         if (payload.pageChoice && !row.page_done) {
           await ops.pages(identity, payload.pageChoice);
           await update({ page_done: 1 });
         } else if (row.cursor < payload.decisions.length) {
-          const decision = payload.decisions[row.cursor], prepared = row.prepared && JSON.parse(row.prepared);
-          if (decision.markReferences && !prepared) {
-            await update({ prepared: JSON.stringify({ snapshot: await ops.prepareReferences(identity, decision) }) });
+          const original = payload.decisions[row.cursor], prepared = row.prepared && JSON.parse(row.prepared);
+          if (!prepared && original.kind === 'review') {
+            const decision = await ops.reconcile(identity, original, JSON.parse(row.reviewed)[row.cursor], payload.decisions.slice(0, row.cursor));
+            const snapshot = decision.markReferences ? await ops.prepareReferences(identity, decision) : null;
+            await update({ prepared: JSON.stringify({ decision, ...(snapshot ? { snapshot } : {}) }) });
           } else if (prepared?.snapshot) {
-            const ready = await ops.finishReferences(identity, decision, prepared.snapshot);
+            const ready = await ops.finishReferences(identity, prepared.decision, prepared.snapshot);
             await update({ prepared: JSON.stringify({ decision: ready }) });
           } else {
-            await ops.decide(identity, { decisions: [prepared?.decision || decision], removalBatch: payload.decisions.filter(d => d.kind === 'removal') });
+            await ops.decide(identity, { decisions: [prepared?.decision || original], removalBatch: payload.decisions.filter(d => d.kind === 'removal') });
             await update({ cursor: row.cursor + 1, prepared: null });
           }
         } else await update({ stage: 'commit' });
