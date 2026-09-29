@@ -65,6 +65,7 @@ local.env.STUDIO_LOCAL_PREVIEW = true;
 globalThis.fetch = local.fetcher;
 await local.login(); await local.connect();
 seedSampleReview(local);
+local.startJobs();
 
 function handsToVite(url) {
   const pathname = url.split('?')[0];

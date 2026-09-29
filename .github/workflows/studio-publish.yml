@@ -1,0 +1,27 @@
+name: Publish confirmed studio updates
+
+on:
+  repository_dispatch:
+    types: [studio-publish]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Continue the saved publication
+        env:
+          STUDIO_JOB_ID: ${{ github.event.client_payload.jobId }}
+          STUDIO_SECRET: ${{ secrets.STUDIO_SECRET }}
+        run: node scripts/run-studio-publish.mjs

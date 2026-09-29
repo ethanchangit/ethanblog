@@ -476,7 +476,6 @@ code { font-family: var(--font-mono); font-size: .9em; }
 dialog textarea.reject-note { display: block; width: 100%; min-height: 5rem; margin: 8px 0 0; padding: 8px 10px; border: 1px solid var(--dash-line-strong); border-radius: var(--dash-radius); background: var(--dash-canvas); color: var(--color-ink-100); font: inherit; font-size: 14px; line-height: 1.6; resize: vertical; }
 dialog textarea.reject-note::placeholder { color: var(--color-ink-500); }
 dialog label[for="reject-remark"] { display: block; margin-top: 8px; font-weight: 600; color: var(--color-ink-200); }
-.release-actions .direct-publish { border-color: var(--dash-primary); color: var(--dash-primary); }
 
 /* Match the article text inside the iframe's 42rem shell and its side padding. */
 #review-preview { container-type: inline-size; --preview-measure: 42rem; }

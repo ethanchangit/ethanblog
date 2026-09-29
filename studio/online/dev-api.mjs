@@ -57,6 +57,7 @@ class LocalD1 {
     this.sqlite = new DatabaseSync(databasePath());
     this.sqlite.exec(readFileSync(new URL('../../migrations/0004_studio.sql', import.meta.url), 'utf8'));
     this.sqlite.exec(readFileSync(new URL('../../migrations/0005_card_pulls.sql', import.meta.url), 'utf8'));
+    this.sqlite.exec(readFileSync(new URL('../../migrations/0006_publish_jobs.sql', import.meta.url), 'utf8'));
   }
   prepare(sql) {
     const { text, order } = positional(sql);

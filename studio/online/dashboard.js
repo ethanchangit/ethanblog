@@ -14,7 +14,9 @@ let docs = [], items = [], selected, git, connected = false, pulled = false, loc
 let pageRemovalPlans = new Map();
 let pageChoiceDirty = false;
 let busyRelease = '';
-let pendingCommit = false;
+let publishJob = null;
+const newRequestId = () => [...crypto.getRandomValues(new Uint8Array(16))].map(n => n.toString(16).padStart(2, '0')).join('');
+let publishRequestId = newRequestId();
 let releaseNotice = { text: '', error: false };
 let pageSet = null, pageChoice = null, pageKeepDraft = new Set(), pageOrderDraft = [], pageListDraft = [], pageHiddenDraft = new Set();
 let pageChoiceSaveTimer = 0;
@@ -62,7 +64,7 @@ async function runControl(control, action) {
     delete control.dataset.busy;
     if (release && busyRelease === release) busyRelease = '';
     const live = release ? document.querySelector(`#release [data-release="${release}"]`) : control;
-    if (live?.isConnected) live.disabled = false;
+    if (live?.isConnected) live.disabled = release === 'direct' && Boolean(publishJob && ['queued', 'running'].includes(publishJob.status));
   }
 }
 function showReleaseNotice(text, error = false) {
@@ -202,12 +204,14 @@ async function refresh() {
   // GitHub /git and /docs often take the full 20s timeout. The pull button and the
   // review list only need Heptabase status, so those reads finish in the background.
   const gitDocs = Promise.allSettled([api('/git'), api('/docs')]);
+  const jobStatus = api('/publish').then(result => { publishJob = result.job; }).catch(() => {});
   let statusResult;
   try { statusResult = await api('/heptabase/status'); }
   catch (error) {
     if (error.status === 401) throw error;
     statusResult = null;
   }
+  await jobStatus;
   if (token !== refreshToken) return;
   if (statusResult) connected = statusResult.connected;
   else connected = pulled ? previousConnected || connected : false;
@@ -329,7 +333,7 @@ async function pullUpdates() {
       }
     });
   }
-  items = next; picked = new Set(); pickAnchor = ''; pulled = true; releaseNotice = { text: '', error: false }; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
+  items = next; publishRequestId = newRequestId(); picked = new Set(); pickAnchor = ''; pulled = true; releaseNotice = { text: '', error: false }; selected = items[0] ? { item: items[0], id: items[0].card.id } : null;
   focusedGroup = selected ? itemGroup(selected.item) : 'new';
   statusText = cards.length || removals.length ? '' : '没有变化。';
   statusError = false;
@@ -465,94 +469,31 @@ function localReleaseStats() {
   if (pageChoiceDirty) paths.add('src/data/page-order.ts');
   return { pages: paths.size };
 }
-/** Each saved decision survives an interrupted publish, so retry resumes at the next card. */
-async function flushLocalDecisions(message) {
-  const payload = releasePayload();
-  const stats = localReleaseStats();
-  if (payload.pageChoice) {
-    await api('/heptabase/page-choice', payload.pageChoice);
-    pageChoiceDirty = false;
-    pendingCommit = true;
-  }
-  const removalBatch = payload.decisions.filter(decision => decision.kind === 'removal');
-  for (const [index, decision] of payload.decisions.entries()) {
-    showReleaseNotice(`正在处理 ${index + 1}/${payload.decisions.length}`);
-    await api('/heptabase/decisions', { decisions: [decision], ...(decision.kind === 'removal' ? { removalBatch } : {}) });
-    const item = items.find(entry => entry.input.cardLink === decision.cardLink);
-    if (item) item.flushed = true;
-    if (decision.kind === 'removal' || (decision.kind === 'review' && decision.decision === 'approve')) pendingCommit = true;
-  }
-  if (!stats.pages && !git.draftCount && !pendingCommit) {
-    if (!payload.decisions.length) throw new Error('没有可提交的更新。');
-    return { flushedOnly: true };
-  }
-  showReleaseNotice('正在提交更新…');
-  let result;
-  try { result = await api('/git/commit', { message }); }
-  catch (error) {
-    // A gateway timeout can arrive after GitHub accepted the commit.
-    const status = await api('/git').catch(() => null);
-    if (!status || status.draftCount || !status.pullRequest) throw error;
-    result = status;
-  }
-  pendingCommit = false;
-  git = result;
-  return result;
-}
-/** Publish every pending update in this pull. Still commits through the existing checks, with no second dialog. */
+/** Hand off the entire confirmation once; the browser never drives publication. */
 async function publishWithoutReview() {
-  const plan = directPublishPlan({ pulled, items, git: { ...git, draftCount: (Number(git.draftCount) || 0) + Number(pendingCommit) } });
+  const plan = directPublishPlan({ pulled, items, git });
   const feedback = directPublishFeedback(plan);
-  if (!plan.ok) {
-    showReleaseNotice(feedback.message, true);
-    throw new Error(feedback.message);
-  }
-  showReleaseNotice(feedback.message);
+  if (!plan.ok) throw new Error(feedback.message);
   for (const item of plan.approve) applyOne(item, 'approve');
   for (const item of plan.remove) applyOne(item, 'approve');
-  const payload = releasePayload();
-  if (plan.commit || payload.decisions.length || payload.pageChoice) {
-    const result = await flushLocalDecisions(`直接发布 · ${new Date().toLocaleDateString('zh-CN')}`);
-    if (result.flushedOnly) {
-      showReleaseNotice('已回写拒绝。没有需要提交到 GitHub 的页面。');
-      paintAfterDecision();
-      return;
-    }
-    if (result.unchanged && !git.pullRequest) {
-      showReleaseNotice('待发布清单已清理，网站没有变化。');
-      paintAfterDecision();
-      return;
-    }
+  const payload = { ...releasePayload(), confirmPublish: true, requestId: publishRequestId };
+  showReleaseNotice('正在发送发布请求…');
+  try { publishJob = (await api('/publish', payload)).job; }
+  catch (error) {
+    // If the reply was lost, resend the identical request. The server deduplicates it.
+    if (error.status && error.status < 500) throw error;
+    publishJob = (await api('/publish', payload)).job;
   }
-  if (!git.pullRequest) {
-    showReleaseNotice('没有可发布的更新。', true);
-    paintAfterDecision();
-    throw new Error('没有可发布的更新。');
-  }
-  const previousReleaseId = git.release?.id;
-  let review;
-  try {
-    review = await api('/git/review');
-    if (!review.changes.length) throw new Error('没有可发布的更新。');
-    await api('/git/publish', review);
-  } catch (error) {
-    // Say why before the status refresh. A slow /git must not leave the click looking dead.
-    showReleaseNotice(friendlyError(error.message), true);
-    try {
-      git = await api('/git');
-      await renderRelease();
-      renderList();
-    } catch { /* the publish error stays on the release bar */ }
-    if (review && git.release?.id && git.release.id !== previousReleaseId && !git.pullRequest && git.release.stage !== 'merging') {
-      showReleaseNotice('发布中…');
-      paintAfterDecision();
-      return;
-    }
-    throw error;
-  }
-  git = await api('/git');
-  showReleaseNotice('发布中…');
+  if (!publishJob?.accepted) throw new Error('尚未收到云端接收确认，请重试。');
+  for (const item of items) if (item.decision) item.flushed = true;
+  pageChoiceDirty = false;
+  showReleaseNotice('');
   paintAfterDecision();
+}
+async function refreshPublication() {
+  publishJob = (await api('/publish')).job;
+  if (!publishJob || ['succeeded', 'failed'].includes(publishJob.status)) git = await api('/git');
+  await renderRelease();
 }
 function renderSummary(by) {
   const top = document.querySelector('#review-summary'); if (!top) return;
@@ -1438,31 +1379,38 @@ async function renderRelease() {
   status.append(el('h2', '发布'));
   const local = localReleaseStats();
   const shownPages = local.pages || git.draftCount || 0;
+  const activeJob = publishJob && ['queued', 'running'].includes(publishJob.status);
   const ready = shownPages ? `待发布 ${shownPages} 项`
     : git.pullRequest ? '已提交，待发布' : '没有待发布的更新';
-  status.append(el('p', ready, { class: 'muted' }));
-  if (git.release) status.append(el('p', `最近一次发布：${stages[git.release.stage] || '正在处理'}`, { class: 'release-stage', 'data-stage': git.release.stage || '' }));
-  if (git.release?.error) status.append(el('p', git.release.error, { role: 'alert' }));
-  if (git.release?.workflowUrl) status.append(link('查看发布进度 ↗', git.release.workflowUrl));
-  if (git.pullRequest) status.append(link('查看 GitHub 更新 ↗', git.pullRequest.url));
-  if (releaseNotice.text) status.append(el('p', releaseNotice.text, { 'data-release-notice': '', role: releaseNotice.error ? 'alert' : 'status', class: releaseNotice.error ? 'release-alert' : 'muted' }));
+  if (!activeJob && (!publishJob || shownPages)) status.append(el('p', ready, { class: 'muted' }));
+  if (publishJob) {
+    status.append(el('p', publishJob.message, { class: 'release-stage', 'data-job-stage': publishJob.stage }));
+    if (activeJob && publishJob.accepted) status.append(el('p', '云端已接收，可以关闭页面。', { class: 'muted', 'data-cloud-accepted': '' }));
+    if (publishJob.error) status.append(el('p', publishJob.error, { role: publishJob.status === 'failed' ? 'alert' : 'status' }));
+    if (publishJob.workflowUrl) status.append(link('查看发布进度 ↗', publishJob.workflowUrl));
+  } else if (git.release) {
+    status.append(el('p', `最近一次发布：${stages[git.release.stage] || '正在处理'}`, { class: 'release-stage', 'data-stage': git.release.stage || '' }));
+    if (git.release.error) status.append(el('p', git.release.error, { role: 'alert' }));
+  }
+  if (releaseNotice.text && !activeJob) status.append(el('p', releaseNotice.text, { 'data-release-notice': '', role: releaseNotice.error ? 'alert' : 'status', class: releaseNotice.error ? 'release-alert' : 'muted' }));
   const deleted = items.filter(item => item.removal && item.plan && item.decision !== 'skip');
   if (deleted.length) status.append(el('p', `Deleted articles · ${deleted.map(title).join('、')}`, { class: 'muted', 'data-deleted-articles': '' }));
   const references = newReferences();
   if (references.length) status.append(el('p', `New References · ${references.map(entry => entry.change.title).join('、')}`, { class: 'muted', 'data-new-references': '' }));
-  actions.append(button('直接发布', publishWithoutReview, { class: 'btn direct-publish', network: '', 'data-release': 'direct', 'aria-label': '直接发布', title: '立刻发布这次拉取的全部更新和待删除' }));
-  actions.append(button('刷新发布状态', async () => { git = await api('/git/refresh'); await renderRelease(); }, { class: 'btn', network: '', 'data-release': 'refresh' }));
-  const pendingLocal = items.some(item => item.decision && !item.flushed && item.plan && !item.error) || pageChoiceDirty;
-  if (git.draftCount || pendingLocal) actions.append(button('提交通过的更新到 GitHub', async () => {
-    const result = await flushLocalDecisions(`更新博客内容 · ${new Date().toLocaleDateString('zh-CN')}`);
-    if (!result.flushedOnly) git = result;
+  const direct = button('直接发布', publishWithoutReview, { class: 'btn primary direct-publish', network: '', 'data-release': 'direct', 'aria-label': '直接发布', title: '发布本次拉取的全部更新和待删除，云端接收后可以关闭页面' });
+  direct.disabled = Boolean(activeJob || busyRelease === 'direct');
+  actions.append(direct);
+  actions.append(button('刷新发布状态', refreshPublication, { class: 'btn', network: '', 'data-release': 'refresh' }));
+  if (publishJob && (publishJob.status === 'failed' || !publishJob.accepted)) actions.append(button('重试发布', async () => {
+    publishJob = (await api('/publish/retry', { id: publishJob.id })).job;
+    releaseNotice = { text: '', error: false };
     await renderRelease();
-    notice(result.flushedOnly ? '已回写拒绝。没有需要提交到 GitHub 的页面。' : result.unchanged ? '待发布清单已清理，网站没有变化。' : '已提交，检查通过后再确认发布。');
-  }, { class: 'btn primary', network: '', 'data-release': 'submit' }));
-  if (git.pullRequest) actions.append(button('确认发布', reviewRelease, { class: 'btn primary', network: '', 'data-release': 'confirm' }));
-  if (busyRelease) document.querySelector(`#release [data-release="${busyRelease}"]`)?.toggleAttribute('disabled', true);
+  }, { class: 'btn', network: '', 'data-release': 'retry' }));
   clearTimeout(timer);
-  if (git.release && (['running','queued'].includes(git.release.status) || git.release.heptabase?.pending || git.release.heptabase?.remarks?.pending)) timer = setTimeout(() => { if (!document.querySelector('dialog') && !busyRelease) void run(async () => { git = await api('/git/refresh'); await renderRelease(); }); }, 15000);
+  if (activeJob) timer = setTimeout(() => { void refreshPublication().catch(() => {
+    // Observation can fail while the durable cloud job continues. Retry observation only.
+    timer = setTimeout(() => { void refreshPublication().catch(() => {}); }, 5000);
+  }); }, localPreview ? 500 : 5000);
   const legacyHost = document.querySelector('#legacy-host') || release;
   legacyHost.querySelector('.legacy')?.remove();
   const legacy = docs.filter(d => !d.heptabaseCardLink);
@@ -1476,19 +1424,6 @@ async function renderRelease() {
       }, { network: '' }));
     }, { network: '' })); legacyHost.append(details);
   }
-}
-async function reviewRelease() {
-  const review = await api('/git/review'), d = dialog('确认发布到博客');
-  if (!review.changes.length) { d.append(el('p', '没有变化。')); return; }
-  const titles = new Map(items.flatMap(item => (item.plan?.changes || []).map(change => [change.path, change.title])));
-  const demoted = new Set(newReferences().filter(entry => entry.item.removal).map(entry => entry.change.path));
-  const list = el('ul');
-  for (const change of review.changes) {
-    const name = titles.get(change.path) || change.path.replace('src/content/', '').replace('.mdx', '');
-    if (demoted.has(change.path)) list.append(el('li', `删除文章 · ${name}`), el('li', `新增引用 · ${name}`));
-    else list.append(el('li', `${{ added: '新增', removed: '删除', modified: '更新' }[change.kind] || '更新'} · ${name}`));
-  }
-  d.append(list, button('确认发布到博客', async () => { await api('/git/publish', review); closeDialog(); git = await api('/git'); await renderRelease(); showReleaseNotice('发布中…'); }, { class: 'btn primary', network: '' }));
 }
 void run(async () => {
   const session = await api('/session');
