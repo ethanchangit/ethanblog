@@ -629,25 +629,27 @@ test.describe('分栏阅读', () => {
     await expect(rail.locator('nav.reading-series')).toHaveCount(0);
     await expect(rail.locator('nav.toc')).toHaveCount(0);
     await expect(page.locator('[data-reading-rail] > .reading-child-dismiss')).toHaveCount(0);
-    const tools = page.locator(
-      '[data-reading-child] header.article-lede > div.flex.justify-between',
-    );
-    const close = tools.locator('[data-reading-child-close]');
+    const header = page.locator('[data-reading-child] header.article-lede');
+    const close = header.locator(':scope > [data-reading-child-close]');
     await expect(close).toHaveAttribute('aria-label', 'Close');
     await expect(close).toHaveText('');
     await expect(close.locator('svg[aria-hidden="true"]')).toHaveCount(1);
     await expect(close).toHaveCSS('opacity', '0');
-    await tools.hover();
+    await header.hover();
     await expect(close).toHaveCSS('opacity', '1');
-    await expect(tools.locator('time')).toHaveCount(0);
+    await expect(header.locator('time')).toHaveCount(0);
     const title = page.locator('[data-reading-child] .article-lede h1');
     const titleBox = await title.boundingBox();
     const closeBox = await close.boundingBox();
+    const headerBox = await header.boundingBox();
     expect(titleBox).toBeTruthy();
     expect(closeBox).toBeTruthy();
-    expect(closeBox!.y + closeBox!.height / 2).toBeLessThan(titleBox!.y);
+    expect(headerBox).toBeTruthy();
+    expect(closeBox!.y).toBeGreaterThanOrEqual(titleBox!.y - 2);
+    expect(closeBox!.y).toBeLessThan(titleBox!.y + titleBox!.height);
     expect(closeBox!.x).toBeGreaterThan(titleBox!.x);
-    await title.hover();
+    expect(headerBox!.x + headerBox!.width - closeBox!.x - closeBox!.width).toBeLessThan(8);
+    await doc.locator('.article-lede h1').hover();
     await expect(close).toHaveCSS('opacity', '0');
     await close.focus();
     await expect(close).toHaveCSS('opacity', '1');
@@ -689,7 +691,7 @@ test.describe('分栏阅读', () => {
       'page',
     );
 
-    await page.locator('[data-reading-child] .article-lede-tools').hover();
+    await page.locator('[data-reading-child] .article-lede').hover();
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
     await expect(rail.locator('[data-reading-child], nav.toc')).toHaveCount(0);

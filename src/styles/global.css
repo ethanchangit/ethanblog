@@ -1269,7 +1269,8 @@
   }
 
   .reading-child-dismiss {
-    margin-inline-start: auto;
+    float: right;
+    margin-inline-start: 0.5rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1287,8 +1288,9 @@
       opacity 160ms ease;
   }
 
-  .reading-child-doc .article-lede-tools:hover .reading-child-dismiss,
-  .reading-child-doc .article-lede-tools:focus-within .reading-child-dismiss,
+  .reading-child-doc .article-lede:hover .reading-child-dismiss,
+  .reading-child-doc .article-lede:focus-within .reading-child-dismiss,
+  .reading-child-doc:hover > .reading-child-dismiss,
   .reading-child-dismiss:focus-visible {
     opacity: 1;
     pointer-events: auto;
@@ -1690,6 +1692,7 @@
  */
 @media (min-width: 768px) {
   .reading-doc .article-shell,
+  .reading-rail[data-reading-child-open] .article-shell,
   .reading-doc [data-about-panel] {
     padding-top: var(--reading-inset-y);
     width: 100%;

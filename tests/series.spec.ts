@@ -65,12 +65,10 @@ test.describe('系列子文', () => {
     const child = page.locator('[data-reading-child]');
     await expect(child.locator('.article-lede h1')).toHaveText(PART1_TITLE, { useInnerText: true });
     await expect(page.locator('[data-reading-rail] nav.reading-series')).toHaveCount(0);
-    const close = child.locator(
-      'header.article-lede > div.flex.justify-between [data-reading-child-close]',
-    );
+    const close = child.locator('header.article-lede > [data-reading-child-close]');
     await expect(close).toHaveAttribute('aria-label', 'Close');
     await expect(close.locator('svg[aria-hidden="true"]')).toHaveCount(1);
-    await close.locator('..').hover();
+    await child.locator('.article-lede').hover();
     await expect(close).toHaveCSS('opacity', '1');
     await expect(child.locator('[data-series-prev]')).toHaveCount(0);
     await expect(child.locator('[data-series-next]')).toHaveAttribute('href', PART2);
@@ -81,7 +79,7 @@ test.describe('系列子文', () => {
     await expect(child.locator('[data-series-prev]')).toHaveAttribute('href', PART1);
     await expect(child.locator('[data-series-next]')).toHaveCount(0);
 
-    await child.locator('.article-lede-tools').hover();
+    await child.locator('.article-lede').hover();
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
     await expect(page.locator('[data-reading-rail] nav.toc')).toHaveCount(0);
@@ -161,28 +159,38 @@ test('行内 mention 和引用中的下一层 mention 在右栏打开，主文�
   await expect(child.locator('.article-lede h1')).toBeVisible();
   await expect(page.locator('[data-reading-doc] .article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络');
   await expect(page).toHaveURL(/\/pkm-method\/?$/);
-  await child.locator('.article-lede-tools').hover();
+  await child.locator('.article-lede').hover();
   await child.locator('[data-reading-child-close]').click();
   await expect(child).toHaveCount(0);
 });
 
-test('引用资料的右栏关闭图标只在标题工具行悬停或聚焦时显示', async ({ page }) => {
+test('引用资料的右栏关闭图标与标题同排，悬停或聚焦时显示', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/grokbot-daily', { waitUntil: 'domcontentloaded' });
   await page.locator('[data-reading-doc] a[data-doc-mention][href="/readwise-mcp"]').click();
 
   const child = page.locator('[data-reading-child]');
   await expect(child.locator('.article-lede h1')).toHaveText('使用 readwise MCP 处理所有英文阅读');
-  const tools = child.locator('.article-lede-tools');
-  const close = tools.locator('[data-reading-child-close]');
+  const header = child.locator('.article-lede');
+  const close = header.locator(':scope > [data-reading-child-close]');
   await expect(close).toHaveAttribute('aria-label', 'Close');
   await expect(close).toHaveText('');
   await expect(close.locator('svg[aria-hidden="true"]')).toHaveCount(1);
   await expect(close).toHaveCSS('opacity', '0');
 
-  await tools.hover();
+  const titleBox = await header.locator('h1').boundingBox();
+  const mainTitleBox = await page.locator('[data-reading-doc] .article-lede h1').boundingBox();
+  const closeBox = await close.boundingBox();
+  expect(titleBox).toBeTruthy();
+  expect(mainTitleBox).toBeTruthy();
+  expect(closeBox).toBeTruthy();
+  expect(Math.abs(titleBox!.y - mainTitleBox!.y)).toBeLessThan(16);
+  expect(closeBox!.y).toBeGreaterThanOrEqual(titleBox!.y - 2);
+  expect(closeBox!.y).toBeLessThan(titleBox!.y + titleBox!.height);
+
+  await header.hover();
   await expect(close).toHaveCSS('opacity', '1');
-  await child.locator('.article-lede h1').hover();
+  await page.locator('[data-reading-doc] .article-lede h1').hover();
   await expect(close).toHaveCSS('opacity', '0');
   await close.focus();
   await expect(close).toHaveCSS('opacity', '1');
