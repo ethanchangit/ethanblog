@@ -139,16 +139,8 @@ function placeChildClose(pane: HTMLElement) {
   pane.querySelector('[data-reading-child-close]')?.remove();
   const button = createChildCloseButton();
   const lede = pane.querySelector('header.article-lede');
-  const row = lede?.querySelector('.article-lede-tools');
-  if (row) {
-    row.appendChild(button);
-    return;
-  }
-  const tools = document.createElement('div');
-  tools.className = 'article-lede-tools mb-4 flex justify-end';
-  tools.appendChild(button);
   const host = lede ?? pane;
-  host.insertBefore(tools, host.firstChild);
+  host.insertBefore(button, lede?.querySelector('h1') ?? host.firstChild);
 }
 
 function ensureRail(): HTMLElement | null {
