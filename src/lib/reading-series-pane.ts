@@ -125,28 +125,30 @@ function markOpenChapter(chapterPath: string | null) {
 function createChildCloseButton(): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'ui-link-subtle reading-child-dismiss';
+  button.className = 'reading-child-dismiss';
   button.setAttribute('data-reading-child-close', '');
   button.setAttribute('data-i18n-aria', 'seriesCloseChild');
   button.setAttribute('aria-label', t(readLang(), 'seriesCloseChild'));
-  button.textContent = t('zh-CN', 'seriesCloseChild');
+  button.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>`;
   return button;
 }
 
 function placeChildClose(pane: HTMLElement) {
   pane.querySelector('[data-reading-child-close]')?.remove();
   const button = createChildCloseButton();
-  const row = pane.querySelector('header.article-lede > div.flex.justify-between');
+  const lede = pane.querySelector('header.article-lede');
+  const row = lede?.querySelector('.article-lede-tools');
   if (row) {
     row.appendChild(button);
     return;
   }
-  const lede = pane.querySelector('header.article-lede');
-  if (lede) {
-    lede.insertBefore(button, lede.firstChild);
-    return;
-  }
-  pane.insertBefore(button, pane.firstChild);
+  const tools = document.createElement('div');
+  tools.className = 'article-lede-tools mb-4 flex justify-end';
+  tools.appendChild(button);
+  const host = lede ?? pane;
+  host.insertBefore(tools, host.firstChild);
 }
 
 function ensureRail(): HTMLElement | null {

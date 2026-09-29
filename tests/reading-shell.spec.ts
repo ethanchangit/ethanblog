@@ -633,8 +633,12 @@ test.describe('分栏阅读', () => {
       '[data-reading-child] header.article-lede > div.flex.justify-between',
     );
     const close = tools.locator('[data-reading-child-close]');
-    await expect(close).toBeVisible();
-    await expect(close).toHaveText("关闭", inner);
+    await expect(close).toHaveAttribute('aria-label', 'Close');
+    await expect(close).toHaveText('');
+    await expect(close.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+    await expect(close).toHaveCSS('opacity', '0');
+    await tools.hover();
+    await expect(close).toHaveCSS('opacity', '1');
     await expect(tools.locator('time')).toHaveCount(0);
     const title = page.locator('[data-reading-child] .article-lede h1');
     const titleBox = await title.boundingBox();
@@ -643,6 +647,10 @@ test.describe('分栏阅读', () => {
     expect(closeBox).toBeTruthy();
     expect(closeBox!.y + closeBox!.height / 2).toBeLessThan(titleBox!.y);
     expect(closeBox!.x).toBeGreaterThan(titleBox!.x);
+    await title.hover();
+    await expect(close).toHaveCSS('opacity', '0');
+    await close.focus();
+    await expect(close).toHaveCSS('opacity', '1');
     await expect(part1).toHaveAttribute('aria-current', 'page');
     await expect(part2).not.toHaveAttribute('aria-current');
 
@@ -667,7 +675,7 @@ test.describe('分栏阅读', () => {
       inner,
     );
     await expect(rail.locator('nav.reading-series')).toHaveCount(0);
-    await expect(page.locator('[data-reading-child-close]')).toBeVisible();
+    await expect(page.locator('[data-reading-child-close]')).toHaveCount(1);
 
     await listing.locator('a[href="/series-demo/2"]').click();
     await expect(page).toHaveURL(/\/series-demo\/?$/);
@@ -681,6 +689,7 @@ test.describe('分栏阅读', () => {
       'page',
     );
 
+    await page.locator('[data-reading-child] .article-lede-tools').hover();
     await page.locator('[data-reading-child-close]').click();
     await expect(page.locator('[data-reading-child]')).toHaveCount(0);
     await expect(rail.locator('[data-reading-child], nav.toc')).toHaveCount(0);
