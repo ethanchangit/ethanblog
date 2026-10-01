@@ -14,6 +14,37 @@ async function dismissPreview(page: Page) {
 }
 
 test.describe('mention 悬停预览', () => {
+  test('Readwise Reader 的预览保留正文里的项目符号、六项编号和嵌套缩进', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1100 });
+    await page.goto('/my-toolset', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-mention-preview-ready]')).toBeAttached();
+    const link = page.locator('[data-reading-doc] .prose-site a[href="/readwise-reader"]');
+    await link.hover();
+    const preview = page.locator('[data-mention-preview]');
+    await expect(preview).toBeVisible();
+    const body = preview.locator('.mention-preview-body');
+    const items = [
+      '网页端插件一键收藏', '转发 link 给这个软件', '保存 x 的书签',
+      '使用 RSS 订阅特定网站的更新：博客 & Youtube & X',
+      '使用 email follow up 特定博主的更新', '支持导入并阅读 epub 和 pdf',
+    ];
+    await expect(body.locator(':scope > ul > li')).toHaveCount(2);
+    await expect(body.locator('ul > li > ol > li')).toHaveText(items);
+    const layout = await body.evaluate(el => {
+      const outer = el.querySelector('ul')!;
+      const nested = el.querySelector('ol')!;
+      return { bullets: getComputedStyle(outer).listStyleType, numbers: getComputedStyle(nested).listStyleType, outerX: outer.getBoundingClientRect().left, nestedX: nested.getBoundingClientRect().left };
+    });
+    expect(layout.bullets).toBe('disc');
+    expect(layout.numbers).toBe('decimal');
+    expect(layout.nestedX).toBeGreaterThan(layout.outerX);
+
+    await link.click();
+    const pane = page.locator('[data-reading-child]');
+    await expect(pane).toBeVisible();
+    await expect(pane.locator('.prose-site ol > li')).toHaveText(items);
+  });
+
   test('悬停约 300ms 后显示标题、摘要和正文开头，鼠标能进入，移出后关闭', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 1100 });
     const link = await openArticle(page);
@@ -28,6 +59,9 @@ test.describe('mention 悬停预览', () => {
     await expect(preview).toContainText('分享我在 Obsidian');
     await expect(preview).toContainText('在信息爆炸的时代');
     await expect(preview).not.toContainText('未填写');
+    await expect(preview.locator('.mention-preview-body blockquote')).toContainText('你的笔记系统不是存储信息的仓库');
+    await expect(preview.locator('.mention-preview-body h2')).toHaveText('为什么需要系统化的知识管理');
+    await expect(preview.locator('.mention-preview-body strong')).toHaveText(['碎片化', '难以复用', '维护困难']);
     const visible = await preview.innerText();
     expect(visible).not.toContain('2026 年 3 月');
 
@@ -38,8 +72,9 @@ test.describe('mention 悬停预览', () => {
     expect(box!.height / box!.width).toBeCloseTo(159 / 206, 2);
     const voice = await preview.evaluate((el) => {
       const summary = el.querySelector('.article-dek-text');
-      const proseP = el.querySelector('.prose-site p');
-      if (!(summary instanceof HTMLElement) || !(proseP instanceof HTMLElement)) return null;
+      const prose = el.querySelector('.prose-site');
+      const proseP = el.querySelector('.prose-site > p');
+      if (!(summary instanceof HTMLElement) || !(prose instanceof HTMLElement) || !(proseP instanceof HTMLElement)) return null;
       const s = getComputedStyle(summary);
       const p = getComputedStyle(proseP);
       return {
@@ -51,7 +86,7 @@ test.describe('mention 悬停预览', () => {
         proseLine: parseFloat(p.lineHeight),
         summaryColor: s.color,
         proseColor: p.color,
-        gap: proseP.getBoundingClientRect().top - summary.getBoundingClientRect().bottom,
+        gap: prose.getBoundingClientRect().top - summary.getBoundingClientRect().bottom,
         overflow: getComputedStyle(el).overflowY,
       };
     });

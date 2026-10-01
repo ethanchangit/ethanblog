@@ -60,7 +60,7 @@
       href: external.url,
       title: external.title,
       summary: '',
-      paragraphs: [],
+      bodyHtml: '',
       meta: '',
       url: external.url,
     };
@@ -349,11 +349,9 @@
         {#if current.summary}
           <p class="mention-preview-summary article-dek-text">{current.summary}</p>
         {/if}
-        {#if current.paragraphs.length}
+        {#if current.bodyHtml}
           <div class="mention-preview-body prose-site">
-            {#each current.paragraphs as paragraph}
-              <p>{paragraph}</p>
-            {/each}
+            {@html current.bodyHtml}
           </div>
         {/if}
         {#if current.meta}

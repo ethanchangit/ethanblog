@@ -1,4 +1,5 @@
 import { legacyContentRedirect } from './routes.ts';
+import type { Nodes } from 'mdast';
 
 export type MentionKind = 'article' | 'project' | 'page' | 'reference';
 
@@ -8,8 +9,8 @@ export type MentionPreviewEntry = {
   title: string;
   /** 摘要文字。空字符串表示没有摘要，预览不显示这一行，也不写占位。样式用文章页的 article-dek-text。 */
   summary: string;
-  /** 正文开头的段落，和摘要分开，预览套 .prose-site 的段落样式。卡片放不下时由浮层截断，不把整篇放进目录。 */
-  paragraphs: string[];
+  /** 构建期生成的静态正文 HTML，保留排版，不包含图片或交互组件。放不下时由浮层截断。 */
+  bodyHtml: string;
   /** 类型和日期。排在正文后面；卡片放不下时不显示，避免挤掉正文。 */
   meta: string;
   /**
@@ -20,7 +21,7 @@ export type MentionPreviewEntry = {
 };
 
 /** 够填满竖向卡片，并留一点给浮层截断。不把后文整篇带上。 */
-const MAX_PARAGRAPHS = 8;
+const MAX_BLOCKS = 8;
 const MAX_CHARS = 800;
 
 function collapse(text: string): string {
@@ -43,61 +44,49 @@ function stripMachinery(body: string): string {
     .replace(/<!--[\s\S]*?-->/g, '\n')
     .replace(/^\s*import\s.+$/gm, '')
     .replace(/!\[[^\]]*]\([^)]*\)/g, '')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<a\b[^>]*\bhref\s*=\s*(["'])([^"']*)\1[^>]*>([\s\S]*?)<\/a>/gi, (_, _quote, href, label) => `[${label}](${href.replace(/\(/g, '%28').replace(/\)/g, '%29')})`)
     .replace(/<\/?[A-Za-z](?:[^>"']|"[^"]*"|'[^']*')*>/g, '');
 }
 
-function expandBlock(block: string): string[] {
-  const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
-  const pieces: string[] = [];
-  let prose: string[] = [];
-  const flush = () => {
-    if (!prose.length) return;
-    pieces.push(prose.join('\n'));
-    prose = [];
-  };
-  for (const line of lines) {
-    if (/^#{1,6}\s+/.test(line) || /^\|/.test(line) || /^[-*_]{3,}$/.test(line)) {
-      flush();
-      continue;
-    }
-    const quote = line.replace(/^>\s?/, '');
-    if (/^[-*+]\s+/.test(quote) || /^\d+\.\s+/.test(quote)) {
-      flush();
-      pieces.push(quote);
-      continue;
-    }
-    prose.push(quote);
-  }
-  flush();
-  return pieces;
-}
-
-function cleanPiece(piece: string): string {
-  return collapse(
-    piece
-      .replace(/^[-*+]\s+/, '')
-      .replace(/^\d+\.\s+/, '')
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/[*_~`]/g, ''),
-  );
-}
-
-/** 正文开头的段落。组件和图片去掉，行内组件里的句子留下。 */
-export function mentionParagraphs(body: string): string[] {
-  const blocks = stripMachinery(body).split(/\n\s*\n/);
-  const paragraphs: string[] = [];
+/** 只在构建期解析 Markdown；浏览器收到保留列表、缩进和行内格式的静态 HTML。 */
+export async function mentionBodyHtml(body: string): Promise<string> {
+  const [{ unified }, { default: remarkParse }, { default: remarkGfm }, { default: remarkRehype }, { default: rehypeStringify }] = await Promise.all([
+    import('unified'), import('remark-parse'), import('remark-gfm'), import('remark-rehype'), import('rehype-stringify'),
+  ]);
+  const renderer = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).use(rehypeStringify);
+  const tree = renderer.parse(stripMachinery(body));
+  let blocks = 0;
   let chars = 0;
-  for (const block of blocks) {
-    for (const piece of expandBlock(block)) {
-      const text = cleanPiece(piece);
-      if (!text) continue;
-      if (paragraphs.length >= MAX_PARAGRAPHS) return paragraphs;
-      if (paragraphs.length > 0 && chars >= MAX_CHARS) return paragraphs;
-      paragraphs.push(text);
-      chars += text.length;
+  const textOf = (node: Nodes): string => 'value' in node ? node.value : 'children' in node ? node.children.map(textOf).join('') : '';
+  const select = (node: Nodes): boolean => {
+    if (node.type === 'definition') return true;
+    if (['html', 'code', 'image', 'imageReference'].includes(node.type)) return false;
+    if (node.type === 'root' || node.type === 'list' || node.type === 'listItem' || node.type === 'blockquote') {
+      node.children = node.children.filter(select) as typeof node.children;
+      return node.children.length > 0;
     }
-  }
-  return paragraphs;
+    if (blocks >= MAX_BLOCKS || chars >= MAX_CHARS) return false;
+    const text = textOf(node);
+    if (!text.trim()) return false;
+    blocks += 1;
+    chars += text.length;
+    return true;
+  };
+  const safe = (node: Nodes) => {
+    if (node.type === 'link' || node.type === 'definition') {
+      try {
+        if (!['http:', 'https:', 'mailto:', 'tel:'].includes(new URL(node.url, 'https://ethanchang.io').protocol)) node.url = '#';
+      } catch {
+        node.url = '#';
+      }
+    }
+    if ('children' in node) node.children = node.children.filter(child => !['image', 'imageReference'].includes(child.type)) as typeof node.children;
+    if ('children' in node) node.children.forEach(safe);
+  };
+  select(tree);
+  safe(tree);
+  return renderer.stringify(await renderer.run(tree));
 }
 
 /**

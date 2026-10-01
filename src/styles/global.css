@@ -1686,6 +1686,41 @@
   display: none;
 }
 
+/* 短文留出正文空间，留言落在阅读区下方；长文仍把留言排在正文之后。 */
+.article-shell:has(#comments) {
+  display: flex;
+  flex-direction: column;
+  /* 手机扣除顶部导航、底部工具和安全区。桌面按所在阅读栏的实际高度铺满。 */
+  min-height: calc(100svh - 6.75rem - var(--chrome-fade, 1.25rem) - 2.75rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+.article-shell:has(#comments) :is(.article-body-row, .article-page, .article-main) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+/* 引用或列表开头的内层段落不额外撑开摘要与正文的间距。 */
+.article-shell:has(#comments) .article-main > .prose-site > :first-child > :first-child {
+  margin-top: 0;
+}
+
+.article-main:has(> footer #comments) > footer {
+  margin-top: auto;
+  padding-top: 6rem;
+}
+
+@media (min-width: 768px) {
+  .reading-doc {
+    align-content: stretch;
+  }
+
+  .reading-doc > .article-shell:has(#comments),
+  .reading-child-doc > .article-shell:has(#comments) {
+    min-height: 100%;
+  }
+}
+
 /*
  * 分栏顶距：必须写在 layer 外，才能压过 article-shell 的 pt-8 / About 的 py-14。
  * 桌面导航是 relative 入文档流，三栏只需很小的 inset，不要再垫出一条空带。
