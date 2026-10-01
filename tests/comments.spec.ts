@@ -4,6 +4,68 @@ const FINAL = '/pkm-method/';
 const PROJECT = '/aletheia/';
 
 test.describe('文章留言', () => {
+  test('空正文的右栏留言保持在下方，窗口增高和增加一段正文都不会把它挤上去', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/my-toolset', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-mention-preview-ready]')).toBeAttached();
+    await page.locator('[data-reading-doc] a[href="/grokbot"]').click();
+    const pane = page.locator('[data-reading-child]');
+    await expect(pane.locator('#comments')).toBeVisible();
+
+    for (const height of [900, 1100]) {
+      await page.setViewportSize({ width: 1440, height });
+      const layout = await pane.evaluate(root => {
+        const pane = root.getBoundingClientRect();
+        const body = root.querySelector('.prose-site')!.getBoundingClientRect();
+        const comments = root.querySelector('#comments')!.getBoundingClientRect();
+        return { gap: comments.top - body.bottom, remaining: pane.bottom - comments.bottom, position: (comments.top - pane.top) / pane.height };
+      });
+      expect(layout.gap).toBeGreaterThan(160);
+      expect(layout.remaining).toBeGreaterThan(16);
+      expect(layout.remaining).toBeLessThan(80);
+      expect(layout.position).toBeGreaterThan(0.7);
+    }
+
+    const before = await pane.locator('#comments').boundingBox();
+    await pane.locator('.prose-site').evaluate(root => {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = '一小段正文，留言区仍在阅读区域下方。';
+      root.appendChild(paragraph);
+    });
+    const after = await pane.locator('#comments').boundingBox();
+    expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
+  });
+
+  test('直接打开空卡片也保留留白，长文和手机上的留言仍接在正文后面且可以输入', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/grokbot', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#comments')).toBeVisible();
+    const short = await page.locator('[data-reading-doc]').evaluate(root => {
+      const pane = root.getBoundingClientRect();
+      const comments = root.querySelector('#comments')!.getBoundingClientRect();
+      return (comments.top - pane.top) / pane.height;
+    });
+    expect(short).toBeGreaterThan(0.7);
+
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
+      const spacing = await page.locator('.article-main').evaluate(root => {
+        const body = root.querySelector('.prose-site')!.getBoundingClientRect();
+        const comments = root.querySelector('#comments')!.getBoundingClientRect();
+        return { gap: comments.top - body.bottom, overflow: document.documentElement.scrollWidth > innerWidth };
+      });
+      expect(spacing.gap).toBeGreaterThanOrEqual(64);
+      expect(spacing.overflow).toBe(false);
+      const input = page.locator('#comments textarea[name="body"]');
+      await input.scrollIntoViewIfNeeded();
+      await expect(page.locator('astro-island').filter({ has: input })).not.toHaveAttribute('ssr');
+      await input.fill('第一行\n第二行\n第三行\n第四行');
+      await expect(input).toBeVisible();
+      await expect(input).toHaveValue('第一行\n第二行\n第三行\n第四行');
+    }
+  });
+
   test('定稿页文末是发信表单，不是留言板', async ({ page }) => {
     const response = await page.goto(FINAL, { waitUntil: 'domcontentloaded' });
     expect(response?.status()).toBe(200);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { externalMention, mentionCatalogPath, mentionMeta, mentionParagraphs, mentionSummary, normalizeMentionHref } from './mention-preview.ts';
+import { externalMention, mentionBodyHtml, mentionCatalogPath, mentionMeta, mentionSummary, normalizeMentionHref } from './mention-preview.ts';
 
 test('摘要里的链接只留文字，空摘要不写占位', () => {
   assert.equal(mentionSummary('见 [意图](https://example.com/very/long) 即可'), '见 意图 即可');
@@ -8,13 +8,13 @@ test('摘要里的链接只留文字，空摘要不写占位', () => {
   assert.equal(mentionSummary(''), '');
 });
 
-test('摘要和正文开头分开保留', () => {
+test('摘要和正文开头分开保留', async () => {
   const body = '第一段说明方法。\n\n第二段继续写下去。';
   assert.equal(mentionSummary('短摘要'), '短摘要');
-  assert.deepEqual(mentionParagraphs(body), ['第一段说明方法。', '第二段继续写下去。']);
+  assert.equal(await mentionBodyHtml(body), '<p>第一段说明方法。</p>\n<p>第二段继续写下去。</p>');
 });
 
-test('正文开头去掉组件和代码，留下连续的几段', () => {
+test('正文开头去掉组件和代码，保留原来的段落、标题和列表', async () => {
   const body = [
     'import Widget from "./Widget.svelte";',
     '',
@@ -32,15 +32,47 @@ test('正文开头去掉组件和代码，留下连续的几段', () => {
     '',
     '后面还有一段。',
   ].join('\n');
-  assert.deepEqual(mentionParagraphs(body), ['开头这一段要留下。', '第一条', '后面还有一段。']);
+  assert.equal(await mentionBodyHtml(body), '<p>开头这一段要留下。</p>\n<h2>小标题</h2>\n<ul>\n<li>第一条</li>\n</ul>\n<p>后面还有一段。</p>');
 });
 
-test('正文只带到够填卡片的长度', () => {
+test('正文只带到够填卡片的长度，嵌套列表同样限制长度并保持完整结构', async () => {
   const body = Array.from({ length: 12 }, (_, index) => `段落${index}。${'字'.repeat(90)}`).join('\n\n');
-  const paragraphs = mentionParagraphs(body);
-  assert.ok(paragraphs.length > 1);
-  assert.ok(paragraphs.length <= 8);
-  assert.equal(paragraphs.some((paragraph) => paragraph.startsWith('段落11')), false);
+  const html = await mentionBodyHtml(body);
+  assert.ok((html.match(/<p>/g) ?? []).length > 1);
+  assert.ok((html.match(/<p>/g) ?? []).length <= 8);
+  assert.equal(html.includes('段落11'), false);
+  const list = await mentionBodyHtml('- 开头\n\n' + Array.from({ length: 20 }, (_, index) => `  ${index + 1}. 条目${index}`).join('\n\n'));
+  assert.equal((list.match(/<li>/g) ?? []).length, 8);
+  assert.match(list, /<ul>[\s\S]*<ol>[\s\S]*<\/ol>\n<\/li>\n<\/ul>$/);
+  assert.equal(list.includes('条目19'), false);
+});
+
+test('保留列表层级、起始编号、引用、粗体、斜体、删除线和行内代码', async () => {
+  const html = await mentionBodyHtml('> **重要** *说明* ~~旧版~~ `代码`\n\n- 阅读\n\n  3. [收藏](https://example.com)\n\n  4. 同步\n\n- 完成');
+  assert.match(html, /<blockquote>\n<p><strong>重要<\/strong> <em>说明<\/em> <del>旧版<\/del> <code>代码<\/code><\/p>/);
+  assert.match(html, /<ul>\n<li>\n<p>阅读<\/p>\n<ol start="3">/);
+  assert.match(html, /<a href="https:\/\/example.com">收藏<\/a>/);
+  assert.match(html, /<li>\n<p>同步<\/p>\n<\/li>/);
+});
+
+test('生成的 mention 链接与引用式链接保留，图片、脚本和不安全链接不进入预览', async () => {
+  const html = await mentionBodyHtml([
+    '<a href="/readwise-reader" data-doc-mention>Readwise Reader</a> 和 [参考][ref]',
+    '',
+    '[ref]: /my-toolset',
+    '',
+    '<script>alert(1)</script><Widget client:load />',
+    '',
+    '![图片][photo] [危险](javascript:alert%281%29)',
+    '',
+    '[photo]: https://example.com/tracker.png',
+    '',
+    '<img src="https://example.com/tracker.png" onerror="alert(1)">',
+  ].join('\n'));
+  assert.match(html, /<a href="\/readwise-reader">Readwise Reader<\/a>/);
+  assert.match(html, /<a href="\/my-toolset">参考<\/a>/);
+  assert.match(html, /<a href="#">危险<\/a>/);
+  assert.doesNotMatch(html, /<script|<img|Widget|javascript:|tracker\.png|onerror|alert\(1\)/);
 });
 
 test('外链预览只有可见文字和完整地址', () => {

@@ -2,7 +2,7 @@ import { getCollection } from 'astro:content';
 import { docHref, includeDraftsInDev, isTranslation, sitePageHref, translationSourceId } from '@/lib/docs';
 import {
   mentionMeta,
-  mentionParagraphs,
+  mentionBodyHtml,
   mentionSummary,
   normalizeMentionHref,
   type MentionKind,
@@ -13,7 +13,7 @@ function pageHref(id: string): string {
   return sitePageHref(translationSourceId(id));
 }
 
-function put(
+async function put(
   map: Map<string, MentionPreviewEntry>,
   href: string,
   title: string,
@@ -30,7 +30,7 @@ function put(
     href: path,
     title: label,
     summary: mentionSummary(description ?? ''),
-    paragraphs: mentionParagraphs(body ?? ''),
+    bodyHtml: await mentionBodyHtml(body ?? ''),
     meta: mentionMeta(kind, date, lang),
   });
 }
@@ -50,31 +50,31 @@ export async function mentionPreviewEntries(lang: 'zh-CN' | 'en'): Promise<Menti
 
   for (const page of pages) {
     if (page.data.translationOf) continue;
-    put(map, pageHref(page.id), page.data.title, page.data.description, page.body, 'page', page.data.date, lang);
+    await put(map, pageHref(page.id), page.data.title, page.data.description, page.body, 'page', page.data.date, lang);
   }
   for (const project of projects) {
     if (isTranslation(project)) continue;
     const kind: MentionKind = project.data.heptabaseType === 'reference' ? 'reference' : 'project';
-    put(map, docHref(project), project.data.title, project.data.description, project.body, kind, project.data.date, lang);
+    await put(map, docHref(project), project.data.title, project.data.description, project.body, kind, project.data.date, lang);
   }
   const sources = articles.filter((article) => !isTranslation(article));
   for (const article of sources) {
     const kind: MentionKind = article.data.heptabaseType === 'reference' ? 'reference' : 'article';
-    put(map, docHref(article), article.data.title, article.data.description, article.body, kind, article.data.date, lang);
+    await put(map, docHref(article), article.data.title, article.data.description, article.body, kind, article.data.date, lang);
   }
   if (lang === 'en') {
     for (const article of articles) {
       if (!article.data.translationOf || article.data.language !== 'en') continue;
       if (!includeDrafts && article.data.draft) continue;
-      put(map, docHref(article), article.data.title, article.data.description, article.body, 'article', article.data.date, lang);
+      await put(map, docHref(article), article.data.title, article.data.description, article.body, 'article', article.data.date, lang);
     }
     for (const project of projects) {
       if (!project.data.translationOf || project.data.language !== 'en') continue;
-      put(map, docHref(project), project.data.title, project.data.description, project.body, 'project', project.data.date, lang);
+      await put(map, docHref(project), project.data.title, project.data.description, project.body, 'project', project.data.date, lang);
     }
     for (const page of pages) {
       if (!page.data.translationOf || page.data.language !== 'en') continue;
-      put(map, pageHref(page.id), page.data.title, page.data.description, page.body, 'page', page.data.date, lang);
+      await put(map, pageHref(page.id), page.data.title, page.data.description, page.body, 'page', page.data.date, lang);
     }
   }
 
