@@ -9,6 +9,7 @@ export { default as InteractiveDemo } from './InteractiveDemo.svelte';
 export { default as VideoEmbed } from './VideoEmbed.astro';
 export { default as TweetEmbed } from './TweetEmbed.astro';
 export { default as SideNote } from './SideNote.astro';
+export { default as PhotoCollage } from './PhotoCollage.astro';
 export { default as RuleGarden } from './RuleGarden.astro';
 export { default as RuleTarget } from './RuleTarget.astro';
 /** 悬停预览由 MentionPreviews.astro 挂到 Base，不要写进 MDX。 */

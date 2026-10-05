@@ -1,0 +1,48 @@
+---
+/**
+ * 照片拼贴：2–5 张图叠在同一格里，小角度错位摆放，像桌面上随手放的几张照片。
+ * 零 JS。hover（仅支持悬停的设备）时摆正并浮到最上面；减少动态偏好下不做过渡。
+ * 只有叠放与旋转：无边框、底色、圆角、阴影。
+ */
+interface Photo {
+  src: string;
+  alt: string;
+}
+interface Props {
+  photos: Photo[];
+  caption?: string;
+}
+
+const { photos, caption } = Astro.props;
+if (photos.length < 2 || photos.length > 5) {
+  throw new Error(`PhotoCollage: 需要 2–5 张图，收到 ${photos.length} 张。单图直接用 Markdown 图片。`);
+}
+
+const n = photos.length;
+const width = [0, 0, 40, 32, 26, 22][n];
+const poses = [-4, 2, -2, 3, -3];
+const tops = [9, 0, 10, 2, 8];
+const items = photos.map((photo, i) => ({
+  ...photo,
+  style: [
+    `--pose:${poses[i]}deg`,
+    `--z:${i + 1}`,
+    `width:${width}%`,
+    `margin-left:${(i * (100 - width)) / (n - 1)}%`,
+    `margin-top:${tops[i]}%`,
+  ].join(';'),
+}));
+---
+
+<figure class="media-frame photo-collage not-prose" data-photo-collage>
+  <div class="photo-collage__stack">
+    {
+      items.map((item) => (
+        <div class="photo-collage__photo" data-photo style={item.style}>
+          <img src={item.src} alt={item.alt} loading="lazy" decoding="async" />
+        </div>
+      ))
+    }
+  </div>
+  {caption && <figcaption class="media-caption text-center">{caption}</figcaption>}
+</figure>

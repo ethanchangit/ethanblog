@@ -1920,3 +1920,38 @@
     height: calc(3.75rem + env(safe-area-inset-top, 0px));
   }
 }
+
+/* PhotoCollage：只有叠放与旋转，没有边框、底色、圆角或阴影。 */
+@layer components {
+  .photo-collage__stack {
+    @apply grid w-full py-1;
+  }
+
+  .photo-collage__photo {
+    @apply relative self-start;
+    grid-area: 1 / 1;
+    z-index: var(--z);
+    rotate: var(--pose);
+  }
+
+  .photo-collage__photo img {
+    @apply block w-full object-cover;
+    aspect-ratio: 4 / 5;
+  }
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .photo-collage__photo {
+      transition:
+        rotate 200ms ease-out,
+        scale 200ms ease-out;
+    }
+  }
+
+  @media (hover: hover) {
+    .photo-collage__photo:hover {
+      z-index: 10;
+      rotate: 0deg;
+      scale: 1.03;
+    }
+  }
+}
