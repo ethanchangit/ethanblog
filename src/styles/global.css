@@ -683,15 +683,14 @@
   }
 
   /*
-   * In-prose links (mention links included): ink-colored, medium weight, with
+   * In-prose links (mention links included): primary (blue), medium weight, with
    * a faint 1px gray underline just under the baseline (0.12em offset; skip-ink
    * keeps it off g/p/y and CJK descenders). Hover darkens only the
-   * underline to full ink. No wash, no blue. ink-100 flips with [data-theme],
-   * so light and dark need no separate rules.
+   * underline to full ink. No wash. Text color is primary-600 / -400 (dark).
    * TweetEmbed chrome (handle / X logo) is not a body citation, so it is excluded.
    */
   .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
-    color: var(--color-ink-100);
+    color: var(--color-primary-600);
     font-weight: 500;
     text-decoration-line: underline;
     text-decoration-color: color-mix(in srgb, var(--color-ink-100) 24%, transparent);
@@ -702,7 +701,16 @@
   }
 
   .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
+    color: var(--color-primary-500);
     text-decoration-color: var(--color-ink-100);
+  }
+
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
+    color: var(--color-primary-400);
+  }
+
+  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
+    color: var(--color-primary-300);
   }
 
   /* TweetEmbed 的头像 / handle / X 是卡片 chrome，不是正文引用链 */
