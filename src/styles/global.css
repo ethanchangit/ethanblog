@@ -836,7 +836,7 @@
   .rg-highlight {
     text-decoration: underline;
     text-decoration-color: var(--color-accent-500);
-    text-underline-offset: 0.12em;
+    text-underline-offset: 3px;
   }
 
   .rg-tint-primary {
