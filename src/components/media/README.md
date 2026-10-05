@@ -23,6 +23,7 @@
 | `VideoEmbed` | Astro | YouTube 封面点击后再加载官方播放器；Bilibili 仍直接 iframe |
 | `TweetEmbed` | Astro | 自绘 X 卡片：构建期拉正文并完整展开 |
 | `SideNote` | Astro | 旁注：宽屏悬挂右页边，窄屏回落为插注块 |
+| `PhotoCollage` | Astro | 2–5 张图叠放成拼贴，小角度错位；hover 摆正浮起。零 JS。图片带圆角和阴影，无边框无底色 |
 | `RuleGarden` | Astro → Svelte | 规则可开关、可改；无 JS 时降级为散文 |
 | `RuleTarget` | Astro | 给页面元素声明 `data-rule-target`，供 RuleGarden 引用 |
 | `MentionPreview` | Svelte | 悬停正文里的本站链接或外链时的预览。由布局挂一次，不要写进 MDX |
@@ -46,6 +47,13 @@ import { InteractiveDemo, TweetEmbed } from '@/components/media';
   caption="一个可以玩的小软件。"
 />
 ```
+
+### PhotoCollage props
+
+| Prop | 类型 | 说明 |
+|---|---|---|
+| `photos` | `{ src, alt }[]` | 2–5 张。单图用 Markdown 图片 |
+| `caption` | `string` | 图注，居中 |
 
 ### RuleGarden props
 

@@ -1920,3 +1920,41 @@
     height: calc(3.75rem + env(safe-area-inset-top, 0px));
   }
 }
+
+/* PhotoCollage：叠放、旋转，加圆角和阴影；仍无边框与底色。阴影由 ink-100 混出，随主题翻转。 */
+@layer components {
+  .photo-collage__stack {
+    @apply grid w-full py-1;
+  }
+
+  .photo-collage__photo {
+    @apply relative self-start;
+    grid-area: 1 / 1;
+    z-index: var(--z);
+    rotate: var(--pose);
+  }
+
+  .photo-collage__photo img {
+    @apply block w-full rounded-lg object-cover;
+    aspect-ratio: 4 / 5;
+    box-shadow:
+      0 1px 2px color-mix(in srgb, var(--color-ink-100) 14%, transparent),
+      0 4px 14px color-mix(in srgb, var(--color-ink-100) 12%, transparent);
+  }
+
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .photo-collage__photo {
+      transition:
+        rotate 200ms ease-out,
+        scale 200ms ease-out;
+    }
+  }
+
+  @media (hover: hover) {
+    .photo-collage__photo:hover {
+      z-index: 10;
+      rotate: 0deg;
+      scale: 1.03;
+    }
+  }
+}
