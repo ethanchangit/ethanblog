@@ -1921,7 +1921,7 @@
   }
 }
 
-/* PhotoCollage：只有叠放与旋转，没有边框、底色、圆角或阴影。 */
+/* PhotoCollage：叠放、旋转，加圆角和阴影；仍无边框与底色。阴影由 ink-100 混出，随主题翻转。 */
 @layer components {
   .photo-collage__stack {
     @apply grid w-full py-1;
@@ -1935,8 +1935,11 @@
   }
 
   .photo-collage__photo img {
-    @apply block w-full object-cover;
+    @apply block w-full rounded-lg object-cover;
     aspect-ratio: 4 / 5;
+    box-shadow:
+      0 1px 2px color-mix(in srgb, var(--color-ink-100) 14%, transparent),
+      0 4px 14px color-mix(in srgb, var(--color-ink-100) 12%, transparent);
   }
 
   @media (hover: hover) and (prefers-reduced-motion: no-preference) {
