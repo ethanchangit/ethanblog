@@ -683,46 +683,23 @@
   }
 
   /*
-   * In-prose links use primary (blue) so they read as clickable next to
-   * ink-300 body copy. Declared after prose-invert so dark-theme color wins
-   * ([data-theme] + .prose-site a matches invert's specificity).
-   * TweetEmbed chrome (handle / X logo) is not a body citation — exclude it.
-   *
-   * The line is a 1px gray hairline just under the alphabetic baseline
-   * (small offset, not text-underline-position: under). skip-ink keeps it
-   * off g/y and CJK descenders. Gray is ink at low opacity, so light and
-   * dark both read as a faint line rather than a second blue stroke.
-   * Hover is the same faint ink, as a wash tight to the glyphs.
+   * In-prose links (mention links included): ink-colored, medium weight, with
+   * a faint gray underline 3px below the baseline. Hover darkens only the
+   * underline to full ink. No wash, no blue. ink-100 flips with [data-theme],
+   * so light and dark need no separate rules.
+   * TweetEmbed chrome (handle / X logo) is not a body citation, so it is excluded.
    */
   .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
-    --prose-link-line: color-mix(in srgb, var(--color-ink-100) 16%, transparent);
-    --prose-link-wash: color-mix(in srgb, var(--color-ink-100) 8%, transparent);
-    color: var(--color-primary-600);
+    color: var(--color-ink-100);
+    font-weight: 500;
     text-decoration-line: underline;
-    text-decoration-color: var(--prose-link-line);
-    text-decoration-thickness: 1px;
-    text-underline-position: auto;
-    text-underline-offset: 0.12em;
-    text-decoration-skip-ink: all;
-    border-radius: 0.125rem;
-    background-color: transparent;
-    box-shadow: 0 0 0 3px transparent;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
+    text-decoration-color: color-mix(in srgb, var(--color-ink-100) 24%, transparent);
+    text-decoration-thickness: auto;
+    text-underline-offset: 3px;
   }
 
   .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
-    color: var(--color-primary-500);
-    background-color: var(--prose-link-wash);
-    box-shadow: 0 0 0 3px var(--prose-link-wash);
-  }
-
-  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *) {
-    color: var(--color-primary-400);
-  }
-
-  [data-theme="dark"] .prose-site a:not([data-tweet-embed] *):not(.not-prose *):hover {
-    color: var(--color-primary-300);
+    text-decoration-color: var(--color-ink-100);
   }
 
   /* TweetEmbed 的头像 / handle / X 是卡片 chrome，不是正文引用链 */
@@ -750,9 +727,9 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .prose-site a {
-      transition-property: color, text-decoration-color, background-color, box-shadow;
-      transition-duration: 150ms;
-      transition-timing-function: ease;
+      transition-property: color, text-decoration-color;
+      transition-duration: 200ms;
+      transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
     }
   }
 
