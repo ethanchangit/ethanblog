@@ -8,8 +8,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseMdx, publicHref } from '../studio/core.mjs';
 import { mentionMarkup } from '../src/lib/heptabase-mentions.mjs';
+import { CONTENT_DIR } from '../src/lib/content-root.mjs';
 
-const CONTENT = new URL('../src/content/', import.meta.url);
+// src/content, or the frozen test copy when BLOG_FIXTURES=1.
+const CONTENT = CONTENT_DIR;
 
 function walkMdx(dir, out = []) {
   for (const name of readdirSync(dir)) {

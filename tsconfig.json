@@ -1,7 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "themes", "workers"],
+  "exclude": ["dist", "dist-fixtures", "themes", "workers"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

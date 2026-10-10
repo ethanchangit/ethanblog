@@ -110,7 +110,7 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 - 日常写作在 Heptabase。本机不再提供 `/studio` 编辑器；`astro dev` 只注入 http://localhost:4321/dashboard。生产构建不包含这个开发路由。
 - `node studio/online/preview.mjs` 是内存里的界面验收（默认 http://localhost:4350/dashboard）。本机打开不要求后台密码，不连接真实 GitHub 或 Heptabase。它用 `studio/online/sample-review.mjs` 的示例数据（新文、已编辑、删除、站点页、段落对比、通过和拒绝），并直接提供当前的 `studio/online` 界面源码，所以本机改后台后刷新就能看到。打开或刷新后直接是审核界面，不用点「拉取最新更新」。这套数据只在这个本地进程里。`npm run dev` 的后台、正式发布、生产后台和真实拉取仍走 Heptabase 与 GitHub。
 - `npm run preview` 伺服 `dist/`（`@astrojs/cloudflare` 不支持 `astro preview`）。`npm run build` 同时构建博客和后台，产物是 `dist/`（已 gitignore）。`npm run check` 做类型和内容 schema 校验。`npm run validate:content` 查 schema 覆盖不到的创作规约。
-- `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
+- `npm run test` 含 Playwright，它伺服已经构建的站点，所以要先 `npm run build`。`npm run build` 先用 `BLOG_FIXTURES=1` 把 `tests/fixtures/site/` 的冻结内容建到 `dist-fixtures/`（不部署），再建要部署的 `dist/`。Playwright 有两个项目：`fixtures`（端口 4322）跑 `tests/` 下除 `tests/site/` 以外的全部 spec；`site`（端口 4323）只跑 `tests/site/`，测真实内容，不写死标题、篇数或 slug。功能和排版测试都写在 fixtures 上，所以后台发布撤下或改名真实页面不会让它们失败。给组件写测试时，在 `tests/fixtures/site/content/` 加或改测试页，不要依赖 `src/content/` 里的真实文章。后台只读 `src/content/`，不碰这份副本。开关在 `src/lib/content-root.mjs`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
 - 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件直接接在用到它的文章或项目上，并补测试。
 - 站点没有读者登录。页面不显示收藏，不同步阅读进度，也不调用 `/api/me`。`src/pages/api/` 里的 `me`、`bookmarks`、`progress`（better-auth）和对应 D1 表保留；要重新启用，先加登录入口，再改这一条和 `/privacy`、`src/lib/agent.ts` 里的说明。留言走 `POST /api/comments`，不需要登录。读者登录和后台密码是两套。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。

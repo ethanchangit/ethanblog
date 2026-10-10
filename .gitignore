@@ -1,5 +1,6 @@
 # Astro build output
 dist/
+dist-fixtures/
 studio/online/assets.generated.mjs
 .studio-build/
 .studio/
