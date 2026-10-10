@@ -1,10 +1,18 @@
 ---
+import I18n from '@/components/shell/I18n.astro';
 import ThemeToggle from '@/components/shell/ThemeToggle.svelte';
 import { profile } from '@/data/profile';
+import { BLOGS_PATH } from '@/lib/routes';
 
 const links = [
   ...profile.socials,
   { label: 'RSS', url: '/rss.xml', icon: 'rss' as const },
+];
+
+// /about 和 /blogs 不在导航里（字标回首页），从页脚进入。
+const pages = [
+  { href: '/about', key: 'navAbout' as const },
+  { href: BLOGS_PATH, key: 'navBlogs' as const },
 ];
 
 const iconPaths: Record<(typeof links)[number]['icon'], string[]> = {
@@ -22,6 +30,13 @@ const iconPaths: Record<(typeof links)[number]['icon'], string[]> = {
   <div class="site-footer-inner flex items-center justify-between px-4 text-sm text-ink-500 sm:px-6">
     <div class="footer-toggles pointer-events-auto flex shrink-0 items-center gap-1 md:gap-4">
       <ThemeToggle client:visible />
+      {
+        pages.map((p) => (
+          <a href={p.href} class="footer-hit inline-flex items-center justify-center px-1 transition-colors hover:text-ink-100">
+            <I18n k={p.key} />
+          </a>
+        ))
+      }
     </div>
     <ul class="pointer-events-auto flex items-center gap-1 sm:gap-4">
       {

@@ -4,10 +4,9 @@
  * 契约：
  * - 效果不得触发谓词（禁规则链）：效果只做 class / attr 开关，触发器只观察
  *   用户与页面的原生交互，二者之间没有回路。
- * - 新增谓词 / 效果只改本文件的 triggerRegistry / effectRegistry，组件层零改动
- *   （对齐 src/lib/viz/registry.ts 的注册表风格）。
- * - 生命周期对齐 src/lib/scene3d/registry.ts 的 factory → dispose 范式：
- *   createRuleEngine 返回句柄，setRules 幂等重建，dispose 解绑一切并复原全部效果。
+ * - 新增谓词 / 效果只改本文件的 triggerRegistry / effectRegistry，组件层零改动。
+ * - 生命周期是 factory → dispose：createRuleEngine 返回句柄，setRules 幂等重建，
+ *   dispose 解绑一切并复原全部效果。
  * - 颜色零字面量：效果类（.rg-*）的视觉表现在 global.css 里用 --color-* token 定义。
  */
 

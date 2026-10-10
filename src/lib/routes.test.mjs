@@ -27,7 +27,7 @@ test('旧 slug 转到卡片现在的地址，当前地址和固定地址不再�
   assert.equal(findByDocIdentity(entries, 'missing', read), undefined);
 });
 
-test('旧单篇地址转到新路径，列表和分页不动', () => {
+test('旧单篇、旧分页和 Hugo 地址转到新路径，列表不动', () => {
   assert.equal(legacyContentRedirect('/articles/pkm-method'), '/pkm-method');
   assert.equal(legacyContentRedirect('/articles/series-demo/1'), '/series-demo/1');
   assert.equal(legacyContentRedirect('/projects/aletheia/'), '/aletheia');
@@ -35,7 +35,10 @@ test('旧单篇地址转到新路径，列表和分页不动', () => {
   assert.equal(legacyContentRedirect('/pages/notes'), '/notes');
   assert.equal(legacyContentRedirect('/articles'), null);
   assert.equal(legacyContentRedirect('/projects'), null);
-  assert.equal(legacyContentRedirect('/articles/2'), null);
+  assert.equal(legacyContentRedirect('/articles/2'), '/articles');
+  assert.equal(legacyContentRedirect('/posts/pkm-method/'), '/pkm-method');
+  assert.equal(legacyContentRedirect('/posts/welcome'), '/articles');
+  assert.equal(legacyContentRedirect('/posts'), '/articles');
   assert.equal(legacyContentRedirect('/pkm-method'), null);
 });
 
@@ -61,5 +64,14 @@ test('旧地址和旧域都回到同一篇英文页面', () => {
     status: 301,
   });
   assert.deepEqual(routeRequest(new URL('http://localhost:4321/pkm-method')), { type: 'pass' });
-  assert.deepEqual(routeRequest(new URL('http://localhost:4321/articles/2')), { type: 'pass' });
+  assert.deepEqual(routeRequest(new URL('http://localhost:4321/articles/2')), {
+    type: 'redirect',
+    location: 'http://localhost:4321/articles',
+    status: 301,
+  });
+  assert.deepEqual(routeRequest(new URL('https://ethanchang.io/zh/articles/1')), {
+    type: 'redirect',
+    location: 'https://ethanchang.io/articles',
+    status: 301,
+  });
 });

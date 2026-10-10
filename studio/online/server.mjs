@@ -2049,7 +2049,6 @@ async function api(request, env) {
   if (path === '/__studio/api/git' && request.method === 'GET') return gitStatus(env, identity);
   if (path === '/__studio/api/git/refresh' && request.method === 'GET') return gitStatus(env, identity, true);
   if (path === '/__studio/api/git/commit' && request.method === 'POST') return commitDrafts(env, identity, await readJson(request));
-  if (path === '/__studio/api/git/push' && request.method === 'POST') return gitStatus(env, identity);
   if (path === '/__studio/api/git/publish' && request.method === 'POST') return publish(env, identity, await readJson(request));
   if (path === '/__studio/api/git/review' && request.method === 'GET') return review(env);
   throw Object.assign(new Error('not found'), { status: 404 });
@@ -2084,8 +2083,9 @@ export function createHandler(assets = {}) {
         if (row) {
           await run(env, "UPDATE studio_releases SET status = 'succeeded', stage = 'deployed', url = ?1, error = NULL WHERE id = ?2", BLOG_URL, row.id);
           const result = await completeWriteback(env, row.id);
-          response = json(result, result.pending || result.remarks?.pending ? 503 : 200);
-        } else response = json({ pending: 0 });
+          response = json({ ...result, release: true }, result.pending || result.remarks?.pending ? 503 : 200);
+        // A deploy that did not come from a dashboard publication (site code, agent PRs). Say so, so CI does not report a publication.
+        } else response = json({ pending: 0, release: false });
       }
       else if (url.pathname === '/dashboard/api/login' && request.method === 'POST') response = await login(request, env);
       else if (url.pathname === '/dashboard/api/logout' && request.method === 'POST') response = await logout(request, env);

@@ -84,7 +84,6 @@ export function notFoundMarkdown(origin: string = site.url): string {
     `- [llms.txt](${root}/llms.txt)`,
     `- [Sitemap](${root}/sitemap.xml)`,
     `- [Contact](${root}${CONTACT_PATH})`,
-    `- [Privacy](${root}${PRIVACY_PATH})`,
     '',
   ].join('\n');
 }
@@ -93,13 +92,11 @@ function stripFrontmatter(raw: string): string {
   return raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
 }
 
-export function mdxBodyToMarkdown(body: string, lang: AgentLang): string {
+export function mdxBodyToMarkdown(body: string, _lang: AgentLang): string {
   const withoutImports = body.replace(/^import\s[\s\S]*?;\s*$/gm, '').trim();
   const parts = withoutImports.split(LANG_SPLIT);
   if (parts.length === 1) return (parts[0] ?? '').trim();
-  const zh = (parts[0] ?? '').trim();
-  const en = parts.slice(1).join('\n').trim();
-  return zh;
+  return (parts[0] ?? '').trim();
 }
 
 type SourcedEntry = { body?: string; filePath?: string };
@@ -146,7 +143,8 @@ async function aboutPageMarkdown(): Promise<string> {
   return body ? `${heading}\n\n${body}\n` : `${heading}\n`;
 }
 
-export function forAgentsMarkdown(lang: AgentLang): string {
+/** `privacy`: whether the Privacy page is published. It is an ordinary Heptabase page and can be taken down. */
+export function forAgentsMarkdown(_lang: AgentLang, { privacy = true }: { privacy?: boolean } = {}): string {
 
     return `# ethanchang.io 给 agent 的开发者资源
 
@@ -170,11 +168,11 @@ export function forAgentsMarkdown(lang: AgentLang): string {
 
 ## 真实存在、但不是产品的接口
 
-\`POST /api/comments\` 把留言送到邮箱，不发布。\`GET /api/me\`、\`/api/bookmarks\`、\`/api/progress\` 需要会话，给已经登录的人同步收藏和进度。没有公开的写 API、没有 webhook、没有 OAuth 作为平台能力对外提供。不要为了分数去假装这里有 MCP。
+\`POST /api/comments\` 把留言送到邮箱，不发布。站点没有读者登录。\`GET /api/me\` 只会返回 \`user: null\`；收藏和进度接口保留在代码里，但页面不再调用。没有公开的写 API、没有 webhook、没有 OAuth 作为平台能力对外提供。不要为了分数去假装这里有 MCP。
 
 ## 人怎么用
 
-写信：[${CONTACT_PATH}](${CONTACT_PATH})。隐私：[${PRIVACY_PATH}](${PRIVACY_PATH})。关于页是 \`/about\`。首页 \`/\` 是文章列表。
+写信：[${CONTACT_PATH}](${CONTACT_PATH})。${privacy ? `隐私：[${PRIVACY_PATH}](${PRIVACY_PATH})。` : ''}关于页是 \`/about\`。首页 \`/\` 是文章列表。
 `;
 }
 
@@ -201,7 +199,7 @@ export async function agentMarkdownPages(): Promise<MarkdownPage[]> {
     ...(nowPage ? [{ path: NOW_PATH, zh: `${nowPage}\n` }] : []),
     ...(contactPage ? [{ path: CONTACT_PATH, zh: `${contactPage}\n` }] : []),
     ...(privacyPage ? [{ path: PRIVACY_PATH, zh: `${privacyPage}\n` }] : []),
-    { path: FOR_AGENTS_PATH, zh: forAgentsMarkdown('zh') },
+    { path: FOR_AGENTS_PATH, zh: forAgentsMarkdown('zh', { privacy: Boolean(privacyPage) }) },
     {
       path: ARTICLES_PATH,
       zh: shortIndexMarkdown('Articles', copy.en.articlesDesc, ARTICLES_PATH),
@@ -293,10 +291,12 @@ export async function sitemapUrls(): Promise<{ loc: string; lastmod?: string }[]
 }
 
 export async function buildLlmsTxt(): Promise<string> {
-  const [articles, projects] = await Promise.all([
+  const [articles, projects, privacy] = await Promise.all([
     docsBySlot('article').then((list) => list.filter(isIndexed)),
     docsBySlot('project').then((list) => list.filter((entry) => !isReference(entry))),
+    getEntry('pages', 'privacy'),
   ]);
+  const privacyLine = privacy && !privacy.data.draft ? `\n- [Privacy](${site.url}${PRIVACY_PATH})` : '';
   const articleLines = articles
     .filter((entry) => !entry.id.startsWith('dummy-'))
     .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0))
@@ -313,7 +313,7 @@ Ethan Chang (张峻源) writes at ${site.url}. Native iOS apps, LLM and voice to
 
 Use this site when you need how Ethan actually runs PKM (Obsidian, Heptabase), project notes for the software on /projects, or the living Now page for what he is doing this month. Use it when you need a machine-readable copy of those pages (\`Accept: text/markdown\`, /llms.txt, /rss.xml) rather than a screenshot of the layout.
 
-Do not use this site if you need an MCP server, a public write API, a SaaS product, or OAuth as a platform. GitHub/Google login exists only so a reader can sync optional bookmarks and progress. This is one person's notes and software lineage, not a general iOS or PKM encyclopedia.
+Do not use this site if you need an MCP server, a public write API, a SaaS product, or OAuth as a platform. There is no reader sign-in; reading needs no account. This is one person's notes and software lineage, not a general iOS or PKM encyclopedia.
 
 ## Main pages
 
@@ -323,8 +323,7 @@ Do not use this site if you need an MCP server, a public write API, a SaaS produ
 - [Projects](${site.url}${PROJECTS_PATH})
 - [Now](${site.url}${NOW_PATH})
 - [ethanchang.io developer resources](${site.url}${FOR_AGENTS_PATH})
-- [Contact](${site.url}${CONTACT_PATH})
-- [Privacy](${site.url}${PRIVACY_PATH})
+- [Contact](${site.url}${CONTACT_PATH})${privacyLine}
 - [RSS](${site.url}/rss.xml)
 - [Sitemap](${site.url}/sitemap.xml)
 - [OpenAPI](${site.url}/openapi.json)

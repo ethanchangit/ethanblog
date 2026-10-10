@@ -108,10 +108,10 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=ethanblog --branch=main --commit-hash=${{ github.sha }}
 
-      # ethanchang.io is the English blog, cn.ethanchang.io the Chinese one (src/lib/hosts.ts).
-      # Attaches the Chinese domain and its DNS record if missing. A token without Pages/DNS
+      # ethanchang.io is the blog; cn. and www. redirect to it (src/lib/hosts.ts).
+      # Attaches those hosts and their DNS records if missing. A token without Pages/DNS
       # edit leaves a warning instead of blocking the release.
-      - name: Ensure cn.ethanchang.io domain
+      - name: Ensure cn. and www. domains
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

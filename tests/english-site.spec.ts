@@ -35,6 +35,35 @@ test.describe('English site', () => {
     await expect(page.locator('.article-lede h1')).toHaveText('我的 PKM 实践：从笔记到知识网络');
   });
 
+  test('the footer reaches About and Blog, and there is no reader sign-in', async ({ page }) => {
+    await page.goto(`${SITE}/`, { waitUntil: 'domcontentloaded' });
+    const footer = page.getByRole('contentinfo');
+    await footer.getByRole('link', { name: 'About', exact: true }).click();
+    await expect(page).toHaveURL(/^http:\/\/localhost:4322\/about\/?$/);
+    await footer.getByRole('link', { name: 'Blog', exact: true }).click();
+    await expect(page).toHaveURL(/^http:\/\/localhost:4322\/blogs\/?$/);
+    const me: string[] = [];
+    page.on('request', (request) => { if (new URL(request.url()).pathname === '/api/me') me.push(request.url()); });
+    await page.goto(`${SITE}/pkm-method`, { waitUntil: 'networkidle' });
+    expect(me).toEqual([]);
+    await expect(page.getByRole('button', { name: /bookmark/i })).toHaveCount(0);
+  });
+
+  test('Hugo and old pagination URLs answer with a real 301', async ({ request }) => {
+    for (const [from, to] of [['/posts/pkm-method/', '/pkm-method'], ['/posts', '/articles'], ['/articles/1', '/articles'], ['/zh/articles/2', '/articles']]) {
+      const response = await request.get(`${SITE}${from}`, { maxRedirects: 0 });
+      expect(response.status(), from).toBe(301);
+      expect(new URL(response.headers().location, SITE).pathname, from).toBe(to);
+    }
+  });
+
+  test('the 404 page has no canonical or Markdown twin', async ({ page }) => {
+    await page.goto(`${SITE}/404`, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+    await expect(page.locator('link[type="text/markdown"]')).toHaveCount(0);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+  });
+
   test('old English host and /en prefix redirect onto the same path', async ({ request }) => {
     const hostRedirect = await request.get('http://127.0.0.1:4322/en/articles', {
       headers: { host: 'en.localhost:4322' },

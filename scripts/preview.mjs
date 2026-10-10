@@ -17,7 +17,6 @@ import { fallbackFor, routeRequest } from '../src/lib/hosts.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, '../dist');
-const serveConfig = JSON.parse(await readFile(path.resolve(here, '../serve.json'), 'utf8'));
 
 const NOT_FOUND_MD = `# 404 — page not found
 
@@ -128,7 +127,6 @@ const server = createServer(async (req, res) => {
 
   await handler(req, res, {
     public: dist,
-    redirects: serveConfig.redirects,
     cleanUrls: true,
     directoryListing: false,
     trailingSlash: false,

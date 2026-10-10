@@ -8,7 +8,13 @@ for (let attempt = 0; attempt < 60; attempt++) {
     method: 'POST', body, redirect: 'error', signal: AbortSignal.timeout(60000),
     headers: { 'content-type': 'application/json', 'x-studio-signature': await signReceipt(secret, body) },
   });
-  if (response.ok) { console.log('Dashboard publication and Heptabase metadata confirmed.'); process.exit(0); }
+  if (response.ok) {
+    const result = await response.json().catch(() => ({}));
+    console.log(result.release === false
+      ? 'No dashboard publication for this commit; nothing to write back to Heptabase.'
+      : 'Dashboard publication and Heptabase metadata confirmed.');
+    process.exit(0);
+  }
   if (response.status === 401 || response.status === 403) throw new Error('Dashboard receipt authentication failed.');
   if (attempt < 59) await new Promise(resolve => setTimeout(resolve, 3000));
 }
