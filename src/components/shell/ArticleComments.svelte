@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { readLang, subscribeLang, t, type CopyKey, type Lang } from '@/lib/i18n';
-  import { fetchUser } from '@/lib/user';
   import { COMMENT_BODY_MAX, COMMENT_EMAIL_MAX, COMMENT_NAME_MAX } from '@/lib/comments';
 
   interface Props {
@@ -36,16 +35,7 @@
       history.replaceState(null, '', next);
     }
 
-    let cancelled = false;
-    fetchUser().then((user) => {
-      if (cancelled || !user?.name || name) return;
-      name = user.name;
-    });
-
-    return () => {
-      cancelled = true;
-      unsub();
-    };
+    return unsub;
   });
 
   async function onSubmit(event: SubmitEvent) {

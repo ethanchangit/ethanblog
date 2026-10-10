@@ -43,7 +43,7 @@
 ## 样式约束（极简博客）
 
 - **适用范围**：本节的极简约束只管公开站点，目的是让读者只看到内容。`/dashboard` 是工作工具，为了可读性不受这条约束：可以用边框、卡片/面板、按审核类型区分的底色和彩色标签、吸顶标题、独立的属性块和更醒目的差异标记。后台颜色仍从 `@theme` token 派生；token 里没有的审核类型色，只能在 `studio/online/dashboard.css` 顶部定义成后台专用变量（`--dash-*`），分亮暗两套，不要在各处散写色值。后台样式不能泄漏到公开页面。
-- 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制通过 `getComputedStyle` 读取 token（见 `src/lib/viz/registry.ts` 的做法）。
+- 颜色只能来自 `src/styles/global.css` 的 `@theme` 设计 token（surface / ink / primary / accent），组件与内容中不允许出现裸色值（hex/rgb 字面量）。canvas 绘制要用 `getComputedStyle` 读取 `--color-*` token，不写死颜色。
 - 双主题：白天为纯白画布（`surface-950` = 白），夜间为 `#191919`（`data-theme="dark"`）。默认跟随系统 `prefers-color-scheme`，用户可通过导航栏切换并持久化到 `localStorage`。
 - **不要**使用装饰性边框、背景色块、圆角卡片、色条、渐变遮罩、设备边框（红绿灯）等产品感 chrome。页面靠排版与留白组织，不靠盒子。
 - 唯一例外是文章/项目页眉的元数据块 `.article-meta`（标签、技术栈）：和后台属性块一样用浅底和标签列，让读者一眼看出这是元数据。标签是带 # 的文字，没有描边，也不另加底色。别处不要照搬。
@@ -57,7 +57,7 @@
 - 跨岛屿边界的 props 必须 JSON 可序列化。
 - 所有组件必须在无 JS 时渲染出有意义的静态内容（内容优先；交互是可选升档）。
 - 动效必须尊重 `prefers-reduced-motion`（用 `@/lib/motion` 的 `reducedMotion()`）。
-- GSAP 只能在岛屿内部（onMount/$effect）动态 import，禁止在 `.astro` frontmatter 引入；ScrollTrigger 必须在组件销毁时 kill。
+- GSAP 目前不在 `package.json` 里，用之前先 `npm install gsap`。只能在岛屿内部（onMount/$effect）动态 import，禁止在 `.astro` frontmatter 引入；ScrollTrigger 必须在组件销毁时 kill。
 - 完整契约见 `src/components/media/README.md`。
 
 ## 内容从哪里来
@@ -73,7 +73,7 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 - 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
 - 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
 - 被提到的卡片打上 Heptabase 标签 `references`。引用页从这张标签读取，不从 Blog Type 的 Reference 选项读取。已经是文章、项目或站点页的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
-- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`，文件是 `src/content/articles/toolset.mdx`。文章已经发布、而卡片 slug 和现有文件名不同时，之后每次发布都把文件搬到这个 slug，旧文件名和旧 slug 写入 frontmatter 的 `aliases`，站点从这些旧地址 301 到新地址。目录里的 DocRef 可以继续写旧 id。另一张卡片已经占用这个 slug、slug 撞上固定地址，或同一张卡片连着多份文件时，停下并报冲突。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
+- `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`，文件是 `src/content/articles/toolset.mdx`。文章已经发布、而卡片 slug 和现有文件名不同时，之后每次发布都把文件搬到这个 slug，旧文件名和旧 slug 写入 frontmatter 的 `aliases`，站点从这些旧地址 301 到新地址。目录里的 DocRef 可以继续写旧 id。另一张卡片已经占用这个 slug、slug 撞上固定地址，或同一张卡片连着多份文件时，停下并报冲突。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`，旧分页 `/articles/<n>` 和 Hugo 时代的 `/posts/*` 也 301 回来。这些旧地址只写在 `src/lib/routes.ts` 的 `legacyContentRedirect`，Worker、`astro dev` 和本机预览共用，不用 `_redirects`、`serve.json` 或 `astro.config` 的 `redirects`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。
 - 本机 `http://localhost:4321` 就是这个英文站。后台只在 ethanchang.io/dashboard；cn.ethanchang.io/dashboard 跳回去。
 
@@ -113,8 +113,9 @@ Heptabase 的 Cursor 连接在仓库 `.cursor/mcp.json`：服务器 `heptabase-m
 - `npm run test` 含 Playwright，它伺服已经构建的 `dist/`，所以要先 `npm run build`。
 - 提交前跑验证四连：`npm run validate:content && npm run check && npm run build && npm run test`。
 - 首页身份、技能和 Now 页改 `src/data/profile.ts`（`profile`、`skills`、`nowIntro`、`now`、`nowUpdated`）。项目内演示把自包含 HTML 放进 `public/demos/<name>/`，正文用 `InteractiveDemo`。新交互组件直接接在用到它的文章或项目上，并补测试。
-- 公开导航没有登录。收藏、阅读进度和留言走 `src/lib/user.ts` 与 `src/pages/api/`（better-auth，博客可以不启用）。这和后台密码是两套登录。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
-- 两个域名都挂在 Pages 项目 `ethanblog`：`ethanchang.io`（英文）和 `cn.ethanchang.io`（中文）。部署时 `scripts/ensure-domains.mjs` 检查 cn 域名是否已挂到项目、DNS 是否有指向 `ethanblog.pages.dev` 的 CNAME，缺了就补；这要求 `CLOUDFLARE_API_TOKEN` 有 Pages 编辑和 ethanchang.io 的 DNS 编辑权限，权限不够时只留警告，不挡发布。
+- 站点没有读者登录。页面不显示收藏，不同步阅读进度，也不调用 `/api/me`。`src/pages/api/` 里的 `me`、`bookmarks`、`progress`（better-auth）和对应 D1 表保留；要重新启用，先加登录入口，再改这一条和 `/privacy`、`src/lib/agent.ts` 里的说明。留言走 `POST /api/comments`，不需要登录。读者登录和后台密码是两套。本地 OAuth 用 `.dev.vars`，样例是 `.dev.vars.example`。
+- 导航字标回首页文章列表。`/about` 和 `/blogs` 从页脚的 About、Blog 文字链接进入。
+- `ethanchang.io`、`cn.ethanchang.io`、`www.ethanchang.io` 都挂在 Pages 项目 `ethanblog`；cn 和 www 由 Worker 301 到 `ethanchang.io` 的同一路径。部署时 `scripts/ensure-domains.mjs` 检查 cn、www 是否已挂到项目、DNS 是否有指向 `ethanblog.pages.dev` 的 CNAME，缺了就补；这要求 `CLOUDFLARE_API_TOKEN` 有 Pages 编辑和 ethanchang.io 的 DNS 编辑权限，权限不够时只留警告，不挡发布。
 - 部署是 `.github/workflows/deploy.yml`。pull request 只跑 `verify`。push 到 `main` 会在 `verify` 通过后自动部署到 Cloudflare Pages 项目 `ethanblog`。在 `main` 上 `workflow_dispatch` 也会部署。
-- 部署使用已经测过的 `dist/`：远程执行 `wrangler d1 migrations apply ethanblog --remote`，部署 guestbook Worker，再 `wrangler pages deploy dist --project-name=ethanblog`。然后核验线上站点，并向 `https://ethanchang.io/dashboard/api/deployed` 发送签名回执。回执失败时站点可能已经更新，以线上版本为准。
+- 部署使用已经测过的 `dist/`：远程执行 `wrangler d1 migrations apply ethanblog --remote`，部署 guestbook Worker，再 `wrangler pages deploy dist --project-name=ethanblog`。然后核验线上站点，并向 `https://ethanchang.io/dashboard/api/deployed` 发送签名回执。回执失败时站点可能已经更新，以线上版本为准。这次部署不是后台发布（站点程序或 agent 的 PR）时，回执返回 `release: false`，日志写 `No dashboard publication for this commit`，不能当成后台发布成功；查后台发布看 D1 的 `studio_publish_jobs`、`studio_releases` 和 `studio-publish.yml` 的运行记录。
 - Actions 用到的密钥是 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`STUDIO_SECRET`。Pages 上的后台密钥（`GITHUB_TOKEN`、`STUDIO_PASSWORD_HASH`、`STUDIO_SECRET`）见 [docs/STUDIO.md](docs/STUDIO.md)。Pages 的 `wrangler.toml` 不能写 `send_email`；留言信在 `workers/guestbook`。

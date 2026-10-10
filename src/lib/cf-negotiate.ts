@@ -12,7 +12,7 @@ import {
   preferredType,
   shouldNegotiate,
 } from './accept';
-import { ARTICLES_PATH, CONTACT_PATH, FOR_AGENTS_PATH, PRIVACY_PATH } from './routes';
+import { ARTICLES_PATH, CONTACT_PATH, FOR_AGENTS_PATH } from './routes';
 
 const NOT_ACCEPTABLE = 'Not Acceptable. Available representations: text/html, text/markdown.';
 
@@ -39,7 +39,6 @@ export function negotiateNotFoundMarkdown(origin: string): string {
     `- [llms.txt](${root}/llms.txt)`,
     `- [Sitemap](${root}/sitemap.xml)`,
     `- [Contact](${root}${CONTACT_PATH})`,
-    `- [Privacy](${root}${PRIVACY_PATH})`,
     '',
   ].join('\n');
 }

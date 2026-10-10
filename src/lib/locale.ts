@@ -41,7 +41,7 @@ export function pagePath(pathname: string): string {
   return stripLocalePrefix(pathname.replace(/\/+$/, '') || '/');
 }
 
-export function withLocalePrefix(pathname: string, locale: string | undefined): string {
+export function withLocalePrefix(pathname: string, _locale: string | undefined): string {
   const path = stripLocalePrefix(pathname || '/');
   return path;
 }

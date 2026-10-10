@@ -21,6 +21,8 @@ interface Props {
   split?: boolean;
   /** Other language versions of this page, as absolute URLs. */
   alternates?: { hreflang: string; href: string }[];
+  /** The 404 page: no canonical, no Markdown twin, not indexed. */
+  notFound?: boolean;
 }
 
 const {
@@ -29,6 +31,7 @@ const {
   ogImage = '/og-default.svg',
   split = false,
   alternates = [],
+  notFound = false,
 } = Astro.props;
 const lang = Astro.locals.lang === 'en' ? 'en' : 'zh-CN';
 const pageTitleZh = title ? `${title} · ${site.title}` : `${site.title} — ${lang === 'en' ? 'Blog' : '博客'}`;
@@ -37,7 +40,7 @@ const pageDescription = description;
 const canonicalPath = stripLocalePrefix(Astro.url.pathname);
 const english = isEnglishBuildPath(canonicalPath);
 const canonical = canonicalUrl(canonicalPath);
-const markdownUrl = english ? null : new URL(markdownAssetPath(canonicalPath), site.url);
+const markdownUrl = english || notFound ? null : new URL(markdownAssetPath(canonicalPath), site.url);
 const jsonLd = siteJsonLd();
 ---
 
@@ -93,7 +96,7 @@ const jsonLd = siteJsonLd();
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{pageTitle}</title>
     <meta name="description" content={pageDescription} />
-    <link rel="canonical" href={canonical} />
+    {notFound ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
     {markdownUrl && <link rel="alternate" type="text/markdown" href={markdownUrl} />}
@@ -104,7 +107,7 @@ const jsonLd = siteJsonLd();
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={pageDescription} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonical} />
+    {!notFound && <meta property="og:url" content={canonical} />}
     <meta property="og:image" content={new URL(ogImage, site.url)} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />

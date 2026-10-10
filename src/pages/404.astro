@@ -1,12 +1,12 @@
 ---
 import Base from '@/layouts/Base.astro';
 import I18n from '@/components/shell/I18n.astro';
-import { CONTACT_PATH, FOR_AGENTS_PATH, HOME_PATH, PRIVACY_PATH } from '@/lib/routes';
+import { CONTACT_PATH, FOR_AGENTS_PATH, HOME_PATH } from '@/lib/routes';
 
 const lp = Astro.locals.localePath;
 ---
 
-<Base title="404">
+<Base title="404" notFound>
   <div class="mx-auto flex max-w-3xl flex-col px-4 py-32">
     <p class="font-mono text-7xl font-medium text-surface-700">404</p>
     <h1 class="mt-4 text-xl font-semibold text-ink-100"><I18n k="notFoundTitle" /></h1>
@@ -59,14 +59,6 @@ const lp = Astro.locals.localePath;
           class="underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-300"
         >
           <I18n k="notFoundContact" />
-        </a>
-      </li>
-      <li>
-        <a
-          href={lp(PRIVACY_PATH)}
-          class="underline decoration-ink-500 underline-offset-4 transition-colors hover:text-ink-100 hover:decoration-ink-300"
-        >
-          <I18n k="notFoundPrivacy" />
         </a>
       </li>
     </ul>

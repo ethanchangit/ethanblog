@@ -1,6 +1,4 @@
 ---
-import BookmarkButton from '@/components/shell/BookmarkButton.svelte';
-import ReadingProgress from '@/components/shell/ReadingProgress.svelte';
 import ArticleComments from '@/components/shell/ArticleComments.svelte';
 import I18n from '@/components/shell/I18n.astro';
 import Bi from '@/components/shell/Bi.astro';
@@ -68,8 +66,6 @@ const jsonLd = docJsonLd(doc);
 
 {!preview && <script is:inline type="application/ld+json" set:html={jsonLd} />}
 
-{isArticle && !preview && <ReadingProgress client:load slug={slug} />}
-
 <div class="article-shell relative px-4 pt-8 pb-14 sm:px-6" id={preview ? undefined : DOC_TITLE_ID}>
   <header class="article-lede">
     {
@@ -95,7 +91,6 @@ const jsonLd = docJsonLd(doc);
                 {version.label}
               </a>
             ))}
-            {!preview && <BookmarkButton client:load slug={slug} />}
           </div>
         </div>
       )

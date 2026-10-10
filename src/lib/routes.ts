@@ -86,14 +86,17 @@ const FIXED_PAGE_LIST = ['about', 'now', 'contact', 'privacy', 'blogs'] as const
 export const FIXED_PAGE_IDS = new Set<string>(FIXED_PAGE_LIST);
 
 /**
- * 旧的单篇地址。`/articles`、`/projects` 列表以及 `/articles/1` 这类分页不在这里。
- * 返回同一站点上的新路径。
+ * 旧地址：单篇、旧分页 `/articles/<n>`、Hugo 时代的 `/posts/*`。`/articles`、`/projects` 列表本身不在这里。
+ * 返回同一站点上的新路径。Worker 和本机预览都只读这里，不再用 `_redirects`。
  */
 export function legacyContentRedirect(pathname: string): string | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  if (path === '/posts' || path === '/posts/welcome') return ARTICLES_PATH;
+  const post = /^\/posts\/(.+)$/.exec(path);
+  if (post) return `/${post[1]}`;
   const article = /^\/articles\/(.+)$/.exec(path);
   if (article) {
-    if (/^\d+$/.test(article[1])) return null;
+    if (/^\d+$/.test(article[1])) return ARTICLES_PATH;
     return `/${article[1]}`;
   }
   const project = /^\/projects\/(.+)$/.exec(path);

@@ -7,7 +7,7 @@ const ZH_ORIGIN = 'https://cn.ethanchang.io';
 const EN_ORIGIN = 'https://ethanchang.io';
 // Same paths the Worker serves on both hosts (src/lib/hosts.ts SHARED).
 const SHARED = /^\/(?:_astro|media|demos|api|\.well-known|_image)(?:\/|$)|^\/(?:favicon\.svg|og-default\.svg|robots\.txt|__studio-release\.json|_routes\.json)$/;
-const SKIP = new Set(['/404.html', '/_headers', '/_redirects', '/en/404.html']);
+const SKIP = new Set(['/404.html', '/_headers']);
 
 /**
  * Where a built file is actually requested.

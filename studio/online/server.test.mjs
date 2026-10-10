@@ -302,7 +302,7 @@ test('verified publication writes status and first date only; receipt is authent
   const receipt = signature => f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: payload, headers: { 'x-studio-signature': signature } }), f.env);
   assert.equal((await receipt('0'.repeat(64))).status, 403);
   const signature = await signReceipt(f.env.STUDIO_SECRET, payload); assert.equal((await receipt(signature)).status, 409);
-  f.deploy(); await jsonOk(receipt(signature));
+  f.deploy(); assert.equal((await jsonOk(receipt(signature))).release, true);
   assert.equal(f.properties.get(CARD).Status, 'published');
   assert.equal(f.properties.get(CARD)['Publish Date'], undefined);
   f.properties.get(CARD)['Publish Date'] = { start: '2025-02-03T00:00:00.000Z' };
@@ -310,6 +310,13 @@ test('verified publication writes status and first date only; receipt is authent
   const expired = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: 1 });
   assert.equal((await f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: expired, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, expired) } }), f.env)).status, 403);
   assert.equal(publicationDate(new Date('2026-09-20T21:30:00Z')), '2026-09-21');
+});
+
+test('a deploy without a dashboard publication says so instead of confirming one', async () => {
+  const f = await setup(); f.deploy();
+  const payload = JSON.stringify({ commitSha: f.refs.get('main'), timestamp: Date.now() });
+  const body = await jsonOk(f.handler(new Request('https://ethanchang.io/dashboard/api/deployed', { method: 'POST', body: payload, headers: { 'x-studio-signature': await signReceipt(f.env.STUDIO_SECRET, payload) } }), f.env));
+  assert.deepEqual(body, { pending: 0, release: false });
 });
 
 test('deployment receipt finishes large status writeback across bounded requests', async () => {
@@ -551,7 +558,7 @@ test('hiding a site page omits it from the nav file and leaves the card alone', 
 
 test('MCP pagination reads every numbered line and rejects incomplete lists', async () => {
   const full = Array.from({ length: 451 }, (_, i) => `line ${i + 1}`);
-  const client = { async call(name, args) { return { content: full.slice(args.offset, args.offset + 200).map((line, i) => `${args.offset + i + 1}\t${line}`).join('\n'), totalLines: full.length, hasMore: args.offset + 200 < full.length }; } };
+  const client = { async call(_name, args) { return { content: full.slice(args.offset, args.offset + 200).map((line, i) => `${args.offset + i + 1}\t${line}`).join('\n'), totalLines: full.length, hasMore: args.offset + 200 < full.length }; } };
   assert.equal(await readCard(client, 'card'), full.join('\n'));
   await assert.rejects(() => blogCards({ call: async (name) => ({ content: name === 'list_tags' ? '<tag id="blog" name="blog" cardCount="2" />' : '' }) }), /数量/);
   const blog = 'dba5b41b-67a4-4ca5-a794-2fae3dc51786', ref = '87e9b69a-a568-4d28-bc82-24b7586cd70b', card = '6353c916-e0a9-4a0d-aa07-7a3512b72e92';
