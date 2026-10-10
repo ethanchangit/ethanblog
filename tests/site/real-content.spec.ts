@@ -23,10 +23,13 @@ function internalLinks(html: string): string[] {
   return [...out];
 }
 
+/** Same filter as Nav.astro: a published site page that is not a translation and not a reference page. */
 function published(id: string): boolean {
   const file = `src/content/pages/${id}.mdx`;
-  if (!existsSync(file)) return false;
-  return !/^draft:\s*true\s*$/m.test(readFileSync(file, 'utf8').split(/^---\s*$/m)[1] ?? '');
+  if (id === 'blogs' || !existsSync(file)) return false;
+  const frontmatter = readFileSync(file, 'utf8').split(/^---\s*$/m)[1] ?? '';
+  const field = (key: string) => new RegExp(`^${key}:\\s*["']?([^"'\\n]*)["']?\\s*$`, 'm').exec(frontmatter)?.[1]?.trim();
+  return field('draft') !== 'true' && !field('translationOf') && field('heptabaseType') !== 'reference';
 }
 
 test('every sitemap page answers 200 and every internal link on it resolves', async ({ request }) => {
