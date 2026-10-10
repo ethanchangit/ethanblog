@@ -1,0 +1,42 @@
+---
+slot: "project"
+heptabaseCardLink: "heptabase://card/3c01188b-3b8d-4420-ae72-4a8b943e818a"
+title: "Networks"
+description: "卡片既是文件夹也是文档的笔记工具"
+status: "archived"
+order: 30
+stack:
+  - "Electron"
+  - "React"
+  - "TypeScript"
+platforms:
+  - "macOS"
+  - "Windows"
+repo: "https://github.com/ethanchangit/network"
+demo:
+  src: "/demos/network/"
+  height: "480px"
+featured: true
+---
+
+import { InteractiveDemo } from '@/components/media';
+
+我的第三个项目。简单来说，我希望把它做成一个 Heptabase，但每一张卡片的能力都被强化——既可以作为文件夹，也可以作为文档。规划中有 5、6 种不同类型的卡片，包括 Excalidraw、Whiteboard、普通卡片等。
+
+这也是我第一个认真**发布**的桌面笔记工具。核心赌注很简单：重度写作者愿意为了速度，把双手永远放在键盘上。整款产品围绕**卡片**组织——每张卡片是一个独立的 Markdown 单元，方向键在卡片间跳转，Enter 进入编辑，Esc 保存退出。这不是装饰性的「卡片 UI」，而是内容的数据模型：笔记天然被切成可搬运、可链接、可重组的块。
+
+它验证了两件事：卡片作为内容单元是成立的；键盘导航可以覆盖从浏览到编辑的完整闭环。后者后来被 [Chunk](/chunk) 直接继承。
+
+<InteractiveDemo
+  client:visible
+  src="/demos/network/"
+  title="Networks · 早期原型切片"
+  height="480px"
+  caption="演示包展示的是早期键盘导航原型，与最终愿景并非同一产品。"
+/>
+
+## 为什么停下来了
+
+我发现自己的开发过分发散，直接做崩溃了。以当时的精力与时间，只能支持做好一个单一的 card + folder 机制；而完整愿景的难度要大得多，必须将多种卡片类型与 folder/card 机制统一协调——这超出了我当时的承载能力。
+
+项目暂停，但「一条笔记既是 folder 也是 document」的结构设计，延续到了后来的 Robert。

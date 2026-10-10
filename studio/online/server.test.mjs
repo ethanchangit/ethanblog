@@ -240,6 +240,14 @@ test('submit never overwrites changes made directly in GitHub or leaks content i
   assert.equal(gitWrites(f).length, 0);
 });
 
+test('the frozen test site in tests/fixtures is not a second file for the same card', async () => {
+  const f = await setup();
+  f.remote(article, 'tests/fixtures/site/content/articles/example.mdx');
+  f.remote(article, 'tests/fixtures/site/content/articles/duplicate.mdx');
+  await preview(f); // a second linked file inside src/content is refused with 409 (连着多篇文章)
+  assert.doesNotMatch(JSON.stringify(await jsonOk(f.request('/docs'))), /fixtures/);
+});
+
 test('required and one-to-one card link is enforced even for corrupted stored snapshots', async () => {
   const f = await setup(); await prepare(f);
   const row = f.DB.sqlite.prepare('SELECT raw FROM studio_drafts WHERE path = ?').get(PATH);

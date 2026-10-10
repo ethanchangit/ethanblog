@@ -1,0 +1,46 @@
+---
+slot: "project"
+heptabaseCardLink: "heptabase://card/e62c9a4b-90c5-46aa-a182-d3b1e2042086"
+title: "Robert"
+description: "带 robert agent 的个人上下文管理器"
+status: "active"
+order: 40
+stack:
+  - "SwiftUI"
+  - "GRDB"
+  - "LLM"
+  - "Cloudflare Workers"
+platforms:
+  - "iOS 17+"
+repo: "https://github.com/ethanchangit/robert"
+demo:
+  src: "/demos/robert/"
+  height: "520px"
+featured: true
+---
+
+import { InteractiveDemo } from '@/components/media';
+
+我的第四个项目。名称来自「管家」——我想让它做我们的 personal context manager。
+
+与桌面端的 [Networks](/network) 并行，Robert 把**语音**放在第一入口——受 flomo 启发，但记录的摩擦力更低：语音进来，Whisper 转写，再落成块级卡片。记录越容易，捕获的想法越多。
+
+它和 Network 一个管口袋、一个管桌面，却在同一条线上：都在问怎样让知识以**块**的形式流入系统，而不是以文档的形式堆在文件夹里。这条低摩擦捕获，后来被 [Chunk](/chunk) 吸收。
+
+## 结构设计
+
+笔记结构沿用 Networks 中的设计：一条笔记可以有多个 parent card，每一条笔记既是一个 folder 也是一个 document。它既可以用来存储笔记内容，也可以用来导航、探索并找到笔记。
+
+## robert agent
+
+多个 parent card 过分灵活：如果由用户手动匹配这些 parent，就相当于原来只需要给一条笔记找一个 folder，现在需要找多个 folder——会带来非常大的阻力和使用疲惫。
+
+因此我们引入了 robert agent，尝试创建一种异步 agent 确认机制，跟用户达成哪些内容需要保留和不保留的共识。设计的思路是：每天晚上 agent 会获取一部分用户给定的 context，结合它已知的信息进行结构探索。比如用户原来就有一些编程笔记的 card，今天写了 5 条编程心得，agent 读完后会想到以前创建的「编程笔记」，然后发送一条确认：是否要将这 5 张卡片连接为「编程笔记」的子卡片。
+
+<InteractiveDemo
+  client:visible
+  src="/demos/robert/"
+  title="Robert · 交互原型"
+  height="520px"
+  caption="演示包展示的是早期交互切片，核心方向是 agent 辅助的上下文整理。"
+/>

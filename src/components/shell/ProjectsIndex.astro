@@ -20,6 +20,8 @@ const projects = (await docsBySlot('project'))
   (a, b) => a.data.order - b.data.order || a.id.localeCompare(b.id),
 );
 const bySlug = Object.fromEntries(projects.map((p) => [p.id, p]));
+// Edges are hand-written slugs; a project taken down in Heptabase drops its edges instead of leaving a dead link.
+const edges = lineageEdges.filter((edge) => bySlug[edge.from] && bySlug[edge.to]);
 
 const timelineItems = projects.map((project) => ({
   title: project.data.title,
@@ -58,23 +60,24 @@ const timelineItems = projects.map((project) => ({
       captionEn="Listed in each project's existing order. Some were brewing in parallel; the direction of inheritance is still clear."
     />
 
-    <p><I18n k="projectsEdgesIntro" /></p>
-
-    <ul>
-      {
-        lineageEdges.map((edge) => (
-          <li>
-            <a href={lp(projectHref(edge.from))}>
-              {bySlug[edge.from]?.data.title ?? edge.from}
-            </a>
-            {' → '}
-            <a href={lp(projectHref(edge.to))}>{bySlug[edge.to]?.data.title ?? edge.to}</a>
-            {'：'}
-            <Bi zh={edge.carries} />
-          </li>
-        ))
-      }
-    </ul>
+    {
+      edges.length > 0 && (
+        <>
+          <p><I18n k="projectsEdgesIntro" /></p>
+          <ul>
+            {edges.map((edge) => (
+              <li>
+                <a href={lp(projectHref(edge.from))}>{bySlug[edge.from].data.title}</a>
+                {' → '}
+                <a href={lp(projectHref(edge.to))}>{bySlug[edge.to].data.title}</a>
+                {'：'}
+                <Bi zh={edge.carries} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )
+    }
   </div>
   </>
 </article>

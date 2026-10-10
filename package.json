@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node studio/online/build-site.mjs && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs && node scripts/release-manifest.mjs",
+    "build": "npm run build:fixtures && astro build && node studio/online/build-site.mjs && node scripts/patch-routes.mjs && node scripts/wrap-worker.mjs && node scripts/release-manifest.mjs",
+    "build:fixtures": "BLOG_FIXTURES=1 astro build",
     "build:dashboard": "node studio/online/build-site.mjs",
     "dashboard:password": "node studio/online/password.mjs",
     "preview": "node --experimental-strip-types scripts/preview.mjs",

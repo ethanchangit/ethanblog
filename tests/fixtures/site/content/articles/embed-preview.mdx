@@ -1,0 +1,28 @@
+---
+slot: "article"
+heptabaseCardLink: "heptabase://card/94ad2cf6-2167-4735-934f-b9f961de2cc7"
+title: "引用预览：一条推文和一支视频"
+description: "同一页里嵌一条 X 帖子和一支 YouTube 视频，核对 TweetEmbed 与 VideoEmbed 的排版。"
+date: "2026-08-18"
+tags:
+  - "媒介"
+---
+
+import { TweetEmbed, VideoEmbed } from '@/components/media';
+
+这页只做一件事：把两种外部引用放在同一篇文章的阅读流里，看它们和正文排版怎么相处。
+
+先是一条 X 上的原帖，用自绘卡片完整展开正文：
+
+<TweetEmbed
+  url="https://x.com/gkxspace/status/2089292652940333288"
+/>
+
+再是一支 YouTube 视频，用官方播放器：
+
+<VideoEmbed
+  provider="youtube"
+  id="H35nVgNGyo8"
+  title="对话前DeepMind曹原：AI for Science爆发，一个新时代到来了"
+  caption="硅谷101。"
+/>

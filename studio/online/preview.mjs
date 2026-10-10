@@ -34,6 +34,9 @@ const vite = await createViteServer({
   configFile: false,
   appType: 'custom',
   logLevel: 'error',
+  // Parallel simulators must not share one dependency pre-bundle cache: one re-bundling while another
+  // serves leaves the page stuck at loading. Playwright passes one directory per worker.
+  ...(process.env.STUDIO_PREVIEW_CACHE ? { cacheDir: process.env.STUDIO_PREVIEW_CACHE } : {}),
   plugins: [
     tailwindcss(),
     {

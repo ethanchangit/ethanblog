@@ -6,12 +6,18 @@ import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import { remarkHeptabaseMentions } from './plugins/remark-heptabase-mentions.mjs';
 import { studioIntegration } from './studio/plugin.mjs';
+import { FIXTURE_SITE, OUT_DIR, PAGE_ORDER_FILE } from './src/lib/content-root.mjs';
+import { fileURLToPath } from 'node:url';
 
 // https://astro.build/config
 export default defineConfig({
   // One English blog at ethanchang.io. cn.ethanchang.io redirects here.
   site: 'https://ethanchang.io',
   output: 'static',
+  // BLOG_FIXTURES=1 builds the frozen test site into dist-fixtures/ (src/lib/content-root.mjs).
+  // Its own cache keeps the two content stores apart.
+  outDir: OUT_DIR,
+  ...(FIXTURE_SITE ? { cacheDir: './node_modules/.astro-fixtures' } : {}),
   adapter: cloudflare({
     imageService: 'compile',
     routes: {
@@ -30,6 +36,9 @@ export default defineConfig({
   integrations: [mdx({ remarkPlugins: [remarkHeptabaseMentions] }), svelte(), studioIntegration()],
   vite: {
     plugins: [tailwindcss()],
+    ...(FIXTURE_SITE
+      ? { resolve: { alias: [{ find: /^@\/data\/page-order$/, replacement: fileURLToPath(PAGE_ORDER_FILE) }] } }
+      : {}),
   },
   markdown: {
     shikiConfig: {

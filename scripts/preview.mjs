@@ -16,7 +16,9 @@ import {
 import { fallbackFor, routeRequest } from '../src/lib/hosts.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.resolve(here, '../dist');
+// --dist dist-fixtures serves the frozen test site (npm run build:fixtures).
+const distFlag = process.argv.indexOf('--dist');
+const dist = path.resolve(here, '..', distFlag > -1 ? process.argv[distFlag + 1] : 'dist');
 
 const NOT_FOUND_MD = `# 404 — page not found
 

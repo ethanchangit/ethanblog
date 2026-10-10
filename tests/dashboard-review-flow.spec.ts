@@ -1,10 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 let process: ChildProcess, url: string;
 test.beforeEach(async () => {
   process = spawn(globalThis.process.execPath, ['studio/online/preview.mjs'], {
-    env: { ...globalThis.process.env, STUDIO_PREVIEW_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...globalThis.process.env, STUDIO_PREVIEW_PORT: '0', STUDIO_PREVIEW_CACHE: path.join(tmpdir(), 'ethanblog-dashboard-vite', String(test.info().workerIndex)) }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   url = await new Promise((resolve, reject) => {
     let output = '';
@@ -22,7 +24,8 @@ async function openLocal(page: Page) {
   await page.goto(url);
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await expect(page.getByLabel('后台密码')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Audit', exact: true })).toBeVisible();
+  // The first simulator in a worker pre-bundles dependencies into that worker's cache before it can paint.
+  await expect(page.getByRole('heading', { name: 'Audit', exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: '拉取最新更新', exact: true })).toBeVisible();
 }
 

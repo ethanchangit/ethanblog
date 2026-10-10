@@ -1,6 +1,7 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { RESERVED_URLS } from '@/lib/routes';
+import { CONTENT_BASE } from './lib/content-root.mjs';
 
 /**
  * 文章与项目共用同一份 MDX 形态。
@@ -67,17 +68,17 @@ const docSchema = z
   });
 
 const articles = defineCollection({
-  loader: glob({ pattern: '**/*.mdx', base: './src/content/articles' }),
+  loader: glob({ pattern: '**/*.mdx', base: `${CONTENT_BASE}/articles` }),
   schema: docSchema,
 });
 
 const projects = defineCollection({
-  loader: glob({ pattern: '**/*.mdx', base: './src/content/projects' }),
+  loader: glob({ pattern: '**/*.mdx', base: `${CONTENT_BASE}/projects` }),
   schema: docSchema,
 });
 
 const pages = defineCollection({
-  loader: glob({ pattern: '**/*.mdx', base: './src/content/pages' }),
+  loader: glob({ pattern: '**/*.mdx', base: `${CONTENT_BASE}/pages` }),
   schema: z.object({
     title: z.string(),
     description: z.string(),
