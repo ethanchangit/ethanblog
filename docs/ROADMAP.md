@@ -3,7 +3,7 @@
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
 > 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
-> 当前操作：写作在 Heptabase；`#blog` 的 Blog Type 是 Article、Project、Page，被提到的卡片打 `references` 标签；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。公开站只有英文外壳的 ethanchang.io，页面就是 `#blog` 卡片原文；cn.ethanchang.io 跳到同一路径。agent 不再用 `/publish`、`/infra` 触发词，也没有 `CLAUDE.md`。
+> 当前操作：写作在 Heptabase；`#blog` 的 Blog Type 是 Article、Project、Page，被提到的卡片打 `references` 标签；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。公开站只有英文外壳的 ethanchang.io，页面就是 `#blog` 卡片原文，英文在前、底部 `## 中文` 一节放中文版；cn.ethanchang.io 跳到同一路径。agent 不再用 `/publish`、`/infra` 触发词，也没有 `CLAUDE.md`。
 >
 > 2026-09：`/lab` 以及没有文章或项目在用的原型已经删除（Sandpack、Scene3D、ImageGallery、滚动剧场、反应式散文、本地编辑器、`public/demos/knowledge-garden`）。还在用的组件以 media/README 为准。下面的阶段清单是当时的记录。
 
