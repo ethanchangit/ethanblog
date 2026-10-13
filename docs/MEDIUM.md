@@ -1,46 +1,15 @@
-# MEDIUM.md —— 媒介创作规范（v2）
+# MEDIUM.md —— 媒介创作规范（v3）
 
-> **这是 Ethan Chang 的个人博客**：中文 https://cn.ethanchang.io ，英文 https://ethanchang.io 。
-> 日常写作在 Heptabase。本文规定 agent 在收到 `/publish` 时，如何把手里的素材
-> ——一段对话、一份笔记、一篇文章草稿——转成 MDX 页面。
-> 新建或更新要有真实的 `heptabaseCardLink`，之后的审查和发布走 `/dashboard`，不在这里改线上正文。
-> 可执行的分步操作清单在 [.claude/skills/publish/SKILL.md](../.claude/skills/publish/SKILL.md)；
+> **这是 Ethan Chang 的个人博客** https://ethanchang.io （只有英文站，cn.ethanchang.io 跳到同一路径）。
+> 写作在 Heptabase，审核和发布走 `/dashboard`，公开页面就是 `#blog` 卡片原文。
+> 本文记录站点的媒介观、组件怎么选、MDX 的页面接口和模板：后台生成的 MDX 要符合它，手工给文章接组件、写测试页时也照它来。
 > 强制性技术约束见 [AGENTS.md](../AGENTS.md)，组件契约见
 > [src/components/media/README.md](../src/components/media/README.md)，本文不复述、只引用。
 
-## 0. 触发约定
-
-创作者与 agent 用消息**首行**的触发词声明意图。`/publish`（或 `发布：`）= 把给出的素材转成 MDX，走本文流水线；`/infra`（或 `基建：`）= 改网站基建，见 [AGENTS.md](../AGENTS.md) 任务路由。写作本身在 Heptabase，`/studio` 不是写作应用。
-
-### 用户模板
-
-```markdown
-/publish
-
-slug: my-slug           # 可选；省略则由 title 生成
-draft: true             # 默认 true
-
----
-（对话记录、bullet 笔记、blog 草稿等原始素材）
-```
-
-`---` 上方为可选 YAML 头，下方为原始素材。需要新媒介组件时，在 YAML 头加 `allow-new-component: true`（默认禁止，见 [AGENTS.md](../AGENTS.md)）。
-
-### Agent 检查清单（收到 `/publish` 后）
-
-**按 [.claude/skills/publish/SKILL.md](../.claude/skills/publish/SKILL.md) 的十步清单逐步执行**——那是本文流水线的可执行形态。速查：
-
-- **落盘路径**：文章 → `src/content/articles/<slug>.mdx`；项目页（用户明确说「项目」）→ `src/content/projects/<slug>.mdx`。对外路由 `/articles/<slug>`、`/projects/<slug>`。
-- **提交前验证四连**：`npm run validate:content && npm run check && npm run build && npm run test`。
-
-无前缀但意图明显是创作时，agent 仍应走流水线，但**优先建议用户下次使用 `/publish`**。
-
 ## 1. 这份文档是什么
 
-**这是 Ethan Chang 的个人博客**，附带可选的交互组件。文章在 Heptabase 里写成卡片。agent 只在被要求 `/publish` 时，把给出的素材转成 MDX，需要时再升档为可操作的实证。
-
-转化的目标不是"加特效"，而是在论点需要时让读者**亲手操作、亲眼验证**；
-默认档位永远是安静的文字。
+**这是 Ethan Chang 的个人博客**，附带可选的交互组件。文章在 Heptabase 里写成卡片，默认档位永远是安静的文字。
+需要时才升档为可操作的实证：目标不是"加特效"，而是在论点需要时让读者**亲手操作、亲眼验证**。
 
 ### 六条研究原则
 
@@ -79,34 +48,11 @@ draft: true             # 默认 true
 
 ## 3. 文章就是文章
 
-本站不再区分 notebook / essay / interactive 档位，也没有研究线路由。
-一篇 MDX 就是一篇 `/articles/<slug>`。要不要嵌交互组件，按 §5 决策表逐论点判断，
-不写 `kind`。
+本站不区分 notebook / essay / interactive 档位，也没有研究线路由。
+一篇 MDX 就是一篇 `/<slug>`。要不要嵌交互组件，按 §4 决策表逐论点判断，
+不写 `kind`。记录过程、尝试、失败的也写成文章，半成品判断留在正文里，不另开编号笔记。
 
-**判定清单**（转化输入时逐条问）：
-- 有明确结论且经得起引用 → 写成文章
-- 记录的是过程、尝试、失败、中间状态 → 仍写成文章；半成品判断留在正文里，不要另开编号笔记
-- 拿不准 → `draft: true` 先放着
-
-## 4. 转换流水线（The Pipeline）
-
-把"对话/笔记/文章"变成本站页面的固定六步：
-
-1. **识别输入类型**：chat（对话记录）/ notes（个人笔记）/ blog（文章草稿）/ mixed。
-   按 §8 的对应专则处理——不同素材的"翻译腔"不同。
-2. **提炼论点清单**：从输入中列出 3-8 个论点/发现/情节节点。保留创作者的原话与语气——
-   转化的是形式，不是观点。
-3. **逐论点选档**：对每个论点查 §5 决策表。默认档位是文字；只有当"亲手操作能替代
-   一段解释"时才升档。一篇文章通常 1-3 个交互组件就够，超过 4 个要自我怀疑。
-4. **写 frontmatter**：用 §11 模板。description 即摘要（≤80 字、可检验的陈述，
-   它会渲染成页面摘要块与 RSS 描述）。
-5. **组装正文**：从 `@/components/media` 导入组件；Svelte 组件写 `client:visible`
-   （`Timeline` / `InteractiveDemo`）。
-   `RuleGarden` / `VideoEmbed` / `TweetEmbed` / `SideNote` / `RuleTarget` / `DocList` / `DocRef`
-   是 Astro 组件，不写 `client:`。
-6. **QA**：提交前验证四连（§10）。
-
-## 5. 组件选用决策表
+## 4. 组件选用决策表
 
 **论点类型 → 组件**（第一列是你在输入里识别到的东西）：
 
@@ -134,7 +80,7 @@ draft: true             # 默认 true
 - 词槽是下拉，不做自由文本；禁规则链（引擎层已禁止）。
 - 一篇文章至多一个 RuleGarden。
 
-## 6. 页面接口规范
+## 5. 页面接口规范
 
 Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 
@@ -145,49 +91,19 @@ Story 布局自动提供论文式接口，创作时只需喂对 frontmatter：
 - **标签**：`tags` 渲染在摘要下方。
 - **SideNote 纪律**：每屏至多一条；只放"删掉不影响论证，读到会心一笑"的内容。
 
-## 7. 可见性原则
+## 6. 可见性原则
 
 Realtalk：程序印在物体上。规则花园把规则写在它作用的物件旁边。不要向读者注入组件源码。
 
-## 8. 输入类型转换专则
+## 7. 语言与调性
 
-流水线第 1 步识别的输入类型，各有专门的翻译方法：
-
-### chat（对话记录）
-
-对话是本站最常见的剧本形态，翻译时**先区分两种声音**：
-
-- **人声**：创作者在对话中的判断、选择、原话——保留为正文（ink 色）。
-  转化的是形式，不是观点；创作者说过的关键句子尽量原样保留。
-- **机器声**：AI 在对话中补充的计算、推演、数据、反例——能收成一句就写进正文，离题的补充放 `SideNote`。
-- **对话的往返结构不保留**。一问一答是思考的脚手架，不是结论的形态——只提炼论点。
-  （原生承载对话往返的 `Transcript` 组件在 Batch 2 蓝图中，见 ROADMAP。）
-
-### notes（个人笔记）
-
-- bullet 群先**聚类成 3–8 个论点**，再走流水线；笔记的碎片感不该带进成稿。
-- 半成品判断、未验证的直觉可以写进正文，用 `draft: true` 先放着。
-- 数字类 bullet（"每天 X 就能 Y"）写成正文里的句子。
-
-### blog（文章草稿）
-
-- 结构已在，转换以**升档植入**为主：找出草稿里"用文字硬讲参数关系/对比/因果"的段落，
-  逐段查 §5 决策表替换为对应媒介。
-- **不重写作者语气**；只动被升档的段落，其余原样保留。
-
-### mixed（混合素材）
-
-按占比最大的类型走对应专则，其余素材作为补充。
-
-## 9. 语言与调性
-
-- 正文写中文；译文是 `#blogi18n` 里的独立卡片，不写进同一个文件。不要写 `titleEn` / `descriptionEn`，不要插入语言分隔标记。技术名词、代码和引用保留原文。
+- 公开页面就是 `#blog` 卡片原文，卡片里写什么语言、什么双语版式，页面就是什么。一篇只有一个文件，不写 `titleEn` / `descriptionEn`，不插入语言分隔标记。技术名词、代码和引用保留原文。
 - 宣言式短段落；第二人称克制使用；每个抽象论点尽快落到一个可操作的实证。
 - `SideNote` 也用创作者语气写。它离开正文，不靠文风突变。
 - 范本：现有文章（调性）。
-- 转化对话输入时**保留创作者的用词与判断**；agent 补的是结构和媒介，不是观点。
+- agent 不改写创作者的用词与判断；要动的只有结构和媒介。
 
-## 10. 强制约束与验证
+## 8. 强制约束与验证
 
 技术红线全部在 [AGENTS.md](../AGENTS.md)（token-only 配色、极简无边框/无色块、无 JS 降级、注水指令、
 props 可序列化、reduced-motion、`.media-frame` 仅作间距与图注），组件契约在
@@ -205,21 +121,21 @@ error 挡提交；draft 文件的 error 自动降级为 warning（草稿是工�
 ### 图片落盘
 
 内容配图放 `public/media/<collection>/<slug>/`，MDX 里写 `/media/<collection>/<slug>/…`。
-不要用外部图床。Lab 共用夹具可以留在 `public/media/` 根下（如 `compare-before.svg`）。
+不要用外部图床。
 
 ### 页面架构
 
-固定页（手写 Astro）：`/`（身份/原 About）、`/now`、`/articles`、`/projects`、`/blogs`。详情页是同一套 MDX 文档形态，
+固定页：`/`（文章列表）、`/about`、`/now`、`/articles`、`/projects`、`/blogs`、`/tags`。详情页是同一套 MDX 文档形态，
 用 frontmatter `slot: article | project` 决定出现在哪份索引（不是 topical `tags`）。
 落盘仍可分 `articles/` 与 `projects/` 两个文件夹，只是方便；列表与路由按 `slot` 过滤。
 两份索引共用 `Card.astro` 行（标题下划线 + meta 变色）；
 `/projects` 可以在列表上方写传承导语与时间线，不要把项目长文堆在索引上。
 `/blogs` 不是第三个 slot，而是 `src/content/pages/blogs.mdx` 里用 `<DocRef of="articles/…" />` 手工引用已有文档。
-对外路由只有 `/articles` 与 `/articles/<slug>`，没有 `/stories` 兼容层。
+单篇在站点根路径 `/<slug>`；旧的 `/articles/<id>`、`/projects/<id>` 由 `src/lib/routes.ts` 的 `legacyContentRedirect` 301 过来。
 系列教程把总览放 `articles/<hub>.mdx`（进 `/articles`），子页放 `articles/<hub>/<n>.mdx`
-（路由 `/articles/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。总览上的篇目卡片在 `<hub>.mdx` 里用 `DocList` + `DocRef` 手写，不从文件夹生成。`listed: false` 可把顶层文章也藏起来。
+（路由 `/<hub>/<n>`，默认不进列表 / 标签 / 搜索 / RSS）。总览上的篇目卡片在 `<hub>.mdx` 里用 `DocList` + `DocRef` 手写，不从文件夹生成。`listed: false` 可把顶层文章也藏起来。
 
-## 11. 附录：模板
+## 9. 附录：模板
 
 **文章**（放 `src/content/articles/<slug>.mdx`）：
 
@@ -236,7 +152,7 @@ heptabaseCardLink: heptabase://card/00000000-0000-4000-8000-000000000000
 ---
 ```
 
-只写一份中文正文。`heptabaseCardLink` 必须是 Heptabase 里真实存在的卡片，不能照抄上面的占位符，也不能编造。图片放 `public/media/articles/<slug>/`。
+只写一份正文。`heptabaseCardLink` 必须是 Heptabase 里真实存在的卡片，不能照抄上面的占位符，也不能编造。图片放 `public/media/articles/<slug>/`。
 
 **项目**（放 `src/content/projects/<slug>.mdx`；同一套字段，`slot` 决定出现在 `/projects`）：
 
@@ -300,5 +216,5 @@ import { DocList, DocRef } from '@/components/media';
 `/blogs` 的名单改 `src/content/pages/blogs.mdx`，同一套语法。
 
 **新媒介组件准入**：满足 media/README 六条契约 → 接到用到它的文章或项目
-→ 补测试 → 更新 README 目录表与本文 §5 决策表
+→ 补测试 → 更新 README 目录表与本文 §4 决策表
 → **同步 `scripts/validate-story.mjs` 的组件清单**（SVELTE_ISLANDS / ASTRO_ONLY）。
