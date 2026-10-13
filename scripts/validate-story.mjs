@@ -4,7 +4,7 @@
  * 检查 src/content/articles 与 src/content/projects 中 astro check（schema）
  * 查不到的创作规约：主标题、摘要、正文、slot、注水指令、组件用法。
  * 不要求英文标题、摘要或正文副本。
- * 规则清单与 docs/MEDIUM.md / .claude/skills/publish/SKILL.md 保持同步。
+ * 规则清单与 docs/MEDIUM.md 保持同步。
  *
  * 分级：error 挡 CI（exit 1）；warning 只提醒。draft: true 的文件是工作台，
  * 其全部 error 降级为 warning。

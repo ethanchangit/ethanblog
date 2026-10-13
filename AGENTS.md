@@ -3,7 +3,7 @@
 > **这是 Ethan Chang（张峻源）的个人博客**，只有英文站 https://ethanchang.io 。cn.ethanchang.io 会跳到同一路径。
 > 框架是 Astro 5、Svelte 5、MDX、Tailwind CSS v4。Cloudflare Pages 项目名 `ethanblog`。
 > 创作规范：[docs/MEDIUM.md](docs/MEDIUM.md)。后台操作与恢复：[docs/STUDIO.md](docs/STUDIO.md)。
-> 本文件是强制约束。`.claude/skills/publish/SKILL.md` 与 `.cursor/rules/` 跟这里走。仓库没有 `CLAUDE.md`，也没有根目录 README。
+> 本文件是强制约束，Claude、Cursor、Codex 都读它。仓库没有 `CLAUDE.md`、`.cursor/rules/` 或项目 skill，也没有根目录 README。
 
 ## 用法上下文
 
@@ -12,33 +12,17 @@
 - 卡片 id：`60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
 - 打开：`heptabase://card/60e2701a-4374-4bf7-9f4e-4d1d674aed8f`
 
-这张卡说明怎么在这个博客里工作：Heptabase 是写作来源，网站呈现卡片，`/dashboard` 负责审核和发布。它也说明框架实际读取的每个属性是什么意思，包括 slug、Language、Status（含 `blocked`）、Summary、Remark、Tag，以及代码还会读的其他字段。
+这张卡说明怎么在这个博客里工作：Heptabase 是写作来源，网站呈现卡片，`/dashboard` 负责审核和发布。它也说明框架实际读取的每个属性是什么意思，包括 slug、Status（含 `blocked`）、Summary、Remark、Tag，以及代码还会读的其他字段。
 
 **项目的用法逻辑变了，就在同一次改动里更新这张卡。** 用法逻辑包括怎么工作，以及框架如何读取、写回每一个属性。同一次改动里改仓库说明，也改这张卡，后来的 agent 才读得到当前约定。
 
-## 任务路由
+## 改动范围
 
-用户消息**首行**的触发词决定任务类型。读到触发词后按对应模式执行，不要混用。
+正文只来自 Heptabase，经 `/dashboard` 审核后由后台的内容 PR 发布（见下文「`/dashboard`」）。agent 的工作是网站程序：组件、布局、样式、API、后台、测试、部署和文档。
 
-| 触发词 | 模式 | 必读 | 允许改动 |
-|---|---|---|---|
-| `/publish`、`发布：` | 内容创作 | [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md)（可执行清单）+ [docs/MEDIUM.md](docs/MEDIUM.md)（创作规范） | `src/content/articles/`、`src/content/projects/` |
-| `/infra`、`基建：` | 网站基建 | 本文 + [media/README.md](src/components/media/README.md) | `src/components/`、`src/lib/`、`src/pages/`、`plugins/` 等 |
-
-**`/publish`（内容创作）硬性约束**：
-
-- **禁止**新建或修改组件、布局、样式、API、测试基建；除非用户在同条消息写明 `allow-new-component: true`
-- 新页面默认 `draft: true`
-- 正文写中文（`#blog` 原文）。译文不写进同一个文件，而是 `#blogi18n` 里的独立卡片，由后台发布（见下文「两种语言」）。定稿要有标题、摘要、正文和 `slot`（`article` / `project`）。不要写 `titleEn` / `descriptionEn`，不要插入 `<div data-lang-split>`。技术名词、代码和引用保留原文。
-- 新建或更新须关联真实 `heptabaseCardLink`（`heptabase://card/<uuid>`）。不能编造。历史页可以暂时没有链接继续展示，更新前要补上。
-- 系列子文放 `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`）；子文默认不进 `/articles`
-- 操作细则见 [.claude/skills/publish/SKILL.md](.claude/skills/publish/SKILL.md) 与 [MEDIUM.md §0](docs/MEDIUM.md#0-触发约定)
-
-**`/infra`（网站基建）硬性约束**：
-
-- **禁止**创建或改写 story / project 正文，除非用户明确要求
-
-**无前缀时的默认路由**：措辞像「写成 story / 记笔记 / 把对话发出来」→ 内容创作；像「修组件 / 加 API / 部署挂了」→ 基建。歧义时先问一句。
+- 不在 `src/content/` 里创建或改写文章、项目和站点页正文，除非 Ethan 明确要求；正文要改，去 Heptabase 改卡片，再走后台发布。
+- 确实要手写内容文件时（例如 Ethan 要求给某篇接上交互组件）：新页面默认 `draft: true`；关联真实的 `heptabaseCardLink`（`heptabase://card/<uuid>`），不能编造；系列子文放 `src/content/articles/<hub>/<n>.mdx`（总览是 `<hub>.mdx`），子文默认不进 `/articles`。frontmatter 和组件用法见 [docs/MEDIUM.md](docs/MEDIUM.md)。
+- 历史页可以暂时没有 `heptabaseCardLink` 继续展示，更新前要补上。
 
 ## 样式约束（极简博客）
 
@@ -71,7 +55,8 @@ Heptabase 是写作来源。GitHub `main`（`ethanchangit/ethanblog`）是网站
 ### 英文站
 
 - 公开站点只有英文。`#blog` 卡片仍是身份：状态、日期、标签、摘要、URL 以它为准。公开 `/tags` 只读这些卡片的 Tag，平铺显示，不分组。
-- 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括英文 bullet 下面缩进的中文。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
+- 内容是英文。卡片先写完整的英文正文，再在底部用 `## 中文` 开一节，按同样顺序放中文版（英文 10 个 block，下面就是对应的 10 个中文 block）。标题行只写英文。早先英文段落下紧跟中文的卡片，改写前仍按原样发布。
+- 发布出去的页面就是 `#blog` 卡片原文：标题和正文按卡片所写保留，包括底部的中文一节。不把 `#blogi18n` 的英文卡片抽出来替换这一页，也不另建 `/en` 或 `/zh` 文章树。
 - 被提到的卡片打上 Heptabase 标签 `references`。引用页从这张标签读取，不从 Blog Type 的 Reference 选项读取。已经是文章、项目或站点页的卡片也可以同时带这个标签，不改它的 Blog Type。卡片正文末尾写 `## Mentioned by`，列出提到它的卡片标题和 id，不把这些行再当成新的 mention。
 - `slug` 就是地址，放在站点根路径：slug 是 `toolset` 时，页面在 `https://ethanchang.io/toolset`，文件是 `src/content/articles/toolset.mdx`。文章已经发布、而卡片 slug 和现有文件名不同时，之后每次发布都把文件搬到这个 slug，旧文件名和旧 slug 写入 frontmatter 的 `aliases`，站点从这些旧地址 301 到新地址。目录里的 DocRef 可以继续写旧 id。另一张卡片已经占用这个 slug、slug 撞上固定地址，或同一张卡片连着多份文件时，停下并报冲突。译文的 URL 为空或与原文相同；不同就停下。没写 URL 的文章、项目和站点页也在 `/<id>`。`/articles` 和 `/projects` 仍是列表。旧的 `/articles/<id>`、`/projects/<id>`、`/pages/<id>` 转到 `/<id>`，旧分页 `/articles/<n>` 和 Hugo 时代的 `/posts/*` 也 301 回来。这些旧地址只写在 `src/lib/routes.ts` 的 `legacyContentRedirect`，Worker、`astro dev` 和本机预览共用，不用 `_redirects`、`serve.json` 或 `astro.config` 的 `redirects`。URL 只能是小写字母、数字、连字符，不能占用固定地址（`now`、`tags`、`articles`、`projects`、`dashboard`、`contact`、`privacy`、`about`、`en`、`cn` 等，完整清单是 `src/lib/routes.ts` 的 `RESERVED_URLS`），撞了就拒绝并报出冲突。
 - 一次构建出一个站，页面在 `dist/` 根目录。Worker（`scripts/cf-worker-entry.mjs`，规则在 `src/lib/hosts.ts`）把 `cn.ethanchang.io`、`en.localhost`、`/en`、`/zh` 和 `/_lang/` 转到 ethanchang.io 上的同一路径。界面、日期和列表是英文。

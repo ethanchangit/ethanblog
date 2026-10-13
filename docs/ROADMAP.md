@@ -3,7 +3,7 @@
 > **这是 Ethan Chang 的个人博客**（https://ethanchang.io）。
 > 本文档是这个网站的**整体架构计划**：它从哪里来、为什么这样设计、将往哪里去。
 > 执行层的细节见 [AGENTS.md](../AGENTS.md)（强制约束）、[组件库 README](../src/components/media/README.md)（组件契约）。
-> 当前操作：写作在 Heptabase；`#blog` 只有 Blog 和 Project；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。没有本地 `/studio` 编辑器。push 到 `main` 在验证通过后自动部署。正文写中文（`#blog`），译文来自 `#blogi18n`：中文站 cn.ethanchang.io，英文站 ethanchang.io。没有 `CLAUDE.md`。
+> 当前操作：写作在 Heptabase；`#blog` 的 Blog Type 是 Article、Project、Page，被提到的卡片打 `references` 标签；发布在 https://ethanchang.io/dashboard（不编辑 Markdown）。本地 `npm run dev` 打开 http://localhost:4321/dashboard，免密码；生产后台要密码。push 到 `main` 在验证通过后自动部署。公开站只有英文外壳的 ethanchang.io，页面就是 `#blog` 卡片原文，英文在前、底部 `## 中文` 一节放中文版；cn.ethanchang.io 跳到同一路径。agent 不再用 `/publish`、`/infra` 触发词，也没有 `CLAUDE.md`。
 >
 > 2026-09：`/lab` 以及没有文章或项目在用的原型已经删除（Sandpack、Scene3D、ImageGallery、滚动剧场、反应式散文、本地编辑器、`public/demos/knowledge-garden`）。还在用的组件以 media/README 为准。下面的阶段清单是当时的记录。
 
@@ -33,7 +33,7 @@
 | 内容 | MDX 同一形态；`slot`（article / project）决定索引 | 散文为主，交互组件按需嵌入 |
 | 输出 | `output: 'static'` + `@astrojs/cloudflare` adapter | 静态为主；API 路由按需 |
 | 部署 | Cloudflare Pages（项目 `ethanblog`）+ GitHub Actions | pull request 只验证；push 到 `main` 在验证通过后自动部署 |
-| 语言 | 中文原文 + `#blogi18n` 译文，按域名分站（cn / 英文主域名） | 一次构建两个站，Worker 按域名选；不引入 i18n 框架 |
+| 语言 | 一个英文站，正文按 `#blog` 卡片原文（2026-09-25 起；之前是 cn 中文站加英文站） | 一次构建一个站；Worker 把 cn、`/en`、`/zh` 转到同一路径 |
 | 主题 | 浅色 / 深色双主题 | 跟随系统，可手动切换 |
 
 ## 三、站点架构
